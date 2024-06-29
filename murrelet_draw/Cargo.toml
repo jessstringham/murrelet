@@ -1,0 +1,23 @@
+[package]
+name = "murrelet_draw"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
+repository = "https://github.com/jessstringham/murrelet.git"
+
+[dependencies]
+murrelet_livecode = { path = "../murrelet_livecode/" }
+murrelet_common = { path = "../murrelet_common/" }
+murrelet_livecode_macros = { path = "../murrelet_livecode_macros/" }
+murrelet_livecode_derive = { path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
+serde = { version = "1.0.104", features = ["derive"] }
+serde_yaml = "0.9.17"
+evalexpr = "11.1.0"
+rand = "0.8"
+itertools = "0.10.5"
+regex = "1.7.3"
+glam = "0.28.0"
+palette = "0.7.6"
+anyhow = "1.0.86"
+md-5 = "0.10.6"
+hex = "0.4.3"

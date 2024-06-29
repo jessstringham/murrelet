@@ -1,0 +1,27 @@
+[package]
+name = "murrelet_livecode_derive"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
+repository = "https://github.com/jessstringham/murrelet.git"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0.15"
+quote = "1.0.18"
+proc-macro2 = "1.0.37"
+darling = "0.20.3"
+murrelet_livecode = {path = "../../murrelet_livecode"}
+serde = { version = "1.0.104", features = ["derive"] }
+
+# just for examples...
+murrelet_common = {path = "../../murrelet_common"}
+glam = "0.28.0"
+palette = "0.7.6"
+
+[[example]]
+name = "tests"
+path = "examples/tests.rs"

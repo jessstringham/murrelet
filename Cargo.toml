@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "murrelet",
+    "murrelet_common",
+    "murrelet_draw", 
+    "murrelet_gpu",
+    "murrelet_livecode",
+    "murrelet_livecode_macros",
+    "murrelet_perform",
+    "murrelet_src_audio",
+    "murrelet_src_midi",
+    "murrelet_svg", 
+    "examples/murrelet_example",
+    "examples/foolish_guillemot",
+]
+
+resolver = "2"

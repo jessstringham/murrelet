@@ -1,0 +1,14 @@
+[package]
+name = "murrelet_src_audio"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
+repository = "https://github.com/jessstringham/murrelet.git"
+
+[dependencies]
+murrelet_common = { path = "../murrelet_common/" }
+cpal = "0.14"
+rustfft = "6.1.0"
+glam = "0.28.0"
+itertools = "0.10.5"
+anyhow = "1.0.86"

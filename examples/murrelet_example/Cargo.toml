@@ -1,0 +1,25 @@
+[package]
+name = "murrelet_example"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
+repository = "https://github.com/jessstringham/murrelet.git"
+
+[dependencies]
+glam = "0.28.0"
+itertools = "0.10.5"
+serde = { version = "1.0.104", features = ["derive"] }
+serde_yaml = "0.9.17"
+
+murrelet = { path = "../../murrelet/" }
+murrelet_livecode = { path = "../../murrelet_livecode/" }
+murrelet_livecode_macros = { path = "../../murrelet_livecode_macros/" }
+murrelet_common = { path = "../../murrelet_common/" }
+murrelet_livecode_derive = { path = "../../murrelet_livecode_macros/murrelet_livecode_derive/" }
+murrelet_perform = { path = "../../murrelet_perform/" }
+murrelet_draw = { path = "../../murrelet_draw/" }
+murrelet_svg = { path = "../../murrelet_svg/" }
+
+murrelet_src_audio = { path = "../../murrelet_src_audio/" }
+murrelet_src_midi = { path = "../../murrelet_src_midi/" }
+

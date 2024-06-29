@@ -1,0 +1,15 @@
+[package]
+name = "murrelet_src_midi"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
+repository = "https://github.com/jessstringham/murrelet.git"
+
+[dependencies]
+murrelet_common = { path = "../murrelet_common/" }
+
+midir = "0.8.0"
+
+[[example]]
+name = "midi_read"
+path = "scripts/midi_read.rs"

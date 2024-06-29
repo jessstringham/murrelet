@@ -1,0 +1,10 @@
+[package]
+name = "murrelet_livecode_macros"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
+repository = "https://github.com/jessstringham/murrelet.git"
+
+[dependencies]
+murrelet_livecode_derive = {path = "murrelet_livecode_derive"}
+murrelet_livecode = {path = "../murrelet_livecode"}
