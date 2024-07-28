@@ -3,7 +3,8 @@ use std::f32::consts::PI;
 
 use glam::*;
 use murrelet_common::{
-    a_pi, mat4_from_mat3_transform, IsAngle, IsPolyline, Polyline, SpotOnCurve, TransformVec2,
+    a_pi, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SpotOnCurve,
+    TransformVec2,
 };
 use murrelet_livecode_derive::{Livecode, UnitCell};
 
@@ -99,6 +100,13 @@ impl Transform2d {
             v,
             a_pi(angle_pi),
         ))])
+    }
+
+    pub fn new_from_scale_rotate<A: IsAngle>(s: f32, angle_pi: A) -> Transform2d {
+        Transform2d::new(vec![
+            Transform2dStep::scale(s / 100.0, s / 100.0),
+            Transform2dStep::rotate_pi(angle_pi),
+        ])
     }
 
     // experimental

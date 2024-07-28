@@ -356,11 +356,24 @@ impl UnitCellCtx {
             .eval_empty_with_context_mut(&mut ctx.ctx)
             .map_err(|err| format!("{:?}", err))
     }
+
+    pub fn eval_raw(&self, ctx: &mut HashMapContext) -> Result<(), String> {
+        self.0
+            .eval_empty_with_context_mut(ctx)
+            .map_err(|err| format!("{:?}", err))
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(transparent)]
 pub struct LazyNodeF32Def(Node);
+
+impl LazyNodeF32Def {
+    pub fn new(n: Node) -> Self {
+        Self(n)
+    }
+}
+
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
     fn o(&self, w: &LiveCodeWorldState) -> LazyNodeF32 {
         let world_context: UnitCellEvalContext<'_> = UnitCellEvalContext::from_world(w);
@@ -400,6 +413,13 @@ impl LazyNodeF32 {
         Self { n: Some(n), ctx }
     }
 
+    pub fn custom_eval(&self, ctx: &HashMapContext) -> Result<f32> {
+        let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
+        n.eval_float_with_context(ctx)
+            .map(|x| x as f32)
+            .map_err(|e| anyhow!(e))
+    }
+
     pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> Result<f32> {
         let pct = idx.pct();
         let i = idx.i();
@@ -418,11 +438,17 @@ impl LazyNodeF32 {
             add_variable_or_prefix_it(&name, value, &mut ctx);
         }
 
-        let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
-        n.eval_float_with_context(&ctx)
-            .map(|x| x as f32)
-            .map_err(|e| anyhow!(e))
+        self.custom_eval(&ctx)
+
+        // let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
+        // n.eval_float_with_context(&ctx)
+        //     .map(|x| x as f32)
+        //     .map_err(|e| anyhow!(e))
         //.with_context("failure evaluating idx")
+    }
+
+    pub fn n(&self) -> Option<&Node> {
+        self.n.as_ref()
     }
 }
 
