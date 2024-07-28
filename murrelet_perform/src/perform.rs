@@ -540,30 +540,29 @@ where
     pub fn new_web(
         conf: String,
         livecode_src: LivecodeSrc,
-    ) -> Result<LiveCoder<ConfType, ControlConfType, BoopConfType>, String> {
-        let controlconfig = ControlConfType::parse(&conf);
-        match controlconfig {
-            Ok(c) => Ok(Self::new_full(c, None, livecode_src)),
-            Err(e) => Err(e.to_string()),
-        }
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
+        let controlconfig = ControlConfType::parse(&conf).map_err(|err| LivecodeErr::new(format!("error parsing {}", err)))?;
+        Self::new_full(controlconfig, None, livecode_src)
     }
 
+    // this one panics if something goes wrong
     pub fn new(
         save_path: PathBuf,
         livecode_src: LivecodeSrc,
     ) -> LiveCoder<ConfType, ControlConfType, BoopConfType> {
         let controlconfig = ControlConfType::fs_load();
-        Self::new_full(controlconfig, Some(save_path), livecode_src)
+        let result = Self::new_full(controlconfig, Some(save_path), livecode_src);
+        result.expect("error loading!")
     }
 
     pub fn new_full(
         controlconfig: ControlConfType,
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
-    ) -> LiveCoder<ConfType, ControlConfType, BoopConfType> {
+    ) -> Result<LiveCoder<ConfType, ControlConfType, BoopConfType>, LivecodeErr> {
         let run_id = run_id();
 
-        let util = LiveCodeUtil::new();
+        let util = LiveCodeUtil::new()?;
 
         let mut s = LiveCoder {
             run_id,
@@ -577,9 +576,9 @@ where
         };
 
         // use the object to create a world and generate the configs
-        s.set_processed_config();
+        s.set_processed_config()?;
 
-        s
+        Ok(s)
     }
 
     // experimental...
@@ -592,17 +591,22 @@ where
         self.controlconfig.clone()
     }
 
-    pub fn set_processed_config(&mut self) {
+    // if there are any issues at this point with the config, it'll bail and
+    // not update the config.
+    // in the case of updating live, you might just print the result but keep
+    // going with the existing config until you fix it.
+    // with initially loading it, you might just not start the program
+    pub fn set_processed_config(&mut self) -> LivecodeResult<()> {
         // assume the target has already been updated
         // let target = self._extract_target_config();
 
         // set this one first, so we can use it to get the world
         self.cached_timeless_app_config =
-            Some(self._app_config().just_midi(&self.timeless_world()));
+            Some(self._app_config().just_midi(&self.timeless_world())?);
 
         let w = self.world();
 
-        let target = self.controlconfig.o(&w);
+        let target = self.controlconfig.o(&w)?;
 
         let t = w.time.bar();
 
@@ -610,25 +614,28 @@ where
 
         self.boop_mng = self.boop_mng.update(&boop_conf, t, target);
         if self.boop_mng.any_weird_states() {
+            // todo, should this be an error too?
             println!("some nans");
         }
+        Ok(())
     }
 
     pub fn svg_save_path(&self) -> SvgDrawConfig {
         self.svg_save_path_with_prefix("")
     }
 
-    pub fn to_lil_liveconfig(&self) -> LilLiveConfig {
-        LilLiveConfig {
+    pub fn to_lil_liveconfig(&self) -> LivecodeResult<LilLiveConfig> {
+        Ok(LilLiveConfig {
             save_path: self.save_path.as_ref(),
             run_id: self.run_id,
             w: self.world(),
             app_config: self.app_config(),
-        }
+        })
     }
 
     pub fn svg_save_path_with_prefix(&self, prefix: &str) -> SvgDrawConfig {
-        svg_save_path_with_prefix(&self.to_lil_liveconfig(), prefix)
+        // unwrapping here, should check if this could fail
+        svg_save_path_with_prefix(&self.to_lil_liveconfig().unwrap(), prefix)
     }
 
     // sorry i'm near getting this to work so leaving this hacky and confusing
@@ -662,7 +669,7 @@ where
         self.app_config().bg_alpha()
     }
 
-    pub fn update(&mut self, app: &MurreletAppInput, reload: bool) {
+    pub fn update(&mut self, app: &MurreletAppInput, reload: bool) -> LivecodeResult<()> {
         // use the previous frame's world for this
         let update_input = LivecodeSrcUpdateInput::new(
             self.app_config().debug,
@@ -693,7 +700,7 @@ where
         // self.app_input.update(app);
 
         // this should happen at the very end
-        self.set_processed_config();
+        self.set_processed_config()
     }
 
     pub fn timeless_world(&self) -> TimelessLiveCodeWorldState {
@@ -703,7 +710,7 @@ where
         )
     }
 
-    pub fn world(&self) -> LiveCodeWorldState {
+    pub fn _world(&self) -> Result<LiveCodeWorldState, LivecodeErr> {
         // this function should only be called after this is set! since the "set processed" is called right away
         let timeless_app_config = self.cached_timeless_app_config.as_ref().unwrap();
 
@@ -711,6 +718,10 @@ where
         let ctx = &timeless_app_config.ctx;
 
         self.util.world(&self.livecode_src, &timing_conf, ctx)
+    }
+
+    pub fn world(&self) -> LiveCodeWorldState {
+        self._world().unwrap()
     }
 
     pub fn _app_config(&self) -> &ControlAppConfig {
@@ -756,7 +767,7 @@ where
     }
 
     // model.livecode.capture_logic(|img_name: PathBuf| { app.main_window().capture_frame(img_name); } );
-    pub fn capture<F>(&self, capture_frame_fn: F)
+    pub fn capture<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
         F: Fn(PathBuf) -> (),
     {
@@ -775,10 +786,13 @@ where
                 let img_name = capture_frame_name.with_extension("yaml");
                 fs::copy(env::args().collect::<Vec<String>>()[1].clone(), img_name).unwrap();
             }
+
         }
+        Ok(())
+
     }
 
-    pub fn capture_with_fn<F>(&self, capture_frame_fn: F)
+    pub fn capture_with_fn<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
         F: Fn(PathBuf) -> (),
     {
@@ -788,9 +802,11 @@ where
         if (self.app_config().capture && frame != 0) || self.app_config().should_capture() {
             let frame_freq = 1;
             if frame % frame_freq == 0 {
-                self.capture(capture_frame_fn);
+                self.capture(capture_frame_fn)?;
             }
         }
+
+        Ok(())
     }
 
     pub fn was_updated(&self) -> bool {

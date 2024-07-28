@@ -28,20 +28,20 @@ impl LivecodeFieldType {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
         match self.0 {
-            ControlType::F32_2 => quote! {#name: self.#name.o(w)},
-            ControlType::F32_3 => quote! {#name: self.#name.o(w)},
-            ControlType::Color => quote! {#name: self.#name.o(w)},
+            ControlType::F32_2 => quote! {#name: self.#name.o(w)?},
+            ControlType::F32_3 => quote! {#name: self.#name.o(w)?},
+            ControlType::Color => quote! {#name: self.#name.o(w)?},
             ControlType::ColorUnclamped => {
-                quote! {#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)}
+                quote! {#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)?}
             }
-            ControlType::LazyNodeF32 => quote! {#name: self.#name.o(w)},
+            ControlType::LazyNodeF32 => quote! {#name: self.#name.o(w)?},
             _ => {
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {
-                    (None, None) => quote! {self.#name.o(w)},
-                    (None, Some(max)) => quote! {f32::min(self.#name.o(w), #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.#name.o(w))},
+                    (None, None) => quote! {self.#name.o(w)?},
+                    (None, Some(max)) => quote! {f32::min(self.#name.o(w)?, #max)},
+                    (Some(min), None) => quote! {f32::max(#min, self.#name.o(w)?)},
                     (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, self.#name.o(w)), #max)}
+                        quote! {f32::min(f32::max(#min, self.#name.o(w)?), #max)}
                     }
                 };
                 quote! {#name: #f32_out as #orig_ty}
@@ -52,19 +52,19 @@ impl LivecodeFieldType {
     pub(crate) fn for_newtype_world(&self, idents: StructIdents) -> TokenStream2 {
         let orig_ty = idents.orig_ty();
         match self.0 {
-            ControlType::F32_2 => quote! { self.0.o(&w) },
-            ControlType::F32_3 => quote! { self.0.o(&w) },
-            ControlType::Color => quote! { self.0.o(&w) },
-            ControlType::LazyNodeF32 => quote! { self.0.o(&w) },
+            ControlType::F32_2 => quote! { self.0.o(&w)? },
+            ControlType::F32_3 => quote! { self.0.o(&w)? },
+            ControlType::Color => quote! { self.0.o(&w)? },
+            ControlType::LazyNodeF32 => quote! { self.0.o(&w)? },
             ControlType::ColorUnclamped => {
-                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)}
+                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)?}
             }
             _ => {
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {
-                    (None, None) => quote! {self.0.o(w)},
-                    (None, Some(max)) => quote! {f32::min(self.0.o(w), #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.0.o(w))},
-                    (Some(min), Some(max)) => quote! {f32::min(f32::max(#min, self.0.o(w)), #max)},
+                    (None, None) => quote! {self.0.o(w)?},
+                    (None, Some(max)) => quote! {f32::min(self.0.o(w)?, #max)},
+                    (Some(min), None) => quote! {f32::max(#min, self.0.o(w)?)},
+                    (Some(min), Some(max)) => quote! {f32::min(f32::max(#min, self.0.o(w)?), #max)},
                 };
                 quote! {#f32_out as #orig_ty}
             }
@@ -80,9 +80,9 @@ impl LivecodeFieldType {
             //ControlType::F32_3 => quote! {#name: self.#name.just_midi(m) },
             //ControlType::LinSrgba => quote! {#name:self.#name.just_midi(m) },
             ControlType::ColorUnclamped => {
-                quote! {#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped_midi(&self.#name, m)}
+                quote! {#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped_midi(&self.#name, m)?}
             }
-            _ => quote! {#name: self.#name.just_midi(m) as #orig_ty},
+            _ => quote! {#name: self.#name.just_midi(m)? as #orig_ty},
         }
     }
 
@@ -92,14 +92,14 @@ impl LivecodeFieldType {
             // ControlType::F32_2 => quote! {murrelet_livecode::livecode::ControlF32::vec2_midi(&self.0, m)},
             // ControlType::F32_3 => quote! {murrelet_livecode::livecode::ControlF32::vec3_midi(&self.0, m)},
             // ControlType::LinSrgba => quote! {murrelet_livecode::livecode::ControlF32::hsva_midi(&self.0, m)},
-            ControlType::F32_2 => quote! { self.0.just_midi(&m) },
-            ControlType::F32_3 => quote! { self.0.just_midi(&m) },
-            ControlType::Color => quote! { self.0.just_midi(&m) },
-            ControlType::LazyNodeF32 => quote! { self.0.just_midi(&w) },
+            ControlType::F32_2 => quote! { self.0.just_midi(&m)? },
+            ControlType::F32_3 => quote! { self.0.just_midi(&m)? },
+            ControlType::Color => quote! { self.0.just_midi(&m)? },
+            ControlType::LazyNodeF32 => quote! { self.0.just_midi(&w)? },
             ControlType::ColorUnclamped => {
-                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped_midi(&self.0, m)}
+                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped_midi(&self.0, m)?}
             }
-            _ => quote! {self.0.just_midi(m) as #orig_ty},
+            _ => quote! {self.0.just_midi(m)? as #orig_ty},
         }
     }
 
@@ -144,16 +144,16 @@ impl GenFinal for FieldTokensLivecode {
             }
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> #name {
-                    #name {
+                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                    Ok(#name {
                         #(#for_world,)*
-                    }
+                    })
                 }
 
-                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> #name {
-                    #name {
+                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                    Ok(#name {
                         #(#for_timeless_world,)*
-                    }
+                    })
                 }
             }
 
@@ -190,13 +190,13 @@ impl GenFinal for FieldTokensLivecode {
                 #(#for_struct,)*
             }
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> #name {
+                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
                     match self {
                         #(#for_world,)*
                     }
                 }
 
-                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> #name {
+                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
                     match self {
                         #(#for_timeless_world,)*
                     }
@@ -231,12 +231,12 @@ impl GenFinal for FieldTokensLivecode {
             #vis struct #new_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> #name {
-                    #name(#(#for_world,)*)
+                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                    Ok(#name(#(#for_world,)*))
                 }
 
-                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> #name {
-                    #name(#(#for_timeless_world,)*)
+                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                    Ok(#name(#(#for_timeless_world,)*))
                 }
             }
 
@@ -298,11 +298,11 @@ impl GenFinal for FieldTokensLivecode {
         };
 
         // for world
-        let for_world = quote! { #new_ident::#variant_ident(s) => #name::#variant_ident(s.o(w)) };
+        let for_world = quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
 
         // for timeless world
         let for_timeless_world =
-            quote! { #new_ident::#variant_ident(s) => #name::#variant_ident(s.just_midi(m)) };
+            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.just_midi(m)?)) };
 
         let for_to_control =
             quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
@@ -325,7 +325,7 @@ impl GenFinal for FieldTokensLivecode {
             quote! { #variant_ident }
         };
         let for_world: TokenStream2 = {
-            quote! { #new_ident::#variant_ident => #name::#variant_ident }
+            quote! { #new_ident::#variant_ident => Ok(#name::#variant_ident) }
         };
         let for_timeless_world = for_world.clone();
         let for_to_control = {
@@ -425,14 +425,14 @@ impl GenFinal for FieldTokensLivecode {
         };
         let for_world = {
             if should_o {
-                quote! {#name: self.#name.iter().map(|x| x.o(w)).collect::<Vec<_>>()}
+                quote! {#name: self.#name.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
             } else {
                 quote! {#name: self.#name.clone()}
             }
         };
         let for_timeless_world = {
             if should_o {
-                quote! {#name: self.#name.iter().map(|x| x.just_midi(m)).collect::<Vec<_>>()}
+                quote! {#name: self.#name.iter().map(|x| x.just_midi(m)).collect::<Result<Vec<_>, _>>()?}
             } else {
                 quote! {#name: self.#name.clone()}
             }
@@ -470,10 +470,10 @@ impl GenFinal for FieldTokensLivecode {
             quote! {#serde #name: #new_ty}
         };
         let for_world = {
-            quote! {#name: self.#name.o(w)}
+            quote! {#name: self.#name.o(w)?}
         };
         let for_timeless_world = {
-            quote! {#name: self.#name.just_midi(m)}
+            quote! {#name: self.#name.just_midi(m)?}
         };
         let for_to_control = {
             quote! {#name: self.#name.to_control()}
@@ -549,21 +549,21 @@ impl GenFinal for FieldTokensLivecode {
         let for_world = {
             quote! {#name: {
                 murrelet_livecode::unitcells::TmpUnitCells::new(
-                    self.#target.o(w),
+                    self.#target.o(w)?,
                     Box::new(self.#name.clone()),
                     #maybe_more_ctx,
                     #prefix
-                ).o(w)
+                ).o(w)?
             }}
         };
         let for_timeless_world = {
             quote! {#name: {
                 murrelet_livecode::unitcells::TmpUnitCells::new(
-                    self.#target.just_midi(m),
+                    self.#target.just_midi(m)?,
                     Box::new(self.#name.clone()),
                     #maybe_more_ctx,
                     #prefix
-                ).just_midi(m)
+                ).just_midi(m)?
             }}
         };
 
@@ -623,14 +623,14 @@ impl GenFinal for FieldTokensLivecode {
         };
         let for_world = {
             if should_o {
-                quote! {self.0.iter().map(|x| x.o(w)).collect::<Vec<_>>()}
+                quote! {self.0.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
             } else {
                 quote! {self.0.clone()}
             }
         };
         let for_timeless_world = {
             if should_o {
-                quote! {self.0.iter().map(|x| x.just_midi(m)).collect::<Vec<_>>()}
+                quote! {self.0.iter().map(|x| x.just_midi(m)).collect::<Result<Vec<_>, _>>()?}
             } else {
                 quote! {self.0.clone()}
             }

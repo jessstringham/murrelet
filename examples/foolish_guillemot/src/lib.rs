@@ -11,6 +11,7 @@ use murrelet_draw::{
     sequencers::*,
     style::{styleconf::*, MurreletPath},
 };
+use murrelet_livecode::livecode::LivecodeErr;
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "wee_alloc")]
@@ -186,8 +187,8 @@ impl WasmMurreletModelResult {
         }
     }
 
-    fn err(err: String) -> WasmMurreletModelResult {
-        WasmMurreletModelResult { m: None, err }
+    fn err(err: LivecodeErr) -> WasmMurreletModelResult {
+        WasmMurreletModelResult { m: None, err: err.to_string() }
     }
 
     #[wasm_bindgen]

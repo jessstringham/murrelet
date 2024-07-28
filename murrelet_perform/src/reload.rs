@@ -1,6 +1,7 @@
 #![allow(dead_code)]
-use evalexpr::Node;
+use evalexpr::{HashMapContext, Node};
 use murrelet_common::{LivecodeSrc, MurreletTime};
+use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::livecode::*;
 
 // todo, maybe only includde this if not wasm?
@@ -49,6 +50,7 @@ pub trait LiveCoderLoader: Sized {
     }
 
     fn fs_load() -> Self {
+        // todo, make this return a result..
         let args: Vec<String> = env::args().collect();
         Self::fs_load_from_filename(&args[1], &args[2])
     }
@@ -58,6 +60,7 @@ pub trait LiveCoderLoader: Sized {
         filename: P,
         includes_dir: P2,
     ) -> Self {
+        // todo make this a result too
         match Self::fs_parse_data(filename, includes_dir) {
             Ok(x) => x,
             Err(err) => panic!("didn't work {}", err),
@@ -159,14 +162,16 @@ pub trait LiveCoderLoader: Sized {
 pub struct LiveCodeUtil {
     info: LiveCodeConfigInfo,
     timing: LiveCodeTiming,
+    global_funcs: HashMapContext,
 }
 
 impl LiveCodeUtil {
-    pub fn new() -> LiveCodeUtil {
-        LiveCodeUtil {
+    pub fn new() -> Result<LiveCodeUtil, LivecodeErr> {
+        Ok(LiveCodeUtil {
             info: LiveCodeConfigInfo::new(),
             timing: LiveCodeTiming::new(),
-        }
+            global_funcs: init_evalexpr_func_ctx()?,
+        })
     }
 
     pub fn updated(&self) -> bool {
@@ -232,7 +237,7 @@ impl LiveCodeUtil {
         livecode_src: &'a LivecodeSrc,
         timing_conf: &LivecodeTimingConfig,
         node: &Node,
-    ) -> LiveCodeWorldState {
-        LiveCodeWorldState::new(livecode_src, self.time(timing_conf), node.clone())
+    ) -> Result<LiveCodeWorldState, LivecodeErr> {
+        LiveCodeWorldState::new(self.global_funcs.clone(), livecode_src, self.time(timing_conf), node.clone())
     }
 }
