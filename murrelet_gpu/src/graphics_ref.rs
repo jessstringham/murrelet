@@ -7,7 +7,7 @@ use std::rc::Rc;
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
 
-#[cfg(feature = "no_nannou")]
+#[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
 // some wgpu things
@@ -17,7 +17,7 @@ use wgpu::TextureDescriptor;
 use crate::device_state::*;
 use crate::shader_str::VERTEX_SHADER;
 
-#[cfg(feature = "no_nannou")]
+#[cfg(not(feature = "nannou"))]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 #[cfg(feature = "nannou")]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
@@ -658,7 +658,7 @@ impl Graphics {
                 module: &vs_mod,
                 entry_point: "main",
                 buffers: &[vertex_buffer_layouts],
-                #[cfg(feature = "no_nannou")]
+                #[cfg(not(feature = "nannou"))]
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             primitive: wgpu::PrimitiveState {
@@ -671,7 +671,7 @@ impl Graphics {
                 module: &fs_mod,
                 entry_point: "main",
                 targets: &color_state,
-                #[cfg(feature = "no_nannou")]
+                #[cfg(not(feature = "nannou"))]
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             multiview: None,
@@ -839,15 +839,15 @@ impl Graphics {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        #[cfg(feature = "no_nannou")]
+                        #[cfg(not(feature = "nannou"))]
                         store: wgpu::StoreOp::Store,
                         #[cfg(feature = "nannou")]
                         store: true,
                     },
                 })],
-                #[cfg(feature = "no_nannou")]
+                #[cfg(not(feature = "nannou"))]
                 occlusion_query_set: None,
-                #[cfg(feature = "no_nannou")]
+                #[cfg(not(feature = "nannou"))]
                 timestamp_writes: None,
                 depth_stencil_attachment: None,
             };

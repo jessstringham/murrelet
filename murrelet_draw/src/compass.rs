@@ -5,10 +5,6 @@ use murrelet_livecode_derive::{Livecode, UnitCell};
 
 use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
 
-fn empty_string() -> String {
-    String::new()
-}
-
 #[derive(Debug, Clone, Copy, Livecode, UnitCell, Default)]
 pub struct CurveStart {
     loc: Vec2,
@@ -19,6 +15,10 @@ impl CurveStart {
     pub fn new(loc: Vec2, angle: f32) -> Self {
         Self { loc, angle }
     }
+}
+
+fn empty_string() -> String {
+    String::new()
 }
 
 #[derive(Debug, Clone, Livecode, UnitCell, Default)]

@@ -862,6 +862,14 @@ impl UnitCellContext {
         }
     }
 
+    pub fn combine_keep_other_ctx(&self, other: &UnitCellContext) -> UnitCellContext {
+        UnitCellContext {
+            ctx: other.ctx,
+            detail: other.detail.as_wallpaper().unwrap().combine(&self.detail),
+            tile_info: None,
+        }
+    }
+
     pub fn ctx(&self) -> UnitCellExprWorldContext {
         self.ctx
     }

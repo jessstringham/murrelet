@@ -5,7 +5,7 @@ use image::GenericImageView;
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
 
-#[cfg(feature = "no_nannou")]
+#[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
 use wgpu::util::DeviceExt;
@@ -79,9 +79,9 @@ impl OwnedDeviceState {
                     features: adapter.features(),
                     #[cfg(feature = "nannou")]
                     limits: adapter.limits(),
-                    #[cfg(feature = "no_nannou")]
+                    #[cfg(not(feature = "nannou"))]
                     required_features: adapter.features(),
-                    #[cfg(feature = "no_nannou")]
+                    #[cfg(not(feature = "nannou"))]
                     required_limits: adapter.limits(),
                     label: Some("Compute/RenderPass Device"),
                 },

@@ -318,6 +318,10 @@ pub mod styleconf {
                 StyleConf::SvgPattern(a) => a.to_style(),
             }
         }
+
+        pub fn color(&self) -> MurreletColor {
+            self.to_style().color.as_color()
+        }
     }
 
     impl Default for StyleConf {

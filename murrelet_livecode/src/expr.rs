@@ -4,7 +4,7 @@ use std::{f64::consts::PI, fmt::Debug};
 use evalexpr::*;
 use glam::{vec2, Vec2};
 use itertools::Itertools;
-use murrelet_common::{clamp, ease, lerp, map_range, print_expect, LivecodeValue};
+use murrelet_common::{clamp, ease, lerp, map_range, print_expect, smoothstep, LivecodeValue};
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
@@ -33,7 +33,6 @@ fn exec_funcs(livecode_src: Vec<(String, LivecodeValue)>) -> HashMapContext {
             println!("{:?}", a);
             Ok(Value::Empty)
         }),
-
         "clamp" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
             let (x, min, max) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
@@ -111,6 +110,18 @@ fn exec_funcs(livecode_src: Vec<(String, LivecodeValue)>) -> HashMapContext {
                 }
             };
             let f = ease(src, mult, offset);
+            Ok(Value::Float(f))
+        }),
+        "smoothstep" => Function::new(|argument| {
+            let tuple = argument.as_fixed_len_tuple(3)?;
+            let (t, edge0, edge1) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
+            let f = smoothstep(t, edge0, edge1);
+            Ok(Value::Float(f))
+        }),
+        "pulse" => Function::new(|argument| {
+            let tuple = argument.as_fixed_len_tuple(3)?;
+            let (pct, t, size) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
+            let f = smoothstep(t, pct - size, pct) - smoothstep(t, pct, pct + size);
             Ok(Value::Float(f))
         }),
         "ramp" => Function::new(|argument| {

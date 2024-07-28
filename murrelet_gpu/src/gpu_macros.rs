@@ -14,7 +14,7 @@ use crate::{
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
 
-#[cfg(feature = "no_nannou")]
+#[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
 const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;

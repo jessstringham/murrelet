@@ -123,6 +123,11 @@ pub fn ease(src: f64, mult: f64, offset: f64) -> f64 {
     raw * raw * (3.0 - 2.0 * raw)
 }
 
+pub fn smoothstep(t: f64, edge0: f64, edge1: f64) -> f64 {
+    let raw = clamp((t - edge0) / (edge1 - edge0), 0.0, 1.0);
+    raw * raw * (3.0 - 2.0 * raw)
+}
+
 pub fn lerp<T>(start: T, end: T, pct: f32) -> T
 where
     T: std::ops::Mul<f32, Output = T> + std::ops::Add<Output = T>,
@@ -340,6 +345,10 @@ impl Rect {
             None
         }
     }
+
+    pub fn xy(&self) -> Vec2 {
+        self.xy
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -370,6 +379,17 @@ impl Circle {
             center: a.to_mat3().transform_point2(self.center) + amount,
             radius: self.radius,
         }
+    }
+
+    pub fn set_center(&self, center: Vec2) -> Circle {
+        Circle {
+            center,
+            radius: self.radius,
+        }
+    }
+
+    pub fn move_center_mat4(&self, transform: glam::Mat4) -> Circle {
+        self.set_center(transform.transform_vec2(self.center))
     }
 }
 
