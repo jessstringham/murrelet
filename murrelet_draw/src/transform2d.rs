@@ -3,8 +3,7 @@ use std::f32::consts::PI;
 
 use glam::*;
 use murrelet_common::{
-    a_pi, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SpotOnCurve,
-    TransformVec2,
+    a_pi, mat4_from_mat3_transform, IsAngle, IsPolyline, Polyline, SpotOnCurve, TransformVec2,
 };
 use murrelet_livecode_derive::{Livecode, UnitCell};
 

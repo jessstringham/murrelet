@@ -1,9 +1,12 @@
 use glam::*;
 use murrelet_common::*;
-use murrelet_draw::draw::{CoreSDrawCtx, CoreSDrawCtxUnitCell, MurreletStyle, Sdraw};
+use murrelet_draw::{
+    draw::{CoreSDrawCtx, CoreSDrawCtxUnitCell, MurreletStyle, Sdraw},
+    style::{MurreletPath, StyledPath},
+};
 use murrelet_livecode::unitcells::UnitCellContext;
 use murrelet_perform::perform::SvgDrawConfig;
-use murrelet_svg::svg::{MurreletPath, StyledPath, SvgPathCache, SvgPathCacheRef};
+use murrelet_svg::svg::{SvgPathCache, SvgPathCacheRef};
 
 // from the wasm-rust tutorial, this let's you log messages to the js console
 // extern crate web_sys;

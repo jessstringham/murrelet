@@ -167,7 +167,7 @@ pub fn _auto_default_1_unitcell() -> UnitCellControlExprF32 {
 /// for structs that can be used to generate a bunch of different contexts
 /// e.g. Tiler, crystals
 pub trait UnitCellCreator {
-    fn to_unit_cell_ctxs(&self) -> Vec<UnitCellContext>;
+    fn to_unit_cell_ctxs(&self, ctx: &UnitCellEvalContext) -> Vec<UnitCellContext>;
 }
 
 /// this one's similar to LivecodeFromWorld, but for ones with unit_cell_context
@@ -509,7 +509,7 @@ where
         should_debug: bool,
     ) -> Vec<UnitCell<Target>> {
         self.sequencer
-            .to_unit_cell_ctxs()
+            .to_unit_cell_ctxs(world_ctx)
             .iter()
             .enumerate()
             .map(|(i, ctx)| {
