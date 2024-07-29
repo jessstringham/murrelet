@@ -1,9 +1,9 @@
-use evalexpr::{build_operator_tree, HashMapContext, Node, Value};
+use evalexpr::{build_operator_tree, ContextWithMutableVariables, HashMapContext, Node, Value};
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Error, Result};
 use serde::Deserialize;
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
@@ -167,7 +167,7 @@ pub fn _auto_default_1_unitcell() -> UnitCellControlExprF32 {
 /// for structs that can be used to generate a bunch of different contexts
 /// e.g. Tiler, crystals
 pub trait UnitCellCreator {
-    fn to_unit_cell_ctxs(&self, ctx: &UnitCellEvalContext) -> Vec<UnitCellContext>;
+    fn to_unit_cell_ctxs(&self) -> Vec<UnitCellContext>;
 }
 
 /// this one's similar to LivecodeFromWorld, but for ones with unit_cell_context
@@ -392,6 +392,41 @@ impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
     }
 }
 
+// todo, hrm, this is awkward
+#[derive(Debug, Clone)]
+pub struct MixedEvalDefs {
+    vals: ExprWorldContextValues,
+    nodes: Vec<UnitCellCtx>, // these need to stack
+}
+impl MixedEvalDefs {
+    pub fn new() -> Self {
+        Self {
+            vals: ExprWorldContextValues::new(vec![]),
+            nodes: Vec::new(),
+        }
+    }
+
+    pub fn set_panicle(&mut self, vals: ExprWorldContextValues) {
+        self.vals = vals;
+    }
+
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) {
+        self.vals.update_ctx(ctx);
+        // go from beginning to end
+        for node in self.nodes.iter() {
+            node.eval_raw(ctx).ok();
+        }
+    }
+
+    pub fn set_val(&mut self, name: &str, val: Value) {
+        self.vals.set_val(name, val)
+    }
+
+    pub fn add_node(&mut self, node: UnitCellCtx) {
+        self.nodes.push(node)
+    }
+}
+
 // // expr that we can add things
 #[derive(Debug, Clone)]
 pub struct LazyNodeF32 {
@@ -413,7 +448,19 @@ impl LazyNodeF32 {
         Self { n: Some(n), ctx }
     }
 
-    pub fn custom_eval(&self, ctx: &HashMapContext) -> Result<f32> {
+    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> Result<f32> {
+        // start with the global ctx
+        let mut ctx = self.ctx.clone();
+
+        // modify it with the new data
+        // todo, handle the result better
+        more_defs.update_ctx(&mut ctx);
+
+        // now grab the actual node
+        self.final_eval(&ctx)
+    }
+
+    pub fn final_eval(&self, ctx: &HashMapContext) -> Result<f32> {
         let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
         n.eval_float_with_context(ctx)
             .map(|x| x as f32)
@@ -425,20 +472,21 @@ impl LazyNodeF32 {
         let i = idx.i();
         let total = idx.total();
 
-        let vs: ExprWorldContextValues = vec![
+        let vs: ExprWorldContextValues = ExprWorldContextValues::new(vec![
             ("_p".to_owned(), Value::Float(pct as f64)),
             ("_i".to_owned(), Value::Int(i as i64)),
             ("_total".to_owned(), Value::Int(total as i64)),
-        ];
+        ]);
 
         let mut ctx = self.ctx.clone();
 
-        for (identifier, value) in vs.into_iter() {
-            let name = format!("{}{}", prefix, identifier);
-            add_variable_or_prefix_it(&name, value, &mut ctx);
-        }
+        // for (identifier, value) in vs.into_iter() {
+        //     let name = format!("{}{}", prefix, identifier);
+        //     add_variable_or_prefix_it(&name, value, &mut ctx);
+        // }
+        vs.update_ctx_with_prefix(&mut ctx, prefix);
 
-        self.custom_eval(&ctx)
+        self.final_eval(&ctx)
 
         // let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
         // n.eval_float_with_context(&ctx)
@@ -484,10 +532,11 @@ impl<'a> UnitCellEvalContext<'a> {
     pub fn with_ctx(&self, c: ExprWorldContextValues, prefix: &str) -> UnitCellEvalContext {
         let mut full_ctx = self.ctx.clone();
 
-        for (identifier, value) in c.into_iter() {
-            let name = format!("{}{}", prefix, identifier);
-            add_variable_or_prefix_it(&name, value, &mut full_ctx);
-        }
+        // for (identifier, value) in c.into_iter() {
+        //     let name = format!("{}{}", prefix, identifier);
+        //     add_variable_or_prefix_it(&name, value, &mut full_ctx);
+        // }
+        c.update_ctx_with_prefix(&mut full_ctx, prefix);
 
         UnitCellEvalContext {
             ctx: full_ctx,
@@ -509,7 +558,7 @@ where
         should_debug: bool,
     ) -> Vec<UnitCell<Target>> {
         self.sequencer
-            .to_unit_cell_ctxs(world_ctx)
+            .to_unit_cell_ctxs()
             .iter()
             .enumerate()
             .map(|(i, ctx)| {
@@ -1086,8 +1135,8 @@ impl UnitCellExprWorldContext {
 }
 
 impl IntoExprWorldContext for UnitCellExprWorldContext {
-    fn as_expr_world_context_values(&self) -> Vec<(String, Value)> {
-        vec![
+    fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
+        let v = vec![
             ("x".to_owned(), Value::Float(self.x as f64)),
             ("y".to_owned(), Value::Float(self.y as f64)),
             ("z".to_owned(), Value::Float(self.z as f64)),
@@ -1108,7 +1157,8 @@ impl IntoExprWorldContext for UnitCellExprWorldContext {
             ),
             ("seed".to_owned(), Value::Float(self.seed as f64)),
             ("h_ratio".to_owned(), Value::Float(self.h_ratio as f64)),
-        ]
+        ];
+        ExprWorldContextValues::new(v)
     }
 }
 

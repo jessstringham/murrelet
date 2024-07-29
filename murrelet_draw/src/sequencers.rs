@@ -1,9 +1,7 @@
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
-use murrelet_livecode::unitcells::{
-    UnitCellContext, UnitCellCreator, UnitCellEvalContext, UnitCellExprWorldContext,
-};
+use murrelet_livecode::unitcells::{UnitCellContext, UnitCellCreator, UnitCellExprWorldContext};
 use murrelet_livecode_derive::*;
 
 const REFERENCE_SIZE: f32 = 100.0;
@@ -15,11 +13,11 @@ pub enum Sequencer {
     Hex(SimpleHexSequence),
 }
 impl UnitCellCreator for Sequencer {
-    fn to_unit_cell_ctxs(&self, ctx: &UnitCellEvalContext) -> Vec<UnitCellContext> {
+    fn to_unit_cell_ctxs(&self) -> Vec<UnitCellContext> {
         match &self {
-            Sequencer::Square(g) => g.to_unit_cell_ctxs(ctx),
-            Sequencer::Rect(g) => g.to_unit_cell_ctxs(ctx),
-            Sequencer::Hex(g) => g.to_unit_cell_ctxs(ctx),
+            Sequencer::Square(g) => g.to_unit_cell_ctxs(),
+            Sequencer::Rect(g) => g.to_unit_cell_ctxs(),
+            Sequencer::Hex(g) => g.to_unit_cell_ctxs(),
         }
     }
 }
@@ -31,7 +29,7 @@ pub struct SimpleHexSequence {
     size: f32,
 }
 impl UnitCellCreator for SimpleHexSequence {
-    fn to_unit_cell_ctxs(&self, _ctx: &UnitCellEvalContext) -> Vec<UnitCellContext> {
+    fn to_unit_cell_ctxs(&self) -> Vec<UnitCellContext> {
         make_grid(self.cols, self.rows, vec2(self.size, self.size), true)
     }
 }
@@ -43,7 +41,7 @@ pub struct SimpleSquareSequence {
     size: f32,
 }
 impl UnitCellCreator for SimpleSquareSequence {
-    fn to_unit_cell_ctxs(&self, _ctx: &UnitCellEvalContext) -> Vec<UnitCellContext> {
+    fn to_unit_cell_ctxs(&self) -> Vec<UnitCellContext> {
         make_grid(self.cols, self.rows, vec2(self.size, self.size), false)
     }
 }
@@ -62,7 +60,7 @@ impl SimpleRectSequence {
 }
 
 impl UnitCellCreator for SimpleRectSequence {
-    fn to_unit_cell_ctxs(&self, _ctx: &UnitCellEvalContext) -> Vec<UnitCellContext> {
+    fn to_unit_cell_ctxs(&self) -> Vec<UnitCellContext> {
         make_grid(self.cols, self.rows, self.size, false)
     }
 }

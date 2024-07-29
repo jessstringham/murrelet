@@ -188,7 +188,31 @@ pub fn expr_context(w: &LiveCodeWorldState) -> HashMapContext {
 }
 
 // simple mapping of values
-pub type ExprWorldContextValues = Vec<(String, Value)>;
+#[derive(Debug, Clone)]
+pub struct ExprWorldContextValues(Vec<(String, Value)>);
+impl ExprWorldContextValues {
+    pub fn new(v: Vec<(String, Value)>) -> Self {
+        Self(v)
+    }
+
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) {
+        for (identifier, value) in &self.0 {
+            // todo, maybe handle the result here to help dev
+            ctx.set_value(identifier.to_owned(), value.clone()).ok();
+        }
+    }
+
+    pub fn update_ctx_with_prefix(&self, ctx: &mut HashMapContext, prefix: &str) {
+        for (identifier, value) in &self.0 {
+            let name = format!("{}{}", prefix, identifier);
+            add_variable_or_prefix_it(&name, value.clone(), ctx);
+        }
+    }
+
+    pub fn set_val(&mut self, name: &str, val: Value) {
+        self.0.push((name.to_owned(), val))
+    }
+}
 
 pub trait IntoExprWorldContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues;
@@ -196,9 +220,11 @@ pub trait IntoExprWorldContext {
 
 impl IntoExprWorldContext for Vec<(String, f32)> {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
-        self.iter()
+        let v = self
+            .iter()
             .map(|(s, x)| (s.to_owned(), Value::Float(*x as f64)))
-            .collect_vec()
+            .collect_vec();
+        ExprWorldContextValues(v)
     }
 }
 
