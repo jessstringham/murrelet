@@ -1,9 +1,9 @@
 use murrelet::prelude::*;
-use murrelet_draw::{compass::*, sequencers::*};
+use murrelet_draw::{compass::*, sequencers::*, style::MurreletPath};
 use murrelet_src_audio::audio_src::AudioMng;
 //use murrelet_src_blte::blte::BlteMng;
 use murrelet_src_midi::midi::MidiMng;
-use murrelet_svg::svg::MurreletPath;
+use murrelet_svg::svg::ToSvgData;
 
 #[derive(Debug, Clone, UnitCell, Boop, Default)]
 struct SimpleTile {

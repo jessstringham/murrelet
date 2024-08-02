@@ -1,19 +1,16 @@
-use evalexpr::{build_operator_tree, ContextWithMutableVariables, HashMapContext, Node, Value};
+use evalexpr::{build_operator_tree, HashMapContext, Node, Value};
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
 use crate::livecode::LivecodeFromWorld;
 use crate::{
-    expr::{
-        add_variable_or_prefix_it, expr_context, expr_context_no_world, ExprWorldContextValues,
-        IntoExprWorldContext,
-    },
+    expr::{expr_context, expr_context_no_world, ExprWorldContextValues, IntoExprWorldContext},
     livecode::{LiveCodeWorldState, TimelessLiveCodeWorldState},
 };
 
