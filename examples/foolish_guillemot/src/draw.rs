@@ -83,7 +83,7 @@ pub struct WebSDrawCtx {
 }
 
 impl WebSDrawCtx {
-    fn draw_curve_path(&self, cd_raw: MurreletPath) {
+    fn _draw_curve_path(&self, cd_raw: MurreletPath) {
         // todo, this is clunky
         let cd = cd_raw;
 
