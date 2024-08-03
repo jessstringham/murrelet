@@ -405,9 +405,9 @@ where
         }
     }
 
-    fn update(&self, conf: &BoopConf, t: f32, target: &ConfType) -> Self {
+    fn update(&self, conf: &BoopConf, t: f32, target: ConfType) -> Self {
         let mut boop = self.boop.clone();
-        let processed = boop.boop(conf, t, target);
+        let processed = boop.boop(conf, t, &target);
         Self {
             boop,
             target: target.clone(),
@@ -448,19 +448,19 @@ where
         }
     }
 
-    fn _reset(&self, target: &ConfType) -> Self {
+    fn _reset(&self, target: ConfType) -> Self {
         // means we should set ourself to no-boop
-        BoopMng::NoBoop(target.clone())
+        BoopMng::NoBoop(target)
     }
 
-    fn _normal_update(&self, boop_conf: &BoopConf, t: f32, target: &ConfType) -> Self {
+    fn _normal_update(&self, boop_conf: &BoopConf, t: f32, target: ConfType) -> Self {
         match self {
             BoopMng::Boop(b) => BoopMng::Boop(b.update(boop_conf, t, target)),
-            _ => BoopMng::Boop(BoopHolder::new(boop_conf, target.clone())),
+            _ => BoopMng::Boop(BoopHolder::new(boop_conf, target)),
         }
     }
 
-    fn update(&self, boop_conf: &BoopConf, t: f32, target: &ConfType) -> Self {
+    fn update(&self, boop_conf: &BoopConf, t: f32, target: ConfType) -> Self {
         if !boop_conf.reset() {
             self._normal_update(boop_conf, t, target)
         } else {
@@ -528,6 +528,8 @@ where
     save_path: Option<PathBuf>,
     prev_controlconfig: ControlConfType,
     boop_mng: BoopMng<ConfType, BoopConfType>,
+    // sorry, the cache is mixed between boom_mng, but sometimes we need this
+    cached_timeless_app_config: Option<AppConfig>,
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
@@ -571,18 +573,13 @@ where
             save_path,
             prev_controlconfig: controlconfig,
             boop_mng: BoopMng::Uninitialized,
+            cached_timeless_app_config: None, // uninitialized
         };
 
         // use the object to create a world and generate the configs
-        s.set_processed_config(&s._extract_target_config());
+        s.set_processed_config();
 
         s
-    }
-
-    pub fn _extract_target_config(&self) -> ConfType {
-        let w = self.world();
-
-        self.controlconfig.o(&w)
     }
 
     // experimental...
@@ -595,13 +592,21 @@ where
         self.controlconfig.clone()
     }
 
-    pub fn set_processed_config(&mut self, target: &ConfType) {
+    pub fn set_processed_config(&mut self) {
         // assume the target has already been updated
         // let target = self._extract_target_config();
 
+        // set this one first, so we can use it to get the world
+        self.cached_timeless_app_config =
+            Some(self._app_config().just_midi(&self.timeless_world()));
+
         let w = self.world();
+
+        let target = self.controlconfig.o(&w);
+
         let t = w.time.bar();
-        let boop_conf = self._app_config().o(&w).boop.to_livecode();
+
+        let boop_conf = target.config_app_loc().boop.to_livecode();
 
         self.boop_mng = self.boop_mng.update(&boop_conf, t, target);
         if self.boop_mng.any_weird_states() {
@@ -688,7 +693,7 @@ where
         // self.app_input.update(app);
 
         // this should happen at the very end
-        self.set_processed_config(&self._extract_target_config());
+        self.set_processed_config();
     }
 
     pub fn timeless_world(&self) -> TimelessLiveCodeWorldState {
@@ -699,17 +704,13 @@ where
     }
 
     pub fn world(&self) -> LiveCodeWorldState {
-        let app_config = self._app_config().just_midi(&self.timeless_world());
+        // this function should only be called after this is set! since the "set processed" is called right away
+        let timeless_app_config = self.cached_timeless_app_config.as_ref().unwrap();
 
-        self.util.world(
-            &self.livecode_src,
-            // &self.midi.values,
-            // &self.audio.values,
-            // &self.app_input.values,
-            // &self.blte.values,
-            &app_config.time.to_livecode(),
-            &app_config.ctx,
-        )
+        let timing_conf = timeless_app_config.time.to_livecode();
+        let ctx = &timeless_app_config.ctx;
+
+        self.util.world(&self.livecode_src, &timing_conf, ctx)
     }
 
     pub fn _app_config(&self) -> &ControlAppConfig {
