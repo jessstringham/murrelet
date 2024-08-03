@@ -18,10 +18,15 @@ use crate::reload::*;
 
 pub trait CommonTrait: std::fmt::Debug + Clone {}
 
+// requirements for the control conf
 pub trait LiveCodeCommon<T>: LivecodeFromWorld<T> + LiveCoderLoader + CommonTrait {}
 
-pub trait ConfCommon<T: BoopFromWorld<Self>>: CommonTrait {}
+// requirements for the conf
+pub trait ConfCommon<T: BoopFromWorld<Self>>: CommonTrait {
+    fn config_app_loc(&self) -> &AppConfig;
+}
 
+// requirements for the boop
 pub trait BoopConfCommon<T>: BoopFromWorld<T> + CommonTrait {}
 
 #[derive(Clone, Debug)]
@@ -435,11 +440,11 @@ where
         }
     }
 
-    fn config(&self) -> ConfType {
+    fn config(&self) -> &ConfType {
         match self {
             BoopMng::Uninitialized => unreachable!(),
-            BoopMng::NoBoop(c) => c.clone(),
-            BoopMng::Boop(c) => c.processed.clone(),
+            BoopMng::NoBoop(c) => c,
+            BoopMng::Boop(c) => &c.processed,
         }
     }
 
@@ -468,7 +473,7 @@ pub struct LilLiveConfig<'a> {
     save_path: Option<&'a PathBuf>,
     run_id: u64,
     w: LiveCodeWorldState<'a>,
-    app_config: AppConfig,
+    app_config: &'a AppConfig,
 }
 
 pub fn svg_save_path(lil_liveconfig: &LilLiveConfig) -> SvgDrawConfig {
@@ -562,11 +567,7 @@ where
             run_id,
             controlconfig: controlconfig.clone(),
             livecode_src,
-            // midi,
-            // audio,
-            // blte,
             util,
-            // app_input,
             save_path,
             prev_controlconfig: controlconfig,
             boop_mng: BoopMng::Uninitialized,
@@ -715,15 +716,17 @@ where
         self.controlconfig._app_config()
     }
 
-    pub fn app_config(&self) -> AppConfig {
-        self._app_config().o(&self.world())
+    pub fn app_config(&self) -> &AppConfig {
+        // self._app_config().o(&self.world())
+        // use the cached one
+        self.config().config_app_loc()
     }
 
     pub fn gpu_color_channel(&self) -> usize {
         self.app_config().gpu.color_channel
     }
 
-    pub fn config(&self) -> ConfType {
+    pub fn config(&self) -> &ConfType {
         self.boop_mng.config()
     }
 
