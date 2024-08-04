@@ -8,9 +8,9 @@ use murrelet_common::{clamp, ease, lerp, map_range, print_expect, smoothstep, Li
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::livecode::LivecodeErr;
+use crate::livecode::{LivecodeError, LivecodeResult};
 
-pub fn init_evalexpr_func_ctx() -> Result<HashMapContext, LivecodeErr> {
+pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{
         // constants
         "PI" => Value::Float(PI.into()),
@@ -147,7 +147,7 @@ pub fn init_evalexpr_func_ctx() -> Result<HashMapContext, LivecodeErr> {
             let len = vec2(x as f32, y as f32).length();
             Ok(Value::Float(len as f64))
         })
-    }.map_err(|err| {LivecodeErr::new(format!("error in init_evalexpr_func_ctx! {}", err))})
+    }.map_err(|err| {LivecodeError::EvalExpr(format!("error in init_evalexpr_func_ctx!"), err)})
 }
 
 fn lc_val_to_expr(v: &LivecodeValue) -> Value {
@@ -166,12 +166,12 @@ impl ExprWorldContextValues {
         Self(v)
     }
 
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> Result<(), LivecodeErr> {
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         for (identifier, value) in &self.0 {
             // todo, maybe handle the result here to help dev
             ctx.set_value(identifier.to_owned(), lc_val_to_expr(value))
                 .map_err(|err| {
-                    LivecodeErr::new(format!("error setting value {}: {}", identifier, err))
+                    LivecodeError::EvalExpr(format!("error setting value {}", identifier), err)
                 })?;
         }
         Ok(())

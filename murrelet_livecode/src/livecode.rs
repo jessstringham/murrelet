@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use evalexpr::build_operator_tree;
+use evalexpr::EvalexprError;
 use evalexpr::HashMapContext;
 use evalexpr::Node;
 use glam::vec2;
@@ -30,42 +31,42 @@ pub fn empty_vec<T>() -> Vec<T> {
 }
 
 #[derive(Debug)]
-pub struct LivecodeErr {
-    msg: String,
+pub enum LivecodeError {
+    Raw(String), // my custom errors
+    EvalExpr(String, EvalexprError),
 }
-impl LivecodeErr {
-    pub fn new(msg: String) -> Self {
-        Self { msg }
-    }
-}
-impl std::fmt::Display for LivecodeErr {
+impl LivecodeError {}
+impl std::fmt::Display for LivecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.msg)
+        match self {
+            LivecodeError::Raw(msg) => write!(f, "{}", msg),
+            LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
+        }
     }
 }
 
-impl std::error::Error for LivecodeErr {}
+impl std::error::Error for LivecodeError {}
 
-pub type LivecodeResult<T> = Result<T, LivecodeErr>;
+pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
 pub trait LivecodeFromWorld<T> {
-    fn o(&self, w: &LiveCodeWorldState) -> Result<T, LivecodeErr>;
+    fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<T>;
 }
 
 impl LivecodeFromWorld<Vec2> for [ControlF32; 2] {
-    fn o(&self, w: &LiveCodeWorldState) -> Result<Vec2, LivecodeErr> {
+    fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<Vec2> {
         Ok(vec2(self[0].o(w)?, self[1].o(w)?))
     }
 }
 
 impl LivecodeFromWorld<Vec3> for [ControlF32; 3] {
-    fn o(&self, w: &LiveCodeWorldState) -> Result<Vec3, LivecodeErr> {
+    fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<Vec3> {
         Ok(vec3(self[0].o(w)?, self[1].o(w)?, self[2].o(w)?))
     }
 }
 
 impl LivecodeFromWorld<MurreletColor> for [ControlF32; 4] {
-    fn o(&self, w: &LiveCodeWorldState) -> Result<MurreletColor, LivecodeErr> {
+    fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<MurreletColor> {
         // by default, clamp saturation and value
         Ok(MurreletColor::hsva(
             self[0].o(w)?,
@@ -213,7 +214,7 @@ impl ControlF32 {
         }
     }
 
-    pub fn o(&self, w: &LiveCodeWorldState) -> Result<f32, LivecodeErr> {
+    pub fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<f32> {
         let world_context = UnitCellEvalContext::from_world(w)?;
         self.to_unitcell_control().eval(&world_context)
     }
@@ -310,7 +311,7 @@ impl ControlBool {
         }
     }
 
-    pub fn o(&self, w: &LiveCodeWorldState) -> Result<bool, LivecodeErr> {
+    pub fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<bool> {
         let world_context = UnitCellEvalContext::from_world(w)?;
 
         self.to_unitcell_control().eval(&world_context)
@@ -347,7 +348,7 @@ impl<'a> LiveCodeWorldState<'a> {
         livecode_src: &'a LivecodeSrc,
         time: LiveCodeTimeInstantInfo,
         ctx: Node,
-    ) -> Result<LiveCodeWorldState<'a>, LivecodeErr> {
+    ) -> LivecodeResult<LiveCodeWorldState<'a>> {
         // set up the cached_hm
         let mut w = LiveCodeWorldState {
             livecode_src,
@@ -359,7 +360,7 @@ impl<'a> LiveCodeWorldState<'a> {
         // sorry these are a little inside out, need the world state to set up the world state cached context...
         w.to_world_vals().update_ctx(&mut w.cached_context)?;
         ctx.eval_empty_with_context_mut(&mut w.cached_context)
-            .map_err(|err| LivecodeErr::new(format!("node eval failed: {}", err)))?;
+            .map_err(|err| LivecodeError::EvalExpr("node eval failed".to_owned(), err))?;
 
         Ok(w)
     }
@@ -367,7 +368,7 @@ impl<'a> LiveCodeWorldState<'a> {
     pub fn new_timeless(
         evalexpr_func_ctx: HashMapContext,
         livecode_src: &'a LivecodeSrc,
-    ) -> Result<LiveCodeWorldState<'a>, LivecodeErr> {
+    ) -> LivecodeResult<LiveCodeWorldState<'a>> {
         let mut w = LiveCodeWorldState {
             livecode_src,
             time: None,
@@ -389,7 +390,7 @@ impl<'a> LiveCodeWorldState<'a> {
     }
 
     // this should use the cached one if it exists, or return an error
-    pub(crate) fn ctx(&self) -> Result<&HashMapContext, LivecodeErr> {
+    pub(crate) fn ctx(&self) -> LivecodeResult<&HashMapContext> {
         Ok(&self.cached_context)
     }
 

@@ -121,7 +121,7 @@ impl GenFinal for FieldTokensUnitCell {
             #vis struct #lc_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #lc_ident {
-                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     let w = ctx.w.unwrap();
                     Ok(#name(#(#for_world,)*))
                 }
@@ -154,7 +154,7 @@ impl GenFinal for FieldTokensUnitCell {
             }
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #lc_ident {
-                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     let w = ctx.w.unwrap();
                     Ok(#name {
                         #(#for_world,)*
@@ -195,7 +195,7 @@ impl GenFinal for FieldTokensUnitCell {
             }
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #new_enum_ident {
-                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     let w = ctx.w.unwrap();
                     Ok(match self {
                         #(#for_world,)*

@@ -166,7 +166,7 @@ pub struct LiveCodeUtil {
 }
 
 impl LiveCodeUtil {
-    pub fn new() -> Result<LiveCodeUtil, LivecodeErr> {
+    pub fn new() -> LivecodeResult<LiveCodeUtil> {
         Ok(LiveCodeUtil {
             info: LiveCodeConfigInfo::new(),
             timing: LiveCodeTiming::new(),
@@ -237,7 +237,7 @@ impl LiveCodeUtil {
         livecode_src: &'a LivecodeSrc,
         timing_conf: &LivecodeTimingConfig,
         node: &Node,
-    ) -> Result<LiveCodeWorldState, LivecodeErr> {
+    ) -> LivecodeResult<LiveCodeWorldState> {
         LiveCodeWorldState::new(
             self.global_funcs.clone(),
             livecode_src,

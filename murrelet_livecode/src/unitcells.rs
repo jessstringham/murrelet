@@ -7,7 +7,7 @@ use serde::Deserialize;
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
-use crate::livecode::{LivecodeErr, LivecodeFromWorld, LivecodeResult};
+use crate::livecode::{LivecodeError, LivecodeFromWorld, LivecodeResult};
 use crate::{
     expr::{ExprWorldContextValues, IntoExprWorldContext},
     livecode::LiveCodeWorldState,
@@ -29,7 +29,7 @@ impl UnitCellControlExprF32 {
 }
 
 impl EvaluableUnitCell<f32> for UnitCellControlExprF32 {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<f32, LivecodeErr> {
+    fn eval(&self, ctx: &UnitCellEvalContext) -> LivecodeResult<f32> {
         match self {
             UnitCellControlExprF32::Bool(b) => {
                 if *b {
@@ -46,7 +46,7 @@ impl EvaluableUnitCell<f32> for UnitCellControlExprF32 {
                     Err(_) => {
                         let b = e
                             .eval_boolean_with_context(&ctx.ctx)
-                            .map_err(|err| LivecodeErr::new(format!("evalexpr err: {}", err)));
+                            .map_err(|err| LivecodeError::EvalExpr(format!("evalexpr err"), err));
                         Ok(if b? { 1.0 } else { -1.0 })
                     }
                 }
@@ -71,7 +71,7 @@ impl UnitCellControlExprBool {
 }
 
 impl EvaluableUnitCell<bool> for UnitCellControlExprBool {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<bool, LivecodeErr> {
+    fn eval(&self, ctx: &UnitCellEvalContext) -> LivecodeResult<bool> {
         match self {
             UnitCellControlExprBool::Bool(b) => Ok(*b),
             UnitCellControlExprBool::Int(i) => Ok(*i > 0),
@@ -79,9 +79,9 @@ impl EvaluableUnitCell<bool> for UnitCellControlExprBool {
             UnitCellControlExprBool::Expr(e) => match e.eval_boolean_with_context(&ctx.ctx) {
                 Ok(r) => Ok(r),
                 Err(_) => {
-                    let b = e
-                        .eval_float_with_context(&ctx.ctx)
-                        .map_err(|err| LivecodeErr::new(format!("error evaluing bool: {}", err)));
+                    let b = e.eval_float_with_context(&ctx.ctx).map_err(|err| {
+                        LivecodeError::EvalExpr(format!("error evaluing bool"), err)
+                    });
                     b.map(|x| x > 0.0)
                 }
             },
@@ -238,17 +238,17 @@ pub trait UnitCellCreator {
 
 /// this one's similar to LivecodeFromWorld, but for ones with unit_cell_context
 pub trait EvaluableUnitCell<UnitCellTarget> {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<UnitCellTarget, LivecodeErr>;
+    fn eval(&self, ctx: &UnitCellEvalContext) -> LivecodeResult<UnitCellTarget>;
 }
 
 impl EvaluableUnitCell<Vec2> for [UnitCellControlExprF32; 2] {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<Vec2, LivecodeErr> {
+    fn eval(&self, ctx: &UnitCellEvalContext) -> LivecodeResult<Vec2> {
         Ok(vec2(self[0].eval(ctx)?, self[1].eval(ctx)?))
     }
 }
 
 impl EvaluableUnitCell<Vec3> for [UnitCellControlExprF32; 3] {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<Vec3, LivecodeErr> {
+    fn eval(&self, ctx: &UnitCellEvalContext) -> LivecodeResult<Vec3> {
         Ok(vec3(
             self[0].eval(ctx)?,
             self[1].eval(ctx)?,
@@ -418,15 +418,13 @@ impl Default for UnitCellCtx {
 
 impl UnitCellCtx {
     pub fn eval(&self, ctx: &mut UnitCellEvalContext) -> LivecodeResult<()> {
-        self.0
-            .eval_empty_with_context_mut(&mut ctx.ctx)
-            .map_err(|err| LivecodeErr::new(format!("{:?}", err)))
+        self.eval_raw(&mut ctx.ctx)
     }
 
     pub fn eval_raw(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         self.0
             .eval_empty_with_context_mut(ctx)
-            .map_err(|err| LivecodeErr::new(format!("{:?}", err)))
+            .map_err(|err| LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err))
     }
 }
 
@@ -441,7 +439,7 @@ impl LazyNodeF32Def {
 }
 
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
-    fn o(&self, w: &LiveCodeWorldState) -> Result<LazyNodeF32, LivecodeErr> {
+    fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<LazyNodeF32> {
         let world_context = UnitCellEvalContext::from_world(w)?;
         // let world_context = print_expect(maybe_world_context, "error in world ctx").unwrap();
         Ok(LazyNodeF32::new(self.0.clone(), world_context.ctx))
@@ -449,7 +447,7 @@ impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
 }
 
 impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<LazyNodeF32, LivecodeErr> {
+    fn eval(&self, ctx: &UnitCellEvalContext) -> LivecodeResult<LazyNodeF32> {
         Ok(LazyNodeF32::new(self.0.clone(), ctx.ctx.clone()))
     }
 }
@@ -472,7 +470,7 @@ impl MixedEvalDefs {
         self.vals = vals;
     }
 
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> Result<(), LivecodeErr> {
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         self.vals.update_ctx(ctx)?;
         // go from beginning to end
         for node in self.nodes.iter() {
@@ -512,7 +510,7 @@ impl LazyNodeF32 {
         Self { n: Some(n), ctx }
     }
 
-    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> Result<f32, LivecodeErr> {
+    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
         // start with the global ctx
         let mut ctx = self.ctx.clone();
 
@@ -524,17 +522,17 @@ impl LazyNodeF32 {
         self.final_eval(&ctx)
     }
 
-    pub fn final_eval(&self, ctx: &HashMapContext) -> Result<f32, LivecodeErr> {
+    pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
         let n = self
             .n
             .clone()
-            .ok_or(LivecodeErr::new(format!("tried to eval empty node")))?;
+            .ok_or(LivecodeError::Raw(format!("tried to eval empty node")))?;
         n.eval_float_with_context(ctx)
             .map(|x| x as f32)
-            .map_err(|err| LivecodeErr::new(format!("error evaluating lazy: {}", err)))
+            .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
     }
 
-    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> Result<f32, LivecodeErr> {
+    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
         let pct = idx.pct();
         let i = idx.i();
         let total = idx.total();
@@ -579,9 +577,7 @@ pub struct UnitCellEvalContext<'a> {
     pub w: Option<&'a LiveCodeWorldState<'a>>,
 }
 impl<'a> UnitCellEvalContext<'a> {
-    pub fn from_world(
-        w: &'a LiveCodeWorldState<'a>,
-    ) -> Result<UnitCellEvalContext<'a>, LivecodeErr> {
+    pub fn from_world(w: &'a LiveCodeWorldState<'a>) -> LivecodeResult<UnitCellEvalContext<'a>> {
         Ok(UnitCellEvalContext {
             ctx: w.ctx()?.clone(), //expr_context(w),
             w: Some(w),

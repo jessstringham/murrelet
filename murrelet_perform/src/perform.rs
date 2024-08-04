@@ -542,7 +542,7 @@ where
         livecode_src: LivecodeSrc,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
         let controlconfig = ControlConfType::parse(&conf)
-            .map_err(|err| LivecodeErr::new(format!("error parsing {}", err)))?;
+            .map_err(|err| LivecodeError::Raw(format!("error parsing {}", err)))?;
         Self::new_full(controlconfig, None, livecode_src)
     }
 
@@ -560,7 +560,7 @@ where
         controlconfig: ControlConfType,
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
-    ) -> Result<LiveCoder<ConfType, ControlConfType, BoopConfType>, LivecodeErr> {
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
         let run_id = run_id();
 
         let util = LiveCodeUtil::new()?;

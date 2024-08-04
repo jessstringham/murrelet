@@ -110,7 +110,7 @@ impl GenFinal for FieldTokensLivecode {
             }
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     Ok(#name {
                         #(#for_world,)*
                     })
@@ -149,7 +149,7 @@ impl GenFinal for FieldTokensLivecode {
                 #(#for_struct,)*
             }
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     match self {
                         #(#for_world,)*
                     }
@@ -183,7 +183,7 @@ impl GenFinal for FieldTokensLivecode {
             #vis struct #new_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
+                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
                 }
             }
