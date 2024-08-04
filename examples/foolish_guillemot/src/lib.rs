@@ -135,7 +135,8 @@ impl MurreletModel {
     ) {
         let app_input =
             MurreletAppInput::new_no_key(vec2(dim_x, dim_y), vec2(mouse_x, mouse_y), click, frame);
-        self.livecode.update(&app_input, false);
+        // todo, show an error about this?
+        self.livecode.update(&app_input, false).ok();
     }
 
     // useful if you have shaders, this will list what canvases to draw to
@@ -188,7 +189,10 @@ impl WasmMurreletModelResult {
     }
 
     fn err(err: LivecodeErr) -> WasmMurreletModelResult {
-        WasmMurreletModelResult { m: None, err: err.to_string() }
+        WasmMurreletModelResult {
+            m: None,
+            err: err.to_string(),
+        }
     }
 
     #[wasm_bindgen]

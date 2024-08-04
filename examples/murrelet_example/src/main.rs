@@ -81,7 +81,7 @@ impl Model {
 
         let app_input = MurreletAppInput::default_with_frames(self.curr_frame);
 
-        self.livecode.update(&app_input, true);
+        self.livecode.update(&app_input, true).ok();
 
         // this is also where you could update state
         // instead of having the model hold the config directly, you can have

@@ -71,38 +71,6 @@ impl LivecodeFieldType {
         }
     }
 
-    pub(crate) fn for_timeless_world(&self, idents: StructIdents) -> TokenStream2 {
-        let name = idents.name();
-        let orig_ty = idents.orig_ty();
-
-        match self.0 {
-            //ControlType::F32_2 => quote! {#name: self.#name.just_midi(m) },
-            //ControlType::F32_3 => quote! {#name: self.#name.just_midi(m) },
-            //ControlType::LinSrgba => quote! {#name:self.#name.just_midi(m) },
-            ControlType::ColorUnclamped => {
-                quote! {#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped_midi(&self.#name, m)?}
-            }
-            _ => quote! {#name: self.#name.just_midi(m)? as #orig_ty},
-        }
-    }
-
-    pub(crate) fn for_timeless_newtype_world(&self, idents: StructIdents) -> TokenStream2 {
-        let orig_ty = idents.orig_ty();
-        match self.0 {
-            // ControlType::F32_2 => quote! {murrelet_livecode::livecode::ControlF32::vec2_midi(&self.0, m)},
-            // ControlType::F32_3 => quote! {murrelet_livecode::livecode::ControlF32::vec3_midi(&self.0, m)},
-            // ControlType::LinSrgba => quote! {murrelet_livecode::livecode::ControlF32::hsva_midi(&self.0, m)},
-            ControlType::F32_2 => quote! { self.0.just_midi(&m)? },
-            ControlType::F32_3 => quote! { self.0.just_midi(&m)? },
-            ControlType::Color => quote! { self.0.just_midi(&m)? },
-            ControlType::LazyNodeF32 => quote! { self.0.just_midi(&w)? },
-            ControlType::ColorUnclamped => {
-                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped_midi(&self.0, m)?}
-            }
-            _ => quote! {self.0.just_midi(m)? as #orig_ty},
-        }
-    }
-
     pub(crate) fn for_control(&self, idents: StructIdents) -> TokenStream2 {
         let name = idents.name();
         quote! { #name: self.#name.to_control() }
@@ -120,7 +88,6 @@ impl LivecodeFieldType {
 pub(crate) struct FieldTokensLivecode {
     pub(crate) for_struct: TokenStream2,
     pub(crate) for_world: TokenStream2,
-    pub(crate) for_timeless_world: TokenStream2,
     pub(crate) for_to_control: TokenStream2, // a way to convert from original to control
 }
 impl GenFinal for FieldTokensLivecode {
@@ -134,7 +101,6 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
-        let for_timeless_world = variants.iter().map(|x| x.for_timeless_world.clone());
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
 
         quote! {
@@ -147,12 +113,6 @@ impl GenFinal for FieldTokensLivecode {
                 fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
                     Ok(#name {
                         #(#for_world,)*
-                    })
-                }
-
-                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
-                    Ok(#name {
-                        #(#for_timeless_world,)*
                     })
                 }
             }
@@ -177,7 +137,6 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
-        let for_timeless_world = variants.iter().map(|x| x.for_timeless_world.clone());
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
 
         let enum_tag = idents.tags;
@@ -193,12 +152,6 @@ impl GenFinal for FieldTokensLivecode {
                 fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
                     match self {
                         #(#for_world,)*
-                    }
-                }
-
-                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
-                    match self {
-                        #(#for_timeless_world,)*
                     }
                 }
             }
@@ -223,7 +176,6 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
-        let for_timeless_world = variants.iter().map(|x| x.for_timeless_world.clone());
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
 
         quote! {
@@ -233,10 +185,6 @@ impl GenFinal for FieldTokensLivecode {
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
                 fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
                     Ok(#name(#(#for_world,)*))
-                }
-
-                fn just_midi(&self, m: &murrelet_livecode::livecode::TimelessLiveCodeWorldState) -> Result<#name, murrelet_livecode::livecode::LivecodeErr> {
-                    Ok(#name(#(#for_timeless_world,)*))
                 }
             }
 
@@ -264,15 +212,12 @@ impl GenFinal for FieldTokensLivecode {
         };
         let for_world = LivecodeFieldType(ctrl).for_newtype_world(idents.clone());
 
-        let for_timeless_world = LivecodeFieldType(ctrl).for_timeless_newtype_world(idents.clone());
-
         let for_to_control =
             LivecodeFieldType(ctrl).for_newtype_control(idents.clone(), parent_ident.clone());
 
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -298,11 +243,8 @@ impl GenFinal for FieldTokensLivecode {
         };
 
         // for world
-        let for_world = quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
-
-        // for timeless world
-        let for_timeless_world =
-            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.just_midi(m)?)) };
+        let for_world =
+            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
 
         let for_to_control =
             quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
@@ -310,7 +252,6 @@ impl GenFinal for FieldTokensLivecode {
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -327,7 +268,6 @@ impl GenFinal for FieldTokensLivecode {
         let for_world: TokenStream2 = {
             quote! { #new_ident::#variant_ident => Ok(#name::#variant_ident) }
         };
-        let for_timeless_world = for_world.clone();
         let for_to_control = {
             quote! { #name::#variant_ident => #new_ident::#variant_ident }
         };
@@ -335,7 +275,6 @@ impl GenFinal for FieldTokensLivecode {
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -351,13 +290,11 @@ impl GenFinal for FieldTokensLivecode {
         let for_world: TokenStream2 = {
             quote! {#name: self.#name.clone()}
         };
-        let for_timeless_world = for_world.clone();
         let for_to_control = quote! {#name: self.#name.clone()};
 
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -374,14 +311,11 @@ impl GenFinal for FieldTokensLivecode {
         };
         let for_world = LivecodeFieldType(ctrl).for_world(idents.clone());
 
-        let for_timeless_world = LivecodeFieldType(ctrl).for_timeless_world(idents.clone());
-
         let for_to_control = LivecodeFieldType(ctrl).for_control(idents.clone());
 
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -430,13 +364,6 @@ impl GenFinal for FieldTokensLivecode {
                 quote! {#name: self.#name.clone()}
             }
         };
-        let for_timeless_world = {
-            if should_o {
-                quote! {#name: self.#name.iter().map(|x| x.just_midi(m)).collect::<Result<Vec<_>, _>>()?}
-            } else {
-                quote! {#name: self.#name.clone()}
-            }
-        };
 
         let for_to_control = {
             if should_o {
@@ -449,7 +376,6 @@ impl GenFinal for FieldTokensLivecode {
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -472,9 +398,6 @@ impl GenFinal for FieldTokensLivecode {
         let for_world = {
             quote! {#name: self.#name.o(w)?}
         };
-        let for_timeless_world = {
-            quote! {#name: self.#name.just_midi(m)?}
-        };
         let for_to_control = {
             quote! {#name: self.#name.to_control()}
         };
@@ -482,7 +405,6 @@ impl GenFinal for FieldTokensLivecode {
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -556,16 +478,6 @@ impl GenFinal for FieldTokensLivecode {
                 ).o(w)?
             }}
         };
-        let for_timeless_world = {
-            quote! {#name: {
-                murrelet_livecode::unitcells::TmpUnitCells::new(
-                    self.#target.just_midi(m)?,
-                    Box::new(self.#name.clone()),
-                    #maybe_more_ctx,
-                    #prefix
-                ).just_midi(m)?
-            }}
-        };
 
         let for_to_control = {
             quote! {#name: {
@@ -579,7 +491,6 @@ impl GenFinal for FieldTokensLivecode {
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }
@@ -628,13 +539,6 @@ impl GenFinal for FieldTokensLivecode {
                 quote! {self.0.clone()}
             }
         };
-        let for_timeless_world = {
-            if should_o {
-                quote! {self.0.iter().map(|x| x.just_midi(m)).collect::<Result<Vec<_>, _>>()?}
-            } else {
-                quote! {self.0.clone()}
-            }
-        };
 
         let for_to_control = {
             if should_o {
@@ -647,7 +551,6 @@ impl GenFinal for FieldTokensLivecode {
         FieldTokensLivecode {
             for_struct,
             for_world,
-            for_timeless_world,
             for_to_control,
         }
     }

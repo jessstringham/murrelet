@@ -30,9 +30,6 @@ struct SequencerTest {
 
 fn main() {}
 
-
-
-
 fn make_grid(
     x: usize,
     y: usize,
@@ -58,8 +55,7 @@ fn make_grid(
                     }
 
                     let offset_angle = AnglePi::new(1.0 / 6.0);
-                    let diag_scale =
-                        offset_angle.to_norm_dir() * cell_size.x / (100.0 * 0.5);
+                    let diag_scale = offset_angle.to_norm_dir() * cell_size.x / (100.0 * 0.5);
 
                     center *= diag_scale;
                     center

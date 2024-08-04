@@ -8,8 +8,7 @@ use murrelet_common::{clamp, ease, lerp, map_range, print_expect, smoothstep, Li
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::livecode::{LivecodeErr, TimelessLiveCodeWorldState};
-
+use crate::livecode::LivecodeErr;
 
 pub fn init_evalexpr_func_ctx() -> Result<HashMapContext, LivecodeErr> {
     context_map!{
@@ -149,26 +148,7 @@ pub fn init_evalexpr_func_ctx() -> Result<HashMapContext, LivecodeErr> {
             Ok(Value::Float(len as f64))
         })
     }.map_err(|err| {LivecodeErr::new(format!("error in init_evalexpr_func_ctx! {}", err))})
-
 }
-
-// sets defaults for the functions
-pub fn expr_context_no_world(ctx: &mut HashMapContext, m: &TimelessLiveCodeWorldState) -> Result<(), LivecodeErr> {
-    let vals = m.to_timeless_vals();
-    vals.update_ctx(ctx)?;
-    Ok(())
-}
-
-
-
-
-// for (identifier, value) in &livecode_src {
-//     // todo, maybe handle the result here to help dev
-//     ctx.set_value(identifier.to_owned(), lc_val_to_expr(value))
-//         .ok();
-// }
-// ctx
-
 
 fn lc_val_to_expr(v: &LivecodeValue) -> Value {
     match v {
@@ -189,8 +169,10 @@ impl ExprWorldContextValues {
     pub fn update_ctx(&self, ctx: &mut HashMapContext) -> Result<(), LivecodeErr> {
         for (identifier, value) in &self.0 {
             // todo, maybe handle the result here to help dev
-            ctx.set_value(identifier.to_owned(), lc_val_to_expr(value)).map_err(|err|
-                LivecodeErr::new(format!("error setting value {}: {}", identifier, err)))?;
+            ctx.set_value(identifier.to_owned(), lc_val_to_expr(value))
+                .map_err(|err| {
+                    LivecodeErr::new(format!("error setting value {}: {}", identifier, err))
+                })?;
         }
         Ok(())
     }

@@ -50,31 +50,17 @@ pub type LivecodeResult<T> = Result<T, LivecodeErr>;
 
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LiveCodeWorldState) -> Result<T, LivecodeErr>;
-
-    fn just_midi(&self, w: &TimelessLiveCodeWorldState) -> Result<T, LivecodeErr>;
 }
 
 impl LivecodeFromWorld<Vec2> for [ControlF32; 2] {
     fn o(&self, w: &LiveCodeWorldState) -> Result<Vec2, LivecodeErr> {
         Ok(vec2(self[0].o(w)?, self[1].o(w)?))
     }
-
-    fn just_midi(&self, w: &TimelessLiveCodeWorldState) -> Result<Vec2, LivecodeErr> {
-        Ok(vec2(self[0].just_midi(w)?, self[1].just_midi(w)?))
-    }
 }
 
 impl LivecodeFromWorld<Vec3> for [ControlF32; 3] {
     fn o(&self, w: &LiveCodeWorldState) -> Result<Vec3, LivecodeErr> {
         Ok(vec3(self[0].o(w)?, self[1].o(w)?, self[2].o(w)?))
-    }
-
-    fn just_midi(&self, w: &TimelessLiveCodeWorldState) -> Result<Vec3, LivecodeErr> {
-        Ok(vec3(
-            self[0].just_midi(w)?,
-            self[1].just_midi(w)?,
-            self[2].just_midi(w)?,
-        ))
     }
 }
 
@@ -86,15 +72,6 @@ impl LivecodeFromWorld<MurreletColor> for [ControlF32; 4] {
             clamp(self[1].o(w)?, 0.0, 1.0),
             clamp(self[2].o(w)?, 0.0, 1.0),
             self[3].o(w)?,
-        ))
-    }
-
-    fn just_midi(&self, w: &TimelessLiveCodeWorldState) -> Result<MurreletColor, LivecodeErr> {
-        Ok(MurreletColor::hsva(
-            self[0].just_midi(w)?,
-            clamp(self[1].just_midi(w)?, 0.0, 1.0),
-            clamp(self[2].just_midi(w)?, 0.0, 1.0),
-            self[3].just_midi(w)?,
         ))
     }
 }
@@ -243,26 +220,14 @@ impl ControlF32 {
 
     // pub fn o(&self, w: &LiveCodeWorldState) -> f32 {
 
-        // match self._o(w) {
-        //     Ok(x) => x,
-        //     Err(err) => {
-        //         println!("{}", err);
-        //         1.0
-        //     }
-        // }
+    // match self._o(w) {
+    //     Ok(x) => x,
+    //     Err(err) => {
+    //         println!("{}", err);
+    //         1.0
+    //     }
     // }
-
-    pub fn just_midi(&self, m: &TimelessLiveCodeWorldState) -> Result<f32, LivecodeErr> {
-        let world_context = UnitCellEvalContext::from_timeless(m)?;
-        self.to_unitcell_control().eval(&world_context)
-        // match self.to_unitcell_control().eval(&world_context) {
-        //     Ok(x) => x,
-        //     Err(err) => {
-        //         println!("{}", err);
-        //         Ok(1.0)
-        //     }
-        // }
-    }
+    // }
 
     // pub fn vec3(c: &[ControlF32; 3], w: &LiveCodeWorldState) -> Vec3 {
     //     vec3(c[0].o(w), c[1].o(w), c[2].o(w))
@@ -305,28 +270,11 @@ impl ControlF32 {
     //     [c[0].just_midi(w), c[1].just_midi(w), c[2].just_midi(w)]
     // }
 
-    pub fn array4_midi(c: &[ControlF32; 4], w: &TimelessLiveCodeWorldState) -> Result<[f32; 4], LivecodeErr> {
-        Ok([
-            c[0].just_midi(w)?,
-            c[1].just_midi(w)?,
-            c[2].just_midi(w)?,
-            c[3].just_midi(w)?,
-        ])
-    }
-
     // pub fn hsva_midi(c: &[ControlF32; 4], w: &TimelessLiveCodeWorldState) -> MurreletColor {
     //     let c = ControlF32::array4_midi(c, w);
     //     // gonna clamp saturation and value
     //     hsva(c[0], clamp(c[1], 0.0, 1.0), clamp(c[2], 0.0, 1.0), c[3]).into_lin_srgba()
     // }
-
-    pub fn hsva_unclamped_midi(
-        c: &[ControlF32; 4],
-        w: &TimelessLiveCodeWorldState,
-    ) -> Result<MurreletColor, LivecodeErr> {
-        let c = ControlF32::array4_midi(c, w)?;
-        Ok(MurreletColor::hsva(c[0], c[1], c[2], c[3]))
-    }
 
     // pub fn hsva_more_info_midi(c: &[ControlF32; 4], w: &TimelessLiveCodeWorldState) -> [f32; 4] {
     //     let (r, g, b, a) = ControlF32::hsva_midi(c, w).into_components();
@@ -375,18 +323,6 @@ impl ControlBool {
         // }
     }
 
-    pub fn just_midi(&self, m: &TimelessLiveCodeWorldState) -> Result<bool, LivecodeErr> {
-        let world_context = UnitCellEvalContext::from_timeless(m)?;
-        self.to_unitcell_control().eval(&world_context)
-        // match self.to_unitcell_control().eval(&world_context) {
-        //     Ok(x) => x,
-        //     Err(err) => {
-        //         println!("{}", err);
-        //         false
-        //     }
-        // }
-    }
-
     pub fn default(&self) -> bool {
         match self {
             ControlBool::Raw(x) => *x,
@@ -398,11 +334,12 @@ impl ControlBool {
 }
 
 pub struct LiveCodeWorldState<'a> {
-    pub idx: f32,
     pub livecode_src: &'a LivecodeSrc,
-    pub time: LiveCodeTimeInstantInfo,
+    // Usually time is available, except the one moment where we're loading the config needed to generate
+    // the timing config, which is needed to generate the time. That _should_ all be internal,
+    time: Option<LiveCodeTimeInstantInfo>,
     // pub ctx: Node, // this is the global ctx
-    cached_context: HashMapContext
+    cached_context: HashMapContext,
 }
 impl<'a> LiveCodeWorldState<'a> {
     pub fn new(
@@ -411,64 +348,69 @@ impl<'a> LiveCodeWorldState<'a> {
         time: LiveCodeTimeInstantInfo,
         ctx: Node,
     ) -> Result<LiveCodeWorldState<'a>, LivecodeErr> {
-
         // set up the cached_hm
         let mut w = LiveCodeWorldState {
-            idx: 0.0, // is this used?
             livecode_src,
-            time,
+            time: Some(time),
             // ctx,
             cached_context: evalexpr_func_ctx,
         };
 
-        // eeh this is kinda weird, set the initial cached context to add the world values
-        
         // sorry these are a little inside out, need the world state to set up the world state cached context...
         w.to_world_vals().update_ctx(&mut w.cached_context)?;
-        ctx.eval_empty_with_context_mut(&mut w.cached_context).map_err(|err| LivecodeErr::new(format!("node eval failed: {}", err)))?;
+        ctx.eval_empty_with_context_mut(&mut w.cached_context)
+            .map_err(|err| LivecodeErr::new(format!("node eval failed: {}", err)))?;
+
+        Ok(w)
+    }
+
+    pub fn new_timeless(
+        evalexpr_func_ctx: HashMapContext,
+        livecode_src: &'a LivecodeSrc,
+    ) -> Result<LiveCodeWorldState<'a>, LivecodeErr> {
+        let mut w = LiveCodeWorldState {
+            livecode_src,
+            time: None,
+            cached_context: evalexpr_func_ctx,
+        };
+
+        // sorry these are a little inside out, need the world state to set up the world state cached context...
+        w.to_world_vals().update_ctx(&mut w.cached_context)?;
 
         Ok(w)
     }
 
     pub fn to_world_vals(&self) -> ExprWorldContextValues {
         let mut w = self.livecode_src.to_world_vals();
-        w.extend(self.time.to_exec_funcs());
+        if let Some(time) = self.time {
+            w.extend(time.to_exec_funcs());
+        }
         ExprWorldContextValues::new(w)
     }
 
+    // this should use the cached one if it exists, or return an error
+    pub(crate) fn ctx(&self) -> Result<&HashMapContext, LivecodeErr> {
+        Ok(&self.cached_context)
+    }
+
+    pub fn time(&self) -> LiveCodeTimeInstantInfo {
+        self.time.expect("tried calling time on timeless world")
+    }
+
     pub fn actual_frame(&self) -> f32 {
-        self.time.actual_frame()
+        self.time().actual_frame()
     }
 
     pub fn actual_frame_u64(&self) -> u64 {
-        self.time.actual_frame_u64()
+        self.time().actual_frame_u64()
     }
 
     pub fn should_debug(&self) -> bool {
-        self.time.seconds_since_updated_realtime() < 0.1
-    }
-    
-    // this should use the cached one if it exists, or return an error
-    pub(crate) fn ctx(&self) -> Result<HashMapContext, LivecodeErr> {
-        todo!()
-    }
-}
-
-// todo, maybe rethink this, maybe can remove it from LivecodeTimingConfig..
-pub struct TimelessLiveCodeWorldState<'a> {
-    livecode_src: &'a LivecodeSrc,
-}
-impl<'a> TimelessLiveCodeWorldState<'a> {
-    pub fn new(livecode_src: &'a LivecodeSrc) -> TimelessLiveCodeWorldState<'a> {
-        TimelessLiveCodeWorldState { livecode_src }
+        self.time().seconds_since_updated_realtime() < 0.1
     }
 
-    pub fn to_timeless_vals(&self) -> ExprWorldContextValues {
-        ExprWorldContextValues::new(self.livecode_src.to_timeless_vals())
-    }
-    
-    pub(crate) fn ctx(&self) -> Result<HashMapContext, LivecodeErr> {
-        Err(LivecodeErr::new("accessing ctx on timeless...".to_owned()))
+    pub fn is_on_bar(&self) -> bool {
+        self.time().is_on_bar()
     }
 }
 
@@ -513,6 +455,17 @@ impl LivecodeTimingConfig {
 
     fn current_time_seconds_frame(&self, system_timing: LiveCodeTiming) -> f32 {
         system_timing.frame as f32 / self.fps
+    }
+}
+
+impl Default for LivecodeTimingConfig {
+    fn default() -> Self {
+        Self {
+            bpm: 135.0,
+            fps: 30.0,
+            realtime: false,
+            beats_per_bar: 4.0,
+        }
     }
 }
 

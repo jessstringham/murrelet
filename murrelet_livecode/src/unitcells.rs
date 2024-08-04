@@ -10,7 +10,7 @@ use std::{any::Any, collections::HashMap, fmt};
 use crate::livecode::{LivecodeErr, LivecodeFromWorld, LivecodeResult};
 use crate::{
     expr::{ExprWorldContextValues, IntoExprWorldContext},
-    livecode::{LiveCodeWorldState, TimelessLiveCodeWorldState},
+    livecode::LiveCodeWorldState,
 };
 
 #[derive(Debug, Deserialize, Clone)]
@@ -113,7 +113,6 @@ impl<CtxSource: UnitCellCreator, Target: Default> TmpUnitCells<CtxSource, Target
     }
 }
 
-
 impl<CtxSource, Target> TmpUnitCells<CtxSource, Target>
 where
     CtxSource: UnitCellCreator,
@@ -169,7 +168,11 @@ where
 
     pub fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<UnitCells<Target>> {
         let world_context = UnitCellEvalContext::from_world(w)?;
-        Ok(UnitCells::new(self.eval_with_ctx(&world_context, &self.ctx, w.should_debug())))
+        Ok(UnitCells::new(self.eval_with_ctx(
+            &world_context,
+            &self.ctx,
+            w.should_debug(),
+        )))
         // match maybe_world_context {
         //     Ok(world_context) => Ok(UnitCells::new(self.eval_with_ctx(&world_context, &self.ctx, w.should_debug()))),
         //     Err(err) => {
@@ -177,30 +180,6 @@ where
         //         UnitCells::new(vec![])
         //     }
         // }
-
-    }
-
-    pub fn just_midi(&self, m: &TimelessLiveCodeWorldState) -> LivecodeResult<UnitCells<Target>> {
-        // TODO, add a world state that uses midi
-        let world_context = UnitCellEvalContext::from_timeless(m)?;
-        Ok(UnitCells::new(self.eval_with_ctx(&world_context, &self.ctx, false)))
-        // if let Some(x) = &self.ctx {
-        //     match x.eval(&mut world_context) {
-        //         Ok(()) => {},
-        //         Err(_) => {}
-        //     }
-        // }
-
-
-        // match maybe_world_context {
-        //     Ok(world_context) => UnitCells::new(self.eval_with_ctx(&world_context, &self.ctx, false)),
-        //     Err(err) => {
-        //         println!("{}", err);
-        //         UnitCells::new(vec![])
-        //     }
-        // }
-
-        
     }
 }
 
@@ -467,12 +446,6 @@ impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
         // let world_context = print_expect(maybe_world_context, "error in world ctx").unwrap();
         Ok(LazyNodeF32::new(self.0.clone(), world_context.ctx))
     }
-
-    fn just_midi(&self, m: &TimelessLiveCodeWorldState) -> Result<LazyNodeF32, LivecodeErr> {
-        let world_context = UnitCellEvalContext::from_timeless(m)?;
-        // let world_context = print_expect(maybe_world_context, "error in world ctx").unwrap();
-        Ok(LazyNodeF32::new(self.0.clone(), world_context.ctx))
-    }
 }
 
 impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
@@ -552,7 +525,10 @@ impl LazyNodeF32 {
     }
 
     pub fn final_eval(&self, ctx: &HashMapContext) -> Result<f32, LivecodeErr> {
-        let n = self.n.clone().ok_or( LivecodeErr::new(format!("tried to eval empty node")))?;
+        let n = self
+            .n
+            .clone()
+            .ok_or(LivecodeErr::new(format!("tried to eval empty node")))?;
         n.eval_float_with_context(ctx)
             .map(|x| x as f32)
             .map_err(|err| LivecodeErr::new(format!("error evaluating lazy: {}", err)))
@@ -601,23 +577,14 @@ impl InvertedWorld<LazyNodeF32Def> for LazyNodeF32 {
 pub struct UnitCellEvalContext<'a> {
     pub ctx: HashMapContext,
     pub w: Option<&'a LiveCodeWorldState<'a>>,
-    pub m: Option<&'a TimelessLiveCodeWorldState<'a>>,
 }
 impl<'a> UnitCellEvalContext<'a> {
-    pub fn from_world(w: &'a LiveCodeWorldState<'a>) -> Result<UnitCellEvalContext<'a>, LivecodeErr> {
-
+    pub fn from_world(
+        w: &'a LiveCodeWorldState<'a>,
+    ) -> Result<UnitCellEvalContext<'a>, LivecodeErr> {
         Ok(UnitCellEvalContext {
-            ctx: w.ctx()?, //expr_context(w),
+            ctx: w.ctx()?.clone(), //expr_context(w),
             w: Some(w),
-            m: None,
-        })
-    }
-
-    pub fn from_timeless(m: &'a TimelessLiveCodeWorldState<'a>) -> Result<UnitCellEvalContext<'a>, LivecodeErr> {
-        Ok(UnitCellEvalContext {
-            ctx: m.ctx()?, //expr_context_no_world(m),
-            w: None,
-            m: Some(m),
         })
     }
 
@@ -633,11 +600,9 @@ impl<'a> UnitCellEvalContext<'a> {
         UnitCellEvalContext {
             ctx: full_ctx,
             w: self.w,
-            m: self.m,
         }
     }
 }
-
 
 #[derive(Clone, Debug, Default)]
 pub struct UnitCells<Target: std::fmt::Debug + Clone + Default> {
@@ -1166,20 +1131,34 @@ impl IntoExprWorldContext for UnitCellExprWorldContext {
             ("x_i".to_owned(), LivecodeValue::Int(self.x_i as i64)),
             ("y_i".to_owned(), LivecodeValue::Int(self.y_i as i64)),
             ("z_i".to_owned(), LivecodeValue::Int(self.z_i as i64)),
-            ("x_total".to_owned(), LivecodeValue::Int(self.total_x as i64)),
-            ("y_total".to_owned(), LivecodeValue::Int(self.total_y as i64)),
-            ("z_total".to_owned(), LivecodeValue::Int(self.total_z as i64)),
+            (
+                "x_total".to_owned(),
+                LivecodeValue::Int(self.total_x as i64),
+            ),
+            (
+                "y_total".to_owned(),
+                LivecodeValue::Int(self.total_y as i64),
+            ),
+            (
+                "z_total".to_owned(),
+                LivecodeValue::Int(self.total_z as i64),
+            ),
             ("i".to_owned(), LivecodeValue::Int(self.i() as i64)),
             (
                 "frac".to_owned(),
-                LivecodeValue::Float(self.i() as f64 / (self.total_x * self.total_y * self.total_z) as f64),
+                LivecodeValue::Float(
+                    self.i() as f64 / (self.total_x * self.total_y * self.total_z) as f64,
+                ),
             ),
             (
                 "total".to_owned(),
                 LivecodeValue::Float((self.total_x * self.total_y * self.total_z) as f64),
             ),
             ("seed".to_owned(), LivecodeValue::Float(self.seed as f64)),
-            ("h_ratio".to_owned(), LivecodeValue::Float(self.h_ratio as f64)),
+            (
+                "h_ratio".to_owned(),
+                LivecodeValue::Float(self.h_ratio as f64),
+            ),
         ];
         ExprWorldContextValues::new(v)
     }

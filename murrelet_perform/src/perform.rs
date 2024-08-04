@@ -485,7 +485,7 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
         Some(capture_frame_name(
             save_path,
             lil_liveconfig.run_id,
-            lil_liveconfig.w.time.actual_frame_u64(),
+            lil_liveconfig.w.actual_frame_u64(),
             prefix,
         ))
     } else {
@@ -496,7 +496,7 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
         lil_liveconfig.app_config.width,
         capture_path,
         lil_liveconfig.app_config.svg.size,
-        lil_liveconfig.w.time.actual_frame_u64(),
+        lil_liveconfig.w.actual_frame_u64(),
     )
 }
 
@@ -541,7 +541,8 @@ where
         conf: String,
         livecode_src: LivecodeSrc,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
-        let controlconfig = ControlConfType::parse(&conf).map_err(|err| LivecodeErr::new(format!("error parsing {}", err)))?;
+        let controlconfig = ControlConfType::parse(&conf)
+            .map_err(|err| LivecodeErr::new(format!("error parsing {}", err)))?;
         Self::new_full(controlconfig, None, livecode_src)
     }
 
@@ -601,14 +602,14 @@ where
         // let target = self._extract_target_config();
 
         // set this one first, so we can use it to get the world
-        self.cached_timeless_app_config =
-            Some(self._app_config().just_midi(&self.timeless_world())?);
+
+        self.cached_timeless_app_config = Some(self._app_config().o(&self._timeless_world()?)?);
 
         let w = self.world();
 
         let target = self.controlconfig.o(&w)?;
 
-        let t = w.time.bar();
+        let t = w.time().bar();
 
         let boop_conf = target.config_app_loc().boop.to_livecode();
 
@@ -662,7 +663,7 @@ where
 
     /// if the bg_alpha is above 0.5 or clear_bg is true
     pub fn should_reset_bg(&self) -> bool {
-        self.world().time.actual_frame_u64() <= 1 || self.app_config().should_clear_bg()
+        self.world().actual_frame_u64() <= 1 || self.app_config().should_clear_bg()
     }
 
     pub fn maybe_bg_alpha(&self) -> Option<f32> {
@@ -685,7 +686,7 @@ where
         // if we can reload whenever, do that. otherwise only reload on bar
 
         if reload {
-            if !self.app_config().reload_on_bar() || self.world().time.is_on_bar() {
+            if !self.app_config().reload_on_bar() || self.world().time().is_on_bar() {
                 self.reload_config();
             }
         }
@@ -703,14 +704,14 @@ where
         self.set_processed_config()
     }
 
-    pub fn timeless_world(&self) -> TimelessLiveCodeWorldState {
+    pub fn _timeless_world(&self) -> LivecodeResult<LiveCodeWorldState> {
         self.util.timeless_world(
             // &self.midi.values, &self.app_input.values, &self.blte.values
             &self.livecode_src,
         )
     }
 
-    pub fn _world(&self) -> Result<LiveCodeWorldState, LivecodeErr> {
+    pub fn _world(&self) -> LivecodeResult<LiveCodeWorldState> {
         // this function should only be called after this is set! since the "set processed" is called right away
         let timeless_app_config = self.cached_timeless_app_config.as_ref().unwrap();
 
@@ -786,10 +787,8 @@ where
                 let img_name = capture_frame_name.with_extension("yaml");
                 fs::copy(env::args().collect::<Vec<String>>()[1].clone(), img_name).unwrap();
             }
-
         }
         Ok(())
-
     }
 
     pub fn capture_with_fn<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
@@ -853,6 +852,6 @@ where
 
     // seconds since last render
     pub fn time_delta(&self) -> f32 {
-        self.world().time.seconds_between_render_times()
+        self.world().time().seconds_between_render_times()
     }
 }

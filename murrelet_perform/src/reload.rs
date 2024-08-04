@@ -228,8 +228,8 @@ impl LiveCodeUtil {
     pub fn timeless_world<'a>(
         &'a self,
         livecode_src: &'a LivecodeSrc,
-    ) -> TimelessLiveCodeWorldState {
-        TimelessLiveCodeWorldState::new(livecode_src)
+    ) -> LivecodeResult<LiveCodeWorldState> {
+        LiveCodeWorldState::new_timeless(self.global_funcs.clone(), livecode_src)
     }
 
     pub fn world<'a>(
@@ -238,6 +238,11 @@ impl LiveCodeUtil {
         timing_conf: &LivecodeTimingConfig,
         node: &Node,
     ) -> Result<LiveCodeWorldState, LivecodeErr> {
-        LiveCodeWorldState::new(self.global_funcs.clone(), livecode_src, self.time(timing_conf), node.clone())
+        LiveCodeWorldState::new(
+            self.global_funcs.clone(),
+            livecode_src,
+            self.time(timing_conf),
+            node.clone(),
+        )
     }
 }
