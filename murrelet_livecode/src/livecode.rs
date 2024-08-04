@@ -16,6 +16,8 @@ use murrelet_common::MurreletColor;
 use murrelet_common::MurreletTime;
 use serde::Deserialize;
 
+use crate::unitcells::LazyNodeF32;
+use crate::unitcells::LazyNodeF32Def;
 use crate::unitcells::{
     EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32, UnitCellEvalContext,
 };
@@ -147,6 +149,12 @@ impl LivecodeToControl<ControlF32> for usize {
 impl LivecodeToControl<ControlF32> for u64 {
     fn to_control(&self) -> ControlF32 {
         ControlF32::Raw(*self as f32)
+    }
+}
+
+impl LivecodeToControl<LazyNodeF32Def> for LazyNodeF32 {
+    fn to_control(&self) -> LazyNodeF32Def {
+        LazyNodeF32Def::new(self.n().cloned().unwrap())
     }
 }
 

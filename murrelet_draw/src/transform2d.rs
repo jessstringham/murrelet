@@ -101,6 +101,13 @@ impl Transform2d {
         ))])
     }
 
+    pub fn new_from_scale_rotate<A: IsAngle>(s: f32, angle_pi: A) -> Transform2d {
+        Transform2d::new(vec![
+            Transform2dStep::scale(s / 100.0, s / 100.0),
+            Transform2dStep::rotate_pi(angle_pi),
+        ])
+    }
+
     // experimental
     pub fn approx_scale(&self) -> f32 {
         let mut scale = 1.0;

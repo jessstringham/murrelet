@@ -17,7 +17,7 @@ impl MurreletColor {
     }
 
     pub fn white() -> Self {
-        Self::hsva(1.0, 1.0, 1.0, 1.0)
+        Self::rgba(1.0, 1.0, 1.0, 1.0)
     }
 
     pub fn transparent() -> Self {

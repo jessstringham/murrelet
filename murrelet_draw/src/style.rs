@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{draw::*, transform2d::*};
+use crate::{curve_drawer::CurveDrawer, draw::*, transform2d::*};
 use glam::*;
 use md5::{Digest, Md5};
 use murrelet_common::*;
@@ -318,11 +318,147 @@ pub mod styleconf {
                 StyleConf::SvgPattern(a) => a.to_style(),
             }
         }
+
+        pub fn color(&self) -> MurreletColor {
+            self.to_style().color.as_color()
+        }
     }
 
     impl Default for StyleConf {
         fn default() -> Self {
             StyleConf::Fill(MurreletStyleFilled::default())
+        }
+    }
+}
+
+// this one attaches a transform to the curve.
+// you can _try_ to apply it using to_curve_maker, but this
+// will act funny for non-affine
+#[derive(Debug, Clone)]
+pub struct MurreletCurve {
+    cd: CurveDrawer,
+    t: Mat4,
+}
+
+impl MurreletCurve {
+    pub fn new(cd: CurveDrawer) -> Self {
+        Self {
+            cd,
+            t: Mat4::IDENTITY,
+        }
+    }
+
+    pub fn transform_with_mat4_after(&self, t: Mat4) -> MurreletCurve {
+        Self {
+            cd: self.cd.clone(),
+            t: t * self.t,
+        }
+    }
+
+    pub fn transform_with_mat4_before(&self, t: Mat4) -> MurreletCurve {
+        Self {
+            cd: self.cd.clone(),
+            t: self.t * t,
+        }
+    }
+
+    pub fn mat4(&self) -> Mat4 {
+        self.t
+    }
+
+    pub fn curve(&self) -> &CurveDrawer {
+        &self.cd
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum MurreletPath {
+    Polyline(Polyline),
+    Curve(MurreletCurve),
+}
+impl MurreletPath {
+    pub fn polyline<F: IsPolyline>(path: F) -> Self {
+        Self::Polyline(path.as_polyline())
+    }
+
+    pub fn curve(cd: CurveDrawer) -> Self {
+        Self::Curve(MurreletCurve::new(cd))
+    }
+
+    pub fn as_curve(&self) -> MurreletCurve {
+        match self {
+            MurreletPath::Polyline(c) => MurreletCurve {
+                cd: CurveDrawer::new_simple_points(c.clone_to_vec()),
+                t: Mat4::IDENTITY,
+            },
+            MurreletPath::Curve(c) => c.clone(),
+        }
+    }
+
+    pub fn transform_with<T: TransformVec2>(&self, t: &T) -> Self {
+        match self {
+            MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
+            MurreletPath::Curve(_) => todo!(), // i'm not sure how i want to handle this yet
+        }
+    }
+
+    pub fn transform_with_mat4_after(&self, t: Mat4) -> MurreletPath {
+        match self {
+            MurreletPath::Polyline(_) => self.transform_with(&t),
+            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_after(t)),
+        }
+    }
+
+    pub fn transform_with_mat4_before(&self, t: Mat4) -> MurreletPath {
+        match self {
+            MurreletPath::Polyline(_) => self.transform_with(&t),
+            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_before(t)),
+        }
+    }
+
+    pub fn transform(&self) -> Option<Mat4> {
+        match self {
+            MurreletPath::Polyline(_) => None,
+            MurreletPath::Curve(c) => Some(c.t),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StyledPath {
+    pub path: MurreletPath,
+    pub style: MurreletStyle,
+}
+impl StyledPath {
+    pub fn new_from_path(path: MurreletPath, style: MurreletStyle) -> Self {
+        Self { path, style }
+    }
+
+    pub fn new<F: IsPolyline>(path: F, style: MurreletStyle) -> Self {
+        Self {
+            path: MurreletPath::Polyline(path.as_polyline()),
+            style,
+        }
+    }
+
+    pub fn from_path<P: IsPolyline>(path: P) -> StyledPath {
+        StyledPath {
+            path: MurreletPath::Polyline(path.as_polyline()),
+            style: MurreletStyle::default(),
+        }
+    }
+
+    pub fn transform_path<T: TransformVec2>(&self, t: &T) -> Self {
+        StyledPath {
+            path: self.path.transform_with(t),
+            ..self.clone()
+        }
+    }
+
+    pub fn transform_with_mat4_after(&self, t: Mat4) -> Self {
+        StyledPath {
+            path: self.path.transform_with_mat4_after(t),
+            ..self.clone()
         }
     }
 }

@@ -12,7 +12,7 @@ use murrelet_draw::{
     curve_drawer::CurveDrawer,
     draw::{MurreletColorStyle, MurreletStyle},
     newtypes::RGBandANewtype,
-    style::StyledPathSvgFill,
+    style::{MurreletCurve, MurreletPath, StyledPath, StyledPathSvgFill},
 };
 use murrelet_perform::perform::SvgDrawConfig;
 use svg::{node::element::path::Data, Document, Node};
@@ -43,89 +43,21 @@ impl StyledText {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct MurreletCurve {
-    cd: CurveDrawer,
-    t: Mat4,
+pub trait ToSvgData {
+    fn to_svg(&self) -> Option<Data>;
 }
 
-impl MurreletCurve {
-    pub fn new(cd: CurveDrawer) -> Self {
-        Self {
-            cd,
-            t: Mat4::IDENTITY,
-        }
-    }
-
-    fn transform_with_mat4_after(&self, t: Mat4) -> MurreletCurve {
-        Self {
-            cd: self.cd.clone(),
-            t: t * self.t,
-        }
-    }
-
-    fn transform_with_mat4_before(&self, t: Mat4) -> MurreletCurve {
-        Self {
-            cd: self.cd.clone(),
-            t: self.t * t,
-        }
-    }
-
+impl ToSvgData for MurreletCurve {
     fn to_svg(&self) -> Option<Data> {
-        self.cd.to_svg()
-    }
-
-    pub fn mat4(&self) -> Mat4 {
-        self.t
+        self.curve().to_svg()
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum MurreletPath {
-    Polyline(Polyline),
-    Curve(MurreletCurve),
-}
-impl MurreletPath {
-    pub fn polyline<F: IsPolyline>(path: F) -> Self {
-        Self::Polyline(path.as_polyline())
-    }
-
-    pub fn curve(cd: CurveDrawer) -> Self {
-        Self::Curve(MurreletCurve::new(cd))
-    }
-
-    pub fn transform_with<T: TransformVec2>(&self, t: &T) -> Self {
-        match self {
-            MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
-            MurreletPath::Curve(_) => todo!(), // i'm not sure how i want to handle this yet
-        }
-    }
-
-    pub fn to_svg(&self) -> Option<Data> {
+impl ToSvgData for MurreletPath {
+    fn to_svg(&self) -> Option<Data> {
         match self {
             MurreletPath::Polyline(path) => path.into_iter_vec2().collect_vec().to_svg(),
             MurreletPath::Curve(c) => c.to_svg(),
-        }
-    }
-
-    pub fn transform_with_mat4_after(&self, t: Mat4) -> MurreletPath {
-        match self {
-            MurreletPath::Polyline(_) => self.transform_with(&t),
-            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_after(t)),
-        }
-    }
-
-    pub fn transform_with_mat4_before(&self, t: Mat4) -> MurreletPath {
-        match self {
-            MurreletPath::Polyline(_) => self.transform_with(&t),
-            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_before(t)),
-        }
-    }
-
-    fn transform(&self) -> Option<Mat4> {
-        match self {
-            MurreletPath::Polyline(_) => None,
-            MurreletPath::Curve(c) => Some(c.t),
         }
     }
 }
@@ -224,48 +156,18 @@ impl AddSvgAttributes for StyledPath {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct StyledPath {
-    path: MurreletPath,
-    style: MurreletStyle,
-}
-impl StyledPath {
-    pub fn new_from_path(path: MurreletPath, style: MurreletStyle) -> Self {
-        Self { path, style }
-    }
-
-    pub fn new<F: IsPolyline>(path: F, style: MurreletStyle) -> Self {
-        Self {
-            path: MurreletPath::Polyline(path.as_polyline()),
-            style,
-        }
-    }
-
-    fn from_path<P: IsPolyline>(path: P) -> StyledPath {
-        StyledPath {
-            path: MurreletPath::Polyline(path.as_polyline()),
-            style: MurreletStyle::default(),
-        }
-    }
-
-    fn transform_path<T: TransformVec2>(&self, t: &T) -> Self {
-        StyledPath {
-            path: self.path.transform_with(t),
-            ..self.clone()
-        }
-    }
-
-    fn transform_with_mat4_after(&self, t: Mat4) -> Self {
-        StyledPath {
-            path: self.path.transform_with_mat4_after(t),
-            ..self.clone()
-        }
-    }
-
+impl ToSvgData for StyledPath {
     fn to_svg(&self) -> Option<Data> {
         self.path.to_svg()
     }
+}
 
+pub trait ToSvgPath {
+    fn make_path(&self) -> Option<svg::node::element::Path>;
+    fn make_pattern(&self) -> Option<(String, svg::node::element::Pattern)>;
+}
+
+impl ToSvgPath for StyledPath {
     fn make_path(&self) -> Option<svg::node::element::Path> {
         if let Some(d) = self.path.to_svg() {
             let mut d = d;

@@ -10,10 +10,7 @@ use std::{any::Any, collections::HashMap, fmt};
 
 use crate::livecode::LivecodeFromWorld;
 use crate::{
-    expr::{
-        add_variable_or_prefix_it, expr_context, expr_context_no_world, ExprWorldContextValues,
-        IntoExprWorldContext,
-    },
+    expr::{expr_context, expr_context_no_world, ExprWorldContextValues, IntoExprWorldContext},
     livecode::{LiveCodeWorldState, TimelessLiveCodeWorldState},
 };
 
@@ -356,11 +353,24 @@ impl UnitCellCtx {
             .eval_empty_with_context_mut(&mut ctx.ctx)
             .map_err(|err| format!("{:?}", err))
     }
+
+    pub fn eval_raw(&self, ctx: &mut HashMapContext) -> Result<(), String> {
+        self.0
+            .eval_empty_with_context_mut(ctx)
+            .map_err(|err| format!("{:?}", err))
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(transparent)]
 pub struct LazyNodeF32Def(Node);
+
+impl LazyNodeF32Def {
+    pub fn new(n: Node) -> Self {
+        Self(n)
+    }
+}
+
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
     fn o(&self, w: &LiveCodeWorldState) -> LazyNodeF32 {
         let world_context: UnitCellEvalContext<'_> = UnitCellEvalContext::from_world(w);
@@ -376,6 +386,41 @@ impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
 impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
     fn eval(&self, ctx: &UnitCellEvalContext) -> Result<LazyNodeF32, String> {
         Ok(LazyNodeF32::new(self.0.clone(), ctx.ctx.clone()))
+    }
+}
+
+// todo, hrm, this is awkward
+#[derive(Debug, Clone)]
+pub struct MixedEvalDefs {
+    vals: ExprWorldContextValues,
+    nodes: Vec<UnitCellCtx>, // these need to stack
+}
+impl MixedEvalDefs {
+    pub fn new() -> Self {
+        Self {
+            vals: ExprWorldContextValues::new(vec![]),
+            nodes: Vec::new(),
+        }
+    }
+
+    pub fn set_panicle(&mut self, vals: ExprWorldContextValues) {
+        self.vals = vals;
+    }
+
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) {
+        self.vals.update_ctx(ctx);
+        // go from beginning to end
+        for node in self.nodes.iter() {
+            node.eval_raw(ctx).ok();
+        }
+    }
+
+    pub fn set_val(&mut self, name: &str, val: Value) {
+        self.vals.set_val(name, val)
+    }
+
+    pub fn add_node(&mut self, node: UnitCellCtx) {
+        self.nodes.push(node)
     }
 }
 
@@ -400,29 +445,55 @@ impl LazyNodeF32 {
         Self { n: Some(n), ctx }
     }
 
+    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> Result<f32> {
+        // start with the global ctx
+        let mut ctx = self.ctx.clone();
+
+        // modify it with the new data
+        // todo, handle the result better
+        more_defs.update_ctx(&mut ctx);
+
+        // now grab the actual node
+        self.final_eval(&ctx)
+    }
+
+    pub fn final_eval(&self, ctx: &HashMapContext) -> Result<f32> {
+        let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
+        n.eval_float_with_context(ctx)
+            .map(|x| x as f32)
+            .map_err(|e| anyhow!(e))
+    }
+
     pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> Result<f32> {
         let pct = idx.pct();
         let i = idx.i();
         let total = idx.total();
 
-        let vs: ExprWorldContextValues = vec![
+        let vs: ExprWorldContextValues = ExprWorldContextValues::new(vec![
             ("_p".to_owned(), Value::Float(pct as f64)),
             ("_i".to_owned(), Value::Int(i as i64)),
             ("_total".to_owned(), Value::Int(total as i64)),
-        ];
+        ]);
 
         let mut ctx = self.ctx.clone();
 
-        for (identifier, value) in vs.into_iter() {
-            let name = format!("{}{}", prefix, identifier);
-            add_variable_or_prefix_it(&name, value, &mut ctx);
-        }
+        // for (identifier, value) in vs.into_iter() {
+        //     let name = format!("{}{}", prefix, identifier);
+        //     add_variable_or_prefix_it(&name, value, &mut ctx);
+        // }
+        vs.update_ctx_with_prefix(&mut ctx, prefix);
 
-        let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
-        n.eval_float_with_context(&ctx)
-            .map(|x| x as f32)
-            .map_err(|e| anyhow!(e))
+        self.final_eval(&ctx)
+
+        // let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
+        // n.eval_float_with_context(&ctx)
+        //     .map(|x| x as f32)
+        //     .map_err(|e| anyhow!(e))
         //.with_context("failure evaluating idx")
+    }
+
+    pub fn n(&self) -> Option<&Node> {
+        self.n.as_ref()
     }
 }
 
@@ -458,10 +529,11 @@ impl<'a> UnitCellEvalContext<'a> {
     pub fn with_ctx(&self, c: ExprWorldContextValues, prefix: &str) -> UnitCellEvalContext {
         let mut full_ctx = self.ctx.clone();
 
-        for (identifier, value) in c.into_iter() {
-            let name = format!("{}{}", prefix, identifier);
-            add_variable_or_prefix_it(&name, value, &mut full_ctx);
-        }
+        // for (identifier, value) in c.into_iter() {
+        //     let name = format!("{}{}", prefix, identifier);
+        //     add_variable_or_prefix_it(&name, value, &mut full_ctx);
+        // }
+        c.update_ctx_with_prefix(&mut full_ctx, prefix);
 
         UnitCellEvalContext {
             ctx: full_ctx,
@@ -862,6 +934,14 @@ impl UnitCellContext {
         }
     }
 
+    pub fn combine_keep_other_ctx(&self, other: &UnitCellContext) -> UnitCellContext {
+        UnitCellContext {
+            ctx: other.ctx,
+            detail: other.detail.as_wallpaper().unwrap().combine(&self.detail),
+            tile_info: None,
+        }
+    }
+
     pub fn ctx(&self) -> UnitCellExprWorldContext {
         self.ctx
     }
@@ -1052,8 +1132,8 @@ impl UnitCellExprWorldContext {
 }
 
 impl IntoExprWorldContext for UnitCellExprWorldContext {
-    fn as_expr_world_context_values(&self) -> Vec<(String, Value)> {
-        vec![
+    fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
+        let v = vec![
             ("x".to_owned(), Value::Float(self.x as f64)),
             ("y".to_owned(), Value::Float(self.y as f64)),
             ("z".to_owned(), Value::Float(self.z as f64)),
@@ -1074,7 +1154,8 @@ impl IntoExprWorldContext for UnitCellExprWorldContext {
             ),
             ("seed".to_owned(), Value::Float(self.seed as f64)),
             ("h_ratio".to_owned(), Value::Float(self.h_ratio as f64)),
-        ]
+        ];
+        ExprWorldContextValues::new(v)
     }
 }
 

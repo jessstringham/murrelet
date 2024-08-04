@@ -5,8 +5,12 @@ use glam::*;
 
 use murrelet::prelude::*;
 use murrelet_common::mat4_from_mat3_transform;
-use murrelet_draw::{compass::*, draw::*, sequencers::*, style::styleconf::*};
-use murrelet_svg::svg::MurreletPath;
+use murrelet_draw::{
+    compass::*,
+    draw::*,
+    sequencers::*,
+    style::{styleconf::*, MurreletPath},
+};
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "wee_alloc")]
