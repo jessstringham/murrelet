@@ -173,13 +173,6 @@ where
             &self.ctx,
             w.should_debug(),
         )))
-        // match maybe_world_context {
-        //     Ok(world_context) => Ok(UnitCells::new(self.eval_with_ctx(&world_context, &self.ctx, w.should_debug()))),
-        //     Err(err) => {
-        //         println!("{}", err);
-        //         UnitCells::new(vec![])
-        //     }
-        // }
     }
 }
 
@@ -441,7 +434,6 @@ impl LazyNodeF32Def {
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
     fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<LazyNodeF32> {
         let world_context = UnitCellEvalContext::from_world(w)?;
-        // let world_context = print_expect(maybe_world_context, "error in world ctx").unwrap();
         Ok(LazyNodeF32::new(self.0.clone(), world_context.ctx))
     }
 }
@@ -579,7 +571,7 @@ pub struct UnitCellEvalContext<'a> {
 impl<'a> UnitCellEvalContext<'a> {
     pub fn from_world(w: &'a LiveCodeWorldState<'a>) -> LivecodeResult<UnitCellEvalContext<'a>> {
         Ok(UnitCellEvalContext {
-            ctx: w.ctx()?.clone(), //expr_context(w),
+            ctx: w.ctx()?.clone(),
             w: Some(w),
         })
     }

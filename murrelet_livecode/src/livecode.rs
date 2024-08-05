@@ -218,69 +218,6 @@ impl ControlF32 {
         let world_context = UnitCellEvalContext::from_world(w)?;
         self.to_unitcell_control().eval(&world_context)
     }
-
-    // pub fn o(&self, w: &LiveCodeWorldState) -> f32 {
-
-    // match self._o(w) {
-    //     Ok(x) => x,
-    //     Err(err) => {
-    //         println!("{}", err);
-    //         1.0
-    //     }
-    // }
-    // }
-
-    // pub fn vec3(c: &[ControlF32; 3], w: &LiveCodeWorldState) -> Vec3 {
-    //     vec3(c[0].o(w), c[1].o(w), c[2].o(w))
-    // }
-
-    // pub fn array3(c: &[ControlF32; 3], w: &LiveCodeWorldState) -> [f32; 3] {
-    //     [c[0].o(w), c[1].o(w), c[2].o(w)]
-    // }
-
-    // pub fn array4(c: &[ControlF32; 4], w: &LiveCodeWorldState) -> [f32; 4] {
-    //     [c[0].o(w), c[1].o(w), c[2].o(w), c[3].o(w)]
-    // }
-
-    // pub fn hsva(c: &[ControlF32; 4], w: &LiveCodeWorldState) -> MurreletColor {
-    //     let c = ControlF32::array4(c, w);
-    //     // gonna clamp saturation and value
-    //     hsva(c[0], clamp(c[1], 0.0, 1.0), clamp(c[2], 0.0, 1.0), c[3]).into_lin_srgba()
-    // }
-
-    // pub fn hsva_unclamped(c: &[ControlF32; 4], w: &LiveCodeWorldState) -> MurreletColor {
-    //     let c = ControlF32::array4(c, w);
-    //     // gonna clamp just value
-    //     hsva(c[0], c[1], c[2], c[3]).into_lin_srgba()
-    // }
-
-    // pub fn hsva_more_info(c: &[ControlF32; 4], w: &LiveCodeWorldState) -> [f32; 4] {
-    //     let (r, g, b, a) = ControlF32::hsva(c, w).into_components();
-    //     [r, g, b, a]
-    // }
-
-    // pub fn vec2_midi(c: &[ControlF32; 2], w: &TimelessLiveCodeWorldState) -> Vec2 {
-    //     vec2(c[0].just_midi(w), c[1].just_midi(w))
-    // }
-
-    // pub fn vec3_midi(c: &[ControlF32; 3], w: &TimelessLiveCodeWorldState) -> Vec3 {
-    //     vec3(c[0].just_midi(w), c[1].just_midi(w), c[2].just_midi(w))
-    // }
-
-    // pub fn array3_midi(c: &[ControlF32; 3], w: &TimelessLiveCodeWorldState) -> [f32; 3] {
-    //     [c[0].just_midi(w), c[1].just_midi(w), c[2].just_midi(w)]
-    // }
-
-    // pub fn hsva_midi(c: &[ControlF32; 4], w: &TimelessLiveCodeWorldState) -> MurreletColor {
-    //     let c = ControlF32::array4_midi(c, w);
-    //     // gonna clamp saturation and value
-    //     hsva(c[0], clamp(c[1], 0.0, 1.0), clamp(c[2], 0.0, 1.0), c[3]).into_lin_srgba()
-    // }
-
-    // pub fn hsva_more_info_midi(c: &[ControlF32; 4], w: &TimelessLiveCodeWorldState) -> [f32; 4] {
-    //     let (r, g, b, a) = ControlF32::hsva_midi(c, w).into_components();
-    //     [r, g, b, a]
-    // }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -313,15 +250,7 @@ impl ControlBool {
 
     pub fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<bool> {
         let world_context = UnitCellEvalContext::from_world(w)?;
-
         self.to_unitcell_control().eval(&world_context)
-        // match self.to_unitcell_control().eval(&world_context) {
-        //     Ok(x) => x,
-        //     Err(err) => {
-        //         println!("{}", err);
-        //         false
-        //     }
-        // }
     }
 
     pub fn default(&self) -> bool {
@@ -339,7 +268,6 @@ pub struct LiveCodeWorldState<'a> {
     // Usually time is available, except the one moment where we're loading the config needed to generate
     // the timing config, which is needed to generate the time. That _should_ all be internal,
     time: Option<LiveCodeTimeInstantInfo>,
-    // pub ctx: Node, // this is the global ctx
     cached_context: HashMapContext,
 }
 impl<'a> LiveCodeWorldState<'a> {
@@ -349,11 +277,9 @@ impl<'a> LiveCodeWorldState<'a> {
         time: LiveCodeTimeInstantInfo,
         ctx: Node,
     ) -> LivecodeResult<LiveCodeWorldState<'a>> {
-        // set up the cached_hm
         let mut w = LiveCodeWorldState {
             livecode_src,
             time: Some(time),
-            // ctx,
             cached_context: evalexpr_func_ctx,
         };
 
@@ -456,17 +382,6 @@ impl LivecodeTimingConfig {
 
     fn current_time_seconds_frame(&self, system_timing: LiveCodeTiming) -> f32 {
         system_timing.frame as f32 / self.fps
-    }
-}
-
-impl Default for LivecodeTimingConfig {
-    fn default() -> Self {
-        Self {
-            bpm: 135.0,
-            fps: 30.0,
-            realtime: false,
-            beats_per_bar: 4.0,
-        }
     }
 }
 
@@ -655,8 +570,6 @@ pub struct LiveCodeConfigInfo {
     pub config_next_check: MurreletTime,
     updated: bool,
 }
-
-// LoadableDrawConfig::load_if_needed(self.config_next_check)
 
 impl Default for LiveCodeConfigInfo {
     fn default() -> Self {
