@@ -229,7 +229,7 @@ impl LiveCodeUtil {
         &'a self,
         livecode_src: &'a LivecodeSrc,
     ) -> LivecodeResult<LiveCodeWorldState> {
-        LiveCodeWorldState::new_timeless(self.global_funcs.clone(), livecode_src)
+        LiveCodeWorldState::new_timeless(&self.global_funcs, livecode_src)
     }
 
     pub fn world<'a>(
@@ -239,7 +239,7 @@ impl LiveCodeUtil {
         node: &Node,
     ) -> LivecodeResult<LiveCodeWorldState> {
         LiveCodeWorldState::new(
-            self.global_funcs.clone(),
+            &self.global_funcs,
             livecode_src,
             self.time(timing_conf),
             node.clone(),

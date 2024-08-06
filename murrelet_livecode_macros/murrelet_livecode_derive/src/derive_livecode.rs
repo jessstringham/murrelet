@@ -470,12 +470,13 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_world = {
             quote! {#name: {
+                let ctx = murrelet_livecode::unitcells::UnitCellWorldState::from_world(w);
                 murrelet_livecode::unitcells::TmpUnitCells::new(
                     self.#target.o(w)?,
                     Box::new(self.#name.clone()),
                     #maybe_more_ctx,
                     #prefix
-                ).o(w)?
+                ).o(&ctx)?
             }}
         };
 

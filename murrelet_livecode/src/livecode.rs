@@ -22,7 +22,7 @@ use crate::expr::ExprWorldContextValues;
 use crate::unitcells::LazyNodeF32;
 use crate::unitcells::LazyNodeF32Def;
 use crate::unitcells::{
-    EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32, UnitCellEvalContext,
+    EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32, UnitCellWorldState,
 };
 
 // for default values
@@ -49,6 +49,7 @@ impl std::error::Error for LivecodeError {}
 
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
+// 'world is approximately one frame
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<T>;
 }
@@ -215,7 +216,7 @@ impl ControlF32 {
     }
 
     pub fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<f32> {
-        let world_context = UnitCellEvalContext::from_world(w)?;
+        let world_context = UnitCellWorldState::from_world(w);
         self.to_unitcell_control().eval(&world_context)
     }
 }
@@ -249,7 +250,7 @@ impl ControlBool {
     }
 
     pub fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<bool> {
-        let world_context = UnitCellEvalContext::from_world(w)?;
+        let world_context = UnitCellWorldState::from_world(w);
         self.to_unitcell_control().eval(&world_context)
     }
 
@@ -263,64 +264,75 @@ impl ControlBool {
     }
 }
 
-pub struct LiveCodeWorldState<'a> {
-    pub livecode_src: &'a LivecodeSrc,
+#[derive(Debug, Clone)]
+pub struct LiveCodeWorldState {
     // Usually time is available, except the one moment where we're loading the config needed to generate
     // the timing config, which is needed to generate the time. That _should_ all be internal,
     time: Option<LiveCodeTimeInstantInfo>,
     cached_context: HashMapContext,
 }
-impl<'a> LiveCodeWorldState<'a> {
-    pub fn new(
-        evalexpr_func_ctx: HashMapContext,
-        livecode_src: &'a LivecodeSrc,
+impl LiveCodeWorldState {
+    pub fn clone_ctx_and_add_world(
+        evalexpr_func_ctx: &HashMapContext,
+        livecode_src: &LivecodeSrc,
+        maybe_time: Option<LiveCodeTimeInstantInfo>,
+        maybe_node: Option<Node>,
+    ) -> LivecodeResult<HashMapContext> {
+        let mut ctx = evalexpr_func_ctx.clone();
+
+        let mut w = livecode_src.to_world_vals();
+        if let Some(time) = maybe_time {
+            w.extend(time.to_exec_funcs());
+        }
+        // add the world to the ctx
+        let vals = ExprWorldContextValues::new(w);
+        vals.update_ctx(&mut ctx)?;
+
+        // add the node to the context
+        if let Some(node) = maybe_node {
+            node.eval_empty_with_context_mut(&mut ctx)
+                .map_err(|err| LivecodeError::EvalExpr("node eval failed".to_owned(), err))?;
+        }
+
+        Ok(ctx)
+    }
+
+    pub fn new<'a>(
+        evalexpr_func_ctx: &HashMapContext,
+        livecode_src: &LivecodeSrc,
         time: LiveCodeTimeInstantInfo,
-        ctx: Node,
-    ) -> LivecodeResult<LiveCodeWorldState<'a>> {
-        let mut w = LiveCodeWorldState {
-            livecode_src,
+        node: Node,
+    ) -> LivecodeResult<LiveCodeWorldState> {
+        let cached_context =
+            Self::clone_ctx_and_add_world(evalexpr_func_ctx, livecode_src, Some(time), Some(node))?;
+
+        Ok(LiveCodeWorldState {
             time: Some(time),
-            cached_context: evalexpr_func_ctx,
-        };
-
-        // sorry these are a little inside out, need the world state to set up the world state cached context...
-        w.to_world_vals().update_ctx(&mut w.cached_context)?;
-        ctx.eval_empty_with_context_mut(&mut w.cached_context)
-            .map_err(|err| LivecodeError::EvalExpr("node eval failed".to_owned(), err))?;
-
-        Ok(w)
+            cached_context,
+        })
     }
 
     pub fn new_timeless(
-        evalexpr_func_ctx: HashMapContext,
-        livecode_src: &'a LivecodeSrc,
-    ) -> LivecodeResult<LiveCodeWorldState<'a>> {
-        let mut w = LiveCodeWorldState {
-            livecode_src,
+        evalexpr_func_ctx: &HashMapContext,
+        livecode_src: &LivecodeSrc,
+    ) -> LivecodeResult<LiveCodeWorldState> {
+        let cached_context =
+            Self::clone_ctx_and_add_world(evalexpr_func_ctx, livecode_src, None, None)?;
+
+        Ok(LiveCodeWorldState {
             time: None,
-            cached_context: evalexpr_func_ctx,
-        };
-
-        // sorry these are a little inside out, need the world state to set up the world state cached context...
-        w.to_world_vals().update_ctx(&mut w.cached_context)?;
-
-        Ok(w)
-    }
-
-    pub fn to_world_vals(&self) -> ExprWorldContextValues {
-        let mut w = self.livecode_src.to_world_vals();
-        if let Some(time) = self.time {
-            w.extend(time.to_exec_funcs());
-        }
-        ExprWorldContextValues::new(w)
+            cached_context,
+        })
     }
 
     // this should use the cached one if it exists, or return an error
-    pub(crate) fn ctx(&self) -> LivecodeResult<&HashMapContext> {
-        Ok(&self.cached_context)
+    pub(crate) fn ctx(&self) -> &HashMapContext {
+        &self.cached_context
     }
 
     pub fn time(&self) -> LiveCodeTimeInstantInfo {
+        // basically always world should have time, except when computing
+        // the time component.
         self.time.expect("tried calling time on timeless world")
     }
 
@@ -338,6 +350,10 @@ impl<'a> LiveCodeWorldState<'a> {
 
     pub fn is_on_bar(&self) -> bool {
         self.time().is_on_bar()
+    }
+
+    pub(crate) fn ctx_mut(&mut self) -> &mut HashMapContext {
+        &mut self.cached_context
     }
 }
 

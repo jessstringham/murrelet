@@ -472,7 +472,7 @@ where
 pub struct LilLiveConfig<'a> {
     save_path: Option<&'a PathBuf>,
     run_id: u64,
-    w: LiveCodeWorldState<'a>,
+    w: &'a LiveCodeWorldState,
     app_config: &'a AppConfig,
 }
 
@@ -530,6 +530,7 @@ where
     boop_mng: BoopMng<ConfType, BoopConfType>,
     // sorry, the cache is mixed between boom_mng, but sometimes we need this
     cached_timeless_app_config: Option<AppConfig>,
+    cached_world: Option<LiveCodeWorldState>,
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
@@ -574,6 +575,7 @@ where
             prev_controlconfig: controlconfig,
             boop_mng: BoopMng::Uninitialized,
             cached_timeless_app_config: None, // uninitialized
+            cached_world: None,
         };
 
         // use the object to create a world and generate the configs
@@ -598,12 +600,10 @@ where
     // going with the existing config until you fix it.
     // with initially loading it, you might just not start the program
     pub fn set_processed_config(&mut self) -> LivecodeResult<()> {
-        // assume the target has already been updated
-        // let target = self._extract_target_config();
-
         // set this one first, so we can use it to get the world
 
         self.cached_timeless_app_config = Some(self._app_config().o(&self._timeless_world()?)?);
+        self._update_world()?;
 
         let w = self.world();
 
@@ -670,6 +670,7 @@ where
         self.app_config().bg_alpha()
     }
 
+    // called every frame
     pub fn update(&mut self, app: &MurreletAppInput, reload: bool) -> LivecodeResult<()> {
         // use the previous frame's world for this
         let update_input = LivecodeSrcUpdateInput::new(
@@ -701,6 +702,7 @@ where
         // self.app_input.update(app);
 
         // this should happen at the very end
+        // cache the world
         self.set_processed_config()
     }
 
@@ -708,21 +710,25 @@ where
         self.util.timeless_world(
             // &self.midi.values, &self.app_input.values, &self.blte.values
             &self.livecode_src,
+            // &self.cached_timeless_app_config.as_ref().map(|x| x.ctx.clone()).unwrap()
         )
     }
 
-    pub fn _world(&self) -> LivecodeResult<LiveCodeWorldState> {
+    pub fn _update_world(&mut self) -> LivecodeResult<()> {
         // this function should only be called after this is set! since the "set processed" is called right away
         let timeless_app_config = self.cached_timeless_app_config.as_ref().unwrap();
-
-        let timing_conf = timeless_app_config.time.to_livecode();
         let ctx = &timeless_app_config.ctx;
 
-        self.util.world(&self.livecode_src, &timing_conf, ctx)
+        let timing_conf = timeless_app_config.time.to_livecode();
+
+        let world = self.util.world(&self.livecode_src, &timing_conf, ctx)?;
+
+        self.cached_world = Some(world);
+        Ok(())
     }
 
-    pub fn world(&self) -> LiveCodeWorldState {
-        self._world().unwrap()
+    pub fn world(&self) -> &LiveCodeWorldState {
+        self.cached_world.as_ref().unwrap()
     }
 
     pub fn _app_config(&self) -> &ControlAppConfig {
