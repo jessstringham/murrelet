@@ -7,11 +7,9 @@ use serde::Deserialize;
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
+use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
 use crate::livecode::{LivecodeError, LivecodeFromWorld, LivecodeResult};
-use crate::{
-    expr::{ExprWorldContextValues, IntoExprWorldContext},
-    livecode::LiveCodeWorldState,
-};
+use crate::state::LivecodeWorldState;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
@@ -29,7 +27,7 @@ impl UnitCellControlExprF32 {
 }
 
 impl EvaluableUnitCell<f32> for UnitCellControlExprF32 {
-    fn eval(&self, ctx: &UnitCellWorldState) -> LivecodeResult<f32> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<f32> {
         match self {
             UnitCellControlExprF32::Bool(b) => {
                 if *b {
@@ -71,7 +69,7 @@ impl UnitCellControlExprBool {
 }
 
 impl EvaluableUnitCell<bool> for UnitCellControlExprBool {
-    fn eval(&self, ctx: &UnitCellWorldState) -> LivecodeResult<bool> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<bool> {
         match self {
             UnitCellControlExprBool::Bool(b) => Ok(*b),
             UnitCellControlExprBool::Int(i) => Ok(*i > 0),
@@ -114,11 +112,11 @@ impl<CtxSource: UnitCellCreator, Target: Default> TmpUnitCells<CtxSource, Target
 }
 
 fn create_unit_cell<'a>(
-    world_ctx: &'a UnitCellWorldState,
+    world_ctx: &'a LivecodeWorldState,
     prefix: &'a str,
     unit_cell_ctx: &'a UnitCellContext,
     maybe_node: Option<&'a UnitCellCtx>,
-) -> LivecodeResult<UnitCellWorldState> {
+) -> LivecodeResult<LivecodeWorldState> {
     // world_ctx is currently just the World, so first attach the unit cell world state
 
     let mut world_state = world_ctx.clone_to_unitcell(unit_cell_ctx, prefix)?;
@@ -151,7 +149,7 @@ where
 {
     pub fn eval_with_ctx(
         &self,
-        world_ctx: &UnitCellWorldState,
+        world_ctx: &LivecodeWorldState,
         unit_cell_ctx: &Option<UnitCellCtx>,
     ) -> Vec<UnitCell<Target>> {
         // right now this one doesn't usually return an error because we do stuff
@@ -198,7 +196,7 @@ where
             .collect::<Vec<_>>()
     }
 
-    pub fn o(&self, ctx: &UnitCellWorldState) -> LivecodeResult<UnitCells<Target>> {
+    pub fn o(&self, ctx: &LivecodeWorldState) -> LivecodeResult<UnitCells<Target>> {
         Ok(UnitCells::new(self.eval_with_ctx(&ctx, &self.ctx)))
     }
 }
@@ -258,17 +256,17 @@ pub trait UnitCellCreator {
 
 /// this one's similar to LivecodeFromWorld, but for ones with unit_cell_context
 pub trait EvaluableUnitCell<UnitCellTarget> {
-    fn eval(&self, ctx: &UnitCellWorldState) -> LivecodeResult<UnitCellTarget>;
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<UnitCellTarget>;
 }
 
 impl EvaluableUnitCell<Vec2> for [UnitCellControlExprF32; 2] {
-    fn eval(&self, ctx: &UnitCellWorldState) -> LivecodeResult<Vec2> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<Vec2> {
         Ok(vec2(self[0].eval(ctx)?, self[1].eval(ctx)?))
     }
 }
 
 impl EvaluableUnitCell<Vec3> for [UnitCellControlExprF32; 3] {
-    fn eval(&self, ctx: &UnitCellWorldState) -> LivecodeResult<Vec3> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<Vec3> {
         Ok(vec3(
             self[0].eval(ctx)?,
             self[1].eval(ctx)?,
@@ -455,13 +453,13 @@ impl LazyNodeF32Def {
 }
 
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
-    fn o(&self, w: &LiveCodeWorldState) -> LivecodeResult<LazyNodeF32> {
-        Ok(LazyNodeF32::new_from_livecode(self.0.clone(), w))
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
+        Ok(LazyNodeF32::new(self.0.clone(), w))
     }
 }
 
 impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
-    fn eval(&self, ctx: &UnitCellWorldState) -> LivecodeResult<LazyNodeF32> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
         Ok(LazyNodeF32::new(self.0.clone(), ctx))
     }
 }
@@ -508,7 +506,7 @@ impl MixedEvalDefs {
 #[derive(Debug, Clone)]
 pub struct LazyNodeF32Inner {
     n: Node,
-    world: UnitCellWorldState,
+    world: LivecodeWorldState,
 }
 impl LazyNodeF32Inner {
     pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
@@ -566,19 +564,19 @@ impl Default for LazyNodeF32 {
 }
 
 impl LazyNodeF32 {
-    pub fn new(n: Node, world: &UnitCellWorldState) -> Self {
+    pub fn new(n: Node, world: &LivecodeWorldState) -> Self {
         Self::Node(LazyNodeF32Inner {
             n,
             world: world.clone_to_lazy(),
         })
     }
 
-    fn new_from_livecode(n: Node, w: &LiveCodeWorldState) -> Self {
-        Self::Node(LazyNodeF32Inner {
-            n,
-            world: UnitCellWorldState::from_world(w).into_lazy(),
-        })
-    }
+    // fn new_from_livecode(n: Node, w: &LiveCodeWorldState) -> Self {
+    //     Self::Node(LazyNodeF32Inner {
+    //         n,
+    //         world: LivecodeWorldState::from_world(w).into_lazy(),
+    //     })
+    // }
 
     pub fn n(&self) -> Option<&Node> {
         match self {
@@ -613,71 +611,6 @@ impl LazyNodeF32 {
 impl<'a> InvertedWorld<LazyNodeF32Def> for LazyNodeF32 {
     fn to_unitcell_input(&self) -> LazyNodeF32Def {
         LazyNodeF32Def(self.n().unwrap().clone())
-    }
-}
-
-// in the future, I could add other things to different levels (e.g. UnitCellContext.)
-#[derive(Debug, Clone)]
-pub enum UnitCellWorldState {
-    World(HashMapContext),
-    Unit(HashMapContext),
-    Lazy(HashMapContext), // just a marker of a context that needs more info before a node is evaluated..
-}
-impl UnitCellWorldState {
-    pub fn from_world(w: &LiveCodeWorldState) -> UnitCellWorldState {
-        UnitCellWorldState::World(w.ctx().clone())
-    }
-
-    fn clone_to_lazy(&self) -> UnitCellWorldState {
-        UnitCellWorldState::Lazy(self.ctx().clone())
-    }
-
-    pub fn into_lazy(self) -> UnitCellWorldState {
-        match self {
-            UnitCellWorldState::World(ctx) => UnitCellWorldState::Lazy(ctx),
-            UnitCellWorldState::Unit(ctx) => UnitCellWorldState::Lazy(ctx),
-            UnitCellWorldState::Lazy(_) => self,
-        }
-    }
-
-    pub fn clone_to_unitcell(
-        &self,
-        unit_cell_ctx: &UnitCellContext,
-        prefix: &str,
-    ) -> LivecodeResult<UnitCellWorldState> {
-        match self {
-            UnitCellWorldState::World(ctx) => {
-                let mut ctx = ctx.clone();
-                unit_cell_ctx
-                    .as_expr_world_context_values()
-                    .update_ctx_with_prefix(&mut ctx, prefix);
-                Ok(UnitCellWorldState::Unit(ctx))
-            }
-            UnitCellWorldState::Unit(..) => {
-                unreachable!("tried initializing an already initialized cell")
-            }
-            UnitCellWorldState::Lazy(..) => unreachable!("tried initializing an lazy cell"),
-        }
-    }
-
-    pub fn ctx(&self) -> &HashMapContext {
-        match self {
-            UnitCellWorldState::World(ctx) => ctx,
-            UnitCellWorldState::Unit(ctx) => ctx,
-            UnitCellWorldState::Lazy(ctx) => ctx,
-        }
-    }
-
-    pub fn ctx_mut(&mut self) -> &mut HashMapContext {
-        match self {
-            UnitCellWorldState::World(ctx) => ctx,
-            UnitCellWorldState::Unit(ctx) => ctx,
-            UnitCellWorldState::Lazy(ctx) => ctx,
-        }
-    }
-
-    fn update_with_defs(&mut self, more_defs: &MixedEvalDefs) -> LivecodeResult<()> {
-        more_defs.update_ctx(&mut self.ctx_mut())
     }
 }
 

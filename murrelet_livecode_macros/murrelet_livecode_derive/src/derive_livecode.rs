@@ -110,7 +110,7 @@ impl GenFinal for FieldTokensLivecode {
             }
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     Ok(#name {
                         #(#for_world,)*
                     })
@@ -149,7 +149,7 @@ impl GenFinal for FieldTokensLivecode {
                 #(#for_struct,)*
             }
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     match self {
                         #(#for_world,)*
                     }
@@ -183,7 +183,7 @@ impl GenFinal for FieldTokensLivecode {
             #vis struct #new_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::livecode::LiveCodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
                 }
             }
@@ -470,13 +470,12 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_world = {
             quote! {#name: {
-                let ctx = murrelet_livecode::unitcells::UnitCellWorldState::from_world(w);
                 murrelet_livecode::unitcells::TmpUnitCells::new(
                     self.#target.o(w)?,
                     Box::new(self.#name.clone()),
                     #maybe_more_ctx,
                     #prefix
-                ).o(&ctx)?
+                ).o(&w)?
             }}
         };
 

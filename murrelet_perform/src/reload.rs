@@ -3,6 +3,7 @@ use evalexpr::{HashMapContext, Node};
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::livecode::*;
+use murrelet_livecode::state::*;
 
 // todo, maybe only includde this if not wasm?
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -228,8 +229,8 @@ impl LiveCodeUtil {
     pub fn timeless_world<'a>(
         &'a self,
         livecode_src: &'a LivecodeSrc,
-    ) -> LivecodeResult<LiveCodeWorldState> {
-        LiveCodeWorldState::new_timeless(&self.global_funcs, livecode_src)
+    ) -> LivecodeResult<LivecodeWorldState> {
+        LivecodeWorldState::new_timeless(&self.global_funcs, livecode_src)
     }
 
     pub fn world<'a>(
@@ -237,8 +238,8 @@ impl LiveCodeUtil {
         livecode_src: &'a LivecodeSrc,
         timing_conf: &LivecodeTimingConfig,
         node: &Node,
-    ) -> LivecodeResult<LiveCodeWorldState> {
-        LiveCodeWorldState::new(
+    ) -> LivecodeResult<LivecodeWorldState> {
+        LivecodeWorldState::new(
             &self.global_funcs,
             livecode_src,
             self.time(timing_conf),

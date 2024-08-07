@@ -3,6 +3,7 @@ use glam::{vec3, Mat4, Vec2};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
+use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use std::{env, fs};
 
 use murrelet_common::run_id;
@@ -472,7 +473,7 @@ where
 pub struct LilLiveConfig<'a> {
     save_path: Option<&'a PathBuf>,
     run_id: u64,
-    w: &'a LiveCodeWorldState,
+    w: &'a LivecodeWorldState,
     app_config: &'a AppConfig,
 }
 
@@ -530,7 +531,7 @@ where
     boop_mng: BoopMng<ConfType, BoopConfType>,
     // sorry, the cache is mixed between boom_mng, but sometimes we need this
     cached_timeless_app_config: Option<AppConfigTiming>,
-    cached_world: Option<LiveCodeWorldState>,
+    cached_world: Option<LivecodeWorldState>,
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
@@ -706,10 +707,8 @@ where
         self.set_processed_config()
     }
 
-    pub fn _timeless_world(&self) -> LivecodeResult<LiveCodeWorldState> {
-        self.util.timeless_world(
-            &self.livecode_src,
-        )
+    pub fn _timeless_world(&self) -> LivecodeResult<LivecodeWorldState> {
+        self.util.timeless_world(&self.livecode_src)
     }
 
     pub fn _update_world(&mut self) -> LivecodeResult<()> {
@@ -725,7 +724,7 @@ where
         Ok(())
     }
 
-    pub fn world(&self) -> &LiveCodeWorldState {
+    pub fn world(&self) -> &LivecodeWorldState {
         self.cached_world.as_ref().unwrap()
     }
 
