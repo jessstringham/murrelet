@@ -529,7 +529,7 @@ where
     prev_controlconfig: ControlConfType,
     boop_mng: BoopMng<ConfType, BoopConfType>,
     // sorry, the cache is mixed between boom_mng, but sometimes we need this
-    cached_timeless_app_config: Option<AppConfig>,
+    cached_timeless_app_config: Option<AppConfigTiming>,
     cached_world: Option<LiveCodeWorldState>,
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
@@ -602,7 +602,7 @@ where
     pub fn set_processed_config(&mut self) -> LivecodeResult<()> {
         // set this one first, so we can use it to get the world
 
-        self.cached_timeless_app_config = Some(self._app_config().o(&self._timeless_world()?)?);
+        self.cached_timeless_app_config = Some(self._timing_config().o(&self._timeless_world()?)?);
         self._update_world()?;
 
         let w = self.world();
@@ -708,18 +708,16 @@ where
 
     pub fn _timeless_world(&self) -> LivecodeResult<LiveCodeWorldState> {
         self.util.timeless_world(
-            // &self.midi.values, &self.app_input.values, &self.blte.values
             &self.livecode_src,
-            // &self.cached_timeless_app_config.as_ref().map(|x| x.ctx.clone()).unwrap()
         )
     }
 
     pub fn _update_world(&mut self) -> LivecodeResult<()> {
         // this function should only be called after this is set! since the "set processed" is called right away
         let timeless_app_config = self.cached_timeless_app_config.as_ref().unwrap();
-        let ctx = &timeless_app_config.ctx;
+        let timing_conf = timeless_app_config.to_livecode();
 
-        let timing_conf = timeless_app_config.time.to_livecode();
+        let ctx = &self.controlconfig._app_config().ctx;
 
         let world = self.util.world(&self.livecode_src, &timing_conf, ctx)?;
 
@@ -731,12 +729,11 @@ where
         self.cached_world.as_ref().unwrap()
     }
 
-    pub fn _app_config(&self) -> &ControlAppConfig {
-        self.controlconfig._app_config()
+    pub fn _timing_config(&self) -> &ControlAppConfigTiming {
+        &self.controlconfig._app_config().time
     }
 
     pub fn app_config(&self) -> &AppConfig {
-        // self._app_config().o(&self.world())
         // use the cached one
         self.config().config_app_loc()
     }
