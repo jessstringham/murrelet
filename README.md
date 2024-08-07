@@ -97,3 +97,62 @@ let example_pipeline = build_shader_pipeline! {
     drawing_placeholder -> DISPLAY;
 };
 ```
+
+# How expressions work
+
+*this is a work in progress and is probably pretty sloppy with programming language terms sorry*
+
+## State scope
+
+Some interesting variables are injected in different scopes, making them available in different fields.
+
+In a basic example, you need to know about just two scopes:
+ - world: the context per frame. includes things like time, midi, audio, global functions, and the *app > ctx* field. You can use these variables in every field (except the time config).
+ - unitcell: the context per unitcell, which includes information like the x and y location and a unique seed for each instance.
+
+
+### Detailed breakdown
+
+That's an oversimplification. Here's roughly how the scopes should work:
+
+These three do strictly build on top of each other
+* program-level: these are functions and variables set for every frame. It is hidden away in `LiveCodeUtil`, so you probably won't run into it.
+-  timeless: same as World but excludes the `t`-based variable. Basically exclusively used to load the `AppConfigTiming` config.
+- world: same as above.
+
+Once you're within a world, going deeper can get as complicated as you want using a combination of:
+
+* unitcell: same as above
+* lazyeval: These are variables that are evaluated in your sketch itself, which let's you add custom variables specific to the sketch. The config returns an expression you add your additional context to and then evaluate.
+
+For example, you might set up a sketch where a unitcell sequencer might contain a second unitcell sequencer (using a different variable prefix) that draws things that combine the outer and inner unitcell's variables.
+
+
+## Expression variables
+
+To see how exactly the variables are defined, you generally want to look for the `IsLivecodeSrc` trait implementation.
+
+## Timing
+
+The float variable `t` represents time in expressions. This is very useful for making things bounce and change to a bpm for live performances. I also use it to explore parameter spaces, like setting a field to `s(ease(t, 0.25), 1.0, 20.0)` to ease between 1.0 and 20.0.
+
+The value of `t` is an abstraction that should increment by `1.0` every bar, given the definitions in the fields of `AppConfigTiming`, which might look something like this:
+
+```yaml
+app:
+  ...
+  time:
+    realtime: true
+	fps: 60.0
+	bpm: 135.0
+	beats_per_bar: 4.0 # defaults to 4.0
+```
+
+
+ ### The realtime flag
+
+For live performances, this should probably be set to `true` so you can match the `bpm` of the music, regardless of if the visuals start rendering faster or slower. For recording a video, you might want `realtime` to be `false` to avoid jumps.
+
+Aside: For generative art, I sometimes switch between them: the glitchiness based on how fast my machine is rendering can make nice textures of *realtime*: `true`, but other times I want the even spacing of *realtime*: `false`.
+
+If  *realtime*: `true`, it'll use *bpm* and *beats_per_bar* and the system's clock to figure out what `t` should be. If *realtime*: `false`, instead of the system time, it'll use the current frame number to compute `t`.

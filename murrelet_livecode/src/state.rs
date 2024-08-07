@@ -16,7 +16,7 @@ enum LivecodeWorldStateStage {
 }
 impl LivecodeWorldStateStage {
     fn add_step(&self, stage: LivecodeWorldStateStage) -> LivecodeWorldStateStage {
-        // todo, i could start to represent the tree of steps.. but right now, just do the last one
+        // todo, i could start to represent the tree of steps.. but right now, just do the latest one
         stage
     }
 }
@@ -137,14 +137,6 @@ impl LivecodeWorldState {
         };
 
         Ok(r)
-
-        // LivecodeWorldState::World(_, ctx) => {
-
-        // }
-        // LivecodeWorldState::Unit(..) => {
-        //     unreachable!("tried initializing an already initialized cell")
-        // }
-        // LivecodeWorldState::Lazy(..) => unreachable!("tried initializing an lazy cell"),
     }
 
     pub fn clone_to_lazy(&self) -> Self {
@@ -175,7 +167,6 @@ impl LivecodeTimingConfig {
     }
 
     fn beat_from_config(&self, system_timing: LiveCodeTiming) -> f32 {
-        //time_from_config(self.bpm, self.realtime, actual_frame, self.fps, system_timing.start)
         let seconds = self.seconds_from_config(system_timing);
         self.seconds_to_beats(seconds)
     }
@@ -311,27 +302,11 @@ impl IsLivecodeSrc for LiveCodeTimeInstantInfo {
             ("t".to_owned(), LivecodeValue::Float(time as f64)),
             (
                 "tease".to_owned(),
-                LivecodeValue::Float(ease(time.into(), 0.2, 0.0)),
-            ),
-            (
-                "stease".to_owned(),
-                LivecodeValue::Float(ease(time.into(), 0.01, 0.0)),
-            ),
-            ("ti".to_owned(), LivecodeValue::Int(time as i64)),
-            ("f".to_owned(), LivecodeValue::Float(frame as f64)),
-            ("fi".to_owned(), LivecodeValue::Int(frame as i64)),
-        ]
-    }
-
-    fn to_just_midi(&self) -> Vec<(String, LivecodeValue)> {
-        let time = self.beat();
-        let frame = self.actual_frame_u64();
-
-        vec![
-            ("t".to_owned(), LivecodeValue::Float(time as f64)),
-            (
-                "tease".to_owned(),
-                LivecodeValue::Float(ease(time.into(), 0.2, 0.0)),
+                LivecodeValue::Float(ease(
+                    time.into(),
+                    (1.0 / self.timing_config.beats_per_bar).into(),
+                    0.0,
+                )),
             ),
             (
                 "stease".to_owned(),

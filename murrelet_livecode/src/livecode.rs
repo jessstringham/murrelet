@@ -40,7 +40,6 @@ impl std::error::Error for LivecodeError {}
 
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
-// 'world is approximately one frame
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
 }

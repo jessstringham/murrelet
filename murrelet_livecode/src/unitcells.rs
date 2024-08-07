@@ -130,16 +130,6 @@ fn create_unit_cell<'a>(
 
     // great, now we have it built. return it!
     Ok(world_state)
-
-    // let mut unit_cell_world_ctx = world_state.ctx().clone();
-
-    // // now update the unit_cell context to have the node
-    // if let Some(node) = maybe_node {
-    //     node.eval_raw(&mut unit_cell_world_ctx)?;
-    // }
-
-    // // great, now we have it built. return it!
-    // Ok(unit_cell_world_ctx)
 }
 
 impl<CtxSource, Target> TmpUnitCells<CtxSource, Target>
@@ -570,13 +560,6 @@ impl LazyNodeF32 {
             world: world.clone_to_lazy(),
         })
     }
-
-    // fn new_from_livecode(n: Node, w: &LiveCodeWorldState) -> Self {
-    //     Self::Node(LazyNodeF32Inner {
-    //         n,
-    //         world: LivecodeWorldState::from_world(w).into_lazy(),
-    //     })
-    // }
 
     pub fn n(&self) -> Option<&Node> {
         match self {
