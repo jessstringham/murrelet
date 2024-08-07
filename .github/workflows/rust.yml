@@ -17,6 +17,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build
-      run: cargo build --verbose  --exclude examples/foolish_guillemot
+      run: cargo build --verbose --workspace --exclude examples/foolish_guillemot
     - name: Run tests
       run: cargo test --verbose
