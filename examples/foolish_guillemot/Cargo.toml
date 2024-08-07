@@ -16,7 +16,6 @@ crate-type = ["cdylib"]
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.42"
 console_error_panic_hook = "0.1"
-wee_alloc = "0.4"
 
 glam = "0.28.0"
 itertools = "0.10.5"

@@ -14,10 +14,6 @@ use murrelet_draw::{
 use murrelet_livecode::livecode::LivecodeError;
 use wasm_bindgen::prelude::*;
 
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 // from the wasm-rust tutorial, this let's you log messages to the js console
 // extern crate web_sys;
 
