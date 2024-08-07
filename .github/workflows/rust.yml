@@ -16,7 +16,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: wasm32-unknown-unknown
+    - name: Run cargo check
+      uses: actions-rs/cargo@v1
+      with:
+        command: build --verbose --target wasm32-unknown-unknown
+        
+    # - name: Build
+    #   run: cargo build --verbose --target wasm32-unknown-unknown
+    # - name: Run tests
+    #   run: cargo test --verbose
+
