@@ -3,6 +3,7 @@ use glam::{vec3, Mat4, Vec2};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
+use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use std::{env, fs};
 
 use murrelet_common::run_id;
@@ -472,7 +473,7 @@ where
 pub struct LilLiveConfig<'a> {
     save_path: Option<&'a PathBuf>,
     run_id: u64,
-    w: LiveCodeWorldState<'a>,
+    w: &'a LivecodeWorldState,
     app_config: &'a AppConfig,
 }
 
@@ -485,7 +486,7 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
         Some(capture_frame_name(
             save_path,
             lil_liveconfig.run_id,
-            lil_liveconfig.w.time.actual_frame_u64(),
+            lil_liveconfig.w.actual_frame_u64(),
             prefix,
         ))
     } else {
@@ -496,7 +497,7 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
         lil_liveconfig.app_config.width,
         capture_path,
         lil_liveconfig.app_config.svg.size,
-        lil_liveconfig.w.time.actual_frame_u64(),
+        lil_liveconfig.w.actual_frame_u64(),
     )
 }
 
@@ -529,7 +530,8 @@ where
     prev_controlconfig: ControlConfType,
     boop_mng: BoopMng<ConfType, BoopConfType>,
     // sorry, the cache is mixed between boom_mng, but sometimes we need this
-    cached_timeless_app_config: Option<AppConfig>,
+    cached_timeless_app_config: Option<AppConfigTiming>,
+    cached_world: Option<LivecodeWorldState>,
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
@@ -540,30 +542,30 @@ where
     pub fn new_web(
         conf: String,
         livecode_src: LivecodeSrc,
-    ) -> Result<LiveCoder<ConfType, ControlConfType, BoopConfType>, String> {
-        let controlconfig = ControlConfType::parse(&conf);
-        match controlconfig {
-            Ok(c) => Ok(Self::new_full(c, None, livecode_src)),
-            Err(e) => Err(e.to_string()),
-        }
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
+        let controlconfig = ControlConfType::parse(&conf)
+            .map_err(|err| LivecodeError::Raw(format!("error parsing {}", err)))?;
+        Self::new_full(controlconfig, None, livecode_src)
     }
 
+    // this one panics if something goes wrong
     pub fn new(
         save_path: PathBuf,
         livecode_src: LivecodeSrc,
     ) -> LiveCoder<ConfType, ControlConfType, BoopConfType> {
         let controlconfig = ControlConfType::fs_load();
-        Self::new_full(controlconfig, Some(save_path), livecode_src)
+        let result = Self::new_full(controlconfig, Some(save_path), livecode_src);
+        result.expect("error loading!")
     }
 
     pub fn new_full(
         controlconfig: ControlConfType,
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
-    ) -> LiveCoder<ConfType, ControlConfType, BoopConfType> {
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
         let run_id = run_id();
 
-        let util = LiveCodeUtil::new();
+        let util = LiveCodeUtil::new()?;
 
         let mut s = LiveCoder {
             run_id,
@@ -574,12 +576,13 @@ where
             prev_controlconfig: controlconfig,
             boop_mng: BoopMng::Uninitialized,
             cached_timeless_app_config: None, // uninitialized
+            cached_world: None,
         };
 
         // use the object to create a world and generate the configs
-        s.set_processed_config();
+        s.set_processed_config()?;
 
-        s
+        Ok(s)
     }
 
     // experimental...
@@ -592,43 +595,49 @@ where
         self.controlconfig.clone()
     }
 
-    pub fn set_processed_config(&mut self) {
-        // assume the target has already been updated
-        // let target = self._extract_target_config();
-
+    // if there are any issues at this point with the config, it'll bail and
+    // not update the config.
+    // in the case of updating live, you might just print the result but keep
+    // going with the existing config until you fix it.
+    // with initially loading it, you might just not start the program
+    pub fn set_processed_config(&mut self) -> LivecodeResult<()> {
         // set this one first, so we can use it to get the world
-        self.cached_timeless_app_config =
-            Some(self._app_config().just_midi(&self.timeless_world()));
+
+        self.cached_timeless_app_config = Some(self._timing_config().o(&self._timeless_world()?)?);
+        self._update_world()?;
 
         let w = self.world();
 
-        let target = self.controlconfig.o(&w);
+        let target = self.controlconfig.o(&w)?;
 
-        let t = w.time.bar();
+        let t = w.time().bar();
 
         let boop_conf = target.config_app_loc().boop.to_livecode();
 
         self.boop_mng = self.boop_mng.update(&boop_conf, t, target);
         if self.boop_mng.any_weird_states() {
+            // todo, should this be an error too?
             println!("some nans");
         }
+        Ok(())
     }
 
     pub fn svg_save_path(&self) -> SvgDrawConfig {
         self.svg_save_path_with_prefix("")
     }
 
-    pub fn to_lil_liveconfig(&self) -> LilLiveConfig {
-        LilLiveConfig {
+    pub fn to_lil_liveconfig(&self) -> LivecodeResult<LilLiveConfig> {
+        Ok(LilLiveConfig {
             save_path: self.save_path.as_ref(),
             run_id: self.run_id,
             w: self.world(),
             app_config: self.app_config(),
-        }
+        })
     }
 
     pub fn svg_save_path_with_prefix(&self, prefix: &str) -> SvgDrawConfig {
-        svg_save_path_with_prefix(&self.to_lil_liveconfig(), prefix)
+        // unwrapping here, should check if this could fail
+        svg_save_path_with_prefix(&self.to_lil_liveconfig().unwrap(), prefix)
     }
 
     // sorry i'm near getting this to work so leaving this hacky and confusing
@@ -655,14 +664,15 @@ where
 
     /// if the bg_alpha is above 0.5 or clear_bg is true
     pub fn should_reset_bg(&self) -> bool {
-        self.world().time.actual_frame_u64() <= 1 || self.app_config().should_clear_bg()
+        self.world().actual_frame_u64() <= 1 || self.app_config().should_clear_bg()
     }
 
     pub fn maybe_bg_alpha(&self) -> Option<f32> {
         self.app_config().bg_alpha()
     }
 
-    pub fn update(&mut self, app: &MurreletAppInput, reload: bool) {
+    // called every frame
+    pub fn update(&mut self, app: &MurreletAppInput, reload: bool) -> LivecodeResult<()> {
         // use the previous frame's world for this
         let update_input = LivecodeSrcUpdateInput::new(
             self.app_config().debug,
@@ -678,7 +688,7 @@ where
         // if we can reload whenever, do that. otherwise only reload on bar
 
         if reload {
-            if !self.app_config().reload_on_bar() || self.world().time.is_on_bar() {
+            if !self.app_config().reload_on_bar() || self.world().time().is_on_bar() {
                 self.reload_config();
             }
         }
@@ -693,32 +703,36 @@ where
         // self.app_input.update(app);
 
         // this should happen at the very end
-        self.set_processed_config();
+        // cache the world
+        self.set_processed_config()
     }
 
-    pub fn timeless_world(&self) -> TimelessLiveCodeWorldState {
-        self.util.timeless_world(
-            // &self.midi.values, &self.app_input.values, &self.blte.values
-            &self.livecode_src,
-        )
+    pub fn _timeless_world(&self) -> LivecodeResult<LivecodeWorldState> {
+        self.util.timeless_world(&self.livecode_src)
     }
 
-    pub fn world(&self) -> LiveCodeWorldState {
+    pub fn _update_world(&mut self) -> LivecodeResult<()> {
         // this function should only be called after this is set! since the "set processed" is called right away
         let timeless_app_config = self.cached_timeless_app_config.as_ref().unwrap();
+        let timing_conf = timeless_app_config.to_livecode();
 
-        let timing_conf = timeless_app_config.time.to_livecode();
-        let ctx = &timeless_app_config.ctx;
+        let ctx = &self.controlconfig._app_config().ctx;
 
-        self.util.world(&self.livecode_src, &timing_conf, ctx)
+        let world = self.util.world(&self.livecode_src, &timing_conf, ctx)?;
+
+        self.cached_world = Some(world);
+        Ok(())
     }
 
-    pub fn _app_config(&self) -> &ControlAppConfig {
-        self.controlconfig._app_config()
+    pub fn world(&self) -> &LivecodeWorldState {
+        self.cached_world.as_ref().unwrap()
+    }
+
+    pub fn _timing_config(&self) -> &ControlAppConfigTiming {
+        &self.controlconfig._app_config().time
     }
 
     pub fn app_config(&self) -> &AppConfig {
-        // self._app_config().o(&self.world())
         // use the cached one
         self.config().config_app_loc()
     }
@@ -756,7 +770,7 @@ where
     }
 
     // model.livecode.capture_logic(|img_name: PathBuf| { app.main_window().capture_frame(img_name); } );
-    pub fn capture<F>(&self, capture_frame_fn: F)
+    pub fn capture<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
         F: Fn(PathBuf) -> (),
     {
@@ -776,9 +790,10 @@ where
                 fs::copy(env::args().collect::<Vec<String>>()[1].clone(), img_name).unwrap();
             }
         }
+        Ok(())
     }
 
-    pub fn capture_with_fn<F>(&self, capture_frame_fn: F)
+    pub fn capture_with_fn<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
         F: Fn(PathBuf) -> (),
     {
@@ -788,9 +803,11 @@ where
         if (self.app_config().capture && frame != 0) || self.app_config().should_capture() {
             let frame_freq = 1;
             if frame % frame_freq == 0 {
-                self.capture(capture_frame_fn);
+                self.capture(capture_frame_fn)?;
             }
         }
+
+        Ok(())
     }
 
     pub fn was_updated(&self) -> bool {
@@ -837,6 +854,6 @@ where
 
     // seconds since last render
     pub fn time_delta(&self) -> f32 {
-        self.world().time.seconds_between_render_times()
+        self.world().time().seconds_between_render_times()
     }
 }

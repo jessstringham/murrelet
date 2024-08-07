@@ -146,19 +146,6 @@ impl IsLivecodeSrc for AppInputValues {
         self.result(has_click, cx, cy, mx, my, keys_cycle, keys_fired, w, h)
     }
 
-    fn to_just_midi(&self) -> Vec<(String, LivecodeValue)> {
-        let has_click = false;
-        let cx = 0.0;
-        let cy = 0.0;
-
-        let w = 100.0;
-        let h = 100.0;
-        let keys_cicle = [0; 26];
-        let keys_fired = [false; 26];
-
-        self.result(has_click, cx, cy, cx, cy, keys_cicle, keys_fired, w, h)
-    }
-
     fn update(&mut self, src_input: &LivecodeSrcUpdateInput) {
         let app = src_input.app();
 

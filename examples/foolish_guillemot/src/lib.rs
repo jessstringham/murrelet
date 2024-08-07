@@ -11,11 +11,8 @@ use murrelet_draw::{
     sequencers::*,
     style::{styleconf::*, MurreletPath},
 };
+use murrelet_livecode::livecode::LivecodeError;
 use wasm_bindgen::prelude::*;
-
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // from the wasm-rust tutorial, this let's you log messages to the js console
 // extern crate web_sys;
@@ -134,7 +131,8 @@ impl MurreletModel {
     ) {
         let app_input =
             MurreletAppInput::new_no_key(vec2(dim_x, dim_y), vec2(mouse_x, mouse_y), click, frame);
-        self.livecode.update(&app_input, false);
+        // todo, show an error about this?
+        self.livecode.update(&app_input, false).ok();
     }
 
     // useful if you have shaders, this will list what canvases to draw to
@@ -186,8 +184,11 @@ impl WasmMurreletModelResult {
         }
     }
 
-    fn err(err: String) -> WasmMurreletModelResult {
-        WasmMurreletModelResult { m: None, err }
+    fn err(err: LivecodeError) -> WasmMurreletModelResult {
+        WasmMurreletModelResult {
+            m: None,
+            err: err.to_string(),
+        }
     }
 
     #[wasm_bindgen]

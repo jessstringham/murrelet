@@ -493,18 +493,4 @@ impl IsLivecodeSrc for AudioMng {
             ("fft6".to_owned(), LivecodeValue::Float(fft6 as f64)),
         ]
     }
-
-    fn to_just_midi(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
-        vec![
-            ("a".to_owned(), LivecodeValue::Float(0.0)),
-            ("ac".to_owned(), LivecodeValue::Float(0.0)),
-            ("fft0".to_owned(), LivecodeValue::Float(0.0)),
-            ("fft1".to_owned(), LivecodeValue::Float(0.0)),
-            ("fft2".to_owned(), LivecodeValue::Float(0.0)),
-            ("fft3".to_owned(), LivecodeValue::Float(0.0)),
-            ("fft4".to_owned(), LivecodeValue::Float(0.0)),
-            ("fft5".to_owned(), LivecodeValue::Float(0.0)),
-            ("fft6".to_owned(), LivecodeValue::Float(0.0)),
-        ]
-    }
 }

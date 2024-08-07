@@ -403,7 +403,6 @@ pub enum LivecodeValue {
 pub trait IsLivecodeSrc {
     fn update(&mut self, input: &LivecodeSrcUpdateInput);
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
-    fn to_just_midi(&self) -> Vec<(String, LivecodeValue)>;
 }
 
 pub struct LivecodeSrc {
@@ -509,10 +508,6 @@ impl LivecodeSrc {
 
     pub fn to_world_vals(&self) -> Vec<(String, LivecodeValue)> {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
-    }
-
-    pub fn to_timeless_vals(&self) -> Vec<(String, LivecodeValue)> {
-        self.vs.iter().flat_map(|v| v.to_just_midi()).collect_vec()
     }
 }
 

@@ -8,20 +8,10 @@ use murrelet_common::{clamp, ease, lerp, map_range, print_expect, smoothstep, Li
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::livecode::{LiveCodeWorldState, TimelessLiveCodeWorldState};
+use crate::livecode::{LivecodeError, LivecodeResult};
 
-// livecode value to evalexpr value
-fn lc_val_to_expr(v: &LivecodeValue) -> Value {
-    match v {
-        LivecodeValue::Float(f) => Value::Float(*f),
-        LivecodeValue::Bool(f) => Value::Boolean(*f),
-        LivecodeValue::Int(f) => Value::Int(*f),
-    }
-}
-
-fn exec_funcs(livecode_src: Vec<(String, LivecodeValue)>) -> HashMapContext {
-    let mut ctx = context_map!{
-
+pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
+    context_map!{
         // constants
         "PI" => Value::Float(PI.into()),
         "ROOT2" => Value::Float(2.0_f64.sqrt()),
@@ -157,59 +147,44 @@ fn exec_funcs(livecode_src: Vec<(String, LivecodeValue)>) -> HashMapContext {
             let len = vec2(x as f32, y as f32).length();
             Ok(Value::Float(len as f64))
         })
-    }.unwrap();
+    }.map_err(|err| {LivecodeError::EvalExpr(format!("error in init_evalexpr_func_ctx!"), err)})
+}
 
-    for (identifier, value) in &livecode_src {
-        // todo, maybe handle the result here to help dev
-        ctx.set_value(identifier.to_owned(), lc_val_to_expr(value))
-            .ok();
+fn lc_val_to_expr(v: &LivecodeValue) -> Value {
+    match v {
+        LivecodeValue::Float(f) => Value::Float(*f),
+        LivecodeValue::Bool(f) => Value::Boolean(*f),
+        LivecodeValue::Int(f) => Value::Int(*f),
     }
-    ctx
-}
-
-// sets defaults for the functions
-pub fn expr_context_no_world(m: &TimelessLiveCodeWorldState) -> HashMapContext {
-    let vals = m.to_timeless_vals();
-    exec_funcs(vals)
-}
-
-// this is used for the global state
-pub fn expr_context(w: &LiveCodeWorldState) -> HashMapContext {
-    let vals = w.to_world_vals();
-
-    let mut ctx = exec_funcs(vals);
-    // when we have a world state, we'll have the global ctx, so extend that
-    match w.ctx.eval_empty_with_context_mut(&mut ctx) {
-        Ok(_) => (),
-        Err(err) => println!("{:?}", err),
-    };
-
-    ctx
 }
 
 // simple mapping of values
 #[derive(Debug, Clone)]
-pub struct ExprWorldContextValues(Vec<(String, Value)>);
+pub struct ExprWorldContextValues(Vec<(String, LivecodeValue)>);
 impl ExprWorldContextValues {
-    pub fn new(v: Vec<(String, Value)>) -> Self {
+    pub fn new(v: Vec<(String, LivecodeValue)>) -> Self {
         Self(v)
     }
 
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) {
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         for (identifier, value) in &self.0 {
             // todo, maybe handle the result here to help dev
-            ctx.set_value(identifier.to_owned(), value.clone()).ok();
+            ctx.set_value(identifier.to_owned(), lc_val_to_expr(value))
+                .map_err(|err| {
+                    LivecodeError::EvalExpr(format!("error setting value {}", identifier), err)
+                })?;
         }
+        Ok(())
     }
 
     pub fn update_ctx_with_prefix(&self, ctx: &mut HashMapContext, prefix: &str) {
         for (identifier, value) in &self.0 {
             let name = format!("{}{}", prefix, identifier);
-            add_variable_or_prefix_it(&name, value.clone(), ctx);
+            add_variable_or_prefix_it(&name, lc_val_to_expr(value), ctx);
         }
     }
 
-    pub fn set_val(&mut self, name: &str, val: Value) {
+    pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
         self.0.push((name.to_owned(), val))
     }
 }
@@ -222,7 +197,7 @@ impl IntoExprWorldContext for Vec<(String, f32)> {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
         let v = self
             .iter()
-            .map(|(s, x)| (s.to_owned(), Value::Float(*x as f64)))
+            .map(|(s, x)| (s.to_owned(), LivecodeValue::Float(*x as f64)))
             .collect_vec();
         ExprWorldContextValues(v)
     }

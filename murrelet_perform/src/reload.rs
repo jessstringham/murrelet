@@ -1,7 +1,9 @@
 #![allow(dead_code)]
-use evalexpr::Node;
+use evalexpr::{HashMapContext, Node};
 use murrelet_common::{LivecodeSrc, MurreletTime};
+use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::livecode::*;
+use murrelet_livecode::state::*;
 
 // todo, maybe only includde this if not wasm?
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -49,6 +51,7 @@ pub trait LiveCoderLoader: Sized {
     }
 
     fn fs_load() -> Self {
+        // todo, make this return a result..
         let args: Vec<String> = env::args().collect();
         Self::fs_load_from_filename(&args[1], &args[2])
     }
@@ -58,6 +61,7 @@ pub trait LiveCoderLoader: Sized {
         filename: P,
         includes_dir: P2,
     ) -> Self {
+        // todo make this a result too
         match Self::fs_parse_data(filename, includes_dir) {
             Ok(x) => x,
             Err(err) => panic!("didn't work {}", err),
@@ -159,14 +163,16 @@ pub trait LiveCoderLoader: Sized {
 pub struct LiveCodeUtil {
     info: LiveCodeConfigInfo,
     timing: LiveCodeTiming,
+    global_funcs: HashMapContext,
 }
 
 impl LiveCodeUtil {
-    pub fn new() -> LiveCodeUtil {
-        LiveCodeUtil {
+    pub fn new() -> LivecodeResult<LiveCodeUtil> {
+        Ok(LiveCodeUtil {
             info: LiveCodeConfigInfo::new(),
             timing: LiveCodeTiming::new(),
-        }
+            global_funcs: init_evalexpr_func_ctx()?,
+        })
     }
 
     pub fn updated(&self) -> bool {
@@ -223,8 +229,8 @@ impl LiveCodeUtil {
     pub fn timeless_world<'a>(
         &'a self,
         livecode_src: &'a LivecodeSrc,
-    ) -> TimelessLiveCodeWorldState {
-        TimelessLiveCodeWorldState::new(livecode_src)
+    ) -> LivecodeResult<LivecodeWorldState> {
+        LivecodeWorldState::new_timeless(&self.global_funcs, livecode_src)
     }
 
     pub fn world<'a>(
@@ -232,7 +238,12 @@ impl LiveCodeUtil {
         livecode_src: &'a LivecodeSrc,
         timing_conf: &LivecodeTimingConfig,
         node: &Node,
-    ) -> LiveCodeWorldState {
-        LiveCodeWorldState::new(livecode_src, self.time(timing_conf), node.clone())
+    ) -> LivecodeResult<LivecodeWorldState> {
+        LivecodeWorldState::new(
+            &self.global_funcs,
+            livecode_src,
+            self.time(timing_conf),
+            node.clone(),
+        )
     }
 }

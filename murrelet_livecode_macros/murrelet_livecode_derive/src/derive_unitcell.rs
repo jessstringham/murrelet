@@ -121,8 +121,7 @@ impl GenFinal for FieldTokensUnitCell {
             #vis struct #lc_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #lc_ident {
-                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> Result<#name, String> {
-                    let w = ctx.w.unwrap();
+                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
                 }
             }
@@ -154,8 +153,7 @@ impl GenFinal for FieldTokensUnitCell {
             }
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #lc_ident {
-                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> Result<#name, String> {
-                    let w = ctx.w.unwrap();
+                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     Ok(#name {
                         #(#for_world,)*
                     })
@@ -195,8 +193,7 @@ impl GenFinal for FieldTokensUnitCell {
             }
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #new_enum_ident {
-                fn eval(&self, ctx: &murrelet_livecode::unitcells::UnitCellEvalContext) -> Result<#name, String> {
-                    let w = ctx.w.unwrap();
+                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
                     Ok(match self {
                         #(#for_world,)*
                     })
@@ -218,8 +215,6 @@ impl GenFinal for FieldTokensUnitCell {
         _parent_idents: syn::Ident,
     ) -> FieldTokensUnitCell {
         let _serde = idents.serde(true);
-        // let name = idents.name();
-
         let ctrl = idents.control_type();
 
         let for_struct = {
@@ -388,7 +383,7 @@ impl GenFinal for FieldTokensUnitCell {
 
     fn from_newtype_recurse_struct_vec(idents: StructIdents) -> Self {
         let serde = idents.serde(true);
-        // let name = idents.name();
+
         let orig_ty = idents.orig_ty();
 
         let for_struct = {
@@ -503,7 +498,7 @@ impl GenFinal for FieldTokensUnitCell {
                     Box::new(self.#name.clone()),
                     #maybe_more_ctx,
                     #prefix
-                ).o(w)
+                ).o(ctx)?
             }}
         };
 

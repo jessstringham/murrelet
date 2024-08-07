@@ -42,16 +42,6 @@ impl IsLivecodeSrc for MidiMng {
         }
         vals
     }
-
-    fn to_just_midi(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
-        let mut vals = Vec::with_capacity(MIDI_COUNT * 3);
-        for idx in 0..MIDI_COUNT {
-            vals.push((format!("m{}", idx), LivecodeValue::Float(0.0)));
-            vals.push((format!("m{}t", idx), LivecodeValue::Bool(false)));
-            vals.push((format!("m{}f", idx), LivecodeValue::Bool(false)));
-        }
-        vals
-    }
 }
 
 pub struct MidiMng {

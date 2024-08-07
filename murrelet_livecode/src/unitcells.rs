@@ -1,18 +1,15 @@
-use evalexpr::{build_operator_tree, HashMapContext, Node, Value};
+use evalexpr::{build_operator_tree, HashMapContext, Node};
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
 
-use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
-use crate::livecode::LivecodeFromWorld;
-use crate::{
-    expr::{expr_context, expr_context_no_world, ExprWorldContextValues, IntoExprWorldContext},
-    livecode::{LiveCodeWorldState, TimelessLiveCodeWorldState},
-};
+use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
+use crate::livecode::{LivecodeError, LivecodeFromWorld, LivecodeResult};
+use crate::state::LivecodeWorldState;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
@@ -30,7 +27,7 @@ impl UnitCellControlExprF32 {
 }
 
 impl EvaluableUnitCell<f32> for UnitCellControlExprF32 {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<f32, String> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<f32> {
         match self {
             UnitCellControlExprF32::Bool(b) => {
                 if *b {
@@ -42,12 +39,12 @@ impl EvaluableUnitCell<f32> for UnitCellControlExprF32 {
             UnitCellControlExprF32::Int(i) => Ok(*i as f32),
             UnitCellControlExprF32::Float(x) => Ok(*x),
             UnitCellControlExprF32::Expr(e) => {
-                match e.eval_float_with_context(&ctx.ctx).map(|x| x as f32) {
+                match e.eval_float_with_context(ctx.ctx()).map(|x| x as f32) {
                     Ok(r) => Ok(r),
                     Err(_) => {
                         let b = e
-                            .eval_boolean_with_context(&ctx.ctx)
-                            .map_err(|err| format!("{:?}", err));
+                            .eval_boolean_with_context(ctx.ctx())
+                            .map_err(|err| LivecodeError::EvalExpr(format!("evalexpr err"), err));
                         Ok(if b? { 1.0 } else { -1.0 })
                     }
                 }
@@ -72,17 +69,17 @@ impl UnitCellControlExprBool {
 }
 
 impl EvaluableUnitCell<bool> for UnitCellControlExprBool {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<bool, String> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<bool> {
         match self {
             UnitCellControlExprBool::Bool(b) => Ok(*b),
             UnitCellControlExprBool::Int(i) => Ok(*i > 0),
             UnitCellControlExprBool::Float(x) => Ok(*x > 0.0),
-            UnitCellControlExprBool::Expr(e) => match e.eval_boolean_with_context(&ctx.ctx) {
+            UnitCellControlExprBool::Expr(e) => match e.eval_boolean_with_context(ctx.ctx()) {
                 Ok(r) => Ok(r),
                 Err(_) => {
-                    let b = e
-                        .eval_float_with_context(&ctx.ctx)
-                        .map_err(|err| format!("{:?}", err));
+                    let b = e.eval_float_with_context(ctx.ctx()).map_err(|err| {
+                        LivecodeError::EvalExpr(format!("error evaluing bool"), err)
+                    });
                     b.map(|x| x > 0.0)
                 }
             },
@@ -111,6 +108,86 @@ impl<CtxSource: UnitCellCreator, Target: Default> TmpUnitCells<CtxSource, Target
             ctx,
             prefix: prefix.to_owned(),
         }
+    }
+}
+
+fn create_unit_cell<'a>(
+    world_ctx: &'a LivecodeWorldState,
+    prefix: &'a str,
+    unit_cell_ctx: &'a UnitCellContext,
+    maybe_node: Option<&'a UnitCellCtx>,
+) -> LivecodeResult<LivecodeWorldState> {
+    // world_ctx is currently just the World, so first attach the unit cell world state
+
+    let mut world_state = world_ctx.clone_to_unitcell(unit_cell_ctx, prefix)?;
+
+    let mut unit_cell_world_ctx = world_state.ctx_mut();
+
+    // now update the unit_cell context to have the node
+    if let Some(node) = maybe_node {
+        node.eval_raw(&mut unit_cell_world_ctx)?;
+    }
+
+    // great, now we have it built. return it!
+    Ok(world_state)
+}
+
+impl<CtxSource, Target> TmpUnitCells<CtxSource, Target>
+where
+    CtxSource: UnitCellCreator,
+    Target: Default + std::fmt::Debug + Clone,
+{
+    pub fn eval_with_ctx(
+        &self,
+        world_ctx: &LivecodeWorldState,
+        unit_cell_ctx: &Option<UnitCellCtx>,
+    ) -> Vec<UnitCell<Target>> {
+        // right now this one doesn't usually return an error because we do stuff
+        // to avoid returning every time, should tidy up
+
+        let mut is_first_error = true;
+        self.sequencer
+            .to_unit_cell_ctxs()
+            .iter()
+            .map(|ctx| {
+                // this has the
+                // - world (t, midi, audio)
+                // - app-level ctx
+                // - unit cell location
+                // it doesn't have sequencer ctx yet, we'll add that next
+
+                let unit_cell_world_ctx_result =
+                    create_unit_cell(world_ctx, &self.prefix, ctx, unit_cell_ctx.as_ref());
+
+                // and evaluate with this!
+                // todo can i use the result to clean this up
+                let node = match unit_cell_world_ctx_result {
+                    Ok(unit_cell_world_ctx) => match self.node.eval(&unit_cell_world_ctx) {
+                        Ok(n) => n,
+                        Err(err) => {
+                            if is_first_error {
+                                println!("{}", err);
+                                is_first_error = false;
+                            }
+                            Target::default()
+                        }
+                    },
+                    Err(err) => {
+                        if is_first_error {
+                            println!("{}", err);
+                            is_first_error = false;
+                        }
+                        Target::default()
+                    }
+                };
+
+                UnitCell::new(node, ctx.clone())
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn o(&self, ctx: &LivecodeWorldState) -> LivecodeResult<UnitCells<Target>> {
+        Ok(UnitCells::new(self.eval_with_ctx(&ctx, &self.ctx)))
     }
 }
 
@@ -169,17 +246,17 @@ pub trait UnitCellCreator {
 
 /// this one's similar to LivecodeFromWorld, but for ones with unit_cell_context
 pub trait EvaluableUnitCell<UnitCellTarget> {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<UnitCellTarget, String>;
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<UnitCellTarget>;
 }
 
 impl EvaluableUnitCell<Vec2> for [UnitCellControlExprF32; 2] {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<Vec2, String> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<Vec2> {
         Ok(vec2(self[0].eval(ctx)?, self[1].eval(ctx)?))
     }
 }
 
 impl EvaluableUnitCell<Vec3> for [UnitCellControlExprF32; 3] {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<Vec3, String> {
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<Vec3> {
         Ok(vec3(
             self[0].eval(ctx)?,
             self[1].eval(ctx)?,
@@ -348,16 +425,10 @@ impl Default for UnitCellCtx {
 }
 
 impl UnitCellCtx {
-    pub fn eval(&self, ctx: &mut UnitCellEvalContext) -> Result<(), String> {
-        self.0
-            .eval_empty_with_context_mut(&mut ctx.ctx)
-            .map_err(|err| format!("{:?}", err))
-    }
-
-    pub fn eval_raw(&self, ctx: &mut HashMapContext) -> Result<(), String> {
+    pub fn eval_raw(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         self.0
             .eval_empty_with_context_mut(ctx)
-            .map_err(|err| format!("{:?}", err))
+            .map_err(|err| LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err))
     }
 }
 
@@ -372,20 +443,14 @@ impl LazyNodeF32Def {
 }
 
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
-    fn o(&self, w: &LiveCodeWorldState) -> LazyNodeF32 {
-        let world_context: UnitCellEvalContext<'_> = UnitCellEvalContext::from_world(w);
-        LazyNodeF32::new(self.0.clone(), world_context.ctx)
-    }
-
-    fn just_midi(&self, m: &TimelessLiveCodeWorldState) -> LazyNodeF32 {
-        let world_context = UnitCellEvalContext::from_timeless(m);
-        LazyNodeF32::new(self.0.clone(), world_context.ctx)
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
+        Ok(LazyNodeF32::new(self.0.clone(), w))
     }
 }
 
 impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
-    fn eval(&self, ctx: &UnitCellEvalContext) -> Result<LazyNodeF32, String> {
-        Ok(LazyNodeF32::new(self.0.clone(), ctx.ctx.clone()))
+    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
+        Ok(LazyNodeF32::new(self.0.clone(), ctx))
     }
 }
 
@@ -407,15 +472,17 @@ impl MixedEvalDefs {
         self.vals = vals;
     }
 
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) {
-        self.vals.update_ctx(ctx);
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+        self.vals.update_ctx(ctx)?;
         // go from beginning to end
         for node in self.nodes.iter() {
-            node.eval_raw(ctx).ok();
+            node.eval_raw(ctx)?;
         }
+
+        Ok(())
     }
 
-    pub fn set_val(&mut self, name: &str, val: Value) {
+    pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
         self.vals.set_val(name, val)
     }
 
@@ -424,192 +491,109 @@ impl MixedEvalDefs {
     }
 }
 
-// // expr that we can add things
+// todo, figure out how to only build this context once per unitcell/etc
+
 #[derive(Debug, Clone)]
-pub struct LazyNodeF32 {
-    n: Option<Node>,
-    ctx: HashMapContext,
+pub struct LazyNodeF32Inner {
+    n: Node,
+    world: LivecodeWorldState,
 }
-
-impl Default for LazyNodeF32 {
-    fn default() -> Self {
-        LazyNodeF32 {
-            n: None,
-            ctx: HashMapContext::new(),
-        }
-    }
-}
-
-impl LazyNodeF32 {
-    pub fn new(n: Node, ctx: HashMapContext) -> Self {
-        Self { n: Some(n), ctx }
-    }
-
-    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> Result<f32> {
+impl LazyNodeF32Inner {
+    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
         // start with the global ctx
-        let mut ctx = self.ctx.clone();
+        let mut ctx = self.world.clone();
+
+        ctx.update_with_defs(more_defs)?;
 
         // modify it with the new data
         // todo, handle the result better
-        more_defs.update_ctx(&mut ctx);
+        more_defs.update_ctx(&mut ctx.ctx_mut())?;
 
         // now grab the actual node
-        self.final_eval(&ctx)
+        self.final_eval(&ctx.ctx())
     }
 
-    pub fn final_eval(&self, ctx: &HashMapContext) -> Result<f32> {
-        let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
-        n.eval_float_with_context(ctx)
+    pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
+        self.n
+            .eval_float_with_context(ctx)
             .map(|x| x as f32)
-            .map_err(|e| anyhow!(e))
+            .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
     }
 
-    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> Result<f32> {
+    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
         let pct = idx.pct();
         let i = idx.i();
         let total = idx.total();
 
+        // todo, make this more standardized
         let vs: ExprWorldContextValues = ExprWorldContextValues::new(vec![
-            ("_p".to_owned(), Value::Float(pct as f64)),
-            ("_i".to_owned(), Value::Int(i as i64)),
-            ("_total".to_owned(), Value::Int(total as i64)),
+            ("_p".to_owned(), LivecodeValue::Float(pct as f64)),
+            ("_i".to_owned(), LivecodeValue::Int(i as i64)),
+            ("_total".to_owned(), LivecodeValue::Int(total as i64)),
         ]);
 
-        let mut ctx = self.ctx.clone();
+        let mut ctx = self.world.ctx().clone();
 
-        // for (identifier, value) in vs.into_iter() {
-        //     let name = format!("{}{}", prefix, identifier);
-        //     add_variable_or_prefix_it(&name, value, &mut ctx);
-        // }
         vs.update_ctx_with_prefix(&mut ctx, prefix);
 
         self.final_eval(&ctx)
+    }
+}
 
-        // let n = self.n.clone().ok_or(anyhow!("tried to eval empty node"))?;
-        // n.eval_float_with_context(&ctx)
-        //     .map(|x| x as f32)
-        //     .map_err(|e| anyhow!(e))
-        //.with_context("failure evaluating idx")
+// // expr that we can add things
+#[derive(Debug, Clone)]
+pub enum LazyNodeF32 {
+    Uninitialized,
+    Node(LazyNodeF32Inner),
+}
+
+impl Default for LazyNodeF32 {
+    fn default() -> Self {
+        LazyNodeF32::Uninitialized
+    }
+}
+
+impl LazyNodeF32 {
+    pub fn new(n: Node, world: &LivecodeWorldState) -> Self {
+        Self::Node(LazyNodeF32Inner {
+            n,
+            world: world.clone_to_lazy(),
+        })
     }
 
     pub fn n(&self) -> Option<&Node> {
-        self.n.as_ref()
+        match self {
+            LazyNodeF32::Uninitialized => None,
+            LazyNodeF32::Node(n) => Some(&n.n),
+        }
+    }
+
+    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
+        self.node()?.eval_with_ctx(more_defs)
+    }
+
+    pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
+        self.node()?.final_eval(ctx)
+    }
+
+    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
+        self.node()?.eval_idx(idx, prefix)
+    }
+
+    pub fn node(&self) -> LivecodeResult<&LazyNodeF32Inner> {
+        if let Self::Node(v) = self {
+            Ok(v)
+        } else {
+            Err(LivecodeError::Raw(
+                "trying to use uninitialized lazy node".to_owned(),
+            ))
+        }
     }
 }
 
-impl InvertedWorld<LazyNodeF32Def> for LazyNodeF32 {
+impl<'a> InvertedWorld<LazyNodeF32Def> for LazyNodeF32 {
     fn to_unitcell_input(&self) -> LazyNodeF32Def {
-        LazyNodeF32Def(self.n.clone().unwrap())
-    }
-}
-
-// eh, so this is a convenient thing that groups together the context (with all the info)
-pub struct UnitCellEvalContext<'a> {
-    pub ctx: HashMapContext,
-    pub w: Option<&'a LiveCodeWorldState<'a>>,
-    pub m: Option<&'a TimelessLiveCodeWorldState<'a>>,
-}
-impl<'a> UnitCellEvalContext<'a> {
-    pub fn from_world(w: &'a LiveCodeWorldState<'a>) -> UnitCellEvalContext<'a> {
-        UnitCellEvalContext {
-            ctx: expr_context(w),
-            w: Some(w),
-            m: None,
-        }
-    }
-
-    pub fn from_timeless(m: &'a TimelessLiveCodeWorldState<'a>) -> UnitCellEvalContext<'a> {
-        UnitCellEvalContext {
-            ctx: expr_context_no_world(m),
-            w: None,
-            m: Some(m),
-        }
-    }
-
-    pub fn with_ctx(&self, c: ExprWorldContextValues, prefix: &str) -> UnitCellEvalContext {
-        let mut full_ctx = self.ctx.clone();
-
-        // for (identifier, value) in c.into_iter() {
-        //     let name = format!("{}{}", prefix, identifier);
-        //     add_variable_or_prefix_it(&name, value, &mut full_ctx);
-        // }
-        c.update_ctx_with_prefix(&mut full_ctx, prefix);
-
-        UnitCellEvalContext {
-            ctx: full_ctx,
-            w: self.w,
-            m: self.m,
-        }
-    }
-}
-
-impl<CtxSource, Target> TmpUnitCells<CtxSource, Target>
-where
-    CtxSource: UnitCellCreator,
-    Target: Default + std::fmt::Debug + Clone,
-{
-    pub fn eval_with_ctx(
-        &self,
-        world_ctx: &UnitCellEvalContext,
-        unit_cell_ctx: &Option<UnitCellCtx>,
-        should_debug: bool,
-    ) -> Vec<UnitCell<Target>> {
-        self.sequencer
-            .to_unit_cell_ctxs()
-            .iter()
-            .enumerate()
-            .map(|(i, ctx)| {
-                // this has the
-                // - world (t, midi, audio)
-                // - app-level ctx
-                // - unit cell location
-                // it doesn't have sequencer ctx yet, we'll add that next
-                let mut full_ctx =
-                    world_ctx.with_ctx(ctx.as_expr_world_context_values(), &self.prefix);
-
-                // enhance the world with additional ctx if it exists
-                if let Some(x) = unit_cell_ctx {
-                    match x.eval(&mut full_ctx) {
-                        Ok(()) => {}
-                        Err(err) => {
-                            if should_debug {
-                                println!("{}", err);
-                            }
-                        }
-                    }
-                }
-
-                let node = match self.node.eval(&full_ctx) {
-                    Ok(n) => n,
-                    Err(err) => {
-                        if should_debug && i == 0 {
-                            println!("{}", err);
-                        }
-                        Target::default()
-                    }
-                };
-
-                UnitCell::new(node, ctx.clone())
-            })
-            .collect::<Vec<_>>()
-    }
-
-    pub fn o(&self, w: &LiveCodeWorldState) -> UnitCells<Target> {
-        let world_context: UnitCellEvalContext<'_> = UnitCellEvalContext::from_world(w);
-
-        UnitCells::new(self.eval_with_ctx(&world_context, &self.ctx, w.should_debug()))
-    }
-
-    pub fn just_midi(&self, m: &TimelessLiveCodeWorldState) -> UnitCells<Target> {
-        // TODO, add a world state that uses midi
-        let world_context = UnitCellEvalContext::from_timeless(m);
-        // if let Some(x) = &self.ctx {
-        //     match x.eval(&mut world_context) {
-        //         Ok(()) => {},
-        //         Err(_) => {}
-        //     }
-        // }
-        UnitCells::new(self.eval_with_ctx(&world_context, &self.ctx, false))
+        LazyNodeF32Def(self.n().unwrap().clone())
     }
 }
 
@@ -1134,26 +1118,40 @@ impl UnitCellExprWorldContext {
 impl IntoExprWorldContext for UnitCellExprWorldContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
         let v = vec![
-            ("x".to_owned(), Value::Float(self.x as f64)),
-            ("y".to_owned(), Value::Float(self.y as f64)),
-            ("z".to_owned(), Value::Float(self.z as f64)),
-            ("x_i".to_owned(), Value::Int(self.x_i as i64)),
-            ("y_i".to_owned(), Value::Int(self.y_i as i64)),
-            ("z_i".to_owned(), Value::Int(self.z_i as i64)),
-            ("x_total".to_owned(), Value::Int(self.total_x as i64)),
-            ("y_total".to_owned(), Value::Int(self.total_y as i64)),
-            ("z_total".to_owned(), Value::Int(self.total_z as i64)),
-            ("i".to_owned(), Value::Int(self.i() as i64)),
+            ("x".to_owned(), LivecodeValue::Float(self.x as f64)),
+            ("y".to_owned(), LivecodeValue::Float(self.y as f64)),
+            ("z".to_owned(), LivecodeValue::Float(self.z as f64)),
+            ("x_i".to_owned(), LivecodeValue::Int(self.x_i as i64)),
+            ("y_i".to_owned(), LivecodeValue::Int(self.y_i as i64)),
+            ("z_i".to_owned(), LivecodeValue::Int(self.z_i as i64)),
+            (
+                "x_total".to_owned(),
+                LivecodeValue::Int(self.total_x as i64),
+            ),
+            (
+                "y_total".to_owned(),
+                LivecodeValue::Int(self.total_y as i64),
+            ),
+            (
+                "z_total".to_owned(),
+                LivecodeValue::Int(self.total_z as i64),
+            ),
+            ("i".to_owned(), LivecodeValue::Int(self.i() as i64)),
             (
                 "frac".to_owned(),
-                Value::Float(self.i() as f64 / (self.total_x * self.total_y * self.total_z) as f64),
+                LivecodeValue::Float(
+                    self.i() as f64 / (self.total_x * self.total_y * self.total_z) as f64,
+                ),
             ),
             (
                 "total".to_owned(),
-                Value::Float((self.total_x * self.total_y * self.total_z) as f64),
+                LivecodeValue::Float((self.total_x * self.total_y * self.total_z) as f64),
             ),
-            ("seed".to_owned(), Value::Float(self.seed as f64)),
-            ("h_ratio".to_owned(), Value::Float(self.h_ratio as f64)),
+            ("seed".to_owned(), LivecodeValue::Float(self.seed as f64)),
+            (
+                "h_ratio".to_owned(),
+                LivecodeValue::Float(self.h_ratio as f64),
+            ),
         ];
         ExprWorldContextValues::new(v)
     }
@@ -1162,11 +1160,11 @@ impl IntoExprWorldContext for UnitCellExprWorldContext {
 #[derive(Debug, Clone)]
 pub enum UnitCellDetails {
     Wallpaper(UnitCellDetailsWallpaper),
-    Function(UnitCellDetailsFunction),
+    Function(UnitCellDetailsFunction), // this is a new one
 }
 
 impl UnitCellDetails {
-    // for a while we just did wallpaper
+    // for a while we just did wallpaper, so default to that
     pub fn new(transform_vertex: Mat4) -> Self {
         Self::Wallpaper(UnitCellDetailsWallpaper {
             transform_vertex,
