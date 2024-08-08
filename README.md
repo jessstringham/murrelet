@@ -143,9 +143,9 @@ app:
   ...
   time:
     realtime: true
-	fps: 60.0
-	bpm: 135.0
-	beats_per_bar: 4.0 # defaults to 4.0
+        fps: 60.0
+        bpm: 135.0
+        beats_per_bar: 4.0 # defaults to 4.0
 ```
 
 
