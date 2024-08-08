@@ -47,33 +47,38 @@ impl AdditionalContextNode {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-#[serde(transparent)]
-pub struct LazyNodeF32Def(pub Node);
-
-// #[derive(Debug, Deserialize, Clone)]
-// #[serde(untagged)]
-// pub enum LazyNodeF32Def {
-//     Int(i32),
-//     Bool(bool),
-//     Float(f32),
-//     Expr(Node),
-// }
+#[serde(untagged)]
+pub enum LazyNodeF32Def {
+    Int(i32),
+    Bool(bool),
+    Float(f32),
+    Expr(Node),
+}
 
 impl LazyNodeF32Def {
     pub fn new(n: Node) -> Self {
-        Self(n)
+        Self::Expr(n)
+    }
+
+    fn result(&self) -> Result<f32, LivecodeError> {
+        match self {
+            LazyNodeF32Def::Int(d) => Ok(*d as f32),
+            LazyNodeF32Def::Bool(d) => Ok(if *d { 1.0 } else { -1.0 }),
+            LazyNodeF32Def::Float(d) => Ok(*d),
+            LazyNodeF32Def::Expr(_) => Err(LivecodeError::Raw("result on a expr".to_owned())),
+        }
     }
 }
 
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
-        Ok(LazyNodeF32::new(self.0.clone(), w))
+        Ok(LazyNodeF32::new(self.clone(), w))
     }
 }
 
 impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
     fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
-        Ok(LazyNodeF32::new(self.0.clone(), ctx))
+        Ok(LazyNodeF32::new(self.clone(), ctx))
     }
 }
 
@@ -131,6 +136,7 @@ impl LazyNodeF32Inner {
 pub enum LazyNodeF32 {
     Uninitialized,
     Node(LazyNodeF32Inner),
+    NoCtxNode(LazyNodeF32Def),
 }
 
 impl Default for LazyNodeF32 {
@@ -140,30 +146,52 @@ impl Default for LazyNodeF32 {
 }
 
 impl LazyNodeF32 {
-    pub fn new(n: Node, world: &LivecodeWorldState) -> Self {
-        Self::Node(LazyNodeF32Inner {
-            n,
-            world: world.clone_to_lazy(),
-        })
+    pub fn new(def: LazyNodeF32Def, world: &LivecodeWorldState) -> Self {
+        match def {
+            LazyNodeF32Def::Expr(n) => Self::Node(LazyNodeF32Inner {
+                n,
+                world: world.clone_to_lazy(),
+            }),
+            _ => Self::NoCtxNode(def),
+        }
     }
 
     pub fn n(&self) -> Option<&Node> {
         match self {
             LazyNodeF32::Uninitialized => None,
             LazyNodeF32::Node(n) => Some(&n.n),
+            LazyNodeF32::NoCtxNode(_) => None,
         }
     }
 
     pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
-        self.node()?.eval_with_ctx(more_defs)
+        match self {
+            LazyNodeF32::Uninitialized => {
+                Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
+            }
+            LazyNodeF32::Node(v) => v.eval_with_ctx(more_defs),
+            LazyNodeF32::NoCtxNode(v) => v.result(),
+        }
     }
 
     pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
-        self.node()?.final_eval(ctx)
+        match self {
+            LazyNodeF32::Uninitialized => {
+                Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
+            }
+            LazyNodeF32::Node(v) => v.final_eval(ctx),
+            LazyNodeF32::NoCtxNode(v) => v.result(),
+        }
     }
 
     pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
-        self.node()?.eval_idx(idx, prefix)
+        match self {
+            LazyNodeF32::Uninitialized => {
+                Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
+            }
+            LazyNodeF32::Node(v) => v.eval_idx(idx, prefix),
+            LazyNodeF32::NoCtxNode(v) => v.result(),
+        }
     }
 
     pub fn node(&self) -> LivecodeResult<&LazyNodeF32Inner> {
