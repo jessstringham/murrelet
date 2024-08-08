@@ -25,7 +25,7 @@ impl UnitCellFieldType {
                 quote! {[murrelet_livecode::unitcells::UnitCellControlExprF32; 4]}
             }
             ControlType::LazyNodeF32 => {
-                quote! { murrelet_livecode::unitcells::LazyNodeF32Def }
+                quote! { murrelet_livecode::types::LazyNodeF32Def }
             }
             // ControlType::LinSrgbaUnclamped => quote!{[murrelet_livecode::livecode::ControlF32; 4]},
             _ => panic!("unitcell doesn't have this one yet"),
@@ -121,7 +121,7 @@ impl GenFinal for FieldTokensUnitCell {
             #vis struct #lc_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #lc_ident {
-                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
                 }
             }
@@ -153,7 +153,7 @@ impl GenFinal for FieldTokensUnitCell {
             }
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #lc_ident {
-                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(#name {
                         #(#for_world,)*
                     })
@@ -193,7 +193,7 @@ impl GenFinal for FieldTokensUnitCell {
             }
 
             impl murrelet_livecode::unitcells::EvaluableUnitCell<#name> for #new_enum_ident {
-                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn eval(&self, ctx: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(match self {
                         #(#for_world,)*
                     })

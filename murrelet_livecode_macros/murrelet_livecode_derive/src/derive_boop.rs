@@ -18,7 +18,7 @@ impl BoopFieldType {
             ControlType::Color => quote! {murrelet_livecode::boop::BoopStateHsva},
 
             // nothing fancy here yet either..
-            ControlType::LazyNodeF32 => quote! {murrelet_livecode::unitcells::LazyNodeF32},
+            ControlType::LazyNodeF32 => quote! {murrelet_livecode::types::LazyNodeF32},
 
             // ControlType::LinSrgbaUnclamped => quote!{[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::Bool => quote! {bool}, // nothing fancy here yet

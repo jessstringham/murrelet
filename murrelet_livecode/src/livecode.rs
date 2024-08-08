@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use evalexpr::build_operator_tree;
-use evalexpr::EvalexprError;
 use evalexpr::Node;
 use glam::vec2;
 use glam::vec3;
@@ -12,33 +11,15 @@ use murrelet_common::MurreletColor;
 use serde::Deserialize;
 
 use crate::state::LivecodeWorldState;
-use crate::unitcells::LazyNodeF32;
-use crate::unitcells::LazyNodeF32Def;
+use crate::types::LazyNodeF32;
+use crate::types::LazyNodeF32Def;
+use crate::types::LivecodeResult;
 use crate::unitcells::{EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32};
 
 // for default values
 pub fn empty_vec<T>() -> Vec<T> {
     Vec::new()
 }
-
-#[derive(Debug)]
-pub enum LivecodeError {
-    Raw(String), // my custom errors
-    EvalExpr(String, EvalexprError),
-}
-impl LivecodeError {}
-impl std::fmt::Display for LivecodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LivecodeError::Raw(msg) => write!(f, "{}", msg),
-            LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
-        }
-    }
-}
-
-impl std::error::Error for LivecodeError {}
-
-pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;

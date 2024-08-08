@@ -315,7 +315,6 @@ pub enum ControlType {
     F32_3,
     Color,
     ColorUnclamped,
-    EvalExpr,
     LazyNodeF32,
 }
 
@@ -370,9 +369,9 @@ impl HowToControlThis {
                 OverrideOrInferred::Override,
                 RecursiveControlType::Vec,
             ),
-            "expr" => {
-                HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::EvalExpr)
-            }
+            // "expr" => {
+            //     HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::EvalExpr)
+            // }
             "unitcell" => HowToControlThis::WithRecurse(
                 OverrideOrInferred::Override,
                 RecursiveControlType::UnitCell,
@@ -402,10 +401,7 @@ impl HowToControlThis {
             "MurreletColor" => {
                 HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::Color)
             }
-            "ExprWorldF32" => {
-                HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::EvalExpr)
-            }
-            "UnitCellCtx" => HowToControlThis::WithNone(OverrideOrInferred::Inferred),
+            "AdditionalContextNode" => HowToControlThis::WithNone(OverrideOrInferred::Inferred),
             "UnitCells" => HowToControlThis::WithRecurse(
                 OverrideOrInferred::Inferred,
                 RecursiveControlType::UnitCell,

@@ -8,7 +8,7 @@ use murrelet_common::{clamp, ease, lerp, map_range, print_expect, smoothstep, Li
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::livecode::{LivecodeError, LivecodeResult};
+use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{
@@ -261,5 +261,42 @@ pub fn add_variable_or_prefix_it(identifier: &str, value: Value, ctx: &mut HashM
     } else {
         let r = ctx.set_value(identifier.to_owned(), value.clone());
         print_expect(r, "couldn't set variable");
+    }
+}
+
+// todo, hrm, this is awkward
+#[derive(Debug, Clone)]
+pub struct MixedEvalDefs {
+    vals: ExprWorldContextValues,
+    nodes: Vec<AdditionalContextNode>, // these need to stack
+}
+impl MixedEvalDefs {
+    pub fn new() -> Self {
+        Self {
+            vals: ExprWorldContextValues::new(vec![]),
+            nodes: Vec::new(),
+        }
+    }
+
+    pub fn set_vals(&mut self, vals: ExprWorldContextValues) {
+        self.vals = vals;
+    }
+
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+        self.vals.update_ctx(ctx)?;
+        // go from beginning to end
+        for node in self.nodes.iter() {
+            node.eval_raw(ctx)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
+        self.vals.set_val(name, val)
+    }
+
+    pub fn add_node(&mut self, node: AdditionalContextNode) {
+        self.nodes.push(node)
     }
 }

@@ -1,5 +1,6 @@
 use murrelet::prelude::*;
 use murrelet_draw::{compass::*, sequencers::*, style::MurreletPath};
+use murrelet_livecode::types::*;
 use murrelet_src_audio::audio_src::AudioMng;
 //use murrelet_src_blte::blte::BlteMng;
 use murrelet_src_midi::midi::MidiMng;
@@ -27,7 +28,7 @@ struct DrawingConfig {
     #[livecode(serde_default = "false")]
     debug: bool,
     sequencer: Sequencer,
-    ctx: UnitCellCtx,
+    ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]
     node: UnitCells<SimpleTile>,
 }

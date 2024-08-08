@@ -1,6 +1,6 @@
 use glam::*;
 use murrelet_common::*;
-use murrelet_livecode::unitcells::*;
+use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
 use murrelet_livecode_derive::{Livecode, UnitCell};
 
 #[derive(Debug, Clone, Livecode, UnitCell, Default)]
@@ -23,7 +23,7 @@ struct TestNewType(Vec<EnumTest>);
 #[derive(Debug, Clone, Livecode)]
 struct SequencerTest {
     sequencer: SimpleSquareSequence,
-    ctx: UnitCellCtx,
+    ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]
     node: UnitCells<TestNewType>,
 }

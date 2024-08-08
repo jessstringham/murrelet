@@ -1,4 +1,4 @@
-use evalexpr::{build_operator_tree, HashMapContext, Node};
+use evalexpr::Node;
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
@@ -8,8 +8,9 @@ use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
 use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
-use crate::livecode::{LivecodeError, LivecodeFromWorld, LivecodeResult};
 use crate::state::LivecodeWorldState;
+use crate::types::{AdditionalContextNode, LazyNodeF32, LazyNodeF32Def};
+use crate::types::{LivecodeError, LivecodeResult};
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
@@ -91,7 +92,7 @@ impl EvaluableUnitCell<bool> for UnitCellControlExprBool {
 pub struct TmpUnitCells<CtxSource: UnitCellCreator, Target> {
     sequencer: CtxSource,
     node: Box<dyn EvaluableUnitCell<Target>>,
-    ctx: Option<UnitCellCtx>,
+    ctx: Option<AdditionalContextNode>,
     prefix: String,
 }
 
@@ -99,7 +100,7 @@ impl<CtxSource: UnitCellCreator, Target: Default> TmpUnitCells<CtxSource, Target
     pub fn new(
         sequencer: CtxSource,
         node: Box<dyn EvaluableUnitCell<Target>>,
-        ctx: Option<UnitCellCtx>,
+        ctx: Option<AdditionalContextNode>,
         prefix: &str,
     ) -> Self {
         Self {
@@ -115,7 +116,7 @@ fn create_unit_cell<'a>(
     world_ctx: &'a LivecodeWorldState,
     prefix: &'a str,
     unit_cell_ctx: &'a UnitCellContext,
-    maybe_node: Option<&'a UnitCellCtx>,
+    maybe_node: Option<&'a AdditionalContextNode>,
 ) -> LivecodeResult<LivecodeWorldState> {
     // world_ctx is currently just the World, so first attach the unit cell world state
 
@@ -140,7 +141,7 @@ where
     pub fn eval_with_ctx(
         &self,
         world_ctx: &LivecodeWorldState,
-        unit_cell_ctx: &Option<UnitCellCtx>,
+        unit_cell_ctx: &Option<AdditionalContextNode>,
     ) -> Vec<UnitCell<Target>> {
         // right now this one doesn't usually return an error because we do stuff
         // to avoid returning every time, should tidy up
@@ -265,78 +266,6 @@ impl EvaluableUnitCell<Vec3> for [UnitCellControlExprF32; 3] {
     }
 }
 
-/// this one's similar to LivecodeToControl, but for unitcells
-pub trait InvertedWorld<UnitCellControl> {
-    fn to_unitcell_input(&self) -> UnitCellControl;
-}
-
-impl InvertedWorld<[UnitCellControlExprF32; 2]> for Vec2 {
-    fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 2] {
-        [
-            UnitCellControlExprF32::Float(self.x),
-            UnitCellControlExprF32::Float(self.y),
-        ]
-    }
-}
-
-impl InvertedWorld<UnitCellControlExprF32> for f32 {
-    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-        UnitCellControlExprF32::Float(*self)
-    }
-}
-
-impl InvertedWorld<[UnitCellControlExprF32; 3]> for Vec3 {
-    fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 3] {
-        [
-            UnitCellControlExprF32::Float(self.x),
-            UnitCellControlExprF32::Float(self.y),
-            UnitCellControlExprF32::Float(self.z),
-        ]
-    }
-}
-
-impl InvertedWorld<UnitCellControlExprF32> for bool {
-    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-        UnitCellControlExprF32::Bool(*self)
-    }
-}
-
-impl InvertedWorld<UnitCellControlExprF32> for usize {
-    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-        UnitCellControlExprF32::Int(*self as i32)
-    }
-}
-
-impl InvertedWorld<UnitCellControlExprF32> for u64 {
-    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-        UnitCellControlExprF32::Int(*self as i32)
-    }
-}
-
-impl InvertedWorld<UnitCellControlExprF32> for u8 {
-    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-        UnitCellControlExprF32::Int(*self as i32)
-    }
-}
-
-impl InvertedWorld<UnitCellControlExprF32> for u32 {
-    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-        UnitCellControlExprF32::Int(*self as i32)
-    }
-}
-
-impl InvertedWorld<[UnitCellControlExprF32; 4]> for MurreletColor {
-    fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 4] {
-        let [r, g, b, a] = self.into_rgba_components();
-        [
-            UnitCellControlExprF32::Float(r),
-            UnitCellControlExprF32::Float(g),
-            UnitCellControlExprF32::Float(b),
-            UnitCellControlExprF32::Float(a),
-        ]
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct UnitCell<Target> {
     pub node: Box<Target>,
@@ -363,26 +292,13 @@ impl<Target> UnitCell<Target> {
         }
     }
 
-    // can i deprecate it, it doesn't seem to move...
-    // #[deprecated(info="just want to see where it's used")]
     pub fn transform_vec2(&self, v: Vec2) -> Vec2 {
-        // let w = vec4(v.x, v.y, 0.0, 1.0);
-        // let m = self.detail.transform() * w;
-        // vec2(m.x / m.w, m.y / m.w)
         self.detail.transform().transform_vec2(v)
     }
 
     pub fn transform(&self) -> Mat4 {
         self.detail.transform()
     }
-
-    // pub fn transform_offset_only(&self) -> Mat4 {
-    //     self.detail.transform_offset_mat()
-    // }
-
-    // pub fn transform_offset_only(&self) -> Mat4 {
-    //     self.detail.transform_offset_obj()
-    // }
 
     pub fn center(&self) -> Vec2 {
         self.transform_vec2(Vec2::ZERO)
@@ -408,192 +324,7 @@ impl<Target> UnitCell<Target> {
     }
 
     pub fn is_alternate(&self) -> bool {
-        // !(self.idx().i.i() % 2 == 0) ^ (self.idx().j.i() % 2 == 0)
         self.idx().is_alternate()
-    }
-}
-
-// this one is useful in sequencers
-#[derive(Debug, Deserialize, Clone)]
-#[serde(transparent)]
-pub struct UnitCellCtx(Node);
-
-impl Default for UnitCellCtx {
-    fn default() -> Self {
-        Self(build_operator_tree("").unwrap())
-    }
-}
-
-impl UnitCellCtx {
-    pub fn eval_raw(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
-        self.0
-            .eval_empty_with_context_mut(ctx)
-            .map_err(|err| LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err))
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(transparent)]
-pub struct LazyNodeF32Def(Node);
-
-impl LazyNodeF32Def {
-    pub fn new(n: Node) -> Self {
-        Self(n)
-    }
-}
-
-impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
-    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
-        Ok(LazyNodeF32::new(self.0.clone(), w))
-    }
-}
-
-impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
-    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
-        Ok(LazyNodeF32::new(self.0.clone(), ctx))
-    }
-}
-
-// todo, hrm, this is awkward
-#[derive(Debug, Clone)]
-pub struct MixedEvalDefs {
-    vals: ExprWorldContextValues,
-    nodes: Vec<UnitCellCtx>, // these need to stack
-}
-impl MixedEvalDefs {
-    pub fn new() -> Self {
-        Self {
-            vals: ExprWorldContextValues::new(vec![]),
-            nodes: Vec::new(),
-        }
-    }
-
-    pub fn set_panicle(&mut self, vals: ExprWorldContextValues) {
-        self.vals = vals;
-    }
-
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
-        self.vals.update_ctx(ctx)?;
-        // go from beginning to end
-        for node in self.nodes.iter() {
-            node.eval_raw(ctx)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
-        self.vals.set_val(name, val)
-    }
-
-    pub fn add_node(&mut self, node: UnitCellCtx) {
-        self.nodes.push(node)
-    }
-}
-
-// todo, figure out how to only build this context once per unitcell/etc
-
-#[derive(Debug, Clone)]
-pub struct LazyNodeF32Inner {
-    n: Node,
-    world: LivecodeWorldState,
-}
-impl LazyNodeF32Inner {
-    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
-        // start with the global ctx
-        let mut ctx = self.world.clone();
-
-        ctx.update_with_defs(more_defs)?;
-
-        // modify it with the new data
-        // todo, handle the result better
-        more_defs.update_ctx(&mut ctx.ctx_mut())?;
-
-        // now grab the actual node
-        self.final_eval(&ctx.ctx())
-    }
-
-    pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
-        self.n
-            .eval_float_with_context(ctx)
-            .map(|x| x as f32)
-            .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
-    }
-
-    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
-        let pct = idx.pct();
-        let i = idx.i();
-        let total = idx.total();
-
-        // todo, make this more standardized
-        let vs: ExprWorldContextValues = ExprWorldContextValues::new(vec![
-            ("_p".to_owned(), LivecodeValue::Float(pct as f64)),
-            ("_i".to_owned(), LivecodeValue::Int(i as i64)),
-            ("_total".to_owned(), LivecodeValue::Int(total as i64)),
-        ]);
-
-        let mut ctx = self.world.ctx().clone();
-
-        vs.update_ctx_with_prefix(&mut ctx, prefix);
-
-        self.final_eval(&ctx)
-    }
-}
-
-// // expr that we can add things
-#[derive(Debug, Clone)]
-pub enum LazyNodeF32 {
-    Uninitialized,
-    Node(LazyNodeF32Inner),
-}
-
-impl Default for LazyNodeF32 {
-    fn default() -> Self {
-        LazyNodeF32::Uninitialized
-    }
-}
-
-impl LazyNodeF32 {
-    pub fn new(n: Node, world: &LivecodeWorldState) -> Self {
-        Self::Node(LazyNodeF32Inner {
-            n,
-            world: world.clone_to_lazy(),
-        })
-    }
-
-    pub fn n(&self) -> Option<&Node> {
-        match self {
-            LazyNodeF32::Uninitialized => None,
-            LazyNodeF32::Node(n) => Some(&n.n),
-        }
-    }
-
-    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
-        self.node()?.eval_with_ctx(more_defs)
-    }
-
-    pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
-        self.node()?.final_eval(ctx)
-    }
-
-    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
-        self.node()?.eval_idx(idx, prefix)
-    }
-
-    pub fn node(&self) -> LivecodeResult<&LazyNodeF32Inner> {
-        if let Self::Node(v) = self {
-            Ok(v)
-        } else {
-            Err(LivecodeError::Raw(
-                "trying to use uninitialized lazy node".to_owned(),
-            ))
-        }
-    }
-}
-
-impl<'a> InvertedWorld<LazyNodeF32Def> for LazyNodeF32 {
-    fn to_unitcell_input(&self) -> LazyNodeF32Def {
-        LazyNodeF32Def(self.n().unwrap().clone())
     }
 }
 
@@ -878,10 +609,6 @@ impl UnitCellContext {
 
     pub fn set_tile_info(&mut self, tile_info: Box<dyn TileInfo>) {
         self.tile_info = Some(tile_info);
-        // Self {
-        //     tile_info: Some(tile_info),
-        //     ..self.clone()
-        // }
     }
 
     pub fn new_with_info(
@@ -895,11 +622,6 @@ impl UnitCellContext {
             tile_info: Some(tile_info),
         }
     }
-
-    // pub fn face(&self) -> Option<Vec<Vec2>> {
-    //     // todo, replace this with rect_bound logic?
-    //     self.tile_info.as_ref().map(|x| self.detail.transform_obj(x.face()))
-    // }
 
     pub fn rect_for_face(&self) -> Rect {
         // todo, replace this with rect_bound
@@ -950,8 +672,11 @@ impl UnitCellContext {
                 vec2(-val, val),
             ]
         };
-        // todo, add in tektonics?
         self.transform_with_skew(&face).clone_to_vec()
+    }
+
+    pub fn is_base(&self) -> bool {
+        self.detail.is_base()
     }
 
     pub fn transform_with_skew_mat4(&self) -> Mat4 {
@@ -966,22 +691,6 @@ impl UnitCellContext {
         self.detail.transform_with_skew(&vec![v]).clone_to_vec()[0]
     }
 
-    pub fn is_base(&self) -> bool {
-        self.detail.is_base()
-    }
-
-    // pub fn transform_offset_mat(&self) -> Mat4 {
-    //     self.detail.transform_offset_mat()
-    // }
-
-    // pub fn transform_offset_only(&self, v: &Vec<Vec2>) -> Vec<Vec2> {
-    //     self.transform_no_skew(v)
-    // }
-
-    pub fn adjust_shape(&self) -> Mat4 {
-        self.detail.adjust_shape()
-    }
-
     pub fn transform_no_skew_one_point(&self, v: Vec2) -> Vec2 {
         // also does adjust shape..
         self.detail.transform_no_skew_one_point(v)
@@ -994,6 +703,10 @@ impl UnitCellContext {
 
     pub fn transform_no_skew_mat4(&self) -> Mat4 {
         self.detail.transform_no_skew_mat4()
+    }
+
+    pub fn adjust_shape(&self) -> Mat4 {
+        self.detail.adjust_shape()
     }
 }
 
@@ -1217,13 +930,6 @@ impl UnitCellDetails {
         Polyline::new(vs)
     }
 
-    // fn transform_offset_mat(&self) -> Mat4 {
-    //     match self {
-    //         UnitCellDetails::Wallpaper(w) => w.transform_no_skew_mat(),
-    //         UnitCellDetails::Function(_) => todo!(),
-    //     }
-    // }
-
     pub fn transform_no_skew_one_point(&self, v: Vec2) -> Vec2 {
         self.transform_no_skew(&vec![v.clone()]).clone_to_vec()[0]
     }
@@ -1341,5 +1047,85 @@ impl UnitCellDetailsWallpaper {
 
     fn transform_with_skew_mat4(&self) -> Mat4 {
         self.transform_vertex
+    }
+}
+
+// InvertedWorlds
+
+/// this one's similar to LivecodeToControl, but for unitcells
+pub trait InvertedWorld<UnitCellControl> {
+    fn to_unitcell_input(&self) -> UnitCellControl;
+}
+
+impl InvertedWorld<[UnitCellControlExprF32; 2]> for Vec2 {
+    fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 2] {
+        [
+            UnitCellControlExprF32::Float(self.x),
+            UnitCellControlExprF32::Float(self.y),
+        ]
+    }
+}
+
+impl InvertedWorld<UnitCellControlExprF32> for f32 {
+    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
+        UnitCellControlExprF32::Float(*self)
+    }
+}
+
+impl InvertedWorld<[UnitCellControlExprF32; 3]> for Vec3 {
+    fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 3] {
+        [
+            UnitCellControlExprF32::Float(self.x),
+            UnitCellControlExprF32::Float(self.y),
+            UnitCellControlExprF32::Float(self.z),
+        ]
+    }
+}
+
+impl InvertedWorld<UnitCellControlExprF32> for bool {
+    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
+        UnitCellControlExprF32::Bool(*self)
+    }
+}
+
+impl InvertedWorld<UnitCellControlExprF32> for usize {
+    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
+        UnitCellControlExprF32::Int(*self as i32)
+    }
+}
+
+impl InvertedWorld<UnitCellControlExprF32> for u64 {
+    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
+        UnitCellControlExprF32::Int(*self as i32)
+    }
+}
+
+impl InvertedWorld<UnitCellControlExprF32> for u8 {
+    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
+        UnitCellControlExprF32::Int(*self as i32)
+    }
+}
+
+impl InvertedWorld<UnitCellControlExprF32> for u32 {
+    fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
+        UnitCellControlExprF32::Int(*self as i32)
+    }
+}
+
+impl InvertedWorld<[UnitCellControlExprF32; 4]> for MurreletColor {
+    fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 4] {
+        let [r, g, b, a] = self.into_rgba_components();
+        [
+            UnitCellControlExprF32::Float(r),
+            UnitCellControlExprF32::Float(g),
+            UnitCellControlExprF32::Float(b),
+            UnitCellControlExprF32::Float(a),
+        ]
+    }
+}
+
+impl<'a> InvertedWorld<LazyNodeF32Def> for LazyNodeF32 {
+    fn to_unitcell_input(&self) -> LazyNodeF32Def {
+        LazyNodeF32Def::new(self.n().unwrap().clone())
     }
 }
