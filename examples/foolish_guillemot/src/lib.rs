@@ -11,7 +11,7 @@ use murrelet_draw::{
     sequencers::*,
     style::{styleconf::*, MurreletPath},
 };
-use murrelet_livecode::livecode::LivecodeError;
+use murrelet_livecode::types::{AdditionalContextNode, LivecodeError};
 use wasm_bindgen::prelude::*;
 
 // from the wasm-rust tutorial, this let's you log messages to the js console
@@ -57,7 +57,7 @@ struct DrawingConfig {
     #[livecode(serde_default = "false")]
     debug: bool,
     sequencer: Sequencer,
-    ctx: UnitCellCtx,
+    ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]
     node: UnitCells<SimpleTile>,
     offset: Vec2,

@@ -4,6 +4,7 @@ use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
+use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 use std::{env, fs};
 
 use murrelet_common::run_id;

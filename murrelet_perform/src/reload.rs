@@ -2,8 +2,8 @@
 use evalexpr::{HashMapContext, Node};
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
-use murrelet_livecode::livecode::*;
 use murrelet_livecode::state::*;
+use murrelet_livecode::types::LivecodeResult;
 
 // todo, maybe only includde this if not wasm?
 use std::time::{SystemTime, UNIX_EPOCH};

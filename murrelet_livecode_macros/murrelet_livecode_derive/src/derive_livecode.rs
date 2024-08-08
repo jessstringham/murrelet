@@ -19,8 +19,8 @@ impl LivecodeFieldType {
             ControlType::F32_3 => quote! {[murrelet_livecode::livecode::ControlF32; 3]},
             ControlType::Color => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
-            ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
-            ControlType::LazyNodeF32 => quote! {murrelet_livecode::unitcells::LazyNodeF32Def},
+            // ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
+            ControlType::LazyNodeF32 => quote! {murrelet_livecode::types::LazyNodeF32Def},
         }
     }
 
@@ -110,7 +110,7 @@ impl GenFinal for FieldTokensLivecode {
             }
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(#name {
                         #(#for_world,)*
                     })
@@ -149,7 +149,7 @@ impl GenFinal for FieldTokensLivecode {
                 #(#for_struct,)*
             }
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::types::LivecodeResult<#name> {
                     match self {
                         #(#for_world,)*
                     }
@@ -183,7 +183,7 @@ impl GenFinal for FieldTokensLivecode {
             #vis struct #new_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
-                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::livecode::LivecodeResult<#name> {
+                fn o(&self, w: &murrelet_livecode::state::LivecodeWorldState) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
                 }
             }

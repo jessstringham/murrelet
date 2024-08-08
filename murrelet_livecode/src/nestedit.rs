@@ -7,7 +7,7 @@ use evalexpr::Node;
 use glam::{vec2, vec3, Vec2, Vec3};
 use murrelet_common::MurreletColor;
 
-use crate::unitcells::{LazyNodeF32, UnitCellCtx};
+use crate::types::{AdditionalContextNode, LazyNodeF32};
 
 #[derive(Debug, Clone)]
 pub struct NestedMod<'a> {
@@ -151,7 +151,7 @@ impl NestEditable for String {
     }
 }
 
-impl NestEditable for UnitCellCtx {
+impl NestEditable for AdditionalContextNode {
     fn nest_update(&self, _mods: NestedMod) -> Self {
         self.clone() // noop
     }
