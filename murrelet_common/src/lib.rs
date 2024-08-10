@@ -208,7 +208,7 @@ pub fn smooth_interpolate(
     let ctrl1 = start + length_perc * dist * start_tangent;
     let ctrl2 = to + length_perc * dist * to_tangent;
 
-    let mut v = Vec::new();
+    let mut v = Vec::with_capacity(smooth_count);
 
     for i in 0..smooth_count {
         let t = i as f32 / smooth_count as f32;

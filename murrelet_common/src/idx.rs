@@ -6,7 +6,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::lerp;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct IdxInRange {
     i: u64,
     total: u64, // the count
