@@ -11,21 +11,27 @@ A high-level overview of the software is [published here](https://alpaca.pubpub.
 
 ## Disclaimer
 
-This code base is kinda like a bunch of weird workshop tools that are held together with duct tape.
+I wanted to open source my code so I could share some ideas of how I've been implementing my livecode software. So that means:
 
  - These libraries are in initial development and the API is not stable.
 
- - At this time, I'm not sure if I'll accept PRs on this repo. If there is interest, I might be interested in spinning off a more manageable chunk of the code to maintain and document and all that.
+ - At this time, I'm not sure if I'll accept PRs on this repo. If there is interest, I might entertain spinning off a more manageable chunk of the code to maintain and document and all that.
 
  - I'm still learning Rust and computer graphics, so there will be funny weird things.
 
 
 # What code is included
 
-There are a few major parts:
+This repo can be broken down into a few parts:
+
+ - livecode macros: how I turn Rust sketches into YAML-controlled live performance.
+ - shader macros: some cute little macros for managing and chaining shaders. (this is _not_ live at the moment)
+ - drawing logic: mostly included out of necessity for the demo. (a lot of the code I actually use is still in my private repos)
 
 
 ## livecode macros
+
+The two main ones here are livecode and unitcells, but there's a few others.
 
 ### Livecode
 
@@ -33,28 +39,12 @@ The Livecode macros makes it possible to control parameters of a struct
 by injecting some info about the world (time, audio, midi, etc), combined
 with expressions.
 
-Right now it's built on top of `evalexpr`. It has support for inputs using:
-
- - evalexpr (expr to combine)
- - audio (audio)
- - midi (using midir)
- - time (some custom code)
-
-experimental
- - clicks (pretty fun to control a sketch with an ipad!)
-
 
 ### UnitCells
 
 Unitcells can be used to dynamically create a list of things.
 The number of things and the arrangement (grid, symmetry) is 
 controlled by sequencers (see murrelet_draw/sequencers for examples).
-
-
-### Experimental: NestEdit
-
-This is a way to access/update a value in a nested struct using a string.
-
 
 ### Experimental: Boop
 
@@ -64,6 +54,14 @@ Boop is a funny not-quite-working bit of code that's meant to help interpolate v
 
 The one implemented right now are ODEs, which let you to use some features from animation, like anticipation 
 (going a little in the opposite direction before going in the intended direction).
+
+### Experimental: NestEdit
+
+This is a way to access/update a value in a nested struct using a string.
+
+I made this to explore the parameter space of something like wallpaper groups (which involve enums and strings).
+So I can have one piece that lists out different configurations.
+
 
 
 ## GPU
@@ -128,6 +126,19 @@ Once you're within a world, going deeper can get as complicated as you want usin
 For example, you might set up a sketch where a unitcell sequencer might contain a second unitcell sequencer (using a different variable prefix) that draws things that combine the outer and inner unitcell's variables.
 
 
+### World
+
+Right now this is built on top of `evalexpr`. By default, it has support for inputs using:
+
+ - evalexpr (expr to combine)
+ - time (some custom code)
+ - clicks (pretty fun to control a sketch with an ipad!)
+
+I also included packages of how I add platform-specific implementations (this is what I use on the native build, i.e. not the web)
+
+ - murrelet_src_audio 
+ - murrelet_src_midi
+
 ## Expression variables
 
 To see how exactly the variables are defined, you generally want to look for the `IsLivecodeSrc` trait implementation.
@@ -149,7 +160,7 @@ app:
 ```
 
 
- ### The realtime flag
+### The realtime flag
 
 For live performances, this should probably be set to `true` so you can match the `bpm` of the music, regardless of if the visuals start rendering faster or slower. For recording a video, you might want `realtime` to be `false` to avoid jumps.
 
