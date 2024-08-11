@@ -24,9 +24,12 @@ I wanted to open source my code so I could share some ideas of how I've been imp
 
 This repo can be broken down into a few parts:
 
- - livecode macros: how I turn Rust sketches into YAML-controlled live performance.
- - shader macros: some cute little macros for managing and chaining shaders. (this is _not_ live at the moment)
- - drawing logic: mostly included out of necessity for the demo. (a lot of the code I actually use is still in my private repos)
+ - livecode macros and code: how I turn Rust sketches into YAML-controlled live performance.
+     - general code for parsing and evaluating livecode expressions: *murrelet_livecode, murrelet_livecode_macros*
+     - specific code for livecoding (hot-swapping configs, some generic parameters): *murrelet_perform*
+     - platform-specific packages for adding more sources: *murrelet_src_audio, murrelet_src_audio*
+ - *murrelet_gpu*: some cute little macros for managing and chaining shaders. (this is _not_ live at the moment)
+ - *murrelet_svg, murrelet_draw*: drawing logic. tbh, mostly included out of necessity for the demo.
 
 
 ## livecode macros
