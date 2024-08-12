@@ -126,13 +126,34 @@ fn _default_realtime() -> ControlBool {
     ControlBool::Raw(true)
 }
 fn _default_bg_alpha() -> ControlF32 {
-    ControlF32::force_from_str("slog(m15, -5.0, 0.0)")
-} // defaults to midi
+    #[cfg(feature = "for_the_web")]
+    {
+        ControlF32::Raw(1.0) // also not really used on the web atm
+    }
+    #[cfg(not(feature = "for_the_web"))]
+    {
+        ControlF32::force_from_str("slog(m15, -5.0, 0.0)")
+    }
+}
 fn _default_capture_frame() -> ControlBool {
-    ControlBool::force_from_str("kSf")
+    #[cfg(feature = "for_the_web")]
+    {
+        ControlBool::Raw(false) // can't actually capture the frame..
+    }
+    #[cfg(not(feature = "for_the_web"))]
+    {
+        ControlBool::force_from_str("kSf")
+    }
 } // usually want to leave this as midi
 fn _default_clear_bg() -> ControlBool {
-    ControlBool::force_from_str("m12") // todo, make this relax if missing
+    #[cfg(feature = "for_the_web")]
+    {
+        ControlBool::Raw(false)
+    }
+    #[cfg(not(feature = "for_the_web"))]
+    {
+        ControlBool::force_from_str("m12") // todo, make this relax if missing
+    }
 } // usually want to leave this as midi
 fn _default_bg_color() -> [ControlF32; 4] {
     [
@@ -276,11 +297,25 @@ impl Default for ControlSvgConfig {
 }
 
 fn _default_gpu_debug_next() -> ControlBool {
-    ControlBool::force_from_str("kFf")
+    #[cfg(feature = "for_the_web")]
+    {
+        ControlBool::Raw(false)
+    }
+    #[cfg(not(feature = "for_the_web"))]
+    {
+        ControlBool::force_from_str("kFf")
+    }
 }
 
 fn _default_gpu_debug() -> ControlBool {
-    ControlBool::force_from_str("kDf")
+    #[cfg(feature = "for_the_web")]
+    {
+        ControlBool::Raw(false)
+    }
+    #[cfg(not(feature = "for_the_web"))]
+    {
+        ControlBool::force_from_str("kDf")
+    }
 }
 
 fn _default_gpu_color_channel() -> ControlF32 {
@@ -308,7 +343,14 @@ impl Default for ControlGpuConfig {
 }
 
 fn _default_should_reset() -> ControlBool {
-    ControlBool::force_from_str("kVt")
+    #[cfg(feature = "for_the_web")]
+    {
+        ControlBool::Raw(false)
+    }
+    #[cfg(not(feature = "for_the_web"))]
+    {
+        ControlBool::force_from_str("kVt")
+    }
 }
 
 #[allow(dead_code)]
