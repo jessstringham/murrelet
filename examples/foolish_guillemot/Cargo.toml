@@ -28,7 +28,7 @@ murrelet_common = { path = "../../murrelet_common/" }
 murrelet_livecode = { path = "../../murrelet_livecode/" }
 murrelet_livecode_macros = { path = "../../murrelet_livecode_macros/" }
 murrelet_livecode_derive = { path = "../../murrelet_livecode_macros/murrelet_livecode_derive/" }
-murrelet_perform = { path = "../../murrelet_perform/" }
+murrelet_perform = { path = "../../murrelet_perform/", features = ["for_the_web"] }
 murrelet_draw = { path = "../../murrelet_draw/" }
 murrelet_svg = { path = "../../murrelet_svg/" }
 murrelet_gpu = { path = "../../murrelet_gpu/", features = ["no_nannou"] }

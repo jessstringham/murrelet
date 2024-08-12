@@ -15,7 +15,7 @@ use murrelet_livecode::types::{AdditionalContextNode, LivecodeError};
 use wasm_bindgen::prelude::*;
 
 // from the wasm-rust tutorial, this let's you log messages to the js console
-// extern crate web_sys;
+extern crate web_sys;
 
 // A macro to provide `println!(..)`-style syntax for `console.log` logging.
 // macro_rules! log {
@@ -102,12 +102,17 @@ impl MurreletModel {
 
         let livecode_src = LivecodeSrc::new(vec![Box::new(AppInputValues::new(false))]);
 
+        // log!("{:?}", livecode_src.to_world_vals());
+
         match LiveCode::new_web(conf, livecode_src) {
             Ok(livecode) => {
                 let r = MurreletModel { livecode };
                 WasmMurreletModelResult::ok(r)
             }
-            Err(e) => WasmMurreletModelResult::err(e),
+            Err(e) => {
+                // log!("{}", e);
+                WasmMurreletModelResult::err(e)
+            }
         }
     }
 

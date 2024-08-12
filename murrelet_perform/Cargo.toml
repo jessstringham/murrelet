@@ -5,6 +5,9 @@ edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
 
+[features]
+for_the_web = []
+
 [dependencies]
 murrelet_common = { path = "../murrelet_common/" }
 murrelet_livecode = { path = "../murrelet_livecode/" }
