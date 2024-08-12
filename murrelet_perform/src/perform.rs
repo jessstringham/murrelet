@@ -126,8 +126,15 @@ fn _default_realtime() -> ControlBool {
     ControlBool::Raw(true)
 }
 fn _default_bg_alpha() -> ControlF32 {
-    ControlF32::Raw(0.2)
-} // defaults to midi
+    #[cfg(feature = "for_the_web")]
+    {
+        ControlF32::Raw(1.0) // also not really used on the web atm
+    }
+    #[cfg(not(feature = "for_the_web"))]
+    {
+        ControlF32::force_from_str("slog(m15, -5.0, 0.0)")
+    }
+}
 fn _default_capture_frame() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
