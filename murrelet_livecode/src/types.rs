@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use murrelet_common::{IdxInRange, LivecodeValue};
 use serde::Deserialize;
@@ -201,6 +203,58 @@ impl LazyNodeF32 {
             Err(LivecodeError::Raw(
                 "trying to use uninitialized lazy node".to_owned(),
             ))
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ControlVecElementRepeat<Source, Target> {
+    repeat: usize,
+    #[serde(default)]
+    prefix: String,
+    what: Vec<Source>,
+    _marker: PhantomData<Target>,
+}
+impl<Source: LivecodeFromWorld<Target>, Target> LivecodeFromWorld<Vec<Target>>
+    for ControlVecElementRepeat<Source, Target>
+{
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>> {
+        let mut result = Vec::with_capacity(self.repeat * self.what.len());
+
+        let prefix = if self.prefix.is_empty() {
+            format!("{}_", self.prefix)
+        } else {
+            "i_".to_string()
+        };
+
+        for i in 0..self.repeat {
+            let idx = IdxInRange::new(i, self.repeat);
+            let expr = ExprWorldContextValues::new_from_idx(idx);
+
+            let new_w = w.clone_with_vals(expr, &prefix)?;
+
+            for src in &self.what {
+                let o = src.o(&new_w);
+                result.push(o?);
+            }
+        }
+        Ok(result)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum ControlVecElement<Source, Target> {
+    Raw(Source),
+    Repeat(ControlVecElementRepeat<Source, Target>),
+}
+impl<Source: LivecodeFromWorld<Target>, Target> LivecodeFromWorld<Vec<Target>>
+    for ControlVecElement<Source, Target>
+{
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>> {
+        match self {
+            ControlVecElement::Raw(c) => Ok(vec![c.o(w)?]),
+            ControlVecElement::Repeat(c) => c.o(w),
         }
     }
 }

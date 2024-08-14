@@ -22,6 +22,7 @@ struct TestNewType(Vec<EnumTest>);
 
 #[derive(Debug, Clone, Livecode)]
 struct SequencerTest {
+    something: Vec<TestNewType>,
     sequencer: SimpleSquareSequence,
     ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]

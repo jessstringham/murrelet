@@ -338,31 +338,33 @@ impl GenFinal for FieldTokensUnitCell {
 
         let for_struct = {
             let new_ty = {
-                let ref_lc_ident = if let DataFromType {
+                let source_type = if let DataFromType {
                     second_type: Some(second_ty_ident),
                     ..
                 } = ident_from_type(&orig_ty)
                 {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
-
-                    match infer {
-                        HowToControlThis::WithType(_, c) => UnitCellFieldType(c).to_token(),
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            quote! {#name}
-                        }
-                        HowToControlThis::WithNone(_) => {
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            quote! {#name}
-                        }
-                        e => panic!("need vec something {:?}", e),
-                    }
+                    second_ty_ident
                 } else {
                     panic!("vec missing second type");
                 };
-                quote! {Vec<#ref_lc_ident>}
+
+                let infer =
+                    HowToControlThis::from_type_str(source_type.clone().to_string().as_ref());
+
+                let target_type = match infer {
+                    HowToControlThis::WithType(_, c) => UnitCellFieldType(c).to_token(),
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                        let name = Self::new_ident(source_type.clone());
+                        quote! {#name}
+                    }
+                    HowToControlThis::WithNone(_) => {
+                        let name = Self::new_ident(source_type.clone());
+                        quote! {#name}
+                    }
+                    e => panic!("need vec something {:?}", e),
+                };
+
+                quote! {Vec<murrelet_livecode::types::ControlVecElement<#source_type, #target_type>>}
             };
             quote! {#serde #name: #new_ty}
         };

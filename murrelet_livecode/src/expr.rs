@@ -4,7 +4,9 @@ use std::{f64::consts::PI, fmt::Debug};
 use evalexpr::*;
 use glam::{vec2, Vec2};
 use itertools::Itertools;
-use murrelet_common::{clamp, ease, lerp, map_range, print_expect, smoothstep, LivecodeValue};
+use murrelet_common::{
+    clamp, ease, lerp, map_range, print_expect, smoothstep, IdxInRange, LivecodeValue,
+};
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
@@ -186,6 +188,19 @@ impl ExprWorldContextValues {
 
     pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
         self.0.push((name.to_owned(), val))
+    }
+
+    pub fn new_from_idx(idx: IdxInRange) -> Self {
+        Self::new(vec![
+            ("i".to_string(), LivecodeValue::Int(idx.i() as i64)),
+            ("if".to_string(), LivecodeValue::Float(idx.i() as f64)),
+            ("pct".to_string(), LivecodeValue::Float(idx.pct() as f64)),
+            ("total".to_string(), LivecodeValue::Int(idx.total() as i64)),
+            (
+                "totalf".to_string(),
+                LivecodeValue::Float(idx.total() as f64),
+            ),
+        ])
     }
 }
 

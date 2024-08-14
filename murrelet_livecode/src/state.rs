@@ -119,6 +119,16 @@ impl LivecodeWorldState {
         more_defs.update_ctx(&mut self.ctx_mut())
     }
 
+    pub fn clone_with_vals(
+        &self,
+        expr: ExprWorldContextValues,
+        prefix: &str,
+    ) -> LivecodeResult<LivecodeWorldState> {
+        let mut lazy = self.clone_to_lazy(); // eh just need to clone
+        expr.update_ctx_with_prefix(&mut lazy.ctx_mut(), prefix);
+        Ok(lazy)
+    }
+
     pub fn clone_to_unitcell(
         &self,
         unit_cell_ctx: &UnitCellContext,

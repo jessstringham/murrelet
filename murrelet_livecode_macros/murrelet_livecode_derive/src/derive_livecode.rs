@@ -327,33 +327,34 @@ impl GenFinal for FieldTokensLivecode {
 
         let (for_struct, should_o) = {
             let (new_ty, should_o) = {
-                let (ref_lc_ident, should_o) = if let DataFromType {
+                let src_type = if let DataFromType {
                     second_type: Some(second_ty_ident),
                     ..
                 } = ident_from_type(&orig_ty)
                 {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
-
-                    match infer {
-                        HowToControlThis::WithType(_, c) => (LivecodeFieldType(c).to_token(), true),
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            // let name = idents.config.new_ident(second_ty_ident.clone());
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            (quote! {#name}, true)
-                        }
-                        HowToControlThis::WithNone(_) => {
-                            // let name = idents.config.new_ident(second_ty_ident.clone());
-                            (quote! {#second_ty_ident}, false)
-                        }
-                        e => panic!("need vec something {:?}", e),
-                    }
+                    second_ty_ident
                 } else {
                     panic!("vec missing second type");
                 };
 
-                (quote! {Vec<#ref_lc_ident>}, should_o)
+                let infer = HowToControlThis::from_type_str(src_type.clone().to_string().as_ref());
+
+                let (target_type, should_o) = match infer {
+                    HowToControlThis::WithType(_, c) => (LivecodeFieldType(c).to_token(), true),
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                        let name = Self::new_ident(src_type.clone());
+                        (quote! {#name}, true)
+                    }
+                    HowToControlThis::WithNone(_) => (quote! {#src_type}, false),
+                    e => panic!("need vec something {:?}", e),
+                };
+
+                // here's where we sneak in our fancy vec element wrapper, which let's us
+                // do things like repeat
+                (
+                    quote! {Vec<murrelet_livecode::types::ControlVecElement<#src_type, #target_type>>},
+                    should_o,
+                )
             };
             (quote! {#serde #name: #new_ty}, should_o)
         };
