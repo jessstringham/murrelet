@@ -208,9 +208,9 @@ impl LazyNodeF32 {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ControlVecElementRepeat<Source> {
     repeat: usize,
+    #[serde(default)]
     prefix: String,
     what: Vec<Source>,
-    // _marker: PhantomData<Target>,
 }
 
 // hack to simplify this, but should just refactor a lot
@@ -250,9 +250,9 @@ impl<Source> ControlVecElementRepeat<Source> {
         let mut result = Vec::with_capacity(self.repeat * self.what.len());
 
         let prefix = if self.prefix.is_empty() {
-            format!("{}_", self.prefix)
-        } else {
             "i_".to_string()
+        } else {
+            format!("{}_", self.prefix)
         };
 
         for i in 0..self.repeat {
@@ -276,9 +276,9 @@ impl<Source> ControlVecElementRepeat<Source> {
         let mut result = Vec::with_capacity(self.repeat * self.what.len());
 
         let prefix = if self.prefix.is_empty() {
-            format!("{}_", self.prefix)
-        } else {
             "i_".to_string()
+        } else {
+            format!("{}_", self.prefix)
         };
 
         for i in 0..self.repeat {

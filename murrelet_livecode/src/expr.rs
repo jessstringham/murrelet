@@ -182,6 +182,8 @@ impl ExprWorldContextValues {
     pub fn update_ctx_with_prefix(&self, ctx: &mut HashMapContext, prefix: &str) {
         for (identifier, value) in &self.0 {
             let name = format!("{}{}", prefix, identifier);
+            // println!("name {:?}", name);
+            // println!("value {:?}", value);
             add_variable_or_prefix_it(&name, lc_val_to_expr(value), ctx);
         }
     }
