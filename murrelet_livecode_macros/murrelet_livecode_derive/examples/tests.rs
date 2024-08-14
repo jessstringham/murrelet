@@ -8,6 +8,7 @@ pub struct SomethingElse {
     a_number: f32,
     b_color: MurreletColor,
     c_vec2: Vec2,
+    something: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Livecode, UnitCell, Default)]
@@ -22,7 +23,6 @@ struct TestNewType(Vec<EnumTest>);
 
 #[derive(Debug, Clone, Livecode)]
 struct SequencerTest {
-    something: Vec<TestNewType>,
     sequencer: SimpleSquareSequence,
     ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]

@@ -25,6 +25,24 @@ pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
 }
 
+impl LivecodeFromWorld<f32> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
+        self._o(w)
+    }
+}
+
+impl LivecodeFromWorld<usize> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
+        Ok(self._o(w)? as usize)
+    }
+}
+
+impl LivecodeFromWorld<u64> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<u64> {
+        Ok(self._o(w)? as u64)
+    }
+}
+
 impl LivecodeFromWorld<Vec2> for [ControlF32; 2] {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec2> {
         Ok(vec2(self[0].o(w)?, self[1].o(w)?))
@@ -186,7 +204,7 @@ impl ControlF32 {
         }
     }
 
-    pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
+    pub fn _o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
         self.to_unitcell_control().eval(&w)
     }
 }

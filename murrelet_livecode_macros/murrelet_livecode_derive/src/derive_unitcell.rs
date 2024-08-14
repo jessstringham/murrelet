@@ -338,7 +338,7 @@ impl GenFinal for FieldTokensUnitCell {
 
         let for_struct = {
             let new_ty = {
-                let source_type = if let DataFromType {
+                let target_type = if let DataFromType {
                     second_type: Some(second_ty_ident),
                     ..
                 } = ident_from_type(&orig_ty)
@@ -349,31 +349,31 @@ impl GenFinal for FieldTokensUnitCell {
                 };
 
                 let infer =
-                    HowToControlThis::from_type_str(source_type.clone().to_string().as_ref());
+                    HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
 
-                let target_type = match infer {
+                let src_type = match infer {
                     HowToControlThis::WithType(_, c) => UnitCellFieldType(c).to_token(),
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                        let name = Self::new_ident(source_type.clone());
+                        let name = Self::new_ident(target_type.clone());
                         quote! {#name}
                     }
                     HowToControlThis::WithNone(_) => {
-                        let name = Self::new_ident(source_type.clone());
+                        let name = Self::new_ident(target_type.clone());
                         quote! {#name}
                     }
                     e => panic!("need vec something {:?}", e),
                 };
 
-                quote! {Vec<murrelet_livecode::types::ControlVecElement<#source_type, #target_type>>}
+                quote! {Vec<murrelet_livecode::types::ControlVecElement<#src_type>>}
             };
             quote! {#serde #name: #new_ty}
         };
         let for_world = {
-            quote! {#name: self.#name.iter().map(|x| x.eval(ctx)).collect::<Result<Vec<_>, _>>()?}
+            quote! {#name: vec![] } //self.#name.iter().map(|x| x.eval(ctx)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
         };
 
         let for_inverted_world = {
-            quote! {#name: self.#name.iter().map(|x| x.to_unitcell_input()).collect::<Vec<_>>()}
+            quote! {#name: vec![] } //self.#name.iter().map(|x| x.to_unitcell_input()).collect::<Vec<_>>().into_iter().flatten().collect()}
         };
 
         FieldTokensUnitCell {

@@ -327,7 +327,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let (for_struct, should_o) = {
             let (new_ty, should_o) = {
-                let src_type = if let DataFromType {
+                let target_type = if let DataFromType {
                     second_type: Some(second_ty_ident),
                     ..
                 } = ident_from_type(&orig_ty)
@@ -337,22 +337,23 @@ impl GenFinal for FieldTokensLivecode {
                     panic!("vec missing second type");
                 };
 
-                let infer = HowToControlThis::from_type_str(src_type.clone().to_string().as_ref());
+                let infer =
+                    HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
 
-                let (target_type, should_o) = match infer {
+                let (src_type, should_o) = match infer {
                     HowToControlThis::WithType(_, c) => (LivecodeFieldType(c).to_token(), true),
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                        let name = Self::new_ident(src_type.clone());
+                        let name = Self::new_ident(target_type.clone());
                         (quote! {#name}, true)
                     }
-                    HowToControlThis::WithNone(_) => (quote! {#src_type}, false),
+                    HowToControlThis::WithNone(_) => (quote! {#target_type}, false),
                     e => panic!("need vec something {:?}", e),
                 };
 
                 // here's where we sneak in our fancy vec element wrapper, which let's us
                 // do things like repeat
                 (
-                    quote! {Vec<murrelet_livecode::types::ControlVecElement<#src_type, #target_type>>},
+                    quote! {Vec<murrelet_livecode::types::ControlVecElement<#src_type>>},
                     should_o,
                 )
             };
@@ -360,7 +361,7 @@ impl GenFinal for FieldTokensLivecode {
         };
         let for_world = {
             if should_o {
-                quote! {#name: self.#name.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
+                quote! {#name: vec![] } //self.#name.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
             } else {
                 quote! {#name: self.#name.clone()}
             }
@@ -368,7 +369,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_to_control = {
             if should_o {
-                quote! {#name: self.#name.iter().map(|x| x.to_control()).collect::<Vec<_>>()}
+                quote! {#name: vec![] } //self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_control())).collect::<Vec<_>>()}
             } else {
                 quote! {#name: self.#name.clone()}
             }
