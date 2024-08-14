@@ -24,19 +24,26 @@ impl LivecodeFieldType {
         }
     }
 
-    pub(crate) fn for_world(&self, idents: StructIdents) -> TokenStream2 {
-        let name = idents.name();
-        let orig_ty = idents.orig_ty();
+    // usually can call for_world directly, but this is useful in Vec<>
+    pub(crate) fn for_world_no_name(
+        &self,
+        name: syn::Ident,
+        orig_ty: syn::Type,
+        f32min: Option<f32>,
+        f32max: Option<f32>,
+    ) -> TokenStream2 {
+        // let name = idents.name();
+        // let orig_ty = idents.orig_ty();
         match self.0 {
-            ControlType::F32_2 => quote! {#name: self.#name.o(w)?},
-            ControlType::F32_3 => quote! {#name: self.#name.o(w)?},
-            ControlType::Color => quote! {#name: self.#name.o(w)?},
+            ControlType::F32_2 => quote! {self.#name.o(w)?},
+            ControlType::F32_3 => quote! {self.#name.o(w)?},
+            ControlType::Color => quote! {self.#name.o(w)?},
             ControlType::ColorUnclamped => {
-                quote! {#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)?}
+                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)?}
             }
-            ControlType::LazyNodeF32 => quote! {#name: self.#name.o(w)?},
+            ControlType::LazyNodeF32 => quote! {self.#name.o(w)?},
             _ => {
-                let f32_out = match (idents.data.f32min, idents.data.f32max) {
+                let f32_out = match (f32min, f32max) {
                     (None, None) => quote! {self.#name.o(w)?},
                     (None, Some(max)) => quote! {f32::min(self.#name.o(w)?, #max)},
                     (Some(min), None) => quote! {f32::max(#min, self.#name.o(w)?)},
@@ -44,9 +51,20 @@ impl LivecodeFieldType {
                         quote! {f32::min(f32::max(#min, self.#name.o(w)?), #max)}
                     }
                 };
-                quote! {#name: #f32_out as #orig_ty}
+                quote! {#f32_out as #orig_ty}
             }
         }
+    }
+
+    pub(crate) fn for_world(&self, idents: StructIdents) -> TokenStream2 {
+        let name = idents.name();
+        let rest = self.for_world_no_name(
+            idents.name(),
+            idents.orig_ty(),
+            idents.data.f32min,
+            idents.data.f32max,
+        );
+        quote! {#name: #rest}
     }
 
     pub(crate) fn for_newtype_world(&self, idents: StructIdents) -> TokenStream2 {
@@ -325,53 +343,59 @@ impl GenFinal for FieldTokensLivecode {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
 
-        let (for_struct, should_o) = {
-            let (new_ty, should_o) = {
-                let target_type = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    second_ty_ident
-                } else {
-                    panic!("vec missing second type");
-                };
-
-                let infer =
-                    HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
-
-                let (src_type, should_o) = match infer {
-                    HowToControlThis::WithType(_, c) => (LivecodeFieldType(c).to_token(), true),
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                        let name = Self::new_ident(target_type.clone());
-                        (quote! {#name}, true)
-                    }
-                    HowToControlThis::WithNone(_) => (quote! {#target_type}, false),
-                    e => panic!("need vec something {:?}", e),
-                };
-
-                // here's where we sneak in our fancy vec element wrapper, which let's us
-                // do things like repeat
-                (
-                    quote! {Vec<murrelet_livecode::types::ControlVecElement<#src_type>>},
-                    should_o,
-                )
+        let (for_struct, infer) = {
+            let target_type = if let DataFromType {
+                second_type: Some(second_ty_ident),
+                ..
+            } = ident_from_type(&orig_ty)
+            {
+                second_ty_ident
+            } else {
+                panic!("vec missing second type");
             };
-            (quote! {#serde #name: #new_ty}, should_o)
+
+            let infer = HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
+
+            let src_type = match infer {
+                HowToControlThis::WithType(_, c) => LivecodeFieldType(c).to_token(),
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let name = Self::new_ident(target_type.clone());
+                    quote! {#name}
+                }
+                HowToControlThis::WithNone(_) => quote! {#target_type},
+                e => panic!("need vec something {:?}", e),
+            };
+
+            (
+                quote! {#serde #name: Vec<murrelet_livecode::types::ControlVecElement<#src_type>>},
+                infer,
+            )
         };
         let for_world = {
-            if should_o {
-                quote! {#name: vec![] } //self.#name.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
-            } else {
-                quote! {#name: self.#name.clone()}
+            match infer {
+                HowToControlThis::WithType(_, _c) => {
+                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+                }
+                HowToControlThis::WithRecurse(_, _) => {
+                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+                }
+                HowToControlThis::WithNone(_) => {
+                    quote! {#name: self.#name.clone()}
+                }
             }
         };
 
         let for_to_control = {
-            if should_o {
-                quote! {#name: vec![] } //self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_control())).collect::<Vec<_>>()}
-            } else {
-                quote! {#name: self.#name.clone()}
+            match infer {
+                HowToControlThis::WithType(_, _c) => {
+                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_control())).collect::<Vec<_>>()}
+                }
+                HowToControlThis::WithRecurse(_, _) => {
+                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_control())).collect::<Vec<_>>()}
+                }
+                HowToControlThis::WithNone(_) => {
+                    quote! {#name: self.#name.clone()}
+                }
             }
         };
 

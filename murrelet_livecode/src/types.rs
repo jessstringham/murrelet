@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs},
-    livecode::LivecodeFromWorld,
+    livecode::{ControlF32, LivecodeFromWorld},
     state::LivecodeWorldState,
     unitcells::EvaluableUnitCell,
 };
@@ -213,37 +213,39 @@ pub struct ControlVecElementRepeat<Source> {
     // _marker: PhantomData<Target>,
 }
 
-// TODO, can i combine eval and o now that LivecodeWorldState is the same...
+// hack to simplify this, but should just refactor a lot
+pub trait SimpleLivecode<Target> {
+    fn evaluate(&self, w: &LivecodeWorldState) -> LivecodeResult<Target>;
+}
+
+impl<Src, Target> SimpleLivecode<Target> for Src
+where
+    Src: LivecodeFromWorld<Target>,
+{
+    fn evaluate(&self, w: &LivecodeWorldState) -> LivecodeResult<Target> {
+        self.o(w)
+    }
+}
+
+impl SimpleLivecode<f32> for ControlF32 {
+    fn evaluate(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
+        self.o(w)
+    }
+}
+
+impl SimpleLivecode<usize> for ControlF32 {
+    fn evaluate(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
+        Ok(self.o(w)? as usize)
+    }
+}
+
 impl<Source> ControlVecElementRepeat<Source> {
-    pub fn eval<Target>(&self, ctx: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
+    pub fn eval_and_expand_vec_for_unitcell<Target>(
+        &self,
+        w: &LivecodeWorldState,
+    ) -> LivecodeResult<Vec<Target>>
     where
         Source: EvaluableUnitCell<Target>,
-    {
-        let mut result = Vec::with_capacity(self.repeat * self.what.len());
-
-        let prefix = if self.prefix.is_empty() {
-            format!("{}_", self.prefix)
-        } else {
-            "i_".to_string()
-        };
-
-        for i in 0..self.repeat {
-            let idx = IdxInRange::new(i, self.repeat);
-            let expr = ExprWorldContextValues::new_from_idx(idx);
-
-            let new_ctx = ctx.clone_with_vals(expr, &prefix)?;
-
-            for src in &self.what {
-                let o = src.eval(&new_ctx)?;
-                result.push(o);
-            }
-        }
-        Ok(result)
-    }
-
-    pub fn o<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
-    where
-        Source: LivecodeFromWorld<Target>,
     {
         let mut result = Vec::with_capacity(self.repeat * self.what.len());
 
@@ -260,7 +262,33 @@ impl<Source> ControlVecElementRepeat<Source> {
             let new_w = w.clone_with_vals(expr, &prefix)?;
 
             for src in &self.what {
-                let o = src.o(&new_w)?;
+                let o = src.eval(&new_w)?;
+                result.push(o);
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
+    where
+        Source: SimpleLivecode<Target>,
+    {
+        let mut result = Vec::with_capacity(self.repeat * self.what.len());
+
+        let prefix = if self.prefix.is_empty() {
+            format!("{}_", self.prefix)
+        } else {
+            "i_".to_string()
+        };
+
+        for i in 0..self.repeat {
+            let idx = IdxInRange::new(i, self.repeat);
+            let expr = ExprWorldContextValues::new_from_idx(idx);
+
+            let new_w = w.clone_with_vals(expr, &prefix)?;
+
+            for src in &self.what {
+                let o = src.evaluate(&new_w)?;
                 result.push(o);
             }
         }
@@ -277,14 +305,30 @@ pub enum ControlVecElement<Source> {
 // impl<Source: LivecodeFromWorld<Target>, Target> LivecodeFromWorld<Vec<Target>>
 //     for ControlVecElement<Source, Target>
 // {
+
+// i need to refactor some things now that unitcells and livecode are basically the same.
+// for now just have.. copies :(
 impl<Source> ControlVecElement<Source> {
-    pub fn o<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
+    pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
     where
-        Source: LivecodeFromWorld<Target>,
+        Source: SimpleLivecode<Target>,
     {
         match self {
-            ControlVecElement::Raw(c) => Ok(vec![c.o(w)?]),
-            ControlVecElement::Repeat(c) => c.o(w),
+            ControlVecElement::Raw(c) => Ok(vec![c.evaluate(w)?]),
+            ControlVecElement::Repeat(c) => c.eval_and_expand_vec(w),
+        }
+    }
+
+    pub fn eval_and_expand_vec_for_unitcell<Target>(
+        &self,
+        w: &LivecodeWorldState,
+    ) -> LivecodeResult<Vec<Target>>
+    where
+        Source: EvaluableUnitCell<Target>,
+    {
+        match self {
+            ControlVecElement::Raw(c) => Ok(vec![c.eval(w)?]),
+            ControlVecElement::Repeat(c) => c.eval_and_expand_vec_for_unitcell(w),
         }
     }
 }

@@ -336,44 +336,42 @@ impl GenFinal for FieldTokensUnitCell {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
 
-        let for_struct = {
-            let new_ty = {
-                let target_type = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    second_ty_ident
-                } else {
-                    panic!("vec missing second type");
-                };
-
-                let infer =
-                    HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
-
-                let src_type = match infer {
-                    HowToControlThis::WithType(_, c) => UnitCellFieldType(c).to_token(),
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                        let name = Self::new_ident(target_type.clone());
-                        quote! {#name}
-                    }
-                    HowToControlThis::WithNone(_) => {
-                        let name = Self::new_ident(target_type.clone());
-                        quote! {#name}
-                    }
-                    e => panic!("need vec something {:?}", e),
-                };
-
-                quote! {Vec<murrelet_livecode::types::ControlVecElement<#src_type>>}
+        let (for_struct, _inside_type) = {
+            let target_type = if let DataFromType {
+                second_type: Some(second_ty_ident),
+                ..
+            } = ident_from_type(&orig_ty)
+            {
+                second_ty_ident
+            } else {
+                panic!("vec missing second type");
             };
-            quote! {#serde #name: #new_ty}
+
+            let infer = HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
+
+            let src_type = match infer {
+                HowToControlThis::WithType(_, c) => UnitCellFieldType(c).to_token(),
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let name = Self::new_ident(target_type.clone());
+                    quote! {#name}
+                }
+                HowToControlThis::WithNone(_) => {
+                    let name = Self::new_ident(target_type.clone());
+                    quote! {#name}
+                }
+                e => panic!("need vec something {:?}", e),
+            };
+            (
+                quote! {#serde #name: Vec<murrelet_livecode::types::ControlVecElement<#src_type>>},
+                infer,
+            )
         };
         let for_world = {
-            quote! {#name: vec![] } //self.#name.iter().map(|x| x.eval(ctx)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+            quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec_for_unitcell(ctx)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect::<Vec<_>>()}
         };
 
         let for_inverted_world = {
-            quote! {#name: vec![] } //self.#name.iter().map(|x| x.to_unitcell_input()).collect::<Vec<_>>().into_iter().flatten().collect()}
+            quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_unitcell_input())).collect::<Vec<_>>()}
         };
 
         FieldTokensUnitCell {
