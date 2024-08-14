@@ -4,7 +4,7 @@ use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
 use murrelet_livecode_derive::{Livecode, UnitCell};
 
 #[derive(Debug, Clone, Livecode, UnitCell, Default)]
-struct SomethingElse {
+pub struct SomethingElse {
     a_number: f32,
     b_color: MurreletColor,
     c_vec2: Vec2,
