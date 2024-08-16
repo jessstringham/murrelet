@@ -211,6 +211,7 @@ impl std::fmt::Debug for Angle {
 pub trait IsAngle {
     fn angle_pi(&self) -> f32;
     fn angle(&self) -> f32;
+    fn as_angle(&self) -> Angle;
     fn as_angle_pi(&self) -> AnglePi;
     fn to_norm_dir(&self) -> Vec2;
     fn to_mat3(&self) -> Mat3;
@@ -249,6 +250,10 @@ where
 
     fn as_angle_pi(&self) -> AnglePi {
         AnglePi::from(Angle::from(*self))
+    }
+
+    fn as_angle(&self) -> Angle {
+        (*self).into()
     }
 }
 
@@ -345,8 +350,11 @@ pub struct SpotOnCurve {
 }
 
 impl SpotOnCurve {
-    pub fn new(loc: Vec2, angle: Angle) -> Self {
-        Self { loc, angle }
+    pub fn new<A: IsAngle>(loc: Vec2, angle: A) -> Self {
+        Self {
+            loc,
+            angle: angle.as_angle(),
+        }
     }
 
     pub fn loc(&self) -> Vec2 {
