@@ -1,8 +1,6 @@
-use std::{collections::HashMap, fmt};
-
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use murrelet_common::{IdxInRange, LivecodeValue};
-use serde::{de::{self, Visitor}, Deserialize, Deserializer};
+use serde::Deserialize;
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs},
@@ -308,7 +306,7 @@ pub enum ControlVecElement<Source> {
 // custom deserializer which will
 // a) keep it untagged
 // b) give the error message for the Source, not the enum
-// otherwise it'll just say that it doesn't match an enum variant of 
+// otherwise it'll just say that it doesn't match an enum variant of
 // ControlVecElement instead of what is missing
 // impl<'de, Source> Deserialize<'de> for ControlVecElement<Source>
 //     where Source: Deserialize<'de> {
@@ -357,7 +355,7 @@ pub enum ControlVecElement<Source> {
 
 //                 let repeat: Result<ControlVecElementRepeat<Source>, _> =
 //                     Deserialize::deserialize(de::value::MapAccessDeserializer::new(&mut map));
-                
+
 //                 repeat.map(ControlVecElement::Repeat)
 //                     .map_err(|err| de::Error::custom(format!("Error deserializing Repeat: {}", err)))
 //             }
@@ -368,7 +366,6 @@ pub enum ControlVecElement<Source> {
 //         })
 //     }
 // }
-
 
 // i need to refactor some things now that unitcells and livecode are basically the same.
 // for now just have.. copies :(
