@@ -1,6 +1,8 @@
+use std::{collections::HashMap, fmt};
+
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use murrelet_common::{IdxInRange, LivecodeValue};
-use serde::Deserialize;
+use serde::{de::{self, Visitor}, Deserialize, Deserializer};
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs},
@@ -296,15 +298,77 @@ impl<Source> ControlVecElementRepeat<Source> {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "ik")]
 pub enum ControlVecElement<Source> {
     Raw(Source),
     Repeat(ControlVecElementRepeat<Source>),
 }
-// impl<Source: LivecodeFromWorld<Target>, Target> LivecodeFromWorld<Vec<Target>>
-//     for ControlVecElement<Source, Target>
-// {
+
+// custom deserializer which will
+// a) keep it untagged
+// b) give the error message for the Source, not the enum
+// otherwise it'll just say that it doesn't match an enum variant of 
+// ControlVecElement instead of what is missing
+// impl<'de, Source> Deserialize<'de> for ControlVecElement<Source>
+//     where Source: Deserialize<'de> {
+//     fn deserialize<D>(deserializer: D) -> Result<ControlVecElement<Source>, D::Error>
+//     where D: Deserializer<'de>,
+//     {
+
+//         struct ControlVecElementVisitor<Source> {
+//             marker: std::marker::PhantomData<Source>,
+//         }
+
+//         impl<'de, Source> Visitor<'de> for ControlVecElementVisitor<Source>
+//         where
+//             Source: Deserialize<'de>,
+//         {
+//             type Value = ControlVecElement<Source>;
+
+//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//                 formatter.write_str("a valid ControlVecElement")
+//             }
+
+//             fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+//             where
+//                 V: de::MapAccess<'de>,
+//             {
+
+//                 // go through and check for a "what" field
+
+//                 let mut has_what = false;
+//                 let mut other_fields = HashMap::new();
+
+//                 while let Some(key) = map.next_key::<String>()? {
+//                     if key.as_str() == "what" {
+//                         if has_what {
+//                             return Err(de::Error::duplicate_field("what"));
+//                         }
+//                         has_what = true;
+//                     } else {
+//                         other_fields.insert(key, map.next_value()?);
+//                     }
+//                 }
+
+//                 if has_what {
+
+//                 }
+
+//                 let repeat: Result<ControlVecElementRepeat<Source>, _> =
+//                     Deserialize::deserialize(de::value::MapAccessDeserializer::new(&mut map));
+                
+//                 repeat.map(ControlVecElement::Repeat)
+//                     .map_err(|err| de::Error::custom(format!("Error deserializing Repeat: {}", err)))
+//             }
+//         }
+
+//         deserializer.deserialize_any(ControlVecElementVisitor {
+//             marker: std::marker::PhantomData,
+//         })
+//     }
+// }
+
 
 // i need to refactor some things now that unitcells and livecode are basically the same.
 // for now just have.. copies :(
