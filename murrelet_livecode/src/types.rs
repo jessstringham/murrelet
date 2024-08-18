@@ -118,7 +118,7 @@ impl LazyNodeF32Inner {
 
         // todo, make this more standardized
         let vs: ExprWorldContextValues = ExprWorldContextValues::new(vec![
-            ("_p".to_owned(), LivecodeValue::Float(pct as f64)),
+            ("_pct".to_owned(), LivecodeValue::Float(pct as f64)),
             ("_i".to_owned(), LivecodeValue::Int(i as i64)),
             ("_total".to_owned(), LivecodeValue::Int(total as i64)),
         ]);

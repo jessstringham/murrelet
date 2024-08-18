@@ -414,6 +414,13 @@ impl SpotOnCurve {
     pub fn move_right_perp_dist(&self, length: Length) -> Vec2 {
         self.turn_right_perp().to_line(length).to_last_point()
     }
+
+    pub fn rotate(&self, rotate: AnglePi) -> Self {
+        Self {
+            loc: self.loc,
+            angle: self.angle + rotate,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
