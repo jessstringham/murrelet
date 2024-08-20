@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use murrelet_common::{IdxInRange, LivecodeValue};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs},
@@ -297,7 +299,8 @@ impl<Source> ControlVecElementRepeat<Source> {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "ik")]
+#[serde(tag = "t", content = "c")]
+// #[serde(untagged)]
 pub enum ControlVecElement<Source> {
     Raw(Source),
     Repeat(ControlVecElementRepeat<Source>),
@@ -318,19 +321,19 @@ pub enum ControlVecElement<Source> {
 //             marker: std::marker::PhantomData<Source>,
 //         }
 
-//         impl<'de, Source> Visitor<'de> for ControlVecElementVisitor<Source>
+//         impl<'de, Source> serde::de::Visitor<'de> for ControlVecElementVisitor<Source>
 //         where
 //             Source: Deserialize<'de>,
 //         {
 //             type Value = ControlVecElement<Source>;
 
-//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
 //                 formatter.write_str("a valid ControlVecElement")
 //             }
 
 //             fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
 //             where
-//                 V: de::MapAccess<'de>,
+//                 V: serde::de::MapAccess<'de>,
 //             {
 
 //                 // go through and check for a "what" field
@@ -338,10 +341,10 @@ pub enum ControlVecElement<Source> {
 //                 let mut has_what = false;
 //                 let mut other_fields = HashMap::new();
 
-//                 while let Some(key) = map.next_key::<String>()? {
+//                 while let Some(key) = map.next::<String>()? {
 //                     if key.as_str() == "what" {
 //                         if has_what {
-//                             return Err(de::Error::duplicate_field("what"));
+//                             return Err(serde::de::Error::duplicate_field("what"));
 //                         }
 //                         has_what = true;
 //                     } else {
@@ -354,10 +357,10 @@ pub enum ControlVecElement<Source> {
 //                 }
 
 //                 let repeat: Result<ControlVecElementRepeat<Source>, _> =
-//                     Deserialize::deserialize(de::value::MapAccessDeserializer::new(&mut map));
+//                     Deserialize::deserialize(serde::de::value::MapAccessDeserializer::new(&mut map));
 
 //                 repeat.map(ControlVecElement::Repeat)
-//                     .map_err(|err| de::Error::custom(format!("Error deserializing Repeat: {}", err)))
+//                     .map_err(|err| serde::de::Error::custom(format!("Error deserializing Repeat: {}", err)))
 //             }
 //         }
 
