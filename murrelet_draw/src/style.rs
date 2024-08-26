@@ -36,7 +36,44 @@ pub fn fixed_pt_f32_to_str(x: f32) -> String {
     FixedPointF32::new(x).to_str()
 }
 
+fn find_center_and_size<F: IsPolyline>(points: &F) -> (Vec2, f32, f32) {
+    let mut p = points.into_iter_vec2();
+    // hmmm
+    let s = points
+        .into_iter_vec2()
+        .fold(Vec2::ZERO, |acc, vec| acc + vec);
+    let center = s / p.len() as f32;
+    let size = points
+        .into_iter_vec2()
+        .map(|x| x.distance(center))
+        .max_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap_or(0.01);
+    let first_loc = p.next().unwrap();
+    let first_point = first_loc - center;
+    let angle = f32::atan2(first_point.y, first_point.x);
+
+    (center, size, angle)
+}
+
 impl StyledPathSvgFill {
+    // for nannou
+    pub fn to_points_textured<F: IsPolyline>(&self, raw_points: &F) -> Vec<(Vec2, Vec2)> {
+        // so using this to center it
+        let (center, size, angle) = find_center_and_size(raw_points);
+        let transform = self.transform * mat4_from_mat3_transform(Mat3::from_angle(-angle));
+        let points = raw_points
+            .into_iter_vec2()
+            .map(|x| {
+                let y = (x - center) / size;
+                let z = transform.transform_vec2(y);
+                (x, z)
+            })
+            .collect::<Vec<_>>();
+
+        points
+    }
+
+    // for svg
     pub fn hash(&self) -> String {
         let mut hasher = Md5::new();
         hasher.update(self.src.as_str());

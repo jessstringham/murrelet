@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use murrelet_common::{IdxInRange, LivecodeValue};
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs},
@@ -298,101 +296,82 @@ impl<Source> ControlVecElementRepeat<Source> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "t", content = "c")]
-// #[serde(untagged)]
-pub enum ControlVecElement<Source> {
-    Raw(Source),
-    Repeat(ControlVecElementRepeat<Source>),
-}
-
-// custom deserializer which will
-// a) keep it untagged
-// b) give the error message for the Source, not the enum
-// otherwise it'll just say that it doesn't match an enum variant of
-// ControlVecElement instead of what is missing
-// impl<'de, Source> Deserialize<'de> for ControlVecElement<Source>
-//     where Source: Deserialize<'de> {
-//     fn deserialize<D>(deserializer: D) -> Result<ControlVecElement<Source>, D::Error>
-//     where D: Deserializer<'de>,
-//     {
-
-//         struct ControlVecElementVisitor<Source> {
-//             marker: std::marker::PhantomData<Source>,
-//         }
-
-//         impl<'de, Source> serde::de::Visitor<'de> for ControlVecElementVisitor<Source>
-//         where
-//             Source: Deserialize<'de>,
-//         {
-//             type Value = ControlVecElement<Source>;
-
-//             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-//                 formatter.write_str("a valid ControlVecElement")
-//             }
-
-//             fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
-//             where
-//                 V: serde::de::MapAccess<'de>,
-//             {
-
-//                 // go through and check for a "what" field
-
-//                 let mut has_what = false;
-//                 let mut other_fields = HashMap::new();
-
-//                 while let Some(key) = map.next::<String>()? {
-//                     if key.as_str() == "what" {
-//                         if has_what {
-//                             return Err(serde::de::Error::duplicate_field("what"));
-//                         }
-//                         has_what = true;
-//                     } else {
-//                         other_fields.insert(key, map.next_value()?);
-//                     }
-//                 }
-
-//                 if has_what {
-
-//                 }
-
-//                 let repeat: Result<ControlVecElementRepeat<Source>, _> =
-//                     Deserialize::deserialize(serde::de::value::MapAccessDeserializer::new(&mut map));
-
-//                 repeat.map(ControlVecElement::Repeat)
-//                     .map_err(|err| serde::de::Error::custom(format!("Error deserializing Repeat: {}", err)))
-//             }
-//         }
-
-//         deserializer.deserialize_any(ControlVecElementVisitor {
-//             marker: std::marker::PhantomData,
-//         })
-//     }
+// #[derive(Debug, Clone, Deserialize)]
+// #[serde(tag = "t", content = "c")]
+// // #[serde(untagged)]
+// pub enum ControlVecElement<Source> {
+//     Raw(Source),
+//     Repeat(ControlVecElementRepeat<Source>),
 // }
+
+#[derive(Debug, Clone, Deserialize)]
+// #[serde(untagged)]
+pub struct ControlVecElement<Source> {
+    c: Option<Source>,
+    r: Option<ControlVecElementRepeat<Source>>,
+}
 
 // i need to refactor some things now that unitcells and livecode are basically the same.
 // for now just have.. copies :(
 impl<Source> ControlVecElement<Source> {
-    pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
+    pub fn raw(c: Source) -> Self {
+        Self {
+            c: Some(c),
+            r: None,
+        }
+    }
+
+    pub fn eval_and_expand_vec<Target>(
+        &self,
+        w: &LivecodeWorldState,
+        debug_str: &str,
+    ) -> LivecodeResult<Vec<Target>>
     where
         Source: SimpleLivecode<Target>,
     {
-        match self {
-            ControlVecElement::Raw(c) => Ok(vec![c.evaluate(w)?]),
-            ControlVecElement::Repeat(c) => c.eval_and_expand_vec(w),
+        match (&self.c, &self.r) {
+            (None, Some(r)) => r.eval_and_expand_vec(w),
+            (Some(c), None) => Ok(vec![c.evaluate(w)?]),
+            (None, None) => Err(LivecodeError::Raw(format!(
+                "vec missing both c and r {}",
+                debug_str
+            ))),
+            (Some(_), Some(_)) => Err(LivecodeError::Raw(format!(
+                "vec has both c and r {}",
+                debug_str
+            ))),
         }
+
+        // match self {
+        //     ControlVecElement::Raw(c) => Ok(vec![c.evaluate(w)?]),
+        //     ControlVecElement::Repeat(c) => c.eval_and_expand_vec(w),
+        // }
     }
 
     pub fn eval_and_expand_vec_for_unitcell<Target>(
         &self,
         w: &LivecodeWorldState,
+        debug_str: &str,
     ) -> LivecodeResult<Vec<Target>>
     where
         Source: EvaluableUnitCell<Target>,
     {
-        match self {
-            ControlVecElement::Raw(c) => Ok(vec![c.eval(w)?]),
-            ControlVecElement::Repeat(c) => c.eval_and_expand_vec_for_unitcell(w),
+        match (&self.c, &self.r) {
+            (None, Some(r)) => r.eval_and_expand_vec_for_unitcell(w),
+            (Some(c), None) => Ok(vec![c.eval(w)?]),
+            (None, None) => Err(LivecodeError::Raw(format!(
+                "vec missing both c and r from {}",
+                debug_str
+            ))),
+            (Some(_), Some(_)) => Err(LivecodeError::Raw(format!(
+                "vec has both c and r from {}",
+                debug_str
+            ))),
         }
+
+        // match self {
+        //     ControlVecElement::Raw(c) => Ok(vec![c.eval(w)?]),
+        //     ControlVecElement::Repeat(c) => c.eval_and_expand_vec_for_unitcell(w),
+        // }
     }
 }

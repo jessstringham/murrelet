@@ -366,12 +366,13 @@ impl GenFinal for FieldTokensUnitCell {
                 infer,
             )
         };
+        let debug_name = name.to_string();
         let for_world = {
-            quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec_for_unitcell(ctx)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect::<Vec<_>>()}
+            quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec_for_unitcell(ctx, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect::<Vec<_>>()}
         };
 
         let for_inverted_world = {
-            quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_unitcell_input())).collect::<Vec<_>>()}
+            quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_unitcell_input())).collect::<Vec<_>>()}
         };
 
         FieldTokensUnitCell {

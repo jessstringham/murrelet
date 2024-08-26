@@ -77,6 +77,21 @@ impl MurreletColorStyle {
             MurreletColorStyle::SvgFill(c) => MurreletColorStyle::SvgFill(c.with_alpha(alpha)),
         }
     }
+
+    fn is_shader(&self) -> bool {
+        match self {
+            MurreletColorStyle::SvgFill(_) => true,
+            _ => false,
+        }
+    }
+}
+
+pub enum MurreletDrawPlan {
+    Shader(StyledPathSvgFill),
+    DebugPoints(PixelShape),
+    FilledClosed,
+    Outline,
+    Line,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -100,6 +115,22 @@ impl MurreletStyle {
             color: MurreletColorStyle::color(color),
             stroke_weight,
             ..Default::default()
+        }
+    }
+
+    pub fn drawing_plan(&self) -> MurreletDrawPlan {
+        if let Some(pt) = &self.points {
+            MurreletDrawPlan::DebugPoints(*pt)
+        } else if let MurreletColorStyle::SvgFill(s) = self.color {
+            MurreletDrawPlan::Shader(s)
+        } else if self.closed {
+            if self.filled {
+                MurreletDrawPlan::FilledClosed
+            } else {
+                MurreletDrawPlan::Outline
+            }
+        } else {
+            MurreletDrawPlan::Line
         }
     }
 

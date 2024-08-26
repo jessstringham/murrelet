@@ -371,13 +371,15 @@ impl GenFinal for FieldTokensLivecode {
                 infer,
             )
         };
+
+        let debug_name = name.to_string();
         let for_world = {
             match infer {
                 HowToControlThis::WithType(_, _c) => {
-                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
                 }
                 HowToControlThis::WithRecurse(_, _) => {
-                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
                 }
                 HowToControlThis::WithNone(_) => {
                     quote! {#name: self.#name.clone()}
@@ -388,10 +390,10 @@ impl GenFinal for FieldTokensLivecode {
         let for_to_control = {
             match infer {
                 HowToControlThis::WithType(_, _c) => {
-                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_control())).collect::<Vec<_>>()}
+                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>()}
                 }
                 HowToControlThis::WithRecurse(_, _) => {
-                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::Raw(x.to_control())).collect::<Vec<_>>()}
+                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>()}
                 }
                 HowToControlThis::WithNone(_) => {
                     quote! {#name: self.#name.clone()}
