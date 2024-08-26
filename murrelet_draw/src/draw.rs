@@ -77,13 +77,6 @@ impl MurreletColorStyle {
             MurreletColorStyle::SvgFill(c) => MurreletColorStyle::SvgFill(c.with_alpha(alpha)),
         }
     }
-
-    fn is_shader(&self) -> bool {
-        match self {
-            MurreletColorStyle::SvgFill(_) => true,
-            _ => false,
-        }
-    }
 }
 
 pub enum MurreletDrawPlan {
