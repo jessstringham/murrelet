@@ -12,6 +12,12 @@ use crate::state::LivecodeWorldState;
 use crate::types::{AdditionalContextNode, LazyNodeF32, LazyNodeF32Def};
 use crate::types::{LivecodeError, LivecodeResult};
 
+impl Default for UnitCellControlExprF32 {
+    fn default() -> Self {
+        UnitCellControlExprF32::Bool(true)
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum UnitCellControlExprF32 {

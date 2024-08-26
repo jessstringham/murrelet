@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use glam::*;
-use murrelet_common::{Circle, IsAngle, IsLength};
+use murrelet_common::{Angle, AnglePi, Circle, IsAngle, IsLength};
 use murrelet_livecode_derive::*;
 
 #[derive(Debug, Clone, UnitCell, Default, Livecode)]
@@ -127,6 +127,21 @@ impl CurveArc {
         }
     }
 
+    pub fn is_in_arc(&self, angle: AnglePi) -> bool {
+        if (self.end_pi - self.start_pi).abs() >= 2.0 {
+            true
+        } else {
+            // eh, try to align it
+            let angle_pi = angle.angle_pi();
+
+            if self.is_ccw() {
+                angle_pi <= self.end_pi && angle_pi >= self.start_pi
+            } else {
+                angle_pi <= self.start_pi && angle_pi >= self.end_pi
+            }
+        }
+    }
+
     pub fn is_ccw(&self) -> bool {
         self.end_pi > self.start_pi
     }
@@ -146,6 +161,31 @@ impl CurveArc {
         let curr_angle = self.start_pi * PI;
         let (loc_sin, loc_cos) = curr_angle.sin_cos();
         vec2(loc_cos, loc_sin) * self.radius + self.loc
+    }
+
+    // angle tangent to the end point
+    pub fn end_tangent_angle(&self) -> Angle {
+        if self.is_ccw() {
+            self.end_angle().perp_to_left()
+        } else {
+            self.end_angle().perp_to_right()
+        }
+    }
+
+    fn end_angle(&self) -> Angle {
+        AnglePi::new(self.end_pi).into()
+    }
+
+    fn start_angle(&self) -> Angle {
+        AnglePi::new(self.start_pi).into()
+    }
+
+    pub fn start_tangent_angle(&self) -> Angle {
+        if self.is_ccw() {
+            self.start_angle().perp_to_left()
+        } else {
+            self.start_angle().perp_to_right()
+        }
     }
 }
 

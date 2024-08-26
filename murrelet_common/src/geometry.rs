@@ -389,8 +389,8 @@ impl SpotOnCurve {
         None
     }
 
-    pub fn to_line(&self, length: Length) -> LineFromVecAndLen {
-        LineFromVecAndLen::new(self.loc, self.angle, length)
+    pub fn to_line<L: IsLength>(&self, length: L) -> LineFromVecAndLen {
+        LineFromVecAndLen::new(self.loc, self.angle, length.to_length())
     }
 
     pub fn turn_left_perp(&self) -> Self {

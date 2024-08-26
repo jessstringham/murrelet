@@ -191,6 +191,12 @@ impl ControlF32 {
     }
 }
 
+impl Default for ControlBool {
+    fn default() -> Self {
+        Self::Raw(true)
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum ControlBool {
