@@ -553,6 +553,9 @@ pub struct FixedPointF32 {
     pub x: i64,
 }
 impl FixedPointF32 {
+    pub const MAX: Self = FixedPointF32 { x: i64::MAX };
+    pub const MIN: Self = FixedPointF32 { x: i64::MIN };
+
     fn f32_to_i64(f: f32) -> i64 {
         (f * 1e4f32) as i64
     }
@@ -561,7 +564,7 @@ impl FixedPointF32 {
         f as f32 / 1e4f32
     }
 
-    fn to_i64(&self) -> i64 {
+    pub fn to_i64(&self) -> i64 {
         self.x
     }
 
@@ -646,5 +649,13 @@ impl FixedPointVec2 {
 
     fn new_from_fixed_point(x: FixedPointF32, y: FixedPointF32) -> FixedPointVec2 {
         Self { x, y }
+    }
+
+    pub fn as_tuple(&self) -> (i64, i64) {
+        (self.x.to_i64(), self.y.to_i64())
+    }
+
+    pub fn nudge(&self, x: i64, y: i64) -> Self {
+        Self::new_from_i64(self.x.to_i64() + x, self.y.to_i64() + y)
     }
 }
