@@ -583,12 +583,16 @@ impl FixedPointF32 {
         Self { x }
     }
 
-    fn to_f32(&self) -> f32 {
+    pub fn to_f32(&self) -> f32 {
         Self::i64_to_f32(self.x)
     }
 
     pub fn to_str(&self) -> String {
         self.x.to_string()
+    }
+
+    pub fn nudge(&self, x: i64) -> Self {
+        Self { x: self.x + x }
     }
 }
 
@@ -656,6 +660,6 @@ impl FixedPointVec2 {
     }
 
     pub fn nudge(&self, x: i64, y: i64) -> Self {
-        Self::new_from_i64(self.x.to_i64() + x, self.y.to_i64() + y)
+        Self::new_from_fixed_point(self.x.nudge(x), self.y.nudge(y))
     }
 }
