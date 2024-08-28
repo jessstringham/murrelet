@@ -199,6 +199,13 @@ impl MurreletStyle {
         }
     }
 
+    pub fn with_closed(&self) -> MurreletStyle {
+        MurreletStyle {
+            closed: true,
+            ..*self
+        }
+    }
+
     pub fn with_svg_fill(&self, fill: StyledPathSvgFill) -> MurreletStyle {
         MurreletStyle {
             color: MurreletColorStyle::SvgFill(fill),

@@ -129,7 +129,7 @@ impl AddSvgAttributes for MurreletStyle {
     fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
         let mut p = p;
         if self.stroke_weight > 0.0 {
-            p = p.set("stroke-width", self.stroke_weight);
+            p = p.set("stroke-width", self.stroke_weight / 10.0);
         }
 
         if self.filled {
