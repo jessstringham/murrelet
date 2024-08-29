@@ -4,9 +4,7 @@ use std::{f64::consts::PI, fmt::Debug};
 use evalexpr::*;
 use glam::{vec2, Vec2};
 use itertools::Itertools;
-use murrelet_common::{
-    clamp, ease, lerp, map_range, print_expect, smoothstep, IdxInRange, LivecodeValue,
-};
+use murrelet_common::{clamp, ease, lerp, map_range, smoothstep, IdxInRange, LivecodeValue};
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
@@ -179,30 +177,47 @@ impl ExprWorldContextValues {
         Ok(())
     }
 
-    pub fn update_ctx_with_prefix(&self, ctx: &mut HashMapContext, prefix: &str) {
-        for (identifier, value) in &self.0 {
-            let name = format!("{}{}", prefix, identifier);
-            // println!("name {:?}", name);
-            // println!("value {:?}", value);
-            add_variable_or_prefix_it(&name, lc_val_to_expr(value), ctx);
-        }
-    }
+    // pub fn update_ctx_with_prefix(&self, ctx: &mut HashMapContext, prefix: &str) {
+    //     for (identifier, value) in &self.0 {
+    //         let name = format!("{}{}", prefix, identifier);
+    //         // println!("name {:?}", name);
+    //         // println!("value {:?}", value);
+    //         add_variable_or_prefix_it(&name, lc_val_to_expr(value), ctx);
+    //     }
+    // }
 
     pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
         self.0.push((name.to_owned(), val))
     }
 
-    pub fn new_from_idx(idx: IdxInRange) -> Self {
+    pub fn new_from_idx_prefix(idx: IdxInRange, prefix: &str) -> Self {
+        let p = if !prefix.is_empty() {
+            format!("{}_", prefix)
+        } else {
+            "".to_owned()
+        };
+
         Self::new(vec![
-            ("i".to_string(), LivecodeValue::Int(idx.i() as i64)),
-            ("if".to_string(), LivecodeValue::Float(idx.i() as f64)),
-            ("pct".to_string(), LivecodeValue::Float(idx.pct() as f64)),
-            ("total".to_string(), LivecodeValue::Int(idx.total() as i64)),
-            (
-                "totalf".to_string(),
-                LivecodeValue::Float(idx.total() as f64),
-            ),
+            (format!("i"), LivecodeValue::Int(idx.i() as i64)),
+            (format!("if"), LivecodeValue::Float(idx.i() as f64)),
+            (format!("pct"), LivecodeValue::Float(idx.pct() as f64)),
+            (format!("total"), LivecodeValue::Int(idx.total() as i64)),
+            (format!("totalf"), LivecodeValue::Float(idx.total() as f64)),
         ])
+        .with_prefix(&p)
+    }
+
+    pub fn new_from_idx(idx: IdxInRange) -> Self {
+        Self::new_from_idx_prefix(idx, "")
+    }
+
+    pub fn with_prefix(&self, prefix: &str) -> Self {
+        let new_vals = self
+            .0
+            .iter()
+            .map(|(name, value)| (format!("{}{}", prefix, name), *value))
+            .collect_vec();
+        Self::new(new_vals)
     }
 }
 
@@ -272,14 +287,15 @@ impl GuideType {
     }
 }
 
-pub fn add_variable_or_prefix_it(identifier: &str, value: Value, ctx: &mut HashMapContext) {
-    if ctx.get_value(identifier).is_some() {
-        add_variable_or_prefix_it(&format!("_{}", identifier), value, ctx);
-    } else {
-        let r = ctx.set_value(identifier.to_owned(), value.clone());
-        print_expect(r, "couldn't set variable");
-    }
-}
+// hmm can i deprecate this? i like being explicit...
+// pub fn add_variable_or_prefix_it(identifier: &str, value: Value, ctx: &mut HashMapContext) {
+//     if ctx.get_value(identifier).is_some() {
+//         add_variable_or_prefix_it(&format!("_{}", identifier), value, ctx);
+//     } else {
+//         let r = ctx.set_value(identifier.to_owned(), value.clone());
+//         print_expect(r, "couldn't set variable");
+//     }
+// }
 
 // todo, hrm, this is awkward
 #[derive(Debug, Clone)]

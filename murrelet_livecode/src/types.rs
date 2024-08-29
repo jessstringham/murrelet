@@ -1,5 +1,5 @@
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
-use murrelet_common::{IdxInRange, LivecodeValue};
+use murrelet_common::IdxInRange;
 use serde::Deserialize;
 
 use crate::{
@@ -112,21 +112,13 @@ impl LazyNodeF32Inner {
     }
 
     pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
-        let pct = idx.pct();
-        let i = idx.i();
-        let total = idx.total();
+        let vs = ExprWorldContextValues::new_from_idx_prefix(idx, prefix);
+        self.eval_with_expr_world_values(vs)
+    }
 
-        // todo, make this more standardized
-        let vs: ExprWorldContextValues = ExprWorldContextValues::new(vec![
-            ("_pct".to_owned(), LivecodeValue::Float(pct as f64)),
-            ("_i".to_owned(), LivecodeValue::Int(i as i64)),
-            ("_total".to_owned(), LivecodeValue::Int(total as i64)),
-        ]);
-
+    pub fn eval_with_expr_world_values(&self, vs: ExprWorldContextValues) -> LivecodeResult<f32> {
         let mut ctx = self.world.ctx().clone();
-
-        vs.update_ctx_with_prefix(&mut ctx, prefix);
-
+        vs.update_ctx(&mut ctx)?;
         self.final_eval(&ctx)
     }
 }

@@ -125,7 +125,9 @@ impl LivecodeWorldState {
         prefix: &str,
     ) -> LivecodeResult<LivecodeWorldState> {
         let mut lazy = self.clone_to_lazy(); // eh just need to clone
-        expr.update_ctx_with_prefix(&mut lazy.ctx_mut(), prefix);
+
+        expr.with_prefix(prefix).update_ctx(&mut lazy.ctx_mut())?;
+
         Ok(lazy)
     }
 
@@ -137,7 +139,8 @@ impl LivecodeWorldState {
         let mut context = self.context.clone();
         unit_cell_ctx
             .as_expr_world_context_values()
-            .update_ctx_with_prefix(&mut context, prefix);
+            .with_prefix(prefix)
+            .update_ctx(&mut context)?;
 
         let r = LivecodeWorldState {
             context,
