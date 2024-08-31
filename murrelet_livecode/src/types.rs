@@ -111,10 +111,10 @@ impl LazyNodeF32Inner {
             .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
     }
 
-    pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
-        let vs = ExprWorldContextValues::new_from_idx_prefix(idx, prefix);
-        self.eval_with_expr_world_values(vs)
-    }
+    // pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
+    //     let vs = ExprWorldContextValues::new_from_idx(idx, prefix);
+    //     self.eval_with_expr_world_values(vs)
+    // }
 
     pub fn eval_with_expr_world_values(&self, vs: ExprWorldContextValues) -> LivecodeResult<f32> {
         let mut ctx = self.world.ctx().clone();
@@ -181,7 +181,10 @@ impl LazyNodeF32 {
             LazyNodeF32::Uninitialized => {
                 Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
             }
-            LazyNodeF32::Node(v) => v.eval_idx(idx, prefix),
+            LazyNodeF32::Node(v) => {
+                let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(prefix);
+                v.eval_with_expr_world_values(vals)
+            }
             LazyNodeF32::NoCtxNode(v) => v.result(),
         }
     }

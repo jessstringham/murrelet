@@ -177,26 +177,11 @@ impl ExprWorldContextValues {
         Ok(())
     }
 
-    // pub fn update_ctx_with_prefix(&self, ctx: &mut HashMapContext, prefix: &str) {
-    //     for (identifier, value) in &self.0 {
-    //         let name = format!("{}{}", prefix, identifier);
-    //         // println!("name {:?}", name);
-    //         // println!("value {:?}", value);
-    //         add_variable_or_prefix_it(&name, lc_val_to_expr(value), ctx);
-    //     }
-    // }
-
     pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
         self.0.push((name.to_owned(), val))
     }
 
-    pub fn new_from_idx_prefix(idx: IdxInRange, prefix: &str) -> Self {
-        let p = if !prefix.is_empty() {
-            format!("{}_", prefix)
-        } else {
-            "".to_owned()
-        };
-
+    pub fn new_from_idx(idx: IdxInRange) -> Self {
         Self::new(vec![
             (format!("i"), LivecodeValue::Int(idx.i() as i64)),
             (format!("if"), LivecodeValue::Float(idx.i() as f64)),
@@ -204,11 +189,13 @@ impl ExprWorldContextValues {
             (format!("total"), LivecodeValue::Int(idx.total() as i64)),
             (format!("totalf"), LivecodeValue::Float(idx.total() as f64)),
         ])
-        .with_prefix(&p)
     }
 
-    pub fn new_from_idx(idx: IdxInRange) -> Self {
-        Self::new_from_idx_prefix(idx, "")
+    pub fn new_from_totaless_idx(idx: usize) -> Self {
+        Self::new(vec![
+            (format!("i"), LivecodeValue::Int(idx as i64)),
+            (format!("if"), LivecodeValue::Float(idx as f64)),
+        ])
     }
 
     pub fn with_prefix(&self, prefix: &str) -> Self {
@@ -218,6 +205,11 @@ impl ExprWorldContextValues {
             .map(|(name, value)| (format!("{}{}", prefix, name), *value))
             .collect_vec();
         Self::new(new_vals)
+    }
+
+    fn combine(&mut self, vals: ExprWorldContextValues) -> Self {
+        // have the new ones added later, so they'll overwrite if there are duplicates...
+        Self::new([self.0.clone(), vals.0].concat())
     }
 }
 
@@ -312,7 +304,7 @@ impl MixedEvalDefs {
     }
 
     pub fn set_vals(&mut self, vals: ExprWorldContextValues) {
-        self.vals = vals;
+        self.vals = self.vals.combine(vals);
     }
 
     pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
