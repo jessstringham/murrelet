@@ -266,11 +266,16 @@ impl InteractiveCompassBuilder {
 pub struct MurreletCompass {
     start: CurveStart,
     dirs: Vec<CompassAction>,
+    closed: bool,
 }
 
 impl MurreletCompass {
-    pub fn new(start: CurveStart, dirs: Vec<CompassAction>) -> Self {
-        Self { start, dirs }
+    pub fn new(start: CurveStart, dirs: Vec<CompassAction>, closed: bool) -> Self {
+        Self {
+            start,
+            dirs,
+            closed,
+        }
     }
 
     pub fn to_curve_maker(&self) -> CurveDrawer {
@@ -282,6 +287,6 @@ impl MurreletCompass {
             builder.add_segment(&w)
         }
 
-        CurveDrawer::new(builder.results())
+        CurveDrawer::new(builder.results(), self.closed)
     }
 }

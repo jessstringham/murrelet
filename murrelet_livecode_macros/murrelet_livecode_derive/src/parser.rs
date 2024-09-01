@@ -177,7 +177,8 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
     pub(crate) serde_default: Option<String>, // parsed and passed on to serde
-    pub(crate) kind: Option<String>,          // used of override type
+    pub(crate) serde_opts: Option<String>,
+    pub(crate) kind: Option<String>, // used of override type
     pub(crate) ctx: Option<String>,
     pub(crate) src: Option<String>,    // sequencer
     pub(crate) prefix: Option<String>, // what to prefix the src with
@@ -214,7 +215,7 @@ impl LivecodeFieldReceiver {
     fn serde_tokens(&self, is_unit_cell: bool) -> TokenStream2 {
         let how = self.how_to_control_this();
         let maybe_serde = self.parse_serde();
-        if let Some(serde) = maybe_serde {
+        let default = if let Some(serde) = maybe_serde {
             match serde {
                 SerdeDefault::CustomFunction(c) => quote! {#[serde(default=#c)]},
                 SerdeDefault::DefaultImpl => quote! {#[serde(default)]},
@@ -228,6 +229,18 @@ impl LivecodeFieldReceiver {
             }
         } else {
             quote! {}
+        };
+
+        // now match other fields that are just passed directly through
+        let other_opts = if let Some(opts) = &self.serde_opts {
+            quote! { #[serde(#opts)] }
+        } else {
+            quote! {}
+        };
+
+        quote! {
+            #default
+            #other_opts
         }
     }
 }

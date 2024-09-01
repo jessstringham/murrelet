@@ -7,11 +7,16 @@ use murrelet_livecode_derive::*;
 #[derive(Debug, Clone, UnitCell, Default, Livecode)]
 pub struct CurveDrawer {
     segments: Vec<CurveSegment>,
+    closed: bool, // this is mostly used for algorithms that use curve drawers. you'll need to use a style that's closed
 }
 
 impl CurveDrawer {
-    pub fn new(segments: Vec<CurveSegment>) -> Self {
-        Self { segments }
+    pub fn new(segments: Vec<CurveSegment>, closed: bool) -> Self {
+        Self { segments, closed }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.closed
     }
 
     pub fn segments(&self) -> &[CurveSegment] {
@@ -23,18 +28,24 @@ impl CurveDrawer {
     }
 
     pub fn new_simple_arc<A: IsAngle>(loc: Vec2, radius: f32, start: A, end: A) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_arc(loc, radius, start, end)])
+        CurveDrawer::new(
+            vec![CurveSegment::new_simple_arc(loc, radius, start, end)],
+            false,
+        )
     }
 
     pub fn new_simple_sector<A: IsAngle>(loc: Vec2, radius: f32, start: A, end: A) -> Self {
-        CurveDrawer::new(vec![
-            CurveSegment::new_simple_point(loc),
-            CurveSegment::Arc(CurveArc::new(loc, radius, start.angle_pi(), end.angle_pi())),
-        ])
+        CurveDrawer::new(
+            vec![
+                CurveSegment::new_simple_point(loc),
+                CurveSegment::Arc(CurveArc::new(loc, radius, start.angle_pi(), end.angle_pi())),
+            ],
+            true,
+        )
     }
 
     pub fn new_simple_circle(loc: Vec2, radius: f32) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_circle(loc, radius)])
+        CurveDrawer::new(vec![CurveSegment::new_simple_circle(loc, radius)], true)
     }
 
     pub fn new_from_circle(c: &Circle) -> Self {
@@ -42,11 +53,21 @@ impl CurveDrawer {
     }
 
     pub fn new_simple_line(start: Vec2, end: Vec2) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_line(start, end)])
+        CurveDrawer::new(vec![CurveSegment::new_simple_line(start, end)], false)
     }
 
-    pub fn new_simple_points(vs: Vec<Vec2>) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_points(vs)])
+    pub fn new_simple_points(vs: Vec<Vec2>, closed: bool) -> Self {
+        CurveDrawer::new(vec![CurveSegment::new_simple_points(vs)], closed)
+    }
+
+    pub fn as_closed(&self) -> Self {
+        let mut new = self.clone();
+        new.closed = true;
+        new
+    }
+
+    pub fn noop() -> Self {
+        Self::new(vec![], false)
     }
 }
 

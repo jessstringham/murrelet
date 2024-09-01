@@ -425,7 +425,7 @@ impl MurreletPath {
     pub fn as_curve(&self) -> MurreletCurve {
         match self {
             MurreletPath::Polyline(c) => MurreletCurve {
-                cd: CurveDrawer::new_simple_points(c.clone_to_vec()),
+                cd: CurveDrawer::new_simple_points(c.clone_to_vec(), false),
                 t: Mat4::IDENTITY,
             },
             MurreletPath::Curve(c) => c.clone(),
