@@ -18,11 +18,31 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         "ROOT3" => Value::Float(3.0_f64.sqrt()),
 
         // functions
-        "printf" => Function::new(move |argument| {
-            let a = argument.as_float()?;
-            println!("{:?}", a);
+        "print" => Function::new(move |argument| {
+            if let Ok(a) = argument.as_float() {
+                println!("{:?} (float)", a);
+            } else {
+                let a = argument.as_int()?;
+                println!("{:?} (int)", a);
+            }
             Ok(Value::Empty)
         }),
+        "manymod" => Function::new(move |argument| {
+            let a = argument.as_tuple()?;
+
+            let mut result = 0;
+            let mut offset = 1;
+
+            for val in &a {
+                let tuple = val.as_fixed_len_tuple(2)?;
+                let (var, mod_thing) = (tuple[0].as_number()? as i64, tuple[1].as_number()? as i64);
+
+                result += (var % mod_thing) * offset;
+                offset *= mod_thing;
+            }
+            Ok(Value::Int(result))
+        }),
+
         "clamp" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
             let (x, min, max) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
