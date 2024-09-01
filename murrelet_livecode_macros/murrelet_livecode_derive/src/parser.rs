@@ -233,7 +233,10 @@ impl LivecodeFieldReceiver {
 
         // now match other fields that are just passed directly through
         let other_opts = if let Some(opts) = &self.serde_opts {
-            quote! { #[serde(#opts)] }
+            match opts.as_str() {
+                "flatten" => quote! { #[serde(flatten)] },
+                _ => unimplemented!("opt {}", opts),
+            }
         } else {
             quote! {}
         };
