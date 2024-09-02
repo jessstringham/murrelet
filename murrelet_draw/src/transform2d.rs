@@ -15,8 +15,8 @@ impl Transform2d {
         Self(actions)
     }
 
-    pub fn prepend_action(&mut self, actions: Vec<Transform2dStep>) {
-        self.0 = vec![actions, self.0.clone()].concat();
+    pub fn prepend_action(&mut self, actions: &[Transform2dStep]) {
+        self.0 = vec![actions.to_vec(), self.0.clone()].concat();
     }
 
     pub fn append_one_action(&mut self, action: Transform2dStep) {
@@ -29,6 +29,10 @@ impl Transform2d {
 
     pub fn append_transform(&mut self, t: &Transform2d) {
         self.append_action(&t.0)
+    }
+
+    pub fn prepend_transform(&mut self, t: &Transform2d) {
+        self.prepend_action(&t.0)
     }
 
     pub fn rotate(angle_pi: f32) -> Transform2d {

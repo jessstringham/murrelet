@@ -400,6 +400,13 @@ pub enum LivecodeValue {
     Int(i64),
 }
 
+impl LivecodeValue {
+    #[inline]
+    pub fn float(f: f32) -> Self {
+        Self::Float(f as f64) // just a convenience thing
+    }
+}
+
 pub trait IsLivecodeSrc {
     fn update(&mut self, input: &LivecodeSrcUpdateInput);
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
