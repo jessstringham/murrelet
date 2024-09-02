@@ -459,7 +459,6 @@ impl Graphics {
     pub fn update_uniforms_other(
         &mut self,
         c: &GraphicsWindowConf,
-
         more_info: [f32; 4],
         more_info_other: [f32; 4],
     ) {

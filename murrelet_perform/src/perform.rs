@@ -513,6 +513,7 @@ where
     }
 }
 
+// todo, this is all a little weird (svg save path), i should revisit it..
 pub struct LilLiveConfig<'a> {
     save_path: Option<&'a PathBuf>,
     run_id: u64,

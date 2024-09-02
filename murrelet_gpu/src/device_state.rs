@@ -269,6 +269,17 @@ impl<'a> GraphicsWindowConf<'a> {
     pub fn device(&self) -> &wgpu::Device {
         &self.device.device()
     }
+
+    pub fn with_dims(&self, dims: [u32; 2]) -> Self {
+        Self {
+            dims,
+            ..self.clone()
+        }
+    }
+
+    pub fn queue(&self) -> &wgpu::Queue {
+        self.device.queue()
+    }
 }
 
 // new type just to pull in things available at render time
