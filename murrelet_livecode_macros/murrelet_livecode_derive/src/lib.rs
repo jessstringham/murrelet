@@ -8,12 +8,14 @@ extern crate proc_macro;
 mod derive_boop;
 mod derive_livecode;
 mod derive_nestedit;
+mod derive_lazy;
 mod derive_unitcell;
 mod parser;
 mod toplevel;
 
 use darling::FromDeriveInput;
 use derive_boop::FieldTokensBoop;
+use derive_lazy::FieldTokensLazy;
 use derive_livecode::FieldTokensLivecode;
 use derive_nestedit::FieldTokensNestEdit;
 use derive_unitcell::FieldTokensUnitCell;
@@ -31,6 +33,10 @@ fn livecode_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
 
 fn unitcell_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensUnitCell::from_ast(rec)
+}
+
+fn lazy_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
+    FieldTokensLazy::from_ast(rec)
 }
 
 fn boop_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
@@ -57,6 +63,14 @@ pub fn murrelet_livecode_derive(input: TokenStream) -> TokenStream {
         #nested
     )
     .into()
+}
+
+// eh, these two are useful for things that are UnitCells but not Livecode
+#[proc_macro_derive(Lazy, attributes(livecode))]
+pub fn murrelet_livecode_derive_lazy(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
+    lazy_parse_ast(ast_receiver.clone()).into()
 }
 
 // eh, these two are useful for things that are UnitCells but not Livecode

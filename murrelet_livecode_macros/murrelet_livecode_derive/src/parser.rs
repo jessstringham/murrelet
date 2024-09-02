@@ -545,7 +545,7 @@ pub(crate) fn ident_from_type(t: &syn::Type) -> DataFromType {
                 {
                     if let syn::GenericArgument::Type(other_ty) = args.first().unwrap() {
                         let data_from_type = ident_from_type(other_ty);
-                        assert!(data_from_type.has_second(), "nested types not implemented");
+                        assert!(data_from_type.has_second(), "nested types not implemented {:?} {:?}", main_type, data_from_type);
                         Some(data_from_type.main_type)
                     } else {
                         panic!("not implemented yet {:?}", args);

@@ -9,7 +9,8 @@ use std::{any::Any, collections::HashMap, fmt};
 
 use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
 use crate::state::LivecodeWorldState;
-use crate::types::{AdditionalContextNode, LazyNodeF32, LazyNodeF32Def};
+use crate::types::AdditionalContextNode;
+use crate::lazy::{LazyNodeF32, LazyNodeF32Def};
 use crate::types::{LivecodeError, LivecodeResult};
 
 impl Default for UnitCellControlExprF32 {

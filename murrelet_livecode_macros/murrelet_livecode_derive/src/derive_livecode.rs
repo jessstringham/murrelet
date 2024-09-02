@@ -20,7 +20,7 @@ impl LivecodeFieldType {
             ControlType::Color => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             // ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
-            ControlType::LazyNodeF32 => quote! {murrelet_livecode::types::LazyNodeF32Def},
+            ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::LazyNodeF32Def},
         }
     }
 

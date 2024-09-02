@@ -7,7 +7,8 @@ use evalexpr::Node;
 use glam::{vec2, vec3, Vec2, Vec3};
 use murrelet_common::MurreletColor;
 
-use crate::types::{AdditionalContextNode, LazyNodeF32};
+use crate::types::AdditionalContextNode;
+use crate::lazy::LazyNodeF32;
 
 #[derive(Debug, Clone)]
 pub struct NestedMod<'a> {

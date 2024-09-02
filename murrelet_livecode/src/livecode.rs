@@ -11,8 +11,8 @@ use murrelet_common::MurreletColor;
 use serde::Deserialize;
 
 use crate::state::LivecodeWorldState;
-use crate::types::LazyNodeF32;
-use crate::types::LazyNodeF32Def;
+use crate::lazy::LazyNodeF32;
+use crate::lazy::LazyNodeF32Def;
 use crate::types::LivecodeResult;
 use crate::unitcells::{EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32};
 
