@@ -13,6 +13,7 @@ use crate::{
 pub enum LivecodeError {
     Raw(String), // my custom errors
     EvalExpr(String, EvalexprError),
+    Io(String, std::io::Error),
 }
 impl LivecodeError {}
 impl std::fmt::Display for LivecodeError {
@@ -20,6 +21,7 @@ impl std::fmt::Display for LivecodeError {
         match self {
             LivecodeError::Raw(msg) => write!(f, "{}", msg),
             LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
+            LivecodeError::Io(msg, err) => write!(f, "{}: {}", msg, err),
         }
     }
 }

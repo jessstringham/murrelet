@@ -145,12 +145,6 @@ impl Transform2d {
     }
 }
 
-impl Default for UnitCellTransform2d {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
 impl Default for ControlTransform2d {
     fn default() -> Self {
         Self(Default::default())

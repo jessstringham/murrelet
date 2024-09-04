@@ -6,7 +6,7 @@ use murrelet_src_audio::audio_src::AudioMng;
 use murrelet_src_midi::midi::MidiMng;
 use murrelet_svg::svg::ToSvgData;
 
-#[derive(Debug, Clone, Boop, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 struct SimpleTile {
     val: f32,
     curve: MurreletCompass,

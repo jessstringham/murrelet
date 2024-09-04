@@ -688,9 +688,12 @@ where
     // there's one for filesystems and one for callback..
     // filesystem one (watching folders)
     fn reload_config(&mut self) {
-        if let Some(d) = ControlConfType::fs_load_if_needed_and_update_info(&mut self.util) {
+        let result = ControlConfType::fs_load_if_needed_and_update_info(&mut self.util);
+        if let Ok(Some(d)) = result {
             self.prev_controlconfig = self.controlconfig.clone();
             self.controlconfig = d;
+        } else if let Err(e) = result {
+            eprintln!("e {:?}", e);
         }
     }
 

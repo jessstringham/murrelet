@@ -472,71 +472,83 @@ enum SerdeDefault {
 }
 impl SerdeDefault {
     fn from_control_type(&self, is_unit_cell: bool, ty: ControlType) -> String {
-        if is_unit_cell {
-            match (ty, self) {
-                (ControlType::Bool, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::unitcells::_auto_default_bool_false_unitcell".to_string()
-                }
-                (ControlType::Bool, SerdeDefault::Ones) => {
-                    "murrelet_livecode::unitcells::_auto_default_bool_true_unitcell".to_string()
-                }
-                (ControlType::F32_2, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::unitcells::_auto_default_vec2_0_unitcell".to_string()
-                }
-                (ControlType::F32_2, SerdeDefault::Ones) => {
-                    "murrelet_livecode::unitcells::_auto_default_vec2_1_unitcell".to_string()
-                }
-                (ControlType::F32, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::unitcells::_auto_default_0_unitcell".to_string()
-                }
-                (ControlType::F32, SerdeDefault::Ones) => {
-                    "murrelet_livecode::unitcells::_auto_default_1_unitcell".to_string()
-                }
-                (ControlType::F32_3, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::unitcells::_auto_default_vec3_0_unitcell".to_string()
-                }
-                (ControlType::Color, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::unitcells::_auto_default_color_4_unitcell".to_string()
-                }
-                _ => {
-                    todo!(
-                        "just need to implement serde default for unit cell {:?}, {:?}",
-                        ty,
-                        self
-                    )
-                }
+        // if is_unit_cell {
+        //     match (ty, self) {
+        //         (ControlType::Bool, SerdeDefault::Zeros) => {
+        //             "murrelet_livecode::unitcells::_auto_default_bool_false_unitcell".to_string()
+        //         }
+        //         (ControlType::Bool, SerdeDefault::Ones) => {
+        //             "murrelet_livecode::unitcells::_auto_default_bool_true_unitcell".to_string()
+        //         }
+        //         (ControlType::F32_2, SerdeDefault::Zeros) => {
+        //             "murrelet_livecode::unitcells::_auto_default_vec2_0_unitcell".to_string()
+        //         }
+        //         (ControlType::F32_2, SerdeDefault::Ones) => {
+        //             "murrelet_livecode::unitcells::_auto_default_vec2_1_unitcell".to_string()
+        //         }
+        //         (ControlType::F32, SerdeDefault::Zeros) => {
+        //             "murrelet_livecode::unitcells::_auto_default_0_unitcell".to_string()
+        //         }
+        //         (ControlType::F32, SerdeDefault::Ones) => {
+        //             "murrelet_livecode::unitcells::_auto_default_1_unitcell".to_string()
+        //         }
+        //         (ControlType::F32_3, SerdeDefault::Zeros) => {
+        //             "murrelet_livecode::unitcells::_auto_default_vec3_0_unitcell".to_string()
+        //         }
+        //         (ControlType::Color, SerdeDefault::Zeros) => {
+        //             "murrelet_livecode::unitcells::_auto_default_color_4_unitcell".to_string()
+        //         }
+        //         _ => {
+        //             todo!(
+        //                 "just need to implement serde default for unit cell {:?}, {:?}",
+        //                 ty,
+        //                 self
+        //             )
+        //         }
+        //     }
+        // } else {
+        // todo, the custom func is being handled in two places...
+        match (ty, self) {
+            (ControlType::F32, SerdeDefault::Zeros) => {
+                "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
             }
-        } else {
-            // todo, the custom func is being handled in two places...
-            match (ty, self) {
-                (ControlType::F32, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
-                }
-                (ControlType::F32, SerdeDefault::Ones) => {
-                    "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
-                }
-                (ControlType::F32, SerdeDefault::CustomFunction(x)) => x.clone(),
-                (ControlType::Bool, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::livecode::_auto_default_bool_false".to_string()
-                }
-                (ControlType::Bool, SerdeDefault::Ones) => {
-                    "murrelet_livecode::livecode::_auto_default_bool_true".to_string()
-                }
-                (ControlType::Bool, SerdeDefault::CustomFunction(x)) => x.clone(),
-                (ControlType::F32_2, SerdeDefault::Zeros) => {
-                    "murrelet_livecode::livecode::_auto_default_vec2_0".to_string()
-                }
-                (ControlType::F32_2, SerdeDefault::Ones) => {
-                    "murrelet_livecode::livecode::_auto_default_vec2_1".to_string()
-                }
-                (ControlType::F32_2, SerdeDefault::CustomFunction(x)) => x.clone(),
-                (ControlType::F32_3, SerdeDefault::CustomFunction(x)) => x.clone(),
-                (ControlType::Color, SerdeDefault::CustomFunction(x)) => x.clone(),
-                (ControlType::ColorUnclamped, SerdeDefault::CustomFunction(x)) => x.to_string(),
-                _ => panic!("not implemented yet, need {:?} {:?}", ty, self),
+            (ControlType::F32, SerdeDefault::Ones) => {
+                "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
             }
+            (ControlType::F32, SerdeDefault::CustomFunction(x)) => x.clone(),
+            (ControlType::Bool, SerdeDefault::Zeros) => {
+                "murrelet_livecode::livecode::_auto_default_bool_false".to_string()
+            }
+            (ControlType::Bool, SerdeDefault::Ones) => {
+                "murrelet_livecode::livecode::_auto_default_bool_true".to_string()
+            }
+            (ControlType::Bool, SerdeDefault::CustomFunction(x)) => x.clone(),
+            (ControlType::F32_2, SerdeDefault::Zeros) => {
+                "murrelet_livecode::livecode::_auto_default_vec2_0".to_string()
+            }
+            (ControlType::F32_2, SerdeDefault::Ones) => {
+                "murrelet_livecode::livecode::_auto_default_vec2_1".to_string()
+            }
+            (ControlType::F32_2, SerdeDefault::CustomFunction(x)) => x.clone(),
+            (ControlType::F32_3, SerdeDefault::CustomFunction(x)) => x.clone(),
+
+            (ControlType::Color, SerdeDefault::Zeros) => {
+                "murrelet_livecode::unitcells::_auto_default_color_0".to_string()
+            }
+
+            (ControlType::Color, SerdeDefault::Ones) => {
+                "murrelet_livecode::unitcells::_auto_default_color_1".to_string()
+            }
+
+            (ControlType::Color, SerdeDefault::CustomFunction(x)) => x.clone(),
+            (ControlType::ColorUnclamped, SerdeDefault::CustomFunction(x)) => x.to_string(),
+            _ => panic!(
+                "serde default not implemented yet, need {:?} {:?}",
+                ty, self
+            ),
         }
     }
+    // }
 }
 
 #[derive(Debug)]

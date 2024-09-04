@@ -1,7 +1,6 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-use crate::derive_unitcell::update_to_unitcell_ident;
 use crate::parser::*;
 
 pub(crate) fn update_to_control_ident(name: syn::Ident) -> syn::Ident {
@@ -457,7 +456,9 @@ impl GenFinal for FieldTokensLivecode {
                     match infer {
                         HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
                             // this one has to be unitcell!
-                            let name = update_to_unitcell_ident(second_ty_ident.clone());
+                            // let name = update_to_unitcell_ident(second_ty_ident.clone());
+                            let name = update_to_control_ident(second_ty_ident.clone());
+
                             quote! {#name}
                         }
 
@@ -512,7 +513,8 @@ impl GenFinal for FieldTokensLivecode {
                 // watch out, this will hardcode every value with the first one
                 // also how can i make sure we never drop to 0 items...
                 // self.#name.iter().next().map(|x| x.node.to_unitcell_input()).unwrap_or(#new_ty::default())
-                self.#name.iter().next().unwrap().node.to_unitcell_input()
+                // LivecodeToControl
+                self.#name.iter().next().unwrap().node.to_control()
             }}
         };
 

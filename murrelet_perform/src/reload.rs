@@ -3,7 +3,7 @@ use evalexpr::{HashMapContext, Node};
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::state::*;
-use murrelet_livecode::types::LivecodeResult;
+use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 
 // todo, maybe only includde this if not wasm?
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -78,14 +78,20 @@ pub trait LiveCoderLoader: Sized {
         args[2].clone()
     }
 
-    fn latest_template_update_time() -> MurreletTime {
+    fn latest_template_update_time() -> LivecodeResult<MurreletTime> {
         let dir = Self::fs_template_foldername();
 
         let mut latest_time = MurreletTime::epoch();
-        for entry in fs::read_dir(dir).unwrap() {
-            let entry = entry.unwrap();
-            let metadata = entry.metadata().unwrap();
-            let modified_time_s = metadata.modified().unwrap();
+        for entry in
+            fs::read_dir(dir).map_err(|e| LivecodeError::Io(format!("template error"), e))?
+        {
+            let entry = entry.map_err(|e| LivecodeError::Io(format!("template error"), e))?;
+            let metadata = entry
+                .metadata()
+                .map_err(|e| LivecodeError::Io(format!("template error"), e))?;
+            let modified_time_s = metadata
+                .modified()
+                .map_err(|e| LivecodeError::Io(format!("template error"), e))?;
 
             let modified_time = MurreletTime::from_epoch_time(
                 modified_time_s
@@ -99,7 +105,7 @@ pub trait LiveCoderLoader: Sized {
             }
         }
 
-        latest_time
+        Ok(latest_time)
     }
 
     // callback one
@@ -119,17 +125,24 @@ pub trait LiveCoderLoader: Sized {
     }
 
     // filesystem one, hmm, should tidy up
-    fn fs_load_if_needed_and_update_info(util: &mut LiveCodeUtil) -> Option<Self> {
+    // result is if things go wrong, option is if it's just not time
+    fn fs_load_if_needed_and_update_info(util: &mut LiveCodeUtil) -> LivecodeResult<Option<Self>> {
         if util.should_check_config() {
             util.reset_info();
 
-            let current_modified = murrelet_time_from_system(
-                fs::metadata(Self::fs_config_filename())
-                    .unwrap()
-                    .modified()
-                    .unwrap(),
-            );
-            let folder_modified = Self::latest_template_update_time();
+            let filename = fs::metadata(Self::fs_config_filename()).map_err(|x| {
+                LivecodeError::Io(
+                    format!("no metadata for path {}", Self::fs_config_filename()),
+                    x,
+                )
+            })?;
+            let modified = filename
+                .modified()
+                .map_err(|err| LivecodeError::Io(format!("error finding modified type"), err))?;
+
+            let current_modified = murrelet_time_from_system(modified);
+
+            let folder_modified = Self::latest_template_update_time()?;
             if current_modified > util.info.config_next_check
                 || folder_modified > util.info.config_next_check
             {
@@ -143,19 +156,18 @@ pub trait LiveCoderLoader: Sized {
                         }
 
                         util.update_info_reloaded();
-                        Some(x)
+                        Ok(Some(x))
                     }
                     Err(err) => {
-                        println!("bad json! {}", err);
                         util.update_info_error();
-                        None
+                        Err(LivecodeError::Raw(format!("bad json! {}", err)))
                     }
                 }
             } else {
-                None
+                Ok(None)
             }
         } else {
-            None
+            Ok(None)
         }
     }
 }
