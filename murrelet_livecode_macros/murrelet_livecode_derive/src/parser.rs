@@ -533,11 +533,11 @@ impl SerdeDefault {
             (ControlType::F32_3, SerdeDefault::CustomFunction(x)) => x.clone(),
 
             (ControlType::Color, SerdeDefault::Zeros) => {
-                "murrelet_livecode::unitcells::_auto_default_color_0".to_string()
+                "murrelet_livecode::livecode::_auto_default_color_0".to_string()
             }
 
             (ControlType::Color, SerdeDefault::Ones) => {
-                "murrelet_livecode::unitcells::_auto_default_color_1".to_string()
+                "murrelet_livecode::livecode::_auto_default_color_1".to_string()
             }
 
             (ControlType::Color, SerdeDefault::CustomFunction(x)) => x.clone(),
@@ -610,7 +610,7 @@ pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
                 if let syn::GenericArgument::Type(other_ty) = args.first().unwrap() {
                     recursive_ident_from_path(other_ty, acc);
                 } else {
-                    panic!("not implemented yet {:?}", args);
+                    panic!("recursive ident not implemented yet {:?}", args);
                 }
             }
         }

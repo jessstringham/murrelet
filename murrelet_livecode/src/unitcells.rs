@@ -1,100 +1,15 @@
-use evalexpr::Node;
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
 
-use serde::Deserialize;
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
 use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
-use crate::lazy::{LazyNodeF32, LazyNodeF32Def};
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
-use crate::types::{LivecodeError, LivecodeResult};
-
-// impl Default for UnitCellControlExprF32 {
-//     fn default() -> Self {
-//         UnitCellControlExprF32::Bool(true)
-//     }
-// }
-
-// #[derive(Debug, Deserialize, Clone)]
-// #[serde(untagged)]
-// pub enum UnitCellControlExprF32 {
-//     Int(i32),
-//     Bool(bool),
-//     Float(f32),
-//     Expr(Node),
-// }
-
-// impl UnitCellControlExprF32 {
-//     fn new(x: f32) -> UnitCellControlExprF32 {
-//         UnitCellControlExprF32::Float(x)
-//     }
-// }
-
-// impl EvaluableUnitCell<f32> for UnitCellControlExprF32 {
-//     fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<f32> {
-//         match self {
-//             UnitCellControlExprF32::Bool(b) => {
-//                 if *b {
-//                     Ok(1.0)
-//                 } else {
-//                     Ok(-1.0)
-//                 }
-//             }
-//             UnitCellControlExprF32::Int(i) => Ok(*i as f32),
-//             UnitCellControlExprF32::Float(x) => Ok(*x),
-//             UnitCellControlExprF32::Expr(e) => {
-//                 match e.eval_float_with_context(ctx.ctx()).map(|x| x as f32) {
-//                     Ok(r) => Ok(r),
-//                     Err(_) => {
-//                         let b = e
-//                             .eval_boolean_with_context(ctx.ctx())
-//                             .map_err(|err| LivecodeError::EvalExpr(format!("evalexpr err"), err));
-//                         Ok(if b? { 1.0 } else { -1.0 })
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// #[derive(Debug, Deserialize, Clone)]
-// #[serde(untagged)]
-// pub enum UnitCellControlExprBool {
-//     Int(i32),
-//     Bool(bool),
-//     Float(f32),
-//     Expr(Node),
-// }
-
-// impl UnitCellControlExprBool {
-//     pub fn new(x: bool) -> UnitCellControlExprBool {
-//         UnitCellControlExprBool::Bool(x)
-//     }
-// }
-
-// impl LivecodeFromWorld<bool> for UnitCellControlExprBool {
-//     fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<bool> {
-//         match self {
-//             UnitCellControlExprBool::Bool(b) => Ok(*b),
-//             UnitCellControlExprBool::Int(i) => Ok(*i > 0),
-//             UnitCellControlExprBool::Float(x) => Ok(*x > 0.0),
-//             UnitCellControlExprBool::Expr(e) => match e.eval_boolean_with_context(ctx.ctx()) {
-//                 Ok(r) => Ok(r),
-//                 Err(_) => {
-//                     let b = e.eval_float_with_context(ctx.ctx()).map_err(|err| {
-//                         LivecodeError::EvalExpr(format!("error evaluing bool"), err)
-//                     });
-//                     b.map(|x| x > 0.0)
-//                 }
-//             },
-//         }
-//     }
-// }
+use crate::types::LivecodeResult;
 
 // helps you translate between LiveCode and UnitCells
 pub struct TmpUnitCells<CtxSource: UnitCellCreator, Target> {
@@ -200,79 +115,11 @@ where
     }
 }
 
-// pub fn _auto_default_color_4_unitcell() -> [UnitCellControlExprF32; 4] {
-//     [
-//         UnitCellControlExprF32::new(0.0),
-//         UnitCellControlExprF32::new(0.0),
-//         UnitCellControlExprF32::new(0.0),
-//         UnitCellControlExprF32::new(0.0),
-//     ]
-// }
-
-// pub fn _auto_default_bool_false_unitcell() -> UnitCellControlExprF32 {
-//     UnitCellControlExprF32::new(-1.0)
-// }
-
-// pub fn _auto_default_bool_true_unitcell() -> UnitCellControlExprF32 {
-//     UnitCellControlExprF32::new(1.0)
-// }
-
-// pub fn _auto_default_vec3_0_unitcell() -> [UnitCellControlExprF32; 3] {
-//     [
-//         UnitCellControlExprF32::new(0.0),
-//         UnitCellControlExprF32::new(0.0),
-//         UnitCellControlExprF32::new(0.0),
-//     ]
-// }
-
-// pub fn _auto_default_vec2_0_unitcell() -> [UnitCellControlExprF32; 2] {
-//     [
-//         UnitCellControlExprF32::new(0.0),
-//         UnitCellControlExprF32::new(0.0),
-//     ]
-// }
-
-// pub fn _auto_default_vec2_1_unitcell() -> [UnitCellControlExprF32; 2] {
-//     [
-//         UnitCellControlExprF32::new(1.0),
-//         UnitCellControlExprF32::new(1.0),
-//     ]
-// }
-
-// pub fn _auto_default_0_unitcell() -> UnitCellControlExprF32 {
-//     UnitCellControlExprF32::new(0.0)
-// }
-
-// pub fn _auto_default_1_unitcell() -> UnitCellControlExprF32 {
-//     UnitCellControlExprF32::new(1.0)
-// }
-
 /// for structs that can be used to generate a bunch of different contexts
 /// e.g. Tiler, crystals
 pub trait UnitCellCreator {
     fn to_unit_cell_ctxs(&self) -> Vec<UnitCellContext>;
 }
-
-/// this one's similar to LivecodeFromWorld, but for ones with unit_cell_context
-pub trait EvaluableUnitCell<UnitCellTarget> {
-    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<UnitCellTarget>;
-}
-
-// impl EvaluableUnitCell<Vec2> for [UnitCellControlExprF32; 2] {
-//     fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<Vec2> {
-//         Ok(vec2(self[0].eval(ctx)?, self[1].eval(ctx)?))
-//     }
-// }
-
-// impl EvaluableUnitCell<Vec3> for [UnitCellControlExprF32; 3] {
-//     fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<Vec3> {
-//         Ok(vec3(
-//             self[0].eval(ctx)?,
-//             self[1].eval(ctx)?,
-//             self[2].eval(ctx)?,
-//         ))
-//     }
-// }
 
 #[derive(Debug, Clone)]
 pub struct UnitCell<Target> {
@@ -1062,83 +909,3 @@ impl UnitCellDetailsWallpaper {
         self.transform_vertex
     }
 }
-
-// InvertedWorlds
-
-/// this one's similar to LivecodeToControl, but for unitcells
-pub trait InvertedWorld<UnitCellControl> {
-    fn to_unitcell_input(&self) -> UnitCellControl;
-}
-
-// impl InvertedWorld<[UnitCellControlExprF32; 2]> for Vec2 {
-//     fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 2] {
-//         [
-//             UnitCellControlExprF32::Float(self.x),
-//             UnitCellControlExprF32::Float(self.y),
-//         ]
-//     }
-// }
-
-// impl InvertedWorld<UnitCellControlExprF32> for f32 {
-//     fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-//         UnitCellControlExprF32::Float(*self)
-//     }
-// }
-
-// impl InvertedWorld<[UnitCellControlExprF32; 3]> for Vec3 {
-//     fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 3] {
-//         [
-//             UnitCellControlExprF32::Float(self.x),
-//             UnitCellControlExprF32::Float(self.y),
-//             UnitCellControlExprF32::Float(self.z),
-//         ]
-//     }
-// }
-
-// impl InvertedWorld<UnitCellControlExprF32> for bool {
-//     fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-//         UnitCellControlExprF32::Bool(*self)
-//     }
-// }
-
-// impl InvertedWorld<UnitCellControlExprF32> for usize {
-//     fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-//         UnitCellControlExprF32::Int(*self as i32)
-//     }
-// }
-
-// impl InvertedWorld<UnitCellControlExprF32> for u64 {
-//     fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-//         UnitCellControlExprF32::Int(*self as i32)
-//     }
-// }
-
-// impl InvertedWorld<UnitCellControlExprF32> for u8 {
-//     fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-//         UnitCellControlExprF32::Int(*self as i32)
-//     }
-// }
-
-// impl InvertedWorld<UnitCellControlExprF32> for u32 {
-//     fn to_unitcell_input(&self) -> UnitCellControlExprF32 {
-//         UnitCellControlExprF32::Int(*self as i32)
-//     }
-// }
-
-// impl InvertedWorld<[UnitCellControlExprF32; 4]> for MurreletColor {
-//     fn to_unitcell_input(&self) -> [UnitCellControlExprF32; 4] {
-//         let [r, g, b, a] = self.into_rgba_components();
-//         [
-//             UnitCellControlExprF32::Float(r),
-//             UnitCellControlExprF32::Float(g),
-//             UnitCellControlExprF32::Float(b),
-//             UnitCellControlExprF32::Float(a),
-//         ]
-//     }
-// }
-
-// impl<'a> InvertedWorld<LazyNodeF32Def> for LazyNodeF32 {
-//     fn to_unitcell_input(&self) -> LazyNodeF32Def {
-//         LazyNodeF32Def::new(self.n().unwrap().clone())
-//     }
-// }

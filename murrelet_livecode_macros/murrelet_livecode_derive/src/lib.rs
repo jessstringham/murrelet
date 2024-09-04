@@ -9,7 +9,6 @@ mod derive_boop;
 mod derive_lazy;
 mod derive_livecode;
 mod derive_nestedit;
-mod derive_unitcell;
 mod parser;
 mod toplevel;
 
@@ -18,7 +17,6 @@ use derive_boop::FieldTokensBoop;
 use derive_lazy::FieldTokensLazy;
 use derive_livecode::FieldTokensLivecode;
 use derive_nestedit::FieldTokensNestEdit;
-// use derive_unitcell::FieldTokensUnitCell;
 use parser::{GenFinal, LivecodeReceiver};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
@@ -30,10 +28,6 @@ use quote::quote;
 fn livecode_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensLivecode::from_ast(rec)
 }
-
-// fn unitcell_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
-//     FieldTokensUnitCell::from_ast(rec)
-// }
 
 fn lazy_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensLazy::from_ast(rec)
@@ -56,7 +50,6 @@ pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
     let livecode = livecode_parse_ast(ast_receiver.clone());
     let nested = nestedit_parse_ast(ast_receiver.clone());
     let boop = boop_parse_ast(ast_receiver.clone());
-    // let unitcell = unitcell_parse_ast(ast_receiver.clone());
     let lazy = lazy_parse_ast(ast_receiver.clone());
 
     quote!(
@@ -98,13 +91,6 @@ pub fn murrelet_livecode_derive_nestedit(input: TokenStream) -> TokenStream {
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
     nestedit_parse_ast(ast_receiver.clone()).into()
 }
-
-// #[proc_macro_derive(UnitCell, attributes(livecode))]
-// pub fn murrelet_livecode_derive_unitcell(input: TokenStream) -> TokenStream {
-//     let ast = parse_macro_input!(input as syn::DeriveInput);
-//     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
-//     unitcell_parse_ast(ast_receiver.clone()).into()
-// }
 
 // todo, this is if we need to load config
 #[proc_macro_derive(TopLevelLiveCode, attributes(livecode))]

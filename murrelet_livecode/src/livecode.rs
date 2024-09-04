@@ -15,7 +15,6 @@ use crate::lazy::LazyNodeF32Def;
 use crate::state::LivecodeWorldState;
 use crate::types::LivecodeError;
 use crate::types::LivecodeResult;
-// use crate::unitcells::{EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32};
 
 // for default values
 pub fn empty_vec<T>() -> Vec<T> {
@@ -24,6 +23,12 @@ pub fn empty_vec<T>() -> Vec<T> {
 
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
+}
+
+impl LivecodeFromWorld<f32> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
+        self._o(w)
+    }
 }
 
 impl LivecodeFromWorld<Vec2> for [ControlF32; 2] {
@@ -195,18 +200,7 @@ impl ControlF32 {
         }
     }
 
-    // pub fn to_unitcell_control(&self) -> UnitCellControlExprF32 {
-    //     match self {
-    //         ControlF32::Int(x) => UnitCellControlExprF32::Int(*x),
-    //         ControlF32::Bool(x) => UnitCellControlExprF32::Bool(*x),
-    //         ControlF32::Float(x) => UnitCellControlExprF32::Float(*x),
-    //         ControlF32::Expr(x) => UnitCellControlExprF32::Expr(x.clone()),
-    //     }
-    // }
-
-    pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
-        // self.to_unitcell_control().eval(&w)
-        //     fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<f32> {
+    pub fn _o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
         match self {
             ControlF32::Bool(b) => {
                 if *b {

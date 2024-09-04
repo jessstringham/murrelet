@@ -1,5 +1,5 @@
 use evalexpr::{HashMapContext, Node};
-use murrelet_common::{IdxInRange, MurreletColor};
+use murrelet_common::IdxInRange;
 use serde::Deserialize;
 
 use crate::{
@@ -7,7 +7,6 @@ use crate::{
     livecode::LivecodeFromWorld,
     state::LivecodeWorldState,
     types::{LivecodeError, LivecodeResult},
-    unitcells::EvaluableUnitCell,
 };
 
 #[derive(Debug, Deserialize, Clone)]
@@ -37,18 +36,6 @@ impl LazyNodeF32Def {
 impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
         Ok(LazyNodeF32::new(self.clone(), w))
-    }
-}
-
-impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32Def {
-    fn eval(&self, ctx: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
-        Ok(LazyNodeF32::new(self.clone(), ctx))
-    }
-}
-
-impl EvaluableUnitCell<LazyNodeF32> for LazyNodeF32 {
-    fn eval(&self, _ctx: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
-        Ok(self.clone()) // ??
     }
 }
 
