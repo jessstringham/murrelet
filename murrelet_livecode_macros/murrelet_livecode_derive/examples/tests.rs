@@ -1,9 +1,9 @@
 use glam::*;
 use murrelet_common::*;
 use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct SomethingElse {
     a_number: f32,
     b_color: MurreletColor,
@@ -11,17 +11,17 @@ pub struct SomethingElse {
     something: Vec<f32>,
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 enum EnumTest {
     #[default]
     A,
     B(SomethingElse),
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 struct TestNewType(Vec<EnumTest>);
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Default)]
 struct SequencerTest {
     sequencer: SimpleSquareSequence,
     ctx: AdditionalContextNode,
@@ -76,7 +76,7 @@ fn make_grid(
         .collect::<Vec<_>>()
 }
 
-#[derive(Clone, Debug, Default, Livecode, UnitCell)]
+#[derive(Clone, Debug, Default, Livecode)]
 pub struct SimpleSquareSequence {
     rows: usize,
     cols: usize,

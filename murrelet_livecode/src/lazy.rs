@@ -1,10 +1,14 @@
 use evalexpr::{HashMapContext, Node};
-use murrelet_common::IdxInRange;
+use murrelet_common::{IdxInRange, MurreletColor};
 use serde::Deserialize;
 
-use crate::{expr::{ExprWorldContextValues, MixedEvalDefs}, livecode::LivecodeFromWorld, state::LivecodeWorldState, types::{LivecodeError, LivecodeResult}, unitcells::EvaluableUnitCell};
-
-
+use crate::{
+    expr::{ExprWorldContextValues, MixedEvalDefs},
+    livecode::LivecodeFromWorld,
+    state::LivecodeWorldState,
+    types::{LivecodeError, LivecodeResult},
+    unitcells::EvaluableUnitCell,
+};
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
@@ -166,14 +170,28 @@ impl LazyNodeF32 {
     }
 }
 
+pub trait IsLazy
+where
+    Self: Sized,
+{
+    type Target;
 
-pub trait IsLazy<Target> where
-    Self: Sized {
-    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Target>;
+    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target>;
 }
 
-impl IsLazy<f32> for LazyNodeF32 {
+impl IsLazy for LazyNodeF32 {
+    type Target = f32;
     fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<f32> {
         self.eval_with_ctx(expr)
     }
-} 
+}
+
+impl<T> crate::unitcells::UnitCellCreator for T
+where
+    T: IsLazy,
+    T::Target: crate::unitcells::UnitCellCreator,
+{
+    fn to_unit_cell_ctxs(&self) -> Vec<crate::unitcells::UnitCellContext> {
+        unimplemented!("not sure how to do lazy unitcells yet...")
+    }
+}

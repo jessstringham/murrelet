@@ -8,9 +8,9 @@ use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
 use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
+use crate::lazy::{LazyNodeF32, LazyNodeF32Def};
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
-use crate::lazy::{LazyNodeF32, LazyNodeF32Def};
 use crate::types::{LivecodeError, LivecodeResult};
 
 impl Default for UnitCellControlExprF32 {
@@ -297,6 +297,11 @@ impl<Target> UnitCell<Target> {
             node: Box::new(node),
             detail,
         }
+    }
+
+    // convenience for macros, just copy over the detail
+    pub fn to_other_type<NewTarget>(&self, node: NewTarget) -> UnitCell<NewTarget> {
+        UnitCell::<NewTarget>::new(node, self.detail.clone())
     }
 
     pub fn transform_vec2(&self, v: Vec2) -> Vec2 {

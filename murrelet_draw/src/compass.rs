@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 use glam::Vec2;
 use murrelet_common::*;
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
 use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
 
-#[derive(Debug, Clone, Copy, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Copy, Livecode, Default)]
 pub struct CurveStart {
     loc: Vec2,
     angle: f32,
@@ -21,7 +21,7 @@ fn empty_string() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CompassDir {
     angle: f32,
     #[livecode(serde_default = "false")]
@@ -30,7 +30,7 @@ pub struct CompassDir {
     label: String,
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CompassArc {
     radius: f32,
     arc_length: f32,
@@ -44,20 +44,20 @@ pub struct CompassArc {
 //     pub fn new(radius: f32, arc_length: f32, is_absolute: bool) -> Self { Self { radius, arc_length, is_absolute } }
 // }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CompassLine {
     length: f32, // how far should we head in the current direction
     #[livecode(serde_default = "empty_string")]
     label: String,
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CompassRepeat {
     times: usize,
     what: Vec<CompassAction>,
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell)]
+#[derive(Debug, Clone, Livecode)]
 pub enum CompassAction {
     Angle(CompassDir), // abs
     Arc(CompassArc),
@@ -262,7 +262,7 @@ impl InteractiveCompassBuilder {
     }
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct MurreletCompass {
     start: CurveStart,
     dirs: Vec<CompassAction>,

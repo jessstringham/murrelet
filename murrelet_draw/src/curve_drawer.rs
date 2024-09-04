@@ -4,7 +4,7 @@ use glam::*;
 use murrelet_common::{Angle, AnglePi, Circle, IsAngle, IsLength};
 use murrelet_livecode_derive::*;
 
-#[derive(Debug, Clone, UnitCell, Default, Livecode)]
+#[derive(Debug, Clone, Default, Livecode)]
 pub struct CurveDrawer {
     segments: Vec<CurveSegment>,
     closed: bool, // this is mostly used for algorithms that use curve drawers. you'll need to use a style that's closed
@@ -71,7 +71,7 @@ impl CurveDrawer {
     }
 }
 
-#[derive(Debug, Clone, UnitCell, Livecode)]
+#[derive(Debug, Clone, Livecode)]
 pub enum CurveSegment {
     Arc(CurveArc),
     Points(CurvePoints),
@@ -130,7 +130,7 @@ impl CurveSegment {
     }
 }
 
-#[derive(Debug, Clone, UnitCell, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CurveArc {
     #[livecode(serde_default = "zeros")]
     pub loc: Vec2, // center of circle
@@ -210,7 +210,7 @@ impl CurveArc {
     }
 }
 
-#[derive(Debug, Clone, UnitCell, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CurvePoints {
     pub points: Vec<Vec2>,
 }

@@ -12,19 +12,19 @@ pub struct LazyFieldType(ControlType);
 impl LazyFieldType {
     fn to_token(&self) -> TokenStream2 {
         match self.0 {
-            ControlType::F32 => quote! {murrelet_livecode::lazy::LazyNodeF32},
             ControlType::Bool => quote! {murrelet_livecode::lazy::LazyNodeF32}, // we'll just check if it's above 0
+            ControlType::F32 => quote! {murrelet_livecode::lazy::LazyNodeF32},
             ControlType::F32_2 => {
                 quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
             }
             ControlType::F32_3 => {
                 quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
             }
-            // ControlType::F32_3 => quote!{Vec<murrelet_livecode::livecode::ControlF32>},
             ControlType::Color => {
                 quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
             }
-            ControlType::LazyNodeF32 => { // already lazy...
+            ControlType::LazyNodeF32 => {
+                // already lazy...
                 quote! { murrelet_livecode::lazy::LazyNodeF32 }
             }
             // ControlType::LinSrgbaUnclamped => quote!{[murrelet_livecode::livecode::ControlF32; 4]},
@@ -37,11 +37,16 @@ impl LazyFieldType {
         let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => {
-                quote! {#name: glam::vec2(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32)}
+                quote! {#name: self.#name.eval_lazy(ctx)?}
+                //glam::vec2(self.#name.x.eval_lazy(ctx)? as f32, self.#name.y.eval_lazy(ctx)? as f32)}
             }
-            // ControlType::F32_3 => quote!{#name: murrelet_livecode::livecode::ControlF32::vec3(&self.#name, w)},
+            ControlType::F32_3 => {
+                // quote! {#name: glam::vec3(self.#name.x.eval_lazy(ctx)? as f32, self.#name.y.eval_lazy(ctx)? as f32, self.#name.z.eval_lazy(ctx)? as f32)}
+                quote! {#name: self.#name.eval_lazy(ctx)?}
+            }
             ControlType::Color => {
-                quote! {#name: murrelet_common::MurreletColor::hsva(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32, self.#name[3].eval_lazy(ctx)? as f32)}
+                // quote! {#name: murrelet_common::MurreletColor::hsva(self.#name.h.eval_lazy(ctx)? as f32, self.#name.s.eval_lazy(ctx)? as f32, self.#name.v.eval_lazy(ctx)? as f32, self.#name.a.eval_lazy(ctx)? as f32)}
+                quote! {#name: self.#name.eval_lazy(ctx)?}
             }
             // ControlType::LinSrgbaUnclamped => quote!{#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)},
             ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
@@ -61,34 +66,32 @@ impl LazyFieldType {
         }
     }
 
-
     fn for_newtype_world(&self, idents: StructIdents) -> TokenStream2 {
         let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => {
-                quote! {vec2(self.0[0].eval(ctx)? as f32, self.0[1].eval(ctx)? as f32)}
+                quote! {vec2(self.0[0].eval_lazy(ctx)? as f32, self.0[1].eval_lazy(ctx)? as f32)}
             }
             // ControlType::F32_3 => quote!{murrelet_livecode::livecode::ControlF32::vec3(&self.0, w)},
             ControlType::Color => {
-                quote! {MurreletColor::hsva(self.0[0].eval(ctx)? as f32, self.0[1].eval(ctx)? as f32, self.0[2].eval(ctx)? as f32, self.0[3].eval(ctx)? as f32)}
+                quote! {MurreletColor::hsva(self.0[0].eval_lazy(ctx)? as f32, self.0[1].eval_lazy(ctx)? as f32, self.0[2].eval_lazy(ctx)? as f32, self.0[3].eval_lazy(ctx)? as f32)}
             }
             // ControlType::LinSrgbaUnclamped => quote!{murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)},
-            ControlType::Bool => quote! {self.0.eval(ctx)? > 0.0},
-            // _ => quote!{self.0.eval(ctx)? as #orig_ty}
+            ControlType::Bool => quote! {self.0.eval_lazy(ctx)? > 0.0},
+            // _ => quote!{self.0.eval_lazy(ctx)? as #orig_ty}
             _ => {
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {
-                    (None, None) => quote! {self.0.eval(ctx)?},
-                    (None, Some(max)) => quote! {f32::min(self.0.eval(ctx)?, #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.0.eval(ctx)?)},
+                    (None, None) => quote! {self.0.eval_lazy(ctx)?},
+                    (None, Some(max)) => quote! {f32::min(self.0.eval_lazy(ctx)?, #max)},
+                    (Some(min), None) => quote! {f32::max(#min, self.0.eval_lazy(ctx)?)},
                     (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, self.0.eval(ctx)?), #max)}
+                        quote! {f32::min(f32::max(#min, self.0.eval_lazy(ctx)?), #max)}
                     }
                 };
                 quote! {#f32_out as #orig_ty}
             }
         }
     }
-
 }
 
 pub(crate) struct FieldTokensLazy {
@@ -108,10 +111,11 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, UnitCell, Livecode)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
             #vis struct #lc_ident(#(#for_struct,)*);
 
-            impl murrelet_livecode::lazy::IsLazy<#name> for #lc_ident {
+            impl murrelet_livecode::lazy::IsLazy for #lc_ident {
+                type Target = #name;
                 fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
                 }
@@ -120,10 +124,7 @@ impl GenFinal for FieldTokensLazy {
         }
     }
 
-    fn make_struct_final(
-        idents: ParsedFieldIdent,
-        variants: Vec<FieldTokensLazy>,
-    ) -> TokenStream2 {
+    fn make_struct_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensLazy>) -> TokenStream2 {
         let lc_ident = idents.new_ident;
         let name = idents.name;
         let vis = idents.vis;
@@ -132,12 +133,13 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, UnitCell, Livecode)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
             #vis struct #lc_ident {
                 #(#for_struct,)*
             }
 
-            impl murrelet_livecode::lazy::IsLazy<#name> for #lc_ident {
+            impl murrelet_livecode::lazy::IsLazy for #lc_ident {
+                type Target = #name;
                 fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(#name {
                         #(#for_world,)*
@@ -147,29 +149,28 @@ impl GenFinal for FieldTokensLazy {
         }
     }
 
-    fn make_enum_final(
-        idents: ParsedFieldIdent,
-        variants: Vec<FieldTokensLazy>,
-    ) -> TokenStream2 {
+    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensLazy>) -> TokenStream2 {
         let new_enum_ident = idents.new_ident;
         let name = idents.name;
+        let vis = idents.vis;
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
-        let enum_tag = idents.tags;
-
         quote! {
-            #[derive(Debug, Clone, UnitCell, Livecode)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
             #[allow(non_camel_case_types)]
-            #enum_tag
-            pub enum #new_enum_ident {
+            #vis enum #new_enum_ident {
+                #[default]
+                Noop,
                 #(#for_struct,)*
             }
 
-            impl murrelet_livecode::lazy::IsLazy<#name> for #new_enum_ident {
+            impl murrelet_livecode::lazy::IsLazy for #new_enum_ident {
+                type Target = #name;
                 fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(match self {
+                        #new_enum_ident::Noop => panic!("fell back to default"), // can i just remove default?
                         #(#for_world,)*
                     })
                 }
@@ -177,10 +178,7 @@ impl GenFinal for FieldTokensLazy {
         }
     }
 
-    fn from_newtype_struct(
-        idents: StructIdents,
-        _parent_idents: syn::Ident,
-    ) -> FieldTokensLazy {
+    fn from_newtype_struct(idents: StructIdents, _parent_idents: syn::Ident) -> FieldTokensLazy {
         let ctrl = idents.control_type();
 
         let for_struct = {
@@ -196,6 +194,7 @@ impl GenFinal for FieldTokensLazy {
         }
     }
 
+    // enum
     // Arc(CurveArc)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensLazy {
         let variant_ident = idents.variant_ident();
@@ -217,9 +216,7 @@ impl GenFinal for FieldTokensLazy {
         };
 
         // for world
-        let for_world =
-            quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.eval(ctx)?) };
-
+        let for_world = quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.eval_lazy(ctx)?) };
 
         FieldTokensLazy {
             for_struct,
@@ -264,12 +261,13 @@ impl GenFinal for FieldTokensLazy {
 
     fn from_type_struct(idents: StructIdents) -> FieldTokensLazy {
         let name = idents.name();
+        let back_to_quote = idents.back_to_quote();
 
         let ctrl = idents.control_type();
 
         let for_struct = {
             let t = LazyFieldType(ctrl).to_token();
-            quote! {#name: #t}
+            quote! {#back_to_quote #name: #t}
         };
 
         let for_world = LazyFieldType(ctrl).for_world(idents.clone());
@@ -284,6 +282,7 @@ impl GenFinal for FieldTokensLazy {
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensLazy {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
+        let back_to_quote = idents.back_to_quote();
 
         let (for_struct, _inside_type) = {
             let target_type = if let DataFromType {
@@ -310,14 +309,10 @@ impl GenFinal for FieldTokensLazy {
                 }
                 e => panic!("need vec something {:?}", e),
             };
-            (
-                quote! {#name: Vec<#src_type>},
-                infer,
-            )
+            (quote! {#back_to_quote #name: Vec<#src_type>}, infer)
         };
-        let debug_name = name.to_string();
         let for_world = {
-            quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec_for_unitcell(ctx, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect::<Vec<_>>()}
+            quote! {#name: self.#name.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
         };
 
         FieldTokensLazy {
@@ -330,6 +325,47 @@ impl GenFinal for FieldTokensLazy {
         let orig_ty = idents.orig_ty();
 
         let for_struct = {
+            let ref_lc_ident = if let DataFromType {
+                second_type: Some(second_ty_ident),
+                ..
+            } = ident_from_type(&orig_ty)
+            {
+                let infer =
+                    HowToControlThis::from_type_str(second_ty_ident.clone().to_string().as_ref());
+
+                match infer {
+                    HowToControlThis::WithType(_, c) => LazyFieldType(c).to_token(),
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                        let name = Self::new_ident(second_ty_ident.clone());
+                        quote! {#name}
+                    }
+                    HowToControlThis::WithNone(_) => {
+                        let name = Self::new_ident(second_ty_ident.clone());
+                        quote! {#name}
+                    }
+                    e => panic!("need vec something {:?}", e),
+                }
+            } else {
+                panic!("vec missing second type");
+            };
+            quote! {Vec<#ref_lc_ident>}
+        };
+        let for_world = {
+            quote! {self.0.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+        }
+    }
+
+    fn from_recurse_struct_unitcell(idents: StructIdents) -> FieldTokensLazy {
+        let name = idents.name();
+        let orig_ty = idents.orig_ty();
+        let back_to_quote = idents.back_to_quote();
+
+        let (for_struct, _new_ty): (TokenStream2, TokenStream2) = {
             let new_ty = {
                 let ref_lc_ident = if let DataFromType {
                     second_type: Some(second_ty_ident),
@@ -341,26 +377,31 @@ impl GenFinal for FieldTokensLazy {
                     );
 
                     match infer {
-                        HowToControlThis::WithType(_, c) => LazyFieldType(c).to_token(),
                         HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            quote! {#name}
+                            let name = update_to_lazy_ident(second_ty_ident.clone());
+                            quote! {murrelet_livecode::unitcells::UnitCells<#name>}
                         }
-                        HowToControlThis::WithNone(_) => {
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            quote! {#name}
-                        }
-                        e => panic!("need vec something {:?}", e),
+
+                        e => panic!("need lazy something {:?}", e),
                     }
                 } else {
-                    panic!("vec missing second type");
+                    panic!("unitcell missing second type")
                 };
-                quote! {Vec<#ref_lc_ident>}
+
+                quote! {#ref_lc_ident}
             };
-            quote! {#new_ty}
+
+            (quote! {#back_to_quote #name: #new_ty}, new_ty.clone())
         };
+
         let for_world = {
-            quote! {self.0.iter().map(|x| x.eval(ctx)).collect::<Result<Vec<_>, _>>()?}
+            quote! {#name: {
+                let c = self.#name.iter().map(|x|
+                        x.node.eval_lazy(ctx).map(|r| x.to_other_type(r))
+                    ).collect::<Result<Vec<_>, _>>()?;
+                    murrelet_livecode::unitcells::UnitCells::new(c)
+                }
+            }
         };
 
         FieldTokensLazy {
@@ -369,13 +410,10 @@ impl GenFinal for FieldTokensLazy {
         }
     }
 
-    fn from_recurse_struct_unitcell(_idents: StructIdents) -> FieldTokensLazy {
-        unimplemented!("oh don't know how to do lazy unitcells")
-    }
-
     fn from_recurse_struct_struct(idents: StructIdents) -> Self {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
+        let back_to_quote = idents.back_to_quote();
 
         let for_struct = {
             let new_ty = {
@@ -385,10 +423,10 @@ impl GenFinal for FieldTokensLazy {
                 quote! {#ref_lc_ident}
             };
 
-            quote! {#name: #new_ty}
+            quote! {#back_to_quote #name: #new_ty}
         };
         let for_world = {
-            quote! {#name: self.#name.eval(ctx)?}
+            quote! {#name: self.#name.eval_lazy(ctx)?}
         };
 
         FieldTokensLazy {

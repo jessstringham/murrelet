@@ -24,7 +24,7 @@ use wasm_bindgen::prelude::*;
 //     }
 // }
 
-#[derive(Debug, Clone, UnitCell, Default, Boop)]
+#[derive(Debug, Clone, Default, Boop)]
 struct StyledShape {
     shape: MurreletCompass,
     style: StyleConf,
@@ -42,7 +42,7 @@ impl StyledShape {
     }
 }
 
-#[derive(Debug, Clone, UnitCell, Default, Boop)]
+#[derive(Debug, Clone, Default, Boop)]
 struct SimpleTile(Vec<StyledShape>);
 impl SimpleTile {
     fn draw(&self, draw_ctx: &WebSDrawCtxUnitCell) {

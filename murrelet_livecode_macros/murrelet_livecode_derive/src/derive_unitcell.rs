@@ -247,8 +247,8 @@ impl GenFinal for FieldTokensUnitCell {
 
         let for_struct = {
             let t = unnamed.first().unwrap().clone().ty;
-            let DataFromType { main_type, .. } = ident_from_type(&t);
-            let new_type = update_to_unitcell_ident(main_type);
+            let data_from_type = ident_from_type(&t);
+            let new_type = update_to_unitcell_ident(data_from_type.main_type);
             quote! { #variant_ident(#new_type) }
         };
 

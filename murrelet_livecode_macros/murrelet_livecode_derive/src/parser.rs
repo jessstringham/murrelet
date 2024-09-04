@@ -186,6 +186,28 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) f32max: Option<f32>,
 }
 impl LivecodeFieldReceiver {
+    fn back_to_quote(&self) -> TokenStream2 {
+        let r = vec![
+            self.ctx.as_ref().map(|x| {
+                let ctx = x.to_string();
+                quote! {ctx = #ctx}
+            }),
+            self.src.as_ref().map(|x| {
+                let src = x.to_string();
+                quote! {src = #src}
+            }),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+        if r.len() > 0 {
+            quote! { #[livecode(#(#r,)*)] }
+        } else {
+            quote! {}
+        }
+    }
+
     fn how_to_control_this(&self) -> HowToControlThis {
         // first check if 'kind' is set
         if let Some(kind) = &self.kind {
@@ -320,6 +342,10 @@ impl StructIdents {
 
     pub(crate) fn control_type(&self) -> ControlType {
         self.how_to_control_this().get_control_type()
+    }
+
+    pub(crate) fn back_to_quote(&self) -> TokenStream2 {
+        self.data.back_to_quote()
     }
 }
 
@@ -517,47 +543,73 @@ impl SerdeDefault {
 pub(crate) struct DataFromType {
     pub(crate) main_type: syn::Ident,
     pub(crate) second_type: Option<syn::Ident>,
+    pub(crate) third_type: Option<syn::Ident>, // so we coulddd use a vec her
 }
 impl DataFromType {
-    pub(crate) fn new(main_type: syn::Ident, second_type: Option<syn::Ident>) -> Self {
+    // pub(crate) fn new(main_type: syn::Ident, second_type: Option<syn::Ident>) -> Self {
+    //     Self {
+    //         main_type,
+    //         second_type,
+    //         third_type,
+    //     }
+    // }
+
+    // // wait i think this is wrong
+    // pub(crate) fn has_second(&self) -> bool {
+    //     self.second_type.is_none()
+    // }
+
+    fn new_from_list(types: Vec<syn::Ident>) -> DataFromType {
+        assert!(types.len() > 0); // should be by how it's programmed but...
+
         Self {
-            main_type,
-            second_type,
+            main_type: types[0].clone(),
+            second_type: types.get(1).cloned(),
+            third_type: types.get(2).cloned(),
         }
     }
 
-    pub(crate) fn has_second(&self) -> bool {
-        self.second_type.is_none()
+    fn how_to_control_internal(&self) -> HowToControlThis {
+        let ident = if let Some(third) = &self.third_type {
+            third
+        } else if let Some(second) = &self.second_type {
+            second
+        } else {
+            &self.main_type
+        };
+
+        HowToControlThis::from_type_str(ident.clone().to_string().as_ref())
     }
 }
 
-pub(crate) fn ident_from_type(t: &syn::Type) -> DataFromType {
+pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
     match t {
         syn::Type::Path(syn::TypePath { path, .. }) => {
             let s = path.segments.last().unwrap();
             let main_type = s.ident.clone();
 
-            let second_type =
-                if let syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
-                    args,
-                    ..
-                }) = s.arguments.clone()
-                {
-                    if let syn::GenericArgument::Type(other_ty) = args.first().unwrap() {
-                        let data_from_type = ident_from_type(other_ty);
-                        assert!(data_from_type.has_second(), "nested types not implemented {:?} {:?}", main_type, data_from_type);
-                        Some(data_from_type.main_type)
-                    } else {
-                        panic!("not implemented yet {:?}", args);
-                    }
+            acc.push(main_type);
+
+            if let syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
+                args,
+                ..
+            }) = s.arguments.clone()
+            {
+                if let syn::GenericArgument::Type(other_ty) = args.first().unwrap() {
+                    recursive_ident_from_path(other_ty, acc);
                 } else {
-                    None
-                };
-
-            // if arguments
-
-            DataFromType::new(main_type, second_type)
+                    panic!("not implemented yet {:?}", args);
+                }
+            }
         }
         x => panic!("no name for type {:?}", x),
     }
+}
+
+pub(crate) fn ident_from_type(t: &syn::Type) -> DataFromType {
+    let mut acc = vec![];
+    recursive_ident_from_path(t, &mut acc);
+
+    // will always have at least one item
+    DataFromType::new_from_list(acc)
 }

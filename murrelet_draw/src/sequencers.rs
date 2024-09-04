@@ -6,7 +6,7 @@ use murrelet_livecode_derive::*;
 
 const REFERENCE_SIZE: f32 = 100.0;
 
-#[derive(Clone, Debug, Livecode, UnitCell)]
+#[derive(Clone, Debug, Livecode)]
 pub enum Sequencer {
     Square(SimpleSquareSequence),
     Rect(SimpleRectSequence),
@@ -22,7 +22,7 @@ impl UnitCellCreator for Sequencer {
     }
 }
 
-#[derive(Clone, Debug, Default, Livecode, UnitCell)]
+#[derive(Clone, Debug, Default, Livecode)]
 pub struct SimpleHexSequence {
     rows: usize,
     cols: usize,
@@ -34,7 +34,7 @@ impl UnitCellCreator for SimpleHexSequence {
     }
 }
 
-#[derive(Clone, Debug, Default, Livecode, UnitCell)]
+#[derive(Clone, Debug, Default, Livecode)]
 pub struct SimpleSquareSequence {
     rows: usize,
     cols: usize,
@@ -46,7 +46,7 @@ impl UnitCellCreator for SimpleSquareSequence {
     }
 }
 
-#[derive(Clone, Debug, Default, Livecode, UnitCell)]
+#[derive(Clone, Debug, Default, Livecode)]
 pub struct SimpleRectSequence {
     rows: usize,
     cols: usize,

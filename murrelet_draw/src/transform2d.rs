@@ -6,9 +6,9 @@ use murrelet_common::{
     a_pi, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SpotOnCurve,
     TransformVec2,
 };
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct Transform2d(Vec<Transform2dStep>);
 impl Transform2d {
     pub fn new(actions: Vec<Transform2dStep>) -> Self {
@@ -157,7 +157,7 @@ impl Default for ControlTransform2d {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct V2 {
     v: Vec2,
 }
@@ -168,7 +168,7 @@ impl V2 {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct V22 {
     v0: Vec2,
     v1: Vec2,
@@ -180,7 +180,7 @@ impl V22 {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct Rotate2 {
     #[livecode(serde_default = "zeros")]
     center: Vec2,
@@ -200,7 +200,7 @@ impl Rotate2 {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell)]
+#[derive(Clone, Debug, Livecode)]
 pub enum Transform2dStep {
     Translate(V2),
     Rotate(Rotate2),

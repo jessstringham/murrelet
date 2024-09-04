@@ -6,9 +6,9 @@
 extern crate proc_macro;
 
 mod derive_boop;
+mod derive_lazy;
 mod derive_livecode;
 mod derive_nestedit;
-mod derive_lazy;
 mod derive_unitcell;
 mod parser;
 mod toplevel;
@@ -49,23 +49,37 @@ fn nestedit_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
 
 // meh, i usually need all of these, so throw them all in.
 #[proc_macro_derive(Livecode, attributes(livecode))]
-pub fn murrelet_livecode_derive(input: TokenStream) -> TokenStream {
+pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
 
     let livecode = livecode_parse_ast(ast_receiver.clone());
-    let boop = boop_parse_ast(ast_receiver.clone());
     let nested = nestedit_parse_ast(ast_receiver.clone());
+    let boop = boop_parse_ast(ast_receiver.clone());
+    let unitcell = unitcell_parse_ast(ast_receiver.clone());
+    let lazy = lazy_parse_ast(ast_receiver.clone());
 
     quote!(
         #livecode
-        #boop
         #nested
+        #boop
+        #lazy
+        #unitcell
     )
     .into()
 }
 
-// eh, these two are useful for things that are UnitCells but not Livecode
+// because I'm using the name "Livecode" to mean alll the things...
+// useful to avoid recursion for things like lazy that need to also generate
+// just the livecode/unitcell deserializer
+#[proc_macro_derive(LivecodeOnly, attributes(livecode))]
+pub fn murrelet_livecode_derive_livecode(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
+
+    livecode_parse_ast(ast_receiver.clone()).into()
+}
+
 #[proc_macro_derive(Lazy, attributes(livecode))]
 pub fn murrelet_livecode_derive_lazy(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
@@ -73,7 +87,6 @@ pub fn murrelet_livecode_derive_lazy(input: TokenStream) -> TokenStream {
     lazy_parse_ast(ast_receiver.clone()).into()
 }
 
-// eh, these two are useful for things that are UnitCells but not Livecode
 #[proc_macro_derive(Boop, attributes(livecode))]
 pub fn murrelet_livecode_derive_boop(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);

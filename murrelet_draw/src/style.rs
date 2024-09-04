@@ -3,9 +3,9 @@ use crate::{curve_drawer::CurveDrawer, draw::*, transform2d::*};
 use glam::*;
 use md5::{Digest, Md5};
 use murrelet_common::*;
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleFilled {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
@@ -109,7 +109,7 @@ impl StyledPathSvgFill {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleFilledSvg {
     #[livecode(kind = "none")]
     pub pattern_id: String, // reference to canvas
@@ -146,7 +146,7 @@ impl MurreletStyleFilledSvg {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleRGBAFill {
     pub rgb: Vec3, // red and green, can be negative
     #[livecode(serde_default = "ones")]
@@ -166,7 +166,7 @@ impl MurreletStyleRGBAFill {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleRGBALine {
     pub rgb: Vec3, // red and green, can be negative
     #[livecode(serde_default = "ones")]
@@ -186,7 +186,7 @@ impl MurreletStyleRGBALine {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleDAFill {
     pub rgb: Vec3, // red and green, can be negative
     #[livecode(serde_default = "zeros")]
@@ -206,7 +206,7 @@ impl MurreletStyleDAFill {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleOutlined {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
@@ -248,7 +248,7 @@ impl MurreletStyleOutlined {
     // }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStylePoints {
     pub color: MurreletColor, // fill color
     pub shape: PixelShape,
@@ -275,7 +275,7 @@ impl MurreletStylePoints {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleRGBAPoints {
     pub rgb: Vec3, // fill color
     pub a: f32,
@@ -299,7 +299,7 @@ impl MurreletStyleRGBAPoints {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleLined {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
@@ -320,12 +320,12 @@ impl MurreletStyleLined {
 // type DrawingThing<'a, T> = Drawing<'a, T>;
 
 pub mod styleconf {
-    use murrelet_livecode_derive::{Livecode, UnitCell};
+    use murrelet_livecode_derive::Livecode;
 
     use super::*;
 
     // use this one, so you can get the shortcuts
-    #[derive(Clone, Debug, Livecode, UnitCell)]
+    #[derive(Clone, Debug, Livecode)]
     pub enum StyleConf {
         // Verbose(MurreletStyle),
         SvgPattern(MurreletStyleFilledSvg),

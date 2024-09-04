@@ -4,7 +4,7 @@ use glam::{vec2, Mat4, Vec2, Vec3};
 use itertools::Itertools;
 use murrelet_common::{IsPolyline, MurreletColor, Polyline, TransformVec2};
 use murrelet_livecode::unitcells::UnitCellContext;
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     style::{styleconf::*, StyledPathSvgFill},
 };
 
-#[derive(Debug, Clone, Copy, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Copy, Livecode, Default)]
 #[livecode(enum_tag = "external")]
 pub enum PixelShape {
     #[default]

@@ -10,9 +10,9 @@ use murrelet_common::clamp;
 use murrelet_common::MurreletColor;
 use serde::Deserialize;
 
-use crate::state::LivecodeWorldState;
 use crate::lazy::LazyNodeF32;
 use crate::lazy::LazyNodeF32Def;
+use crate::state::LivecodeWorldState;
 use crate::types::LivecodeResult;
 use crate::unitcells::{EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32};
 
