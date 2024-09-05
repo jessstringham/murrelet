@@ -1,5 +1,5 @@
 use evalexpr::{HashMapContext, Node};
-use murrelet_common::IdxInRange;
+use murrelet_common::{IdxInRange, MurreletColor};
 use serde::Deserialize;
 
 use crate::{
@@ -181,4 +181,43 @@ where
     fn to_unit_cell_ctxs(&self) -> Vec<crate::unitcells::UnitCellContext> {
         unimplemented!("not sure how to do lazy unitcells yet...")
     }
+}
+
+pub fn eval_lazy_color(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<MurreletColor> {
+    Ok(murrelet_common::MurreletColor::hsva(
+        v[0].eval_lazy(ctx)? as f32,
+        v[1].eval_lazy(ctx)? as f32,
+        v[2].eval_lazy(ctx)? as f32,
+        v[3].eval_lazy(ctx)? as f32,
+    ))
+}
+
+pub fn eval_vec3(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec3> {
+    Ok(glam::vec3(
+        v[0].eval_lazy(ctx)? as f32,
+        v[1].eval_lazy(ctx)? as f32,
+        v[2].eval_lazy(ctx)? as f32,
+    ))
+}
+
+pub fn eval_vec2(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec2> {
+    Ok(glam::vec2(
+        v[0].eval_lazy(ctx)? as f32,
+        v[1].eval_lazy(ctx)? as f32,
+    ))
+}
+
+pub fn eval_f32(
+    v: &LazyNodeF32,
+    f32min: Option<f32>,
+    f32max: Option<f32>,
+    ctx: &MixedEvalDefs,
+) -> LivecodeResult<f32> {
+    let result = match (f32min, f32max) {
+        (None, None) => v.eval_lazy(ctx)?,
+        (None, Some(max)) => f32::min(v.eval_lazy(ctx)?, max),
+        (Some(min), None) => f32::max(min, v.eval_lazy(ctx)?),
+        (Some(min), Some(max)) => f32::min(f32::max(min, v.eval_lazy(ctx)?), max),
+    };
+    Ok(result)
 }
