@@ -37,16 +37,16 @@ impl LazyFieldType {
         let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => {
-                quote! {#name: self.#name.eval_lazy(ctx)?}
-                //glam::vec2(self.#name.x.eval_lazy(ctx)? as f32, self.#name.y.eval_lazy(ctx)? as f32)}
+                // quote! {#name: self.#name.eval_lazy(ctx)?}
+                quote! { #name: glam::vec2(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32)}
             }
             ControlType::F32_3 => {
-                // quote! {#name: glam::vec3(self.#name.x.eval_lazy(ctx)? as f32, self.#name.y.eval_lazy(ctx)? as f32, self.#name.z.eval_lazy(ctx)? as f32)}
-                quote! {#name: self.#name.eval_lazy(ctx)?}
+                quote! {#name: glam::vec3(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32)}
+                // quote! {#name: self.#name.eval_lazy(ctx)?}
             }
             ControlType::Color => {
-                // quote! {#name: murrelet_common::MurreletColor::hsva(self.#name.h.eval_lazy(ctx)? as f32, self.#name.s.eval_lazy(ctx)? as f32, self.#name.v.eval_lazy(ctx)? as f32, self.#name.a.eval_lazy(ctx)? as f32)}
-                quote! {#name: self.#name.eval_lazy(ctx)?}
+                quote! {#name: murrelet_common::MurreletColor::hsva(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32, self.#name[3].eval_lazy(ctx)? as f32)}
+                // quote! {#name: self.#name.eval_lazy(ctx)?}
             }
             // ControlType::LinSrgbaUnclamped => quote!{#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)},
             ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
@@ -284,35 +284,41 @@ impl GenFinal for FieldTokensLazy {
         let orig_ty = idents.orig_ty();
         let back_to_quote = idents.back_to_quote();
 
-        let (for_struct, _inside_type) = {
-            let target_type = if let DataFromType {
-                second_type: Some(second_ty_ident),
-                ..
-            } = ident_from_type(&orig_ty)
-            {
-                second_ty_ident
-            } else {
-                panic!("vec missing second type");
-            };
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+        let wrapper = parsed_type_info.wrapper_type();
 
-            let infer = HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
-
-            let src_type = match infer {
-                HowToControlThis::WithType(_, c) => LazyFieldType(c).to_token(),
+        let for_struct = {
+            let internal_type = match how_to_control_internal {
+                HowToControlThis::WithType(_, c) => LazyFieldType(*c).to_token(),
                 HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
                 HowToControlThis::WithNone(_) => {
+                    let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
                 e => panic!("need vec something {:?}", e),
             };
-            (quote! {#back_to_quote #name: Vec<#src_type>}, infer)
+
+            let new_ty = match wrapper {
+                VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
+                VecDepth::Vec => quote! {Vec<#internal_type>},
+                VecDepth::VecVec => quote! {Vec<Vec<#internal_type>>},
+            };
+            quote! {#back_to_quote #name: #new_ty}
         };
         let for_world = {
-            quote! {#name: self.#name.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
+            match wrapper {
+                VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
+                VecDepth::Vec => {
+                    quote! {#name: self.#name.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
+                }
+                VecDepth::VecVec => todo!("maybe support vec<vec<>>.."),
+            }
         };
 
         FieldTokensLazy {

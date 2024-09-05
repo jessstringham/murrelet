@@ -9,6 +9,7 @@ pub struct SomethingElse {
     b_color: MurreletColor,
     c_vec2: Vec2,
     something: Vec<f32>,
+    something: Vec<Vec2>,
 }
 
 #[derive(Debug, Clone, Livecode, Default)]

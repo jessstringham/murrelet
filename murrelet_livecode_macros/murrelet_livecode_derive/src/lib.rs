@@ -56,6 +56,7 @@ pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
         #livecode
         #nested
         #boop
+        #lazy
     )
     .into()
 }

@@ -389,6 +389,14 @@ impl HowToControlThis {
         }
     }
 
+    pub(crate) fn needs_to_be_evaluated(&self) -> bool {
+        match self {
+            HowToControlThis::WithType(_, _) => true,
+            HowToControlThis::WithRecurse(_, _) => true,
+            HowToControlThis::WithNone(_) => false,
+        }
+    }
+
     pub(crate) fn from_kind(value: &str) -> HowToControlThis {
         match value {
             "none" => HowToControlThis::WithNone(OverrideOrInferred::Override),
@@ -556,6 +564,10 @@ pub(crate) struct DataFromType {
     pub(crate) main_type: syn::Ident,
     pub(crate) second_type: Option<syn::Ident>,
     pub(crate) third_type: Option<syn::Ident>, // so we coulddd use a vec her
+
+    pub(crate) main_how_to: HowToControlThis,
+    pub(crate) second_how_to: Option<HowToControlThis>,
+    pub(crate) third_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
 }
 impl DataFromType {
     // pub(crate) fn new(main_type: syn::Ident, second_type: Option<syn::Ident>) -> Self {
@@ -574,24 +586,69 @@ impl DataFromType {
     fn new_from_list(types: Vec<syn::Ident>) -> DataFromType {
         assert!(types.len() > 0); // should be by how it's programmed but...
 
+        let main_type = types[0].clone();
+        let second_type = types.get(1).cloned();
+        let third_type = types.get(2).cloned();
+
+        let main_how_to = HowToControlThis::from_type_str(&main_type.to_string());
+        let second_how_to = second_type
+            .as_ref()
+            .map(|x| HowToControlThis::from_type_str(&x.to_string()));
+        let third_how_to = third_type
+            .as_ref()
+            .map(|x| HowToControlThis::from_type_str(&x.to_string()));
+
         Self {
-            main_type: types[0].clone(),
-            second_type: types.get(1).cloned(),
-            third_type: types.get(2).cloned(),
+            main_type,
+            second_type,
+            third_type,
+            main_how_to,
+            second_how_to,
+            third_how_to,
         }
     }
 
-    fn how_to_control_internal(&self) -> HowToControlThis {
-        let ident = if let Some(third) = &self.third_type {
+    pub(crate) fn how_to_control_internal(&self) -> &HowToControlThis {
+        if let Some(third) = &self.third_how_to {
+            third
+        } else if let Some(second) = &self.second_how_to {
+            second
+        } else {
+            &self.main_how_to
+        }
+    }
+
+    pub(crate) fn internal_type(&self) -> syn::Ident {
+        if let Some(third) = &self.third_type {
             third
         } else if let Some(second) = &self.second_type {
             second
         } else {
             &self.main_type
-        };
-
-        HowToControlThis::from_type_str(ident.clone().to_string().as_ref())
+        }
+        .clone()
     }
+
+    pub(crate) fn wrapper_type(&self) -> VecDepth {
+        match self.main_how_to {
+            HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                match self.second_how_to {
+                    Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec)) => {
+                        VecDepth::VecVec
+                    }
+                    Some(_) => VecDepth::Vec,
+                    None => unreachable!("vec should have a type??"),
+                }
+            }
+            _ => VecDepth::NotAVec,
+        }
+    }
+}
+
+pub(crate) enum VecDepth {
+    NotAVec,
+    Vec,
+    VecVec,
 }
 
 pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {

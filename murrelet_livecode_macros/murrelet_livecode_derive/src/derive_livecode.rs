@@ -342,62 +342,113 @@ impl GenFinal for FieldTokensLivecode {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
 
-        let (for_struct, infer) = {
-            let target_type = if let DataFromType {
-                second_type: Some(second_ty_ident),
-                ..
-            } = ident_from_type(&orig_ty)
-            {
-                second_ty_ident
-            } else {
-                panic!("vec missing second type");
-            };
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+        let wrapper = parsed_type_info.wrapper_type();
 
-            let infer = HowToControlThis::from_type_str(target_type.clone().to_string().as_ref());
-
-            let src_type = match infer {
-                HowToControlThis::WithType(_, c) => LivecodeFieldType(c).to_token(),
+        let for_struct = {
+            let src_type = match how_to_control_internal {
+                HowToControlThis::WithType(_, c) => LivecodeFieldType(*c).to_token(),
                 HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithNone(_) => quote! {#target_type},
+                HowToControlThis::WithNone(_) => {
+                    let target_type = parsed_type_info.internal_type();
+                    quote! {#target_type}
+                }
                 e => panic!("need vec something {:?}", e),
             };
 
-            (
-                quote! {#serde #name: Vec<murrelet_livecode::types::ControlVecElement<#src_type>>},
-                infer,
-            )
+            let new_ty = match wrapper {
+                VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
+                VecDepth::Vec => {
+                    quote! { Vec<murrelet_livecode::types::ControlVecElement<#src_type>> }
+                }
+                VecDepth::VecVec => {
+                    quote! { Vec<Vec<murrelet_livecode::types::ControlVecElement<#src_type>>> }
+                }
+            };
+
+            quote! {#serde #name: #new_ty}
         };
 
         let debug_name = name.to_string();
         let for_world = {
-            match infer {
-                HowToControlThis::WithType(_, _c) => {
-                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
+                    VecDepth::Vec => {
+                        quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+                    }
+                    VecDepth::VecVec => {
+                        quote! {
+                            #name: {
+                                let mut result = Vec::with_capacity(self.#name.len());
+                                for internal_row in &self.name {
+                                    result.push(
+                                        internal_row.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()
+                                    )
+                                }
+                                result
+                            }
+                        }
+                    }
                 }
-                HowToControlThis::WithRecurse(_, _) => {
-                    quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
-                }
-                HowToControlThis::WithNone(_) => {
-                    quote! {#name: self.#name.clone()}
-                }
+            } else {
+                quote! {#name: self.#name.clone()}
             }
+
+            // match infer {
+            //     HowToControlThis::WithType(_, _c) => {
+            //         quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+            //     }
+            //     HowToControlThis::WithRecurse(_, _) => {
+            //         quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+            //     }
+            //     HowToControlThis::WithNone(_) => {
+            //         quote! {#name: self.#name.clone()}
+            //     }
+            // }
         };
 
         let for_to_control = {
-            match infer {
-                HowToControlThis::WithType(_, _c) => {
-                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>()}
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
+                    VecDepth::Vec => {
+                        quote! { #name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>() }
+                    }
+                    VecDepth::VecVec => {
+                        quote! {
+                            #name: {
+                                let mut result = Vec::with_capacity(self.#name.len());
+                                for internal_row in &self.name {
+                                    result.push(
+                                        internal_row.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>()
+                                    )
+                                }
+                                result
+                            }
+                        }
+                    }
                 }
-                HowToControlThis::WithRecurse(_, _) => {
-                    quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>()}
-                }
-                HowToControlThis::WithNone(_) => {
-                    quote! {#name: self.#name.clone()}
-                }
+            } else {
+                quote! {#name: self.#name.clone()}
             }
+
+            // match infer {
+            //     HowToControlThis::WithType(_, _c) => {
+            //         quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>()}
+            //     }
+            //     HowToControlThis::WithRecurse(_, _) => {
+            //         quote! {#name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>()}
+            //     }
+            //     HowToControlThis::WithNone(_) => {
+            //         quote! {#name: self.#name.clone()}
+            //     }
+            // }
         };
 
         FieldTokensLivecode {
@@ -441,6 +492,10 @@ impl GenFinal for FieldTokensLivecode {
         let serde = idents.serde(false);
         let name = idents.name();
         let orig_ty = idents.orig_ty();
+
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+        let wrapper = parsed_type_info.wrapper_type();
 
         let (for_struct, _new_ty): (TokenStream2, TokenStream2) = {
             let new_ty = {
@@ -527,51 +582,50 @@ impl GenFinal for FieldTokensLivecode {
 
     fn from_newtype_recurse_struct_vec(idents: StructIdents) -> Self {
         let serde = idents.serde(false);
-        // let name = idents.name();
         let orig_ty = idents.orig_ty();
 
-        let (for_struct, should_o) = {
-            let (new_ty, should_o) = {
-                let (ref_lc_ident, should_o) = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+        let wrapper = parsed_type_info.wrapper_type();
 
-                    match infer {
-                        HowToControlThis::WithType(_, c) => (LivecodeFieldType(c).to_token(), true),
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            // let name = idents.config.new_ident(second_ty_ident.clone());
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            (quote! {#name}, true)
-                        }
-                        HowToControlThis::WithNone(_) => {
-                            // let name = idents.config.new_ident(second_ty_ident.clone());
-                            (quote! {#second_ty_ident}, false)
-                        }
-                        e => panic!("need vec something {:?}", e),
-                    }
-                } else {
-                    panic!("vec missing second type");
-                };
-
-                (quote! {Vec<#ref_lc_ident>}, should_o)
+        let for_struct = {
+            let internal_type = match how_to_control_internal {
+                HowToControlThis::WithType(_, c) => LivecodeFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    let name = Self::new_ident(original_internal_type.clone());
+                    quote! {#name}
+                }
+                HowToControlThis::WithNone(_) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    quote! {#original_internal_type}
+                }
+                e => panic!("need vec something {:?}", e),
             };
-            (quote! {#serde #new_ty}, should_o)
+
+            let new_ty = match wrapper {
+                VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
+                VecDepth::Vec => quote! {Vec<#internal_type>},
+                VecDepth::VecVec => quote! {Vec<Vec<#internal_type>>},
+            };
+            quote! {#serde #new_ty}
         };
         let for_world = {
-            if should_o {
-                quote! {self.0.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => todo!(),
+                    VecDepth::Vec => {
+                        quote! {self.0.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
+                    }
+                    VecDepth::VecVec => unimplemented!(),
+                }
             } else {
                 quote! {self.0.clone()}
             }
         };
 
         let for_to_control = {
-            if should_o {
+            if how_to_control_internal.needs_to_be_evaluated() {
                 quote! {self.0.iter().map(|x| x.to_control()).collect::<Vec<_>>()}
             } else {
                 quote! {self.0.clone()}

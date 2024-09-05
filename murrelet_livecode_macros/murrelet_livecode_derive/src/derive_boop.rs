@@ -421,38 +421,35 @@ impl GenFinal for FieldTokensBoop {
 
         let yaml_name = idents.name().to_string();
 
-        let (for_struct, should_o) = {
-            let (new_ty, should_o) = {
-                let (ref_lc_ident, should_o) = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+        let wrapper = parsed_type_info.wrapper_type();
 
-                    match infer {
-                        HowToControlThis::WithType(_, c) => (BoopFieldType(c).to_token(), true),
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            // check if this is important!!
-                            // let name = idents.config.new_ident(second_ty_ident.clone());
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            (quote! {#name}, true)
-                        }
-                        HowToControlThis::WithNone(_) => (quote! {#second_ty_ident}, false),
-                        e => panic!("need vec something {:?}", e),
-                    }
-                } else {
-                    panic!("vec missing second type");
-                };
-
-                (quote! {Vec<#ref_lc_ident>}, should_o)
+        let for_struct = {
+            let internal_type = match how_to_control_internal {
+                HowToControlThis::WithType(_, c) => BoopFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    let name = Self::new_ident(original_internal_type.clone());
+                    quote! {#name}
+                }
+                HowToControlThis::WithNone(_) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    quote! {#original_internal_type}
+                }
+                e => panic!("need vec something {:?}", e),
             };
-            (quote! {#name: #new_ty}, should_o)
+
+            let new_ty = match wrapper {
+                VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
+                VecDepth::Vec => quote! {Vec<#internal_type>},
+                VecDepth::VecVec => quote! {Vec<Vec<#internal_type>>},
+            };
+            quote! {#name: #new_ty}
         };
+
         let for_world = {
-            if should_o {
+            if how_to_control_internal.needs_to_be_evaluated() {
                 let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
                 quote! {
                     #name: {
@@ -467,12 +464,17 @@ impl GenFinal for FieldTokensBoop {
         };
 
         let for_boop_init = {
-            if should_o {
+            if how_to_control_internal.needs_to_be_evaluated() {
                 let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
-                quote! {
-                    #name: {
-                        murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name)
-                    }
+
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!(),
+                    VecDepth::Vec => quote! {
+                        #name: {
+                            murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name)
+                        }
+                    },
+                    VecDepth::VecVec => unimplemented!(),
                 }
             } else {
                 quote! {#name: target.#name.clone()}
@@ -480,9 +482,13 @@ impl GenFinal for FieldTokensBoop {
         };
 
         let for_boop_weird = {
-            if should_o {
-                quote! {
-                    self.#name.iter().any(|x| x.any_weird_states() )
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!(),
+                    VecDepth::Vec => quote! {
+                        self.#name.iter().any(|x| x.any_weird_states() )
+                    },
+                    VecDepth::VecVec => unimplemented!(),
                 }
             } else {
                 quote! {false}
