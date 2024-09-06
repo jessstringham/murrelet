@@ -40,13 +40,13 @@ impl LazyFieldType {
     ) -> TokenStream2 {
         match self.0 {
             ControlType::F32_2 => {
-                quote! { murrelet_livecode::lazy::eval_lazy_vec2(#ident) }
+                quote! { murrelet_livecode::lazy::eval_lazy_vec2(#ident, ctx) }
             }
             ControlType::F32_3 => {
-                quote! { murrelet_livecode::lazy::eval_lazy_vec3(#ident) }
+                quote! { murrelet_livecode::lazy::eval_lazy_vec3(#ident, ctx) }
             }
             ControlType::Color => {
-                quote! { murrelet_livecode::lazy::eval_lazy_color(#ident) }
+                quote! { murrelet_livecode::lazy::eval_lazy_color(#ident, ctx) }
             }
             ControlType::Bool => quote! {#ident.eval_lazy(ctx)? > 0.0},
             _ => {
@@ -144,7 +144,7 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly, murrelet_livecode_derive::Boop)]
             #vis struct #lc_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::lazy::IsLazy for #lc_ident {
@@ -166,7 +166,7 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly, murrelet_livecode_derive::Boop)]
             #vis struct #lc_ident {
                 #(#for_struct,)*
             }
@@ -191,11 +191,11 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly, murrelet_livecode_derive::Boop)]
             #[allow(non_camel_case_types)]
             #vis enum #new_enum_ident {
                 #[default]
-                Noop,
+                DefaultNoop,
                 #(#for_struct,)*
             }
 
@@ -203,7 +203,7 @@ impl GenFinal for FieldTokensLazy {
                 type Target = #name;
                 fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(match self {
-                        #new_enum_ident::Noop => panic!("fell back to default"), // can i just remove default?
+                        #new_enum_ident::DefaultNoop => panic!("fell back to default"), // can i just remove default?
                         #(#for_world,)*
                     })
                 }
@@ -278,9 +278,10 @@ impl GenFinal for FieldTokensLazy {
     fn from_noop_struct(idents: StructIdents) -> FieldTokensLazy {
         let name = idents.name();
         let new_ty = idents.orig_ty();
+        let back_to_quote = idents.back_to_quote();
 
         let for_struct = {
-            quote! {#name: #new_ty}
+            quote! {#back_to_quote #name: #new_ty}
         };
         let for_world: TokenStream2 = {
             quote! {#name: self.#name.clone()}
@@ -320,8 +321,6 @@ impl GenFinal for FieldTokensLazy {
         let parsed_type_info = ident_from_type(&orig_ty);
         let how_to_control_internal = parsed_type_info.how_to_control_internal();
         let wrapper = parsed_type_info.wrapper_type();
-
-        println!("how_to_control_internal {:?}", how_to_control_internal);
 
         let for_struct = {
             let internal_type = match how_to_control_internal {

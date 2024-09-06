@@ -450,12 +450,27 @@ impl GenFinal for FieldTokensBoop {
 
         let for_world = {
             if how_to_control_internal.needs_to_be_evaluated() {
-                let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
-                quote! {
-                    #name: {
-                        let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &target.#name);
-                        self.#name = new_x; // update the values
-                        vals
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!(),
+                    VecDepth::Vec => {
+                        let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
+                        quote! {
+                            #name: {
+                                let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &target.#name);
+                                self.#name = new_x; // update the values
+                                vals
+                            }
+                        }
+                    }
+                    VecDepth::VecVec => {
+                        let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
+                        quote! {
+                            #name: {
+                                let (new_x, vals) = murrelet_livecode::boop::combine_boop_vec_vecs_for_world(#new_conf, t, &mut self.#name, &target.#name);
+                                self.#name = new_x; // update the values
+                                vals
+                            }
+                        }
                     }
                 }
             } else {
@@ -474,7 +489,17 @@ impl GenFinal for FieldTokensBoop {
                             murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name)
                         }
                     },
-                    VecDepth::VecVec => unimplemented!(),
+                    VecDepth::VecVec => quote! {
+                        #name: {
+                            let mut result = Vec::with_capacity(self.#name.len());
+                            for internal_row in &target.#name {
+                                result.push(
+                                    murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &internal_row)
+                                )
+                            }
+                            result
+                        }
+                    },
                 }
             } else {
                 quote! {#name: target.#name.clone()}
@@ -488,7 +513,16 @@ impl GenFinal for FieldTokensBoop {
                     VecDepth::Vec => quote! {
                         self.#name.iter().any(|x| x.any_weird_states() )
                     },
-                    VecDepth::VecVec => unimplemented!(),
+                    VecDepth::VecVec => quote! {
+                        #name: {
+                            let mut any_weird_states = false;
+                            for internal_row in &self.#name {
+                                any_weird_states &=
+                                    internal_row.iter().any(|x| x.any_weird_states() );
+                            }
+                            result
+                        }
+                    },
                 }
             } else {
                 quote! {false}

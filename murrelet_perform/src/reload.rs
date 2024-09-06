@@ -1,9 +1,9 @@
 #![allow(dead_code)]
-use evalexpr::{HashMapContext, Node};
+use evalexpr::HashMapContext;
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::state::*;
-use murrelet_livecode::types::{LivecodeError, LivecodeResult};
+use murrelet_livecode::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
 
 // todo, maybe only includde this if not wasm?
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -249,7 +249,7 @@ impl LiveCodeUtil {
         &'a self,
         livecode_src: &'a LivecodeSrc,
         timing_conf: &LivecodeTimingConfig,
-        node: &Node,
+        node: &AdditionalContextNode,
     ) -> LivecodeResult<LivecodeWorldState> {
         LivecodeWorldState::new(
             &self.global_funcs,

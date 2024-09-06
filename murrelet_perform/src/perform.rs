@@ -4,13 +4,12 @@ use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
-use murrelet_livecode::types::{LivecodeError, LivecodeResult};
+use murrelet_livecode::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
 use std::{env, fs};
 
 use murrelet_common::run_id;
 use std::path::{Path, PathBuf};
 
-use evalexpr::Node;
 use murrelet_livecode::boop::{BoopConf, BoopFromWorld};
 use murrelet_livecode::livecode::LivecodeFromWorld;
 use murrelet_livecode::livecode::*;
@@ -382,7 +381,7 @@ pub struct AppConfig {
     pub reload_rate: u64, // controls should_redraw, how many frames between redraw. if < 1, always defer to reload
     pub time: AppConfigTiming,
     #[livecode(kind = "none")]
-    pub ctx: Node,
+    pub ctx: AdditionalContextNode,
     #[livecode(serde_default = "default")]
     pub svg: SvgConfig,
     #[livecode(serde_default = "default")]

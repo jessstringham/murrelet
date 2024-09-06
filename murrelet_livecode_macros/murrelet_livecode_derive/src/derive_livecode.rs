@@ -297,7 +297,7 @@ impl GenFinal for FieldTokensLivecode {
     }
 
     fn from_noop_struct(idents: StructIdents) -> FieldTokensLivecode {
-        let serde = idents.serde(false);
+        let serde = idents.serde();
         let name = idents.name();
         let new_ty = idents.orig_ty();
 
@@ -317,7 +317,7 @@ impl GenFinal for FieldTokensLivecode {
     }
 
     fn from_type_struct(idents: StructIdents) -> FieldTokensLivecode {
-        let serde = idents.serde(false).clone();
+        let serde = idents.serde().clone();
         let name = idents.name().clone();
         // let _orig_type = idents.orig_ty().clone();
 
@@ -338,7 +338,7 @@ impl GenFinal for FieldTokensLivecode {
     }
 
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensLivecode {
-        let serde = idents.serde(false);
+        let serde = idents.serde();
         let name = idents.name();
         let orig_ty = idents.orig_ty();
 
@@ -459,7 +459,7 @@ impl GenFinal for FieldTokensLivecode {
     }
 
     fn from_recurse_struct_struct(idents: StructIdents) -> FieldTokensLivecode {
-        let serde = idents.serde(false);
+        let serde = idents.serde();
         let name = idents.name();
         let orig_ty = idents.orig_ty();
 
@@ -489,13 +489,13 @@ impl GenFinal for FieldTokensLivecode {
 
     fn from_recurse_struct_unitcell(idents: StructIdents) -> FieldTokensLivecode {
         // transition from livecode to unitcell
-        let serde = idents.serde(false);
+        let serde = idents.serde();
         let name = idents.name();
         let orig_ty = idents.orig_ty();
 
-        let parsed_type_info = ident_from_type(&orig_ty);
-        let how_to_control_internal = parsed_type_info.how_to_control_internal();
-        let wrapper = parsed_type_info.wrapper_type();
+        // let parsed_type_info = ident_from_type(&orig_ty);
+        // let how_to_control_internal = parsed_type_info.how_to_control_internal();
+        // let wrapper = parsed_type_info.wrapper_type();
 
         let (for_struct, _new_ty): (TokenStream2, TokenStream2) = {
             let new_ty = {
@@ -581,7 +581,7 @@ impl GenFinal for FieldTokensLivecode {
     }
 
     fn from_newtype_recurse_struct_vec(idents: StructIdents) -> Self {
-        let serde = idents.serde(false);
+        let serde = idents.serde();
         let orig_ty = idents.orig_ty();
 
         let parsed_type_info = ident_from_type(&orig_ty);

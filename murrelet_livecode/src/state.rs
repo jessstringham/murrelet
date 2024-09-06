@@ -1,9 +1,9 @@
-use evalexpr::{HashMapContext, Node};
+use evalexpr::HashMapContext;
 use murrelet_common::*;
 
 use crate::{
     expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs},
-    types::{LivecodeError, LivecodeResult},
+    types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,
 };
 
@@ -31,7 +31,7 @@ impl LivecodeWorldState {
         evalexpr_func_ctx: &HashMapContext,
         livecode_src: &LivecodeSrc,
         maybe_time: Option<LiveCodeTimeInstantInfo>,
-        maybe_node: Option<Node>,
+        maybe_node: Option<AdditionalContextNode>,
     ) -> LivecodeResult<HashMapContext> {
         let mut ctx = evalexpr_func_ctx.clone();
 
@@ -45,8 +45,7 @@ impl LivecodeWorldState {
 
         // add the node to the context
         if let Some(node) = maybe_node {
-            node.eval_empty_with_context_mut(&mut ctx)
-                .map_err(|err| LivecodeError::EvalExpr("node eval failed".to_owned(), err))?;
+            node.eval_raw(&mut ctx)?;
         }
 
         Ok(ctx)
@@ -56,7 +55,7 @@ impl LivecodeWorldState {
         evalexpr_func_ctx: &HashMapContext,
         livecode_src: &LivecodeSrc,
         time: LiveCodeTimeInstantInfo,
-        node: Node,
+        node: AdditionalContextNode,
     ) -> LivecodeResult<LivecodeWorldState> {
         let context =
             Self::clone_ctx_and_add_world(evalexpr_func_ctx, livecode_src, Some(time), Some(node))?;

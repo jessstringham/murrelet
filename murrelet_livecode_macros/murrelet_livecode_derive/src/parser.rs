@@ -196,6 +196,10 @@ impl LivecodeFieldReceiver {
                 let src = x.to_string();
                 quote! {src = #src}
             }),
+            self.kind.as_ref().map(|x| {
+                let kind = x.to_string();
+                quote! {kind = #kind}
+            }),
         ]
         .into_iter()
         .flatten()
@@ -234,7 +238,7 @@ impl LivecodeFieldReceiver {
             })
     }
 
-    fn serde_tokens(&self, is_unit_cell: bool) -> TokenStream2 {
+    fn serde_tokens(&self) -> TokenStream2 {
         let how = self.how_to_control_this();
         let maybe_serde = self.parse_serde();
         let default = if let Some(serde) = maybe_serde {
@@ -245,7 +249,7 @@ impl LivecodeFieldReceiver {
                     quote! {#[serde(default="murrelet_livecode::livecode::empty_vec")]}
                 }
                 _ => {
-                    let serde_func = serde.from_control_type(is_unit_cell, how.get_control_type());
+                    let serde_func = serde.from_control_type(how.get_control_type());
                     quote! {#[serde(default=#serde_func)]}
                 }
             }
@@ -331,9 +335,8 @@ impl StructIdents {
         self.data.ty.clone()
     }
 
-    // todo, is_unitcell is ugly..
-    pub(crate) fn serde(&self, is_unitcell: bool) -> TokenStream2 {
-        self.data.serde_tokens(is_unitcell)
+    pub(crate) fn serde(&self) -> TokenStream2 {
+        self.data.serde_tokens()
     }
 
     pub(crate) fn how_to_control_this(&self) -> HowToControlThis {
@@ -479,43 +482,7 @@ enum SerdeDefault {
     DefaultImpl, // use Default
 }
 impl SerdeDefault {
-    fn from_control_type(&self, is_unit_cell: bool, ty: ControlType) -> String {
-        // if is_unit_cell {
-        //     match (ty, self) {
-        //         (ControlType::Bool, SerdeDefault::Zeros) => {
-        //             "murrelet_livecode::unitcells::_auto_default_bool_false_unitcell".to_string()
-        //         }
-        //         (ControlType::Bool, SerdeDefault::Ones) => {
-        //             "murrelet_livecode::unitcells::_auto_default_bool_true_unitcell".to_string()
-        //         }
-        //         (ControlType::F32_2, SerdeDefault::Zeros) => {
-        //             "murrelet_livecode::unitcells::_auto_default_vec2_0_unitcell".to_string()
-        //         }
-        //         (ControlType::F32_2, SerdeDefault::Ones) => {
-        //             "murrelet_livecode::unitcells::_auto_default_vec2_1_unitcell".to_string()
-        //         }
-        //         (ControlType::F32, SerdeDefault::Zeros) => {
-        //             "murrelet_livecode::unitcells::_auto_default_0_unitcell".to_string()
-        //         }
-        //         (ControlType::F32, SerdeDefault::Ones) => {
-        //             "murrelet_livecode::unitcells::_auto_default_1_unitcell".to_string()
-        //         }
-        //         (ControlType::F32_3, SerdeDefault::Zeros) => {
-        //             "murrelet_livecode::unitcells::_auto_default_vec3_0_unitcell".to_string()
-        //         }
-        //         (ControlType::Color, SerdeDefault::Zeros) => {
-        //             "murrelet_livecode::unitcells::_auto_default_color_4_unitcell".to_string()
-        //         }
-        //         _ => {
-        //             todo!(
-        //                 "just need to implement serde default for unit cell {:?}, {:?}",
-        //                 ty,
-        //                 self
-        //             )
-        //         }
-        //     }
-        // } else {
-        // todo, the custom func is being handled in two places...
+    fn from_control_type(&self, ty: ControlType) -> String {
         match (ty, self) {
             (ControlType::F32, SerdeDefault::Zeros) => {
                 "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
@@ -556,7 +523,6 @@ impl SerdeDefault {
             ),
         }
     }
-    // }
 }
 
 #[derive(Debug)]
@@ -570,19 +536,6 @@ pub(crate) struct DataFromType {
     pub(crate) third_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
 }
 impl DataFromType {
-    // pub(crate) fn new(main_type: syn::Ident, second_type: Option<syn::Ident>) -> Self {
-    //     Self {
-    //         main_type,
-    //         second_type,
-    //         third_type,
-    //     }
-    // }
-
-    // // wait i think this is wrong
-    // pub(crate) fn has_second(&self) -> bool {
-    //     self.second_type.is_none()
-    // }
-
     fn new_from_list(types: Vec<syn::Ident>) -> DataFromType {
         assert!(types.len() > 0); // should be by how it's programmed but...
 

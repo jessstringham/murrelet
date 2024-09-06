@@ -192,7 +192,7 @@ pub fn eval_lazy_color(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult
     ))
 }
 
-pub fn eval_vec3(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec3> {
+pub fn eval_lazy_vec3(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec3> {
     Ok(glam::vec3(
         v[0].eval_lazy(ctx)? as f32,
         v[1].eval_lazy(ctx)? as f32,
@@ -200,14 +200,14 @@ pub fn eval_vec3(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam:
     ))
 }
 
-pub fn eval_vec2(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec2> {
+pub fn eval_lazy_vec2(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec2> {
     Ok(glam::vec2(
         v[0].eval_lazy(ctx)? as f32,
         v[1].eval_lazy(ctx)? as f32,
     ))
 }
 
-pub fn eval_f32(
+pub fn eval_lazy_f32(
     v: &LazyNodeF32,
     f32min: Option<f32>,
     f32max: Option<f32>,
