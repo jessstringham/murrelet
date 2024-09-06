@@ -93,9 +93,18 @@ impl GenFinal for FieldTokensNestEdit {
             panic!("multiple fields not supported")
         };
 
+        let t = unnamed.first().unwrap().clone().ty;
+        let parsed_data_type = ident_from_type(&t);
+
         // in this case, don't update the name, that's not supported yet...
-        let for_nestedit = quote! {
-            (_, #name::#variant_ident(e)) => #name::#variant_ident(e.nest_update(mods))
+        let for_nestedit = if parsed_data_type.main_how_to.is_lazy() {
+            quote! {
+                (_, #name::#variant_ident(e)) => #name::#variant_ident(e.clone())
+            }
+        } else {
+            quote! {
+                (_, #name::#variant_ident(e)) => #name::#variant_ident(e.nest_update(mods))
+            }
         };
 
         FieldTokensNestEdit { for_nestedit }

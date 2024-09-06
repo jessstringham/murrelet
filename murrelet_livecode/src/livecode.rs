@@ -13,6 +13,7 @@ use serde::Deserialize;
 use crate::lazy::ControlLazyNodeF32;
 use crate::lazy::LazyNodeF32;
 use crate::state::LivecodeWorldState;
+use crate::types::ControlVecElement;
 use crate::types::LivecodeError;
 use crate::types::LivecodeResult;
 
@@ -140,6 +141,25 @@ pub fn _auto_default_lazy_f32_0() -> ControlF32 {
 }
 pub fn _auto_default_lazy_f32_1() -> ControlF32 {
     ControlF32::Raw(1.0)
+}
+
+// this is to handle the Vec<Lazy> ones, which goes up to length 4 for color
+// and doesn't care if there are too many
+pub fn _auto_default_lazy_f32_vec0() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+    vec![
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+    ]
+}
+pub fn _auto_default_lazy_f32_vec1() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+    vec![
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+    ]
 }
 
 // i don't know if this is a good place to put this...

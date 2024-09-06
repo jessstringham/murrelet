@@ -276,7 +276,16 @@ impl LivecodeFieldReceiver {
                     quote! {#[serde(default="murrelet_livecode::livecode::empty_vec")]}
                 }
                 _ => {
-                    let serde_func = serde.from_control_type(how.get_control_type());
+                    // first check if it's a special thing
+
+                    let serde_func = match &how {
+                        HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                            // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
+                            serde.from_control_type(ControlType::LazyNodeF32, true)
+                        }
+                        _ => serde.from_control_type(how.get_control_type(), false),
+                    };
+
                     quote! {#[serde(default=#serde_func)]}
                 }
             }
@@ -428,6 +437,13 @@ impl HowToControlThis {
         }
     }
 
+    pub(crate) fn is_lazy(&self) -> bool {
+        match self {
+            HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => true,
+            _ => false,
+        }
+    }
+
     pub(crate) fn from_kind(value: &str) -> HowToControlThis {
         match value {
             "none" => HowToControlThis::WithNone(OverrideOrInferred::Override),
@@ -521,48 +537,57 @@ enum SerdeDefault {
     DefaultImpl, // use Default
 }
 impl SerdeDefault {
-    fn from_control_type(&self, ty: ControlType) -> String {
-        match (ty, self) {
-            (ControlType::F32, SerdeDefault::Zeros) => {
+    fn from_control_type(&self, ty: ControlType, is_vec: bool) -> String {
+        match (ty, self, is_vec) {
+            (ControlType::F32, SerdeDefault::Zeros, _) => {
                 "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
             }
-            (ControlType::F32, SerdeDefault::Ones) => {
+            (ControlType::F32, SerdeDefault::Ones, _) => {
                 "murrelet_livecode::livecode::_auto_default_f32_1".to_string()
             }
-            (ControlType::F32, SerdeDefault::CustomFunction(x)) => x.clone(),
-            (ControlType::Bool, SerdeDefault::Zeros) => {
+            (ControlType::F32, SerdeDefault::CustomFunction(x), _) => x.clone(),
+            (ControlType::Bool, SerdeDefault::Zeros, _) => {
                 "murrelet_livecode::livecode::_auto_default_bool_false".to_string()
             }
-            (ControlType::Bool, SerdeDefault::Ones) => {
+            (ControlType::Bool, SerdeDefault::Ones, _) => {
                 "murrelet_livecode::livecode::_auto_default_bool_true".to_string()
             }
-            (ControlType::Bool, SerdeDefault::CustomFunction(x)) => x.clone(),
-            (ControlType::F32_2, SerdeDefault::Zeros) => {
+            (ControlType::Bool, SerdeDefault::CustomFunction(x), _) => x.clone(),
+            (ControlType::F32_2, SerdeDefault::Zeros, _) => {
                 "murrelet_livecode::livecode::_auto_default_vec2_0".to_string()
             }
-            (ControlType::F32_2, SerdeDefault::Ones) => {
+            (ControlType::F32_2, SerdeDefault::Ones, _) => {
                 "murrelet_livecode::livecode::_auto_default_vec2_1".to_string()
             }
-            (ControlType::F32_2, SerdeDefault::CustomFunction(x)) => x.clone(),
-            (ControlType::F32_3, SerdeDefault::CustomFunction(x)) => x.clone(),
+            (ControlType::F32_2, SerdeDefault::CustomFunction(x), _) => x.clone(),
+            (ControlType::F32_3, SerdeDefault::CustomFunction(x), _) => x.clone(),
 
-            (ControlType::Color, SerdeDefault::Zeros) => {
+            (ControlType::Color, SerdeDefault::Zeros, _) => {
                 "murrelet_livecode::livecode::_auto_default_color_0".to_string()
             }
 
-            (ControlType::Color, SerdeDefault::Ones) => {
+            (ControlType::Color, SerdeDefault::Ones, _) => {
                 "murrelet_livecode::livecode::_auto_default_color_1".to_string()
             }
-            (ControlType::Color, SerdeDefault::CustomFunction(x)) => x.clone(),
-            (ControlType::ColorUnclamped, SerdeDefault::CustomFunction(x)) => x.to_string(),
+            (ControlType::Color, SerdeDefault::CustomFunction(x), _) => x.clone(),
+            (ControlType::ColorUnclamped, SerdeDefault::CustomFunction(x), _) => x.to_string(),
 
-            (ControlType::LazyNodeF32, SerdeDefault::Zeros) => {
-                "murrelet_livecode::livecode::_auto_default_lazyf32_0".to_string()
+            (ControlType::LazyNodeF32, SerdeDefault::Zeros, false) => {
+                "murrelet_livecode::livecode::_auto_default_lazy_f32_0".to_string()
             }
-            (ControlType::LazyNodeF32, SerdeDefault::Ones) => {
-                "murrelet_livecode::livecode::_auto_default_lazyf32_1".to_string()
+            (ControlType::LazyNodeF32, SerdeDefault::Ones, false) => {
+                "murrelet_livecode::livecode::_auto_default_lazy_f32_1".to_string()
             }
-            (ControlType::LazyNodeF32, SerdeDefault::CustomFunction(x)) => x.clone(),
+
+            // handle Vec<LazyNodeF32>, which is what we use to represent things like Vec2
+            (ControlType::LazyNodeF32, SerdeDefault::Zeros, true) => {
+                "murrelet_livecode::livecode::_auto_default_lazy_f32_vec0".to_string()
+            }
+            (ControlType::LazyNodeF32, SerdeDefault::Ones, true) => {
+                "murrelet_livecode::livecode::_auto_default_lazy_f32_vec1".to_string()
+            }
+
+            (ControlType::LazyNodeF32, SerdeDefault::CustomFunction(x), _) => x.clone(),
 
             _ => panic!(
                 "serde default not implemented yet, need {:?} {:?}",
@@ -572,7 +597,7 @@ impl SerdeDefault {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct DataFromType {
     pub(crate) main_type: syn::Ident,
     pub(crate) second_type: Option<syn::Ident>,

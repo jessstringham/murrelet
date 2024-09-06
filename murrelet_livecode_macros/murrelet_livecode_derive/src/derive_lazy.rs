@@ -241,10 +241,16 @@ impl GenFinal for FieldTokensLazy {
             panic!("multiple fields not supported")
         };
 
+        let t = unnamed.first().unwrap().clone().ty;
+        let parsed_data_type = ident_from_type(&t);
+
         let for_struct = {
-            let t = unnamed.first().unwrap().clone().ty;
-            let DataFromType { main_type, .. } = ident_from_type(&t);
-            let new_type = update_to_lazy_ident(main_type);
+            let new_type = if parsed_data_type.main_how_to.is_lazy() {
+                parsed_data_type.main_type.clone()
+            } else {
+                update_to_lazy_ident(parsed_data_type.main_type)
+            };
+
             quote! { #variant_ident(#new_type) }
         };
 

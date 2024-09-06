@@ -301,28 +301,45 @@ impl GenFinal for FieldTokensBoop {
         if unnamed.len() != 1 {
             panic!("multiple fields not supported")
         };
+        let t = unnamed.first().unwrap().clone().ty;
+        let parsed_data_type = ident_from_type(&t);
 
-        let new_type = {
-            let t = unnamed.first().unwrap().clone().ty;
-            let DataFromType { main_type, .. } = ident_from_type(&t);
+        let (for_struct, for_world, for_boop_init, for_boop_weird) = if parsed_data_type
+            .main_how_to
+            .is_lazy()
+        {
+            let new_type = parsed_data_type.main_type.clone();
 
-            update_to_boop_ident(main_type)
+            let for_struct = quote! { #variant_ident(#new_type) };
+
+            let for_world = quote! {
+                (#new_enum_ident::#variant_ident(s), #name::#variant_ident(tar)) => {
+                    #name::#variant_ident(tar.clone())
+                }
+            };
+
+            let for_boop_init = quote! { #name::#variant_ident(targ) => () };
+
+            let for_boop_weird = quote! { #new_enum_ident::#variant_ident(s) => false };
+
+            (for_struct, for_world, for_boop_init, for_boop_weird)
+        } else {
+            let new_type = update_to_boop_ident(parsed_data_type.main_type.clone());
+            let for_struct = quote! { #variant_ident(#new_type) };
+
+            let for_world = quote! {
+                (#new_enum_ident::#variant_ident(s), #name::#variant_ident(tar)) => {
+                    #name::#variant_ident(s.boop(&conf.copy_with_new_current_boop(#yaml_name), t, &tar))
+                }
+            };
+
+            let for_boop_init = quote! { #name::#variant_ident(targ) => #new_enum_ident::#variant_ident(#new_type::boop_init_at_time(&conf.copy_with_new_current_boop(#yaml_name), t, &targ)) };
+
+            let for_boop_weird =
+                quote! { #new_enum_ident::#variant_ident(s) => s.any_weird_states() };
+
+            (for_struct, for_world, for_boop_init, for_boop_weird)
         };
-
-        let for_struct = {
-            quote! { #variant_ident(#new_type) }
-        };
-
-        // for world, we check to make sure the new and old are the same or fall back on somethign else
-        let for_world = quote! {
-            (#new_enum_ident::#variant_ident(s), #name::#variant_ident(tar)) => {
-                #name::#variant_ident(s.boop(&conf.copy_with_new_current_boop(#yaml_name), t, &tar))
-            }
-        };
-
-        let for_boop_init = quote! { #name::#variant_ident(targ) => #new_enum_ident::#variant_ident(#new_type::boop_init_at_time(&conf.copy_with_new_current_boop(#yaml_name), t, &targ)) };
-
-        let for_boop_weird = quote! { #new_enum_ident::#variant_ident(s) => s.any_weird_states() };
 
         FieldTokensBoop {
             for_struct,
@@ -727,8 +744,6 @@ impl GenFinal for FieldTokensBoop {
     }
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
-        println!("HI");
-
         Self::from_noop_struct(idents)
     }
 }
