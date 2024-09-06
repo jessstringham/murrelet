@@ -11,29 +11,29 @@ use crate::{
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
-pub enum LazyNodeF32Def {
+pub enum ControlLazyNodeF32 {
     Int(i32),
     Bool(bool),
     Float(f32),
     Expr(Node),
 }
 
-impl LazyNodeF32Def {
+impl ControlLazyNodeF32 {
     pub fn new(n: Node) -> Self {
         Self::Expr(n)
     }
 
     fn result(&self) -> Result<f32, LivecodeError> {
         match self {
-            LazyNodeF32Def::Int(d) => Ok(*d as f32),
-            LazyNodeF32Def::Bool(d) => Ok(if *d { 1.0 } else { -1.0 }),
-            LazyNodeF32Def::Float(d) => Ok(*d),
-            LazyNodeF32Def::Expr(_) => Err(LivecodeError::Raw("result on a expr".to_owned())),
+            ControlLazyNodeF32::Int(d) => Ok(*d as f32),
+            ControlLazyNodeF32::Bool(d) => Ok(if *d { 1.0 } else { -1.0 }),
+            ControlLazyNodeF32::Float(d) => Ok(*d),
+            ControlLazyNodeF32::Expr(_) => Err(LivecodeError::Raw("result on a expr".to_owned())),
         }
     }
 }
 
-impl LivecodeFromWorld<LazyNodeF32> for LazyNodeF32Def {
+impl LivecodeFromWorld<LazyNodeF32> for ControlLazyNodeF32 {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
         Ok(LazyNodeF32::new(self.clone(), w))
     }
@@ -85,7 +85,7 @@ impl LazyNodeF32Inner {
 pub enum LazyNodeF32 {
     Uninitialized,
     Node(LazyNodeF32Inner),
-    NoCtxNode(LazyNodeF32Def),
+    NoCtxNode(ControlLazyNodeF32),
 }
 
 impl Default for LazyNodeF32 {
@@ -95,9 +95,9 @@ impl Default for LazyNodeF32 {
 }
 
 impl LazyNodeF32 {
-    pub fn new(def: LazyNodeF32Def, world: &LivecodeWorldState) -> Self {
+    pub fn new(def: ControlLazyNodeF32, world: &LivecodeWorldState) -> Self {
         match def {
-            LazyNodeF32Def::Expr(n) => Self::Node(LazyNodeF32Inner {
+            ControlLazyNodeF32::Expr(n) => Self::Node(LazyNodeF32Inner {
                 n,
                 world: world.clone_to_lazy(),
             }),

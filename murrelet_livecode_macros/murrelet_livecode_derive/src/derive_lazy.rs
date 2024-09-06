@@ -144,7 +144,7 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly, murrelet_livecode_derive::Boop)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
             #vis struct #lc_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::lazy::IsLazy for #lc_ident {
@@ -166,7 +166,7 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly, murrelet_livecode_derive::Boop)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
             #vis struct #lc_ident {
                 #(#for_struct,)*
             }
@@ -191,7 +191,7 @@ impl GenFinal for FieldTokensLazy {
         let for_world = variants.iter().map(|x| x.for_world.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly, murrelet_livecode_derive::Boop)]
+            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
             #[allow(non_camel_case_types)]
             #vis enum #new_enum_ident {
                 #[default]
@@ -496,5 +496,9 @@ impl GenFinal for FieldTokensLazy {
 
     fn new_ident(name: syn::Ident) -> syn::Ident {
         update_to_lazy_ident(name)
+    }
+
+    fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
+        Self::from_noop_struct(idents)
     }
 }

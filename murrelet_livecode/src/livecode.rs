@@ -10,8 +10,8 @@ use murrelet_common::clamp;
 use murrelet_common::MurreletColor;
 use serde::Deserialize;
 
+use crate::lazy::ControlLazyNodeF32;
 use crate::lazy::LazyNodeF32;
-use crate::lazy::LazyNodeF32Def;
 use crate::state::LivecodeWorldState;
 use crate::types::LivecodeError;
 use crate::types::LivecodeResult;
@@ -129,18 +129,25 @@ impl LivecodeToControl<ControlF32> for u64 {
     }
 }
 
-impl LivecodeToControl<LazyNodeF32Def> for LazyNodeF32 {
-    fn to_control(&self) -> LazyNodeF32Def {
-        LazyNodeF32Def::new(self.n().cloned().unwrap())
+impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
+    fn to_control(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::new(self.n().cloned().unwrap())
     }
 }
 
-// i don't know if this is a good place to put this...
-pub fn _auto_default_f32_0() -> ControlF32 {
+pub fn _auto_default_lazy_f32_0() -> ControlF32 {
     ControlF32::Raw(0.0)
 }
-pub fn _auto_default_f32_1() -> ControlF32 {
+pub fn _auto_default_lazy_f32_1() -> ControlF32 {
     ControlF32::Raw(1.0)
+}
+
+// i don't know if this is a good place to put this...
+pub fn _auto_default_f32_0() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(0.0)
+}
+pub fn _auto_default_f32_1() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(1.0)
 }
 
 pub fn _auto_default_vec2_0() -> [ControlF32; 2] {

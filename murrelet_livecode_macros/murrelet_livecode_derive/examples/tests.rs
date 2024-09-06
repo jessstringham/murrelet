@@ -17,6 +17,11 @@ pub struct SomethingElse {
 }
 
 #[derive(Debug, Clone, Livecode, Default)]
+struct TestThing {
+    lazy: LazySomethingElse,
+}
+
+#[derive(Debug, Clone, Livecode, Default)]
 enum EnumTest {
     #[default]
     A,

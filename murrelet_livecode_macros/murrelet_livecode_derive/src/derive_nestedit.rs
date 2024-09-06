@@ -199,4 +199,18 @@ impl GenFinal for FieldTokensNestEdit {
 
         FieldTokensNestEdit { for_nestedit }
     }
+
+    fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
+        // Self::from_noop_struct(idents)
+
+        let name = idents.name();
+
+        let for_nestedit = {
+            quote! {
+                #name: self.#name.clone()
+            }
+        };
+
+        FieldTokensNestEdit { for_nestedit }
+    }
 }

@@ -725,4 +725,10 @@ impl GenFinal for FieldTokensBoop {
             for_boop_weird,
         }
     }
+
+    fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
+        println!("HI");
+
+        Self::from_noop_struct(idents)
+    }
 }

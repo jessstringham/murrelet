@@ -354,6 +354,11 @@ impl GenFinal for FieldTokensLivecode {
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
+                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    let name = Self::new_ident(original_internal_type.clone());
+                    quote! {#name}
+                }
                 HowToControlThis::WithNone(_) => {
                     let target_type = parsed_type_info.internal_type();
                     quote! {#target_type}
@@ -517,6 +522,12 @@ impl GenFinal for FieldTokensLivecode {
                             quote! {#name}
                         }
 
+                        HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                            let name = update_to_control_ident(second_ty_ident.clone());
+
+                            quote! {#name}
+                        }
+
                         e => panic!("need unitcell something {:?}", e),
                     }
                 } else {
@@ -596,6 +607,11 @@ impl GenFinal for FieldTokensLivecode {
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
                 }
+                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    let name = Self::new_ident(original_internal_type.clone());
+                    quote! {#name}
+                }
                 HowToControlThis::WithNone(_) => {
                     let original_internal_type = parsed_type_info.internal_type();
                     quote! {#original_internal_type}
@@ -637,5 +653,9 @@ impl GenFinal for FieldTokensLivecode {
             for_world,
             for_to_control,
         }
+    }
+
+    fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
+        Self::from_recurse_struct_struct(idents)
     }
 }

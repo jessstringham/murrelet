@@ -30,6 +30,7 @@ where
     fn from_recurse_struct_vec(idents: StructIdents) -> Self;
     fn from_recurse_struct_struct(idents: StructIdents) -> Self;
     fn from_recurse_struct_unitcell(idents: StructIdents) -> Self;
+    fn from_recurse_struct_lazy(idents: StructIdents) -> Self;
 
     fn from_ast(ast_receiver: LivecodeReceiver) -> TokenStream2 {
         match ast_receiver.data {
@@ -74,6 +75,10 @@ where
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
                         Self::from_recurse_struct_struct(idents)
                     }
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                        Self::from_recurse_struct_lazy(idents)
+                    }
+
                     // dealing with UnitCell<something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::UnitCell) => {
                         Self::from_recurse_struct_unitcell(idents)
@@ -200,16 +205,38 @@ impl LivecodeFieldReceiver {
                 let kind = x.to_string();
                 quote! {kind = #kind}
             }),
+            self.serde_default.as_ref().map(|x| {
+                let serde_default = x.to_string();
+                quote! {serde_default = #serde_default}
+            }),
+            self.serde_opts.as_ref().map(|x| {
+                let serde_opts = x.to_string();
+                quote! {serde_opts = #serde_opts}
+            }),
         ]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
 
-        if r.len() > 0 {
+        let a = if r.len() > 0 {
             quote! { #[livecode(#(#r,)*)] }
         } else {
             quote! {}
-        }
+        };
+
+        a
+
+        // let b = if let Some(serde_default) = &self.serde_default {
+        //     quote! {#[serde(default = #serde_default)] #a}
+        // } else {
+        //     a
+        // };
+
+        // if let Some(opts) = &self.serde_opts {
+        //     quote! {#[serde(#opts)] #b}
+        // } else {
+        //     b
+        // }
     }
 
     fn how_to_control_this(&self) -> HowToControlThis {
@@ -366,6 +393,7 @@ pub enum ControlType {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RecursiveControlType {
     Struct,
+    StructLazy, // just a way to stop some features from propogating..
     Vec,
     UnitCell, // special type that builds up an expression context
               // Array,
@@ -429,7 +457,9 @@ impl HowToControlThis {
                 OverrideOrInferred::Override,
                 RecursiveControlType::UnitCell,
             ),
-            _ => panic!("parsing kind, {:?} not none, bool, f32, f32;2, s", value),
+            _ => {
+                panic!("parsing kind, {:?} not none, bool, f32, f32;2, s", value)
+            }
         }
     }
 
@@ -463,10 +493,19 @@ impl HowToControlThis {
                 HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::LazyNodeF32)
             }
             // _ => HowToControlThis::WithNone(OverrideOrInferred::Inferred)
-            _ => HowToControlThis::WithRecurse(
-                OverrideOrInferred::Inferred,
-                RecursiveControlType::Struct,
-            ),
+            _ => {
+                if value.starts_with("Lazy") {
+                    HowToControlThis::WithRecurse(
+                        OverrideOrInferred::Inferred,
+                        RecursiveControlType::StructLazy,
+                    )
+                } else {
+                    HowToControlThis::WithRecurse(
+                        OverrideOrInferred::Inferred,
+                        RecursiveControlType::Struct,
+                    )
+                }
+            }
         }
     }
 }
@@ -488,7 +527,7 @@ impl SerdeDefault {
                 "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
             }
             (ControlType::F32, SerdeDefault::Ones) => {
-                "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
+                "murrelet_livecode::livecode::_auto_default_f32_1".to_string()
             }
             (ControlType::F32, SerdeDefault::CustomFunction(x)) => x.clone(),
             (ControlType::Bool, SerdeDefault::Zeros) => {
@@ -514,9 +553,17 @@ impl SerdeDefault {
             (ControlType::Color, SerdeDefault::Ones) => {
                 "murrelet_livecode::livecode::_auto_default_color_1".to_string()
             }
-
             (ControlType::Color, SerdeDefault::CustomFunction(x)) => x.clone(),
             (ControlType::ColorUnclamped, SerdeDefault::CustomFunction(x)) => x.to_string(),
+
+            (ControlType::LazyNodeF32, SerdeDefault::Zeros) => {
+                "murrelet_livecode::livecode::_auto_default_lazyf32_0".to_string()
+            }
+            (ControlType::LazyNodeF32, SerdeDefault::Ones) => {
+                "murrelet_livecode::livecode::_auto_default_lazyf32_1".to_string()
+            }
+            (ControlType::LazyNodeF32, SerdeDefault::CustomFunction(x)) => x.clone(),
+
             _ => panic!(
                 "serde default not implemented yet, need {:?} {:?}",
                 ty, self
