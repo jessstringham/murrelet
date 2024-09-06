@@ -244,8 +244,9 @@ impl GenFinal for FieldTokensLazy {
         let t = unnamed.first().unwrap().clone().ty;
         let parsed_data_type = ident_from_type(&t);
 
+        let is_lazy = parsed_data_type.main_how_to.is_lazy();
         let for_struct = {
-            let new_type = if parsed_data_type.main_how_to.is_lazy() {
+            let new_type = if is_lazy {
                 parsed_data_type.main_type.clone()
             } else {
                 update_to_lazy_ident(parsed_data_type.main_type)
@@ -255,7 +256,11 @@ impl GenFinal for FieldTokensLazy {
         };
 
         // for world
-        let for_world = quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.eval_lazy(ctx)?) };
+        let for_world = if is_lazy {
+            quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.clone()) }
+        } else {
+            quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.eval_lazy(ctx)?) }
+        };
 
         FieldTokensLazy {
             for_struct,

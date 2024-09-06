@@ -304,23 +304,22 @@ impl GenFinal for FieldTokensBoop {
         let t = unnamed.first().unwrap().clone().ty;
         let parsed_data_type = ident_from_type(&t);
 
-        let (for_struct, for_world, for_boop_init, for_boop_weird) = if parsed_data_type
-            .main_how_to
-            .is_lazy()
-        {
-            let new_type = parsed_data_type.main_type.clone();
+        let is_lazy = parsed_data_type.main_how_to.is_lazy();
 
-            let for_struct = quote! { #variant_ident(#new_type) };
+        let (for_struct, for_world, for_boop_init, for_boop_weird) = if is_lazy {
+            // if it's lazy, we don't support boop on it yet, so just create a placeholder type when it's this variant
+            let for_struct = quote! { #variant_ident };
 
             let for_world = quote! {
-                (#new_enum_ident::#variant_ident(s), #name::#variant_ident(tar)) => {
+                (#new_enum_ident::#variant_ident, #name::#variant_ident(tar)) => {
                     #name::#variant_ident(tar.clone())
                 }
             };
 
-            let for_boop_init = quote! { #name::#variant_ident(targ) => () };
+            let for_boop_init =
+                quote! { #name::#variant_ident(targ) => #new_enum_ident::#variant_ident };
 
-            let for_boop_weird = quote! { #new_enum_ident::#variant_ident(s) => false };
+            let for_boop_weird = quote! { #new_enum_ident::#variant_ident => false };
 
             (for_struct, for_world, for_boop_init, for_boop_weird)
         } else {
