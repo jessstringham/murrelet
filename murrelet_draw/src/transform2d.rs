@@ -151,6 +151,12 @@ impl Default for ControlTransform2d {
     }
 }
 
+impl Default for ControlLazyTransform2d {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 #[derive(Clone, Debug, Livecode, Default)]
 pub struct V2 {
     v: Vec2,

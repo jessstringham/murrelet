@@ -41,7 +41,7 @@ fn nestedit_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensNestEdit::from_ast(rec)
 }
 
-// meh, i usually need all of these, so throw them all in.
+// derives all of the macros I usually need
 #[proc_macro_derive(Livecode, attributes(livecode))]
 pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);

@@ -26,7 +26,7 @@ pub struct CompassDir {
     angle: f32,
     #[livecode(serde_default = "false")]
     is_absolute: bool,
-    #[livecode(serde_default = "empty_string")]
+    #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
     label: String,
 }
 
@@ -36,7 +36,7 @@ pub struct CompassArc {
     arc_length: f32,
     #[livecode(serde_default = "false")]
     is_absolute: bool,
-    #[livecode(serde_default = "empty_string")]
+    #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
     label: String,
 }
 
@@ -47,7 +47,7 @@ pub struct CompassArc {
 #[derive(Debug, Clone, Livecode, Default)]
 pub struct CompassLine {
     length: f32, // how far should we head in the current direction
-    #[livecode(serde_default = "empty_string")]
+    #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
     label: String,
 }
 

@@ -136,16 +136,24 @@ impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
     }
 }
 
-pub fn _auto_default_lazy_f32_0() -> ControlF32 {
-    ControlF32::Raw(0.0)
+pub fn empty_string() -> String {
+    String::new()
 }
-pub fn _auto_default_lazy_f32_1() -> ControlF32 {
-    ControlF32::Raw(1.0)
+
+pub fn empty_string_lazy() -> String {
+    String::new()
+}
+
+pub fn _auto_default_f32_0_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(0.0)
+}
+pub fn _auto_default_f32_1_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(1.0)
 }
 
 // this is to handle the Vec<Lazy> ones, which goes up to length 4 for color
 // and doesn't care if there are too many
-pub fn _auto_default_lazy_f32_vec0() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+pub fn _auto_default_f32_vec0_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
     vec![
         ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
         ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
@@ -153,7 +161,7 @@ pub fn _auto_default_lazy_f32_vec0() -> Vec<ControlVecElement<ControlLazyNodeF32
         ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
     ]
 }
-pub fn _auto_default_lazy_f32_vec1() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+pub fn _auto_default_f32_vec1_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
     vec![
         ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
         ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
@@ -163,11 +171,11 @@ pub fn _auto_default_lazy_f32_vec1() -> Vec<ControlVecElement<ControlLazyNodeF32
 }
 
 // i don't know if this is a good place to put this...
-pub fn _auto_default_f32_0() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(0.0)
+pub fn _auto_default_f32_0() -> ControlF32 {
+    ControlF32::Raw(0.0)
 }
-pub fn _auto_default_f32_1() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(1.0)
+pub fn _auto_default_f32_1() -> ControlF32 {
+    ControlF32::Raw(1.0)
 }
 
 pub fn _auto_default_vec2_0() -> [ControlF32; 2] {
@@ -175,6 +183,19 @@ pub fn _auto_default_vec2_0() -> [ControlF32; 2] {
 }
 pub fn _auto_default_vec2_1() -> [ControlF32; 2] {
     [ControlF32::Raw(1.0), ControlF32::Raw(1.0)]
+}
+
+pub fn _auto_default_vec2_0_lazy() -> [ControlLazyNodeF32; 2] {
+    [
+        ControlLazyNodeF32::Float(0.0),
+        ControlLazyNodeF32::Float(0.0),
+    ]
+}
+pub fn _auto_default_vec2_1_lazy() -> [ControlLazyNodeF32; 2] {
+    [
+        ControlLazyNodeF32::Float(1.0),
+        ControlLazyNodeF32::Float(1.0),
+    ]
 }
 
 pub fn _auto_default_color_0() -> [ControlF32; 4] {

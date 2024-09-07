@@ -109,7 +109,7 @@ impl StyledPathSvgFill {
     }
 }
 
-#[derive(Clone, Debug, Livecode, Default)]
+#[derive(Clone, Debug, Livecode)]
 pub struct MurreletStyleFilledSvg {
     #[livecode(kind = "none")]
     pub pattern_id: String, // reference to canvas

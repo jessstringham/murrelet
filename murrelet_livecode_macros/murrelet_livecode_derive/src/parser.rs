@@ -176,12 +176,21 @@ where
     }
 }
 
+fn lazy_version_of_default_serde(c: &str) -> String {
+    if c.ends_with("_lazy") {
+        c.to_owned() // already good!
+    } else {
+        format!("{}_lazy", c)
+    }
+}
+
 #[derive(Debug, FromField, Clone)]
 #[darling(attributes(livecode))]
 pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
     pub(crate) serde_default: Option<String>, // parsed and passed on to serde
+    pub(crate) lazy_serde_default: Option<String>, // used internally, for lazy things to get converted to livecode lazy correctly
     pub(crate) serde_opts: Option<String>,
     pub(crate) kind: Option<String>, // used of override type
     pub(crate) ctx: Option<String>,
@@ -191,7 +200,7 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) f32max: Option<f32>,
 }
 impl LivecodeFieldReceiver {
-    fn back_to_quote(&self) -> TokenStream2 {
+    fn back_to_quote_for_lazy(&self) -> TokenStream2 {
         let r = vec![
             self.ctx.as_ref().map(|x| {
                 let ctx = x.to_string();
@@ -205,9 +214,10 @@ impl LivecodeFieldReceiver {
                 let kind = x.to_string();
                 quote! {kind = #kind}
             }),
+            // serde default is where it needs to change!
             self.serde_default.as_ref().map(|x| {
                 let serde_default = x.to_string();
-                quote! {serde_default = #serde_default}
+                quote! {lazy_serde_default = #serde_default}
             }),
             self.serde_opts.as_ref().map(|x| {
                 let serde_opts = x.to_string();
@@ -249,44 +259,63 @@ impl LivecodeFieldReceiver {
         }
     }
 
-    fn parse_serde(&self) -> Option<SerdeDefault> {
-        self.serde_default
-            .as_ref()
-            .map(|serde_d| match serde_d.as_ref() {
-                "default" => SerdeDefault::DefaultImpl,
-                "zeros" => SerdeDefault::Zeros,
-                "0" => SerdeDefault::Zeros,
-                "false" => SerdeDefault::Zeros,
-                "ones" => SerdeDefault::Ones,
-                "1" => SerdeDefault::Ones,
-                "true" => SerdeDefault::Ones,
-                "empty" => SerdeDefault::Empty,
-                y => SerdeDefault::CustomFunction(y.to_string()),
-            })
+    fn parse_serde(&self, serde_default: Option<&String>) -> Option<SerdeDefault> {
+        serde_default.map(|serde_d| match serde_d.as_ref() {
+            "default" => SerdeDefault::DefaultImpl,
+            "zeros" => SerdeDefault::Zeros,
+            "0" => SerdeDefault::Zeros,
+            "false" => SerdeDefault::Zeros,
+            "ones" => SerdeDefault::Ones,
+            "1" => SerdeDefault::Ones,
+            "true" => SerdeDefault::Ones,
+            "empty" => SerdeDefault::Empty,
+            y => SerdeDefault::CustomFunction(y.to_string()),
+        })
     }
 
     fn serde_tokens(&self) -> TokenStream2 {
-        let how = self.how_to_control_this();
-        let maybe_serde = self.parse_serde();
+        let is_lazy = self.lazy_serde_default.is_some();
+
+        let maybe_serde = if is_lazy {
+            self.parse_serde(self.lazy_serde_default.as_ref())
+        } else {
+            self.parse_serde(self.serde_default.as_ref())
+        };
+
         let default = if let Some(serde) = maybe_serde {
             match serde {
-                SerdeDefault::CustomFunction(c) => quote! {#[serde(default=#c)]},
+                SerdeDefault::CustomFunction(c) => {
+                    let r = if is_lazy {
+                        lazy_version_of_default_serde(&c)
+                    } else {
+                        c
+                    };
+                    quote! {#[serde(default=#r)]}
+                }
                 SerdeDefault::DefaultImpl => quote! {#[serde(default)]},
                 SerdeDefault::Empty => {
+                    // nace and general
                     quote! {#[serde(default="murrelet_livecode::livecode::empty_vec")]}
                 }
                 _ => {
                     // first check if it's a special thing
+                    let how = self.how_to_control_this();
 
-                    let serde_func = match &how {
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
-                            // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
-                            serde.from_control_type(ControlType::LazyNodeF32, true)
-                        }
-                        _ => serde.from_control_type(how.get_control_type(), false),
-                    };
+                    if is_lazy {
+                        let serde_func = match &how {
+                            HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                                // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
+                                serde.from_control_type(ControlType::LazyNodeF32, true)
+                            }
+                            _ => serde.from_control_type(how.get_control_type(), false),
+                        };
+                        let r = lazy_version_of_default_serde(&serde_func);
 
-                    quote! {#[serde(default=#serde_func)]}
+                        quote! {#[serde(default=#r)]}
+                    } else {
+                        let r = serde.from_control_type(how.get_control_type(), false);
+                        quote! {#[serde(default=#r)]}
+                    }
                 }
             }
         } else {
@@ -384,7 +413,7 @@ impl StructIdents {
     }
 
     pub(crate) fn back_to_quote(&self) -> TokenStream2 {
-        self.data.back_to_quote()
+        self.data.back_to_quote_for_lazy()
     }
 }
 
@@ -573,18 +602,18 @@ impl SerdeDefault {
             (ControlType::ColorUnclamped, SerdeDefault::CustomFunction(x), _) => x.to_string(),
 
             (ControlType::LazyNodeF32, SerdeDefault::Zeros, false) => {
-                "murrelet_livecode::livecode::_auto_default_lazy_f32_0".to_string()
+                "murrelet_livecode::livecode::_auto_default_f32_0_lazy".to_string()
             }
             (ControlType::LazyNodeF32, SerdeDefault::Ones, false) => {
-                "murrelet_livecode::livecode::_auto_default_lazy_f32_1".to_string()
+                "murrelet_livecode::livecode::_auto_default_f32_1_lazy".to_string()
             }
 
             // handle Vec<LazyNodeF32>, which is what we use to represent things like Vec2
             (ControlType::LazyNodeF32, SerdeDefault::Zeros, true) => {
-                "murrelet_livecode::livecode::_auto_default_lazy_f32_vec0".to_string()
+                "murrelet_livecode::livecode::_auto_default_f32_vec0_lazy".to_string()
             }
             (ControlType::LazyNodeF32, SerdeDefault::Ones, true) => {
-                "murrelet_livecode::livecode::_auto_default_lazy_f32_vec1".to_string()
+                "murrelet_livecode::livecode::_auto_default_f32_vec1_lazy".to_string()
             }
 
             (ControlType::LazyNodeF32, SerdeDefault::CustomFunction(x), _) => x.clone(),
