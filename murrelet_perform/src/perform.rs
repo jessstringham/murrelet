@@ -2,7 +2,6 @@
 use glam::{vec3, Mat4, Vec2};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
-use murrelet_draw::newtypes::ControlLazyF32Newtype;
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
 use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
@@ -332,6 +331,16 @@ impl Default for ControlAppConfigBoopConf {
     }
 }
 
+impl Default for ControlLazyAppConfigBoopConf {
+    fn default() -> Self {
+        ControlLazyAppConfigBoopConf {
+            reset: ControlLazyNodeF32::Bool(true),
+            base: ControlLazyAppConfigBoopConfInner::Noop,
+            overrides: vec![],
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode)]
 pub struct SvgConfig {
@@ -345,6 +354,14 @@ impl Default for ControlSvgConfig {
         Self {
             size: _default_svg_size(),
             save: _default_svg_save(),
+        }
+    }
+}
+impl Default for ControlLazySvgConfig {
+    fn default() -> Self {
+        Self {
+            size: _default_svg_size_lazy(),
+            save: _default_svg_save_lazy(),
         }
     }
 }
@@ -403,6 +420,16 @@ impl Default for ControlGpuConfig {
             debug_next: _default_gpu_debug_next(),
             debug: _default_gpu_debug(),
             color_channel: _default_gpu_color_channel(),
+        }
+    }
+}
+
+impl Default for ControlLazyGpuConfig {
+    fn default() -> Self {
+        Self {
+            debug_next: _default_gpu_debug_next_lazy(),
+            debug: _default_gpu_debug_lazy(),
+            color_channel: _default_gpu_color_channel_lazy(),
         }
     }
 }

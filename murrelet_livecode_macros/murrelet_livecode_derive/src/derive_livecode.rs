@@ -498,51 +498,32 @@ impl GenFinal for FieldTokensLivecode {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
 
-        // let parsed_type_info = ident_from_type(&orig_ty);
-        // let how_to_control_internal = parsed_type_info.how_to_control_internal();
-        // let wrapper = parsed_type_info.wrapper_type();
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
 
-        let (for_struct, _new_ty): (TokenStream2, TokenStream2) = {
-            let new_ty = {
-                let ref_lc_ident = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
+        let for_struct = {
+            let new_ty = match how_to_control_internal {
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = update_to_control_ident(internal_type);
 
-                    match infer {
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            // this one has to be unitcell!
-                            // let name = update_to_unitcell_ident(second_ty_ident.clone());
-                            let name = update_to_control_ident(second_ty_ident.clone());
+                    quote! {#name}
+                }
 
-                            quote! {#name}
-                        }
+                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = update_to_control_ident(internal_type);
+                    quote! {#name}
+                }
 
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
-                            let name = update_to_control_ident(second_ty_ident.clone());
-
-                            quote! {#name}
-                        }
-
-                        e => panic!("need unitcell something {:?}", e),
-                    }
-                } else {
-                    panic!("unitcell missing second type")
-                };
-
-                quote! {#ref_lc_ident}
+                e => panic!("need unitcell something {:?}", e),
             };
 
-            (quote! {#serde #name: #new_ty}, new_ty.clone())
+            quote! {#serde #name: #new_ty}
         };
 
         // to convert it, first grab the config it belongs to, and then run the metrics
-        let maybe_target = idents.data.src; //get_field_from_attrs(orig_attrs, "src");
-                                            // should have a value
+        let maybe_target = idents.data.src;
         let target_name = maybe_target.expect("UnitCells missing src!");
         let target = syn::Ident::new(&target_name, name.span());
 
@@ -564,24 +545,39 @@ impl GenFinal for FieldTokensLivecode {
             .unwrap_or(quote! {""});
 
         let for_world = {
-            quote! {#name: {
-                murrelet_livecode::unitcells::TmpUnitCells::new(
-                    self.#target.o(w)?,
-                    Box::new(self.#name.clone()),
-                    #maybe_more_ctx,
-                    #prefix
-                ).o(&w)?
-            }}
+            if how_to_control_internal.is_lazy() {
+                quote! {#name: {
+                    murrelet_livecode::unitcells::TmpUnitCells::new(
+                        self.#target.o(w)?,
+                        Box::new(self.#name.clone()),
+                        #maybe_more_ctx,
+                        #prefix
+                    ).o(&w)? // maybe switch this?
+                }}
+            } else {
+                quote! {#name: {
+                    murrelet_livecode::unitcells::TmpUnitCells::new(
+                        self.#target.o(w)?,
+                        Box::new(self.#name.clone()),
+                        #maybe_more_ctx,
+                        #prefix
+                    ).o(&w)?
+                }}
+            }
         };
 
         let for_to_control = {
-            quote! {#name: {
-                // watch out, this will hardcode every value with the first one
-                // also how can i make sure we never drop to 0 items...
-                // self.#name.iter().next().map(|x| x.node.to_unitcell_input()).unwrap_or(#new_ty::default())
-                // LivecodeToControl
-                self.#name.iter().next().unwrap().node.to_control()
-            }}
+            if how_to_control_internal.is_lazy() {
+                quote! {#name: {
+                    // watch out, this will hardcode every value with the first one
+                    // also how can i make sure we never drop to 0 items...
+                    self.#name.iter().next().unwrap().node.to_control()
+                }}
+            } else {
+                quote! {
+                    #name: self.#name.iter().next().unwrap().node.to_control()
+                }
+            }
         };
 
         FieldTokensLivecode {

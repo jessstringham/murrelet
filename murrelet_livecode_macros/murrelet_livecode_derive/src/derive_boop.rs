@@ -675,30 +675,22 @@ impl GenFinal for FieldTokensBoop {
         let orig_ty = idents.orig_ty();
         let yaml_name = name.to_string();
 
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+
         let for_struct: TokenStream2 = {
-            let new_ty = {
-                let ref_lc_ident = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
+            let new_ty = match how_to_control_internal {
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = update_to_boop_ident(internal_type.clone());
+                    quote! {Vec<#name>}
+                }
 
-                    match infer {
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            let name = update_to_boop_ident(second_ty_ident.clone());
-                            quote! {Vec<#name>}
-                        }
+                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    quote! {()}
+                }
 
-                        e => panic!("need boop something {:?}", e),
-                    }
-                } else {
-                    panic!("boop missing second type")
-                };
-
-                quote! {#ref_lc_ident}
+                e => panic!("need boop something {:?}", e),
             };
 
             quote! {#name: #new_ty}
@@ -707,31 +699,43 @@ impl GenFinal for FieldTokensBoop {
         let for_world = {
             let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
 
-            quote! {
-                #name: {
-                    // // split the target into nodes and sequencer
-                    let (targets, details): (Vec<_>, Vec<_>) = target.#name.iter().map(|x| {(*(x.node).clone(), x.detail.clone()) }).unzip();
-                    let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &targets);
-                    self.#name = new_x; // update the values
-                    vals.into_iter().zip(details.into_iter()).map(|(node, detail)| {
-                        murrelet_livecode::unitcells::UnitCell::new(node, detail)
-                    }).collect()
+            if how_to_control_internal.is_lazy() {
+                quote! {#name: target.#name.clone() }
+            } else {
+                quote! {
+                    #name: {
+                        // // split the target into nodes and sequencer
+                        let (targets, details): (Vec<_>, Vec<_>) = target.#name.iter().map(|x| {(*(x.node).clone(), x.detail.clone()) }).unzip();
+                        let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &targets);
+                        self.#name = new_x; // update the values
+                        vals.into_iter().zip(details.into_iter()).map(|(node, detail)| {
+                            murrelet_livecode::unitcells::UnitCell::new(node, detail)
+                        }).collect()
+                    }
                 }
             }
         };
 
         let for_boop_init = {
-            let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
+            if how_to_control_internal.is_lazy() {
+                quote! {#name: ()}
+            } else {
+                let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
 
-            quote! {
-                #name: {
-                    murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name.iter().map(|x| *(x.node).clone()).collect())
+                quote! {
+                    #name: {
+                        murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name.iter().map(|x| *(x.node).clone()).collect())
+                    }
                 }
             }
         };
 
         let for_boop_weird = {
-            quote! {self.#name.iter().any(|x| x.any_weird_states())}
+            if how_to_control_internal.is_lazy() {
+                quote! {false}
+            } else {
+                quote! {self.#name.iter().any(|x| x.any_weird_states())}
+            }
         };
 
         FieldTokensBoop {

@@ -394,31 +394,26 @@ impl GenFinal for FieldTokensLazy {
     fn from_newtype_recurse_struct_vec(idents: StructIdents) -> Self {
         let orig_ty = idents.orig_ty();
 
-        let for_struct = {
-            let ref_lc_ident = if let DataFromType {
-                second_type: Some(second_ty_ident),
-                ..
-            } = ident_from_type(&orig_ty)
-            {
-                let infer =
-                    HowToControlThis::from_type_str(second_ty_ident.clone().to_string().as_ref());
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
 
-                match infer {
-                    HowToControlThis::WithType(_, c) => LazyFieldType(c).to_token(),
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                        let name = Self::new_ident(second_ty_ident.clone());
-                        quote! {#name}
-                    }
-                    HowToControlThis::WithNone(_) => {
-                        let name = Self::new_ident(second_ty_ident.clone());
-                        quote! {#name}
-                    }
-                    e => panic!("need vec something {:?}", e),
+        let for_struct = {
+            let new_ty = match how_to_control_internal {
+                HowToControlThis::WithType(_, c) => LazyFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = Self::new_ident(internal_type);
+                    quote! {#name}
                 }
-            } else {
-                panic!("vec missing second type");
+                HowToControlThis::WithNone(_) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = Self::new_ident(internal_type);
+                    quote! {#name}
+                }
+                e => panic!("need vec something {:?}", e),
             };
-            quote! {Vec<#ref_lc_ident>}
+
+            quote! {Vec<#new_ty>}
         };
         let for_world = {
             quote! {self.0.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
@@ -435,41 +430,39 @@ impl GenFinal for FieldTokensLazy {
         let orig_ty = idents.orig_ty();
         let back_to_quote = idents.back_to_quote();
 
-        let (for_struct, _new_ty): (TokenStream2, TokenStream2) = {
-            let new_ty = {
-                let ref_lc_ident = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
 
-                    match infer {
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            let name = update_to_lazy_ident(second_ty_ident.clone());
-                            quote! {murrelet_livecode::unitcells::UnitCells<#name>}
-                        }
+        let for_struct = {
+            let new_ty = match how_to_control_internal {
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = update_to_lazy_ident(internal_type);
+                    quote! {murrelet_livecode::unitcells::UnitCells<#name>}
+                }
 
-                        e => panic!("need lazy something {:?}", e),
-                    }
-                } else {
-                    panic!("unitcell missing second type")
-                };
+                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = internal_type;
+                    quote! {murrelet_livecode::unitcells::UnitCells<#name>}
+                }
 
-                quote! {#ref_lc_ident}
+                e => panic!("need lazy something {:?}", e),
             };
 
-            (quote! {#back_to_quote #name: #new_ty}, new_ty.clone())
+            quote! {#back_to_quote #name: #new_ty}
         };
 
         let for_world = {
-            quote! {#name: {
-                let c = self.#name.iter().map(|x|
+            if how_to_control_internal.is_lazy() {
+                quote! {#name: self.#name.clone() }
+            } else {
+                quote! {#name: {
+                    let c = self.#name.iter().map(|x|
                         x.node.eval_lazy(ctx).map(|r| x.to_other_type(r))
                     ).collect::<Result<Vec<_>, _>>()?;
                     murrelet_livecode::unitcells::UnitCells::new(c)
+                }
                 }
             }
         };
