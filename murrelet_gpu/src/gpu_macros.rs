@@ -52,7 +52,7 @@ macro_rules! build_shader {
     // };
 
     // for raw things in the prefix
-    (@parse (def $raw:expr;$($tail:tt)*)) => {
+    (@parse (raw $raw:expr;$($tail:tt)*)) => {
         {
             let rest = build_shader!(@parse ($($tail)*));
             format!("{}\n{}", $raw, rest)
