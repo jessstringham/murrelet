@@ -1,34 +1,67 @@
+use std::collections::HashMap;
+
 use glam::*;
 use murrelet_common::*;
 use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
-pub struct SomethingElse {
+#[derive(Debug, Clone, Livecode, Default)]
+pub struct BasicTypes {
     a_number: f32,
     b_color: MurreletColor,
     c_vec2: Vec2,
+    something: Vec<f32>,
+    list_of_vec2: Vec<Vec2>,
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+fn empty_string() -> String {
+    String::new()
+}
+
+fn empty_string_lazy() -> String {
+    String::new()
+}
+
+#[derive(Debug, Clone, Livecode, Default)]
+pub struct BasicTypesWithDefaults {
+    #[livecode(serde_default = "zeros")]
+    a_number: f32,
+    b_color: MurreletColor,
+    #[livecode(serde_default = "0")]
+    c_vec2: Vec2,
+    something: Vec<f32>,
+    list_of_vec2: Vec<Vec2>,
+    #[livecode(kind = "none", serde_default = "empty_string")]
+    label: String,
+    #[livecode(kind = "none")]
+    b: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Livecode, Default)]
+struct TestLazy {
+    lazy: LazyBasicTypes,
+}
+
+#[derive(Debug, Clone, Livecode, Default)]
 enum EnumTest {
     #[default]
     A,
-    B(SomethingElse),
+    B(TestLazy),
+    C(LazyTestLazy),
 }
 
-#[derive(Debug, Clone, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 struct TestNewType(Vec<EnumTest>);
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Default)]
 struct SequencerTest {
     sequencer: SimpleSquareSequence,
     ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]
     node: UnitCells<TestNewType>,
+    #[livecode(src = "sequencer", ctx = "ctx")]
+    node_two: UnitCells<LazyBasicTypes>,
 }
-
-fn main() {}
 
 fn make_grid(
     x: usize,
@@ -75,7 +108,7 @@ fn make_grid(
         .collect::<Vec<_>>()
 }
 
-#[derive(Clone, Debug, Default, Livecode, UnitCell)]
+#[derive(Clone, Debug, Default, Livecode)]
 pub struct SimpleSquareSequence {
     rows: usize,
     cols: usize,
@@ -86,3 +119,5 @@ impl UnitCellCreator for SimpleSquareSequence {
         make_grid(self.cols, self.rows, vec2(self.size, self.size), false)
     }
 }
+
+fn main() {}

@@ -10,11 +10,12 @@ use murrelet_common::clamp;
 use murrelet_common::MurreletColor;
 use serde::Deserialize;
 
+use crate::lazy::ControlLazyNodeF32;
+use crate::lazy::LazyNodeF32;
 use crate::state::LivecodeWorldState;
-use crate::types::LazyNodeF32;
-use crate::types::LazyNodeF32Def;
+use crate::types::ControlVecElement;
+use crate::types::LivecodeError;
 use crate::types::LivecodeResult;
-use crate::unitcells::{EvaluableUnitCell, UnitCellControlExprBool, UnitCellControlExprF32};
 
 // for default values
 pub fn empty_vec<T>() -> Vec<T> {
@@ -23,6 +24,12 @@ pub fn empty_vec<T>() -> Vec<T> {
 
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
+}
+
+impl LivecodeFromWorld<f32> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
+        self._o(w)
+    }
 }
 
 impl LivecodeFromWorld<Vec2> for [ControlF32; 2] {
@@ -123,10 +130,44 @@ impl LivecodeToControl<ControlF32> for u64 {
     }
 }
 
-impl LivecodeToControl<LazyNodeF32Def> for LazyNodeF32 {
-    fn to_control(&self) -> LazyNodeF32Def {
-        LazyNodeF32Def::new(self.n().cloned().unwrap())
+impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
+    fn to_control(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::new(self.n().cloned().unwrap())
     }
+}
+
+pub fn empty_string() -> String {
+    String::new()
+}
+
+pub fn empty_string_lazy() -> String {
+    String::new()
+}
+
+pub fn _auto_default_f32_0_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(0.0)
+}
+pub fn _auto_default_f32_1_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(1.0)
+}
+
+// this is to handle the Vec<Lazy> ones, which goes up to length 4 for color
+// and doesn't care if there are too many
+pub fn _auto_default_f32_vec0_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+    vec![
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+    ]
+}
+pub fn _auto_default_f32_vec1_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+    vec![
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+    ]
 }
 
 // i don't know if this is a good place to put this...
@@ -142,6 +183,36 @@ pub fn _auto_default_vec2_0() -> [ControlF32; 2] {
 }
 pub fn _auto_default_vec2_1() -> [ControlF32; 2] {
     [ControlF32::Raw(1.0), ControlF32::Raw(1.0)]
+}
+
+pub fn _auto_default_vec2_0_lazy() -> [ControlLazyNodeF32; 2] {
+    [
+        ControlLazyNodeF32::Float(0.0),
+        ControlLazyNodeF32::Float(0.0),
+    ]
+}
+pub fn _auto_default_vec2_1_lazy() -> [ControlLazyNodeF32; 2] {
+    [
+        ControlLazyNodeF32::Float(1.0),
+        ControlLazyNodeF32::Float(1.0),
+    ]
+}
+
+pub fn _auto_default_color_0() -> [ControlF32; 4] {
+    [
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(0.0),
+    ]
+}
+pub fn _auto_default_color_1() -> [ControlF32; 4] {
+    [
+        ControlF32::Raw(1.0),
+        ControlF32::Raw(1.0),
+        ControlF32::Raw(1.0),
+        ControlF32::Raw(1.0),
+    ]
 }
 
 pub fn _auto_default_bool_false() -> ControlBool {
@@ -177,17 +248,33 @@ impl ControlF32 {
         }
     }
 
-    pub fn to_unitcell_control(&self) -> UnitCellControlExprF32 {
+    pub fn _o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
         match self {
-            ControlF32::Int(x) => UnitCellControlExprF32::Int(*x),
-            ControlF32::Bool(x) => UnitCellControlExprF32::Bool(*x),
-            ControlF32::Float(x) => UnitCellControlExprF32::Float(*x),
-            ControlF32::Expr(x) => UnitCellControlExprF32::Expr(x.clone()),
+            ControlF32::Bool(b) => {
+                if *b {
+                    Ok(1.0)
+                } else {
+                    Ok(-1.0)
+                }
+            }
+            ControlF32::Int(i) => Ok(*i as f32),
+            ControlF32::Float(x) => Ok(*x),
+            ControlF32::Expr(e) => match e.eval_float_with_context(w.ctx()).map(|x| x as f32) {
+                Ok(r) => Ok(r),
+                Err(_) => {
+                    let b = e
+                        .eval_boolean_with_context(w.ctx())
+                        .map_err(|err| LivecodeError::EvalExpr(format!("evalexpr err"), err));
+                    Ok(if b? { 1.0 } else { -1.0 })
+                }
+            },
         }
     }
+}
 
-    pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
-        self.to_unitcell_control().eval(&w)
+impl Default for ControlBool {
+    fn default() -> Self {
+        Self::Raw(true)
     }
 }
 
@@ -200,14 +287,14 @@ pub enum ControlBool {
     Expr(Node),
 }
 impl ControlBool {
-    pub fn to_unitcell_control(&self) -> UnitCellControlExprBool {
-        match self {
-            ControlBool::Raw(x) => UnitCellControlExprBool::Bool(*x),
-            ControlBool::Int(x) => UnitCellControlExprBool::Int(*x),
-            ControlBool::Float(x) => UnitCellControlExprBool::Float(*x),
-            ControlBool::Expr(x) => UnitCellControlExprBool::Expr(x.clone()),
-        }
-    }
+    // pub fn to_unitcell_control(&self) -> UnitCellControlExprBool {
+    //     match self {
+    //         ControlBool::Raw(x) => UnitCellControlExprBool::Bool(*x),
+    //         ControlBool::Int(x) => UnitCellControlExprBool::Int(*x),
+    //         ControlBool::Float(x) => UnitCellControlExprBool::Float(*x),
+    //         ControlBool::Expr(x) => UnitCellControlExprBool::Expr(x.clone()),
+    //     }
+    // }
 
     pub fn force_from_str(s: &str) -> ControlBool {
         match build_operator_tree(s) {
@@ -220,7 +307,22 @@ impl ControlBool {
     }
 
     pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<bool> {
-        self.to_unitcell_control().eval(w)
+        // self.to_unitcell_control().eval(w)
+
+        match self {
+            ControlBool::Raw(b) => Ok(*b),
+            ControlBool::Int(i) => Ok(*i > 0),
+            ControlBool::Float(x) => Ok(*x > 0.0),
+            ControlBool::Expr(e) => match e.eval_boolean_with_context(w.ctx()) {
+                Ok(r) => Ok(r),
+                Err(_) => {
+                    let b = e.eval_float_with_context(w.ctx()).map_err(|err| {
+                        LivecodeError::EvalExpr(format!("error evaluing bool"), err)
+                    });
+                    b.map(|x| x > 0.0)
+                }
+            },
+        }
     }
 
     pub fn default(&self) -> bool {

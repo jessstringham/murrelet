@@ -2,6 +2,7 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    fmt,
     rc::Rc,
 };
 
@@ -129,7 +130,7 @@ impl AddSvgAttributes for MurreletStyle {
     fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
         let mut p = p;
         if self.stroke_weight > 0.0 {
-            p = p.set("stroke-width", self.stroke_weight);
+            p = p.set("stroke-width", self.stroke_weight / 10.0);
         }
 
         if self.filled {
@@ -437,7 +438,36 @@ impl SvgLayer {
     }
 }
 
-pub type SvgPathCacheRef = Rc<RefCell<SvgPathCache>>;
+#[derive(Clone)]
+pub struct SvgPathCacheRef(Rc<RefCell<SvgPathCache>>);
+
+impl SvgPathCacheRef {
+    pub fn add_guides(&self) {
+        self.0.borrow_mut().add_guides();
+    }
+
+    pub fn save_doc(&self) {
+        self.0.borrow().save_doc();
+    }
+
+    pub fn clear(&self, layer: &str) {
+        self.0.borrow_mut().clear(layer);
+    }
+
+    pub fn add_styled_path(&self, layer: &str, styled_path: StyledPath) {
+        self.0.borrow_mut().add_styled_path(layer, styled_path)
+    }
+
+    pub fn add_styled_text(&self, layer: &str, text: StyledText) {
+        self.0.borrow_mut().add_styled_text(layer, text)
+    }
+}
+
+impl fmt::Debug for SvgPathCacheRef {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SvgPathCache")
+    }
+}
 
 pub struct SvgPathCache {
     config: SvgDocCreator,
@@ -452,49 +482,64 @@ impl SvgPathCache {
     }
 
     pub fn svg_draw(svg_draw_config: &SvgDrawConfig) -> SvgPathCacheRef {
-        Rc::new(RefCell::new(SvgPathCache::new(svg_draw_config)))
+        SvgPathCacheRef(Rc::new(RefCell::new(SvgPathCache::new(svg_draw_config))))
     }
 
     pub fn add_guides(&mut self) {
         self.config
             .create_guides()
             .into_iter()
-            .for_each(|x| self.add_simple_path_no_transform("guides".to_string(), x))
+            .for_each(|x| self.add_simple_path_no_transform("guides", x))
     }
 
-    pub fn add_simple_path_no_transform(&mut self, layer: String, line: Vec<Vec2>) {
-        let layer = self.layers.entry(layer).or_insert(SvgLayer::new());
+    pub fn add_simple_path_no_transform(&mut self, layer: &str, line: Vec<Vec2>) {
+        let layer = self
+            .layers
+            .entry(layer.to_owned())
+            .or_insert(SvgLayer::new());
         layer.paths.push(StyledPath::from_path(line));
     }
 
-    pub fn add_simple_path(&mut self, layer: String, line: Vec<Vec2>) {
-        let layer = self.layers.entry(layer).or_insert(SvgLayer::new());
+    pub fn add_simple_path(&mut self, layer: &str, line: Vec<Vec2>) {
+        let layer = self
+            .layers
+            .entry(layer.to_owned())
+            .or_insert(SvgLayer::new());
         layer.paths.push(StyledPath::from_path(
             self.config.transform_many_vec2(&line),
         ));
     }
 
-    pub fn add_styled_path(&mut self, layer: String, styled_path: StyledPath) {
-        let layer = self.layers.entry(layer).or_insert(SvgLayer::new());
+    pub fn add_styled_path(&mut self, layer: &str, styled_path: StyledPath) {
+        let layer = self
+            .layers
+            .entry(layer.to_owned())
+            .or_insert(SvgLayer::new());
         layer.paths.push(
             styled_path
                 .transform_with_mat4_after(self.config.svg_draw_config().transform_for_size()),
         );
     }
 
-    pub fn add_styled_text(&mut self, layer: String, text: StyledText) {
-        let layer = self.layers.entry(layer).or_insert(SvgLayer::new());
+    pub fn add_styled_text(&mut self, layer: &str, text: StyledText) {
+        let layer = self
+            .layers
+            .entry(layer.to_owned())
+            .or_insert(SvgLayer::new());
         layer
             .text
             .push(text.transform_with(self.config.svg_draw_config()));
     }
 
-    pub fn clear(&mut self, layer: String) {
-        let layer = self.layers.entry(layer).or_insert(SvgLayer::new());
+    pub fn clear(&mut self, layer: &str) {
+        let layer = self
+            .layers
+            .entry(layer.to_owned())
+            .or_insert(SvgLayer::new());
         layer.clear();
     }
 
-    fn add_closed<P: IsPolyline>(&mut self, layer: String, path: P) {
+    fn add_closed<P: IsPolyline>(&mut self, layer: &str, path: P) {
         self.add_styled_path(
             layer,
             StyledPath {
@@ -505,7 +550,7 @@ impl SvgPathCache {
     }
 
     fn add_closed_default_layer(&mut self, shape: Vec<Vec2>) {
-        self.add_closed("default".to_string(), shape)
+        self.add_closed("default", shape)
     }
 
     pub fn save_doc(&self) {

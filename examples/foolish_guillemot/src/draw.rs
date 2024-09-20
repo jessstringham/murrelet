@@ -30,7 +30,7 @@ impl WebSDrawCtxUnitCell {
         path = path.transform_with_mat4_after(self.sdraw.transform());
 
         self.sdraw.svg_draw.borrow_mut().add_styled_path(
-            "".to_owned(),
+            "",
             StyledPath::new_from_path(path, self.svg_style().clone()),
         );
     }
@@ -89,9 +89,7 @@ impl WebSDrawCtx {
 
         let path = StyledPath::new_from_path(cd, self.svg_style().clone());
 
-        self.svg_draw
-            .borrow_mut()
-            .add_styled_path("".to_owned(), path)
+        self.svg_draw.borrow_mut().add_styled_path("", path)
     }
 
     pub fn make_html(&self) -> Vec<String> {

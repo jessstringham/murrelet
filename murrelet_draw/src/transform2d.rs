@@ -3,19 +3,20 @@ use std::f32::consts::PI;
 
 use glam::*;
 use murrelet_common::{
-    a_pi, mat4_from_mat3_transform, IsAngle, IsPolyline, Polyline, SpotOnCurve, TransformVec2,
+    a_pi, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SpotOnCurve,
+    TransformVec2,
 };
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct Transform2d(Vec<Transform2dStep>);
 impl Transform2d {
     pub fn new(actions: Vec<Transform2dStep>) -> Self {
         Self(actions)
     }
 
-    pub fn prepend_action(&mut self, actions: Vec<Transform2dStep>) {
-        self.0 = vec![actions, self.0.clone()].concat();
+    pub fn prepend_action(&mut self, actions: &[Transform2dStep]) {
+        self.0 = vec![actions.to_vec(), self.0.clone()].concat();
     }
 
     pub fn append_one_action(&mut self, action: Transform2dStep) {
@@ -28,6 +29,10 @@ impl Transform2d {
 
     pub fn append_transform(&mut self, t: &Transform2d) {
         self.append_action(&t.0)
+    }
+
+    pub fn prepend_transform(&mut self, t: &Transform2d) {
+        self.prepend_action(&t.0)
     }
 
     pub fn rotate(angle_pi: f32) -> Transform2d {
@@ -108,6 +113,10 @@ impl Transform2d {
         ])
     }
 
+    pub fn new_translate(s: Vec2) -> Transform2d {
+        Transform2d::new(vec![Transform2dStep::translate_vec(s)])
+    }
+
     // experimental
     pub fn approx_scale(&self) -> f32 {
         let mut scale = 1.0;
@@ -121,11 +130,18 @@ impl Transform2d {
         }
         scale
     }
-}
 
-impl Default for UnitCellTransform2d {
-    fn default() -> Self {
-        Self(Default::default())
+    pub fn approx_rotate(&self) -> AnglePi {
+        let mut rotate = AnglePi::new(0.0);
+        for a in &self.0 {
+            match a {
+                Transform2dStep::Translate(_) => {}
+                Transform2dStep::Rotate(s) => rotate = rotate + s.angle_pi(),
+                Transform2dStep::Scale(_) => {}
+                Transform2dStep::Skew(_) => todo!(),
+            }
+        }
+        rotate
     }
 }
 
@@ -135,7 +151,13 @@ impl Default for ControlTransform2d {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+impl Default for ControlLazyTransform2d {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct V2 {
     v: Vec2,
 }
@@ -146,7 +168,7 @@ impl V2 {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct V22 {
     v0: Vec2,
     v1: Vec2,
@@ -158,7 +180,7 @@ impl V22 {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode, Default)]
 pub struct Rotate2 {
     #[livecode(serde_default = "zeros")]
     center: Vec2,
@@ -172,9 +194,13 @@ impl Rotate2 {
             angle_pi: angle_pi.angle_pi(),
         }
     }
+
+    fn angle_pi(&self) -> AnglePi {
+        AnglePi::new(self.angle_pi)
+    }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell)]
+#[derive(Clone, Debug, Livecode)]
 pub enum Transform2dStep {
     Translate(V2),
     Rotate(Rotate2),

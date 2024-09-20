@@ -3,14 +3,16 @@ use glam::{vec3, Mat4, Vec2};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
+use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
-use murrelet_livecode::types::{LivecodeError, LivecodeResult};
+use murrelet_livecode::types::{
+    AdditionalContextNode, ControlVecElement, LivecodeError, LivecodeResult,
+};
 use std::{env, fs};
 
 use murrelet_common::run_id;
 use std::path::{Path, PathBuf};
 
-use evalexpr::Node;
 use murrelet_livecode::boop::{BoopConf, BoopFromWorld};
 use murrelet_livecode::livecode::LivecodeFromWorld;
 use murrelet_livecode::livecode::*;
@@ -107,24 +109,33 @@ fn _default_seed() -> ControlF32 {
 fn _default_width() -> ControlF32 {
     ControlF32::Raw(400.0)
 }
-fn _default_midi() -> ControlBool {
-    ControlBool::Raw(false)
+
+fn _default_seed_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(42.0)
 }
-fn _default_audio() -> ControlBool {
-    ControlBool::Raw(false)
+fn _default_width_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(400.0)
 }
+
 fn _default_bpm() -> ControlF32 {
     ControlF32::Raw(90.0)
+}
+fn _default_bpm_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(90.0)
 }
 fn _default_fps() -> ControlF32 {
     ControlF32::Raw(30.0)
 }
+fn _default_fps_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(30.0)
+}
 fn _default_beats_per_bar() -> ControlF32 {
     ControlF32::Raw(4.0)
 }
-fn _default_realtime() -> ControlBool {
-    ControlBool::Raw(true)
+fn _default_beats_per_bar_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(4.0)
 }
+
 fn _default_bg_alpha() -> ControlF32 {
     #[cfg(feature = "for_the_web")]
     {
@@ -135,6 +146,11 @@ fn _default_bg_alpha() -> ControlF32 {
         ControlF32::force_from_str("slog(m15, -5.0, 0.0)")
     }
 }
+
+fn _default_bg_alpha_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(1.0)
+}
+
 fn _default_capture_frame() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
@@ -145,6 +161,11 @@ fn _default_capture_frame() -> ControlBool {
         ControlBool::force_from_str("kSf")
     }
 } // usually want to leave this as midi
+
+fn _default_capture_frame_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Bool(false)
+}
+
 fn _default_clear_bg() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
@@ -155,6 +176,11 @@ fn _default_clear_bg() -> ControlBool {
         ControlBool::force_from_str("m12") // todo, make this relax if missing
     }
 } // usually want to leave this as midi
+
+fn _default_clear_bg_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Bool(true)
+}
+
 fn _default_bg_color() -> [ControlF32; 4] {
     [
         ControlF32::Raw(0.0),
@@ -163,11 +189,28 @@ fn _default_bg_color() -> [ControlF32; 4] {
         ControlF32::Raw(1.0),
     ]
 }
+
+fn _default_bg_color_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+    vec![
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+    ]
+}
+
 fn _default_svg_size() -> ControlF32 {
     ControlF32::Raw(100.0)
 }
 fn _default_svg_save() -> ControlBool {
     ControlBool::Raw(false)
+}
+
+fn _default_svg_size_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(100.0)
+}
+fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Bool(false)
 }
 
 // this stuff adjusts how time works, so needs to be split off pretty early
@@ -180,7 +223,7 @@ pub struct AppConfigTiming {
     pub beats_per_bar: f32,
     #[livecode(serde_default = "_default_fps")]
     pub fps: f32,
-    #[livecode(serde_default = "_default_realtime")]
+    #[livecode(serde_default = "true")]
     pub realtime: bool,
 }
 impl AppConfigTiming {
@@ -247,8 +290,17 @@ fn _reset_b() -> ControlBool {
     ControlBool::force_from_str("kBf")
 }
 
+fn _reset_b_lazy() -> ControlLazyNodeF32 {
+    // ControlLazyNodeF32::from_control_bool(false)
+    unimplemented!("no lazy bools yet??")
+}
+
 fn _base_noop_boop_conf() -> ControlAppConfigBoopConfInner {
     ControlAppConfigBoopConfInner::Noop
+}
+
+fn _base_noop_boop_conf_lazy() -> ControlLazyAppConfigBoopConfInner {
+    ControlLazyAppConfigBoopConfInner::Noop
 }
 
 #[derive(Debug, Clone, Livecode)]
@@ -279,6 +331,16 @@ impl Default for ControlAppConfigBoopConf {
     }
 }
 
+impl Default for ControlLazyAppConfigBoopConf {
+    fn default() -> Self {
+        ControlLazyAppConfigBoopConf {
+            reset: ControlLazyNodeF32::Bool(true),
+            base: ControlLazyAppConfigBoopConfInner::Noop,
+            overrides: vec![],
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode)]
 pub struct SvgConfig {
@@ -292,6 +354,14 @@ impl Default for ControlSvgConfig {
         Self {
             size: _default_svg_size(),
             save: _default_svg_save(),
+        }
+    }
+}
+impl Default for ControlLazySvgConfig {
+    fn default() -> Self {
+        Self {
+            size: _default_svg_size_lazy(),
+            save: _default_svg_save_lazy(),
         }
     }
 }
@@ -322,6 +392,18 @@ fn _default_gpu_color_channel() -> ControlF32 {
     ControlF32::Int(0)
 }
 
+fn _default_gpu_debug_next_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Bool(false)
+}
+
+fn _default_gpu_debug_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Bool(false)
+}
+
+fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Int(0)
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode)]
 pub struct GpuConfig {
@@ -342,6 +424,16 @@ impl Default for ControlGpuConfig {
     }
 }
 
+impl Default for ControlLazyGpuConfig {
+    fn default() -> Self {
+        Self {
+            debug_next: _default_gpu_debug_next_lazy(),
+            debug: _default_gpu_debug_lazy(),
+            color_channel: _default_gpu_color_channel_lazy(),
+        }
+    }
+}
+
 fn _default_should_reset() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
@@ -351,6 +443,10 @@ fn _default_should_reset() -> ControlBool {
     {
         ControlBool::force_from_str("kVt")
     }
+}
+
+fn _default_should_reset_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Bool(false)
 }
 
 #[allow(dead_code)]
@@ -382,7 +478,7 @@ pub struct AppConfig {
     pub reload_rate: u64, // controls should_redraw, how many frames between redraw. if < 1, always defer to reload
     pub time: AppConfigTiming,
     #[livecode(kind = "none")]
-    pub ctx: Node,
+    pub ctx: AdditionalContextNode,
     #[livecode(serde_default = "default")]
     pub svg: SvgConfig,
     #[livecode(serde_default = "default")]
@@ -513,6 +609,7 @@ where
     }
 }
 
+// todo, this is all a little weird (svg save path), i should revisit it..
 pub struct LilLiveConfig<'a> {
     save_path: Option<&'a PathBuf>,
     run_id: u64,
@@ -687,9 +784,12 @@ where
     // there's one for filesystems and one for callback..
     // filesystem one (watching folders)
     fn reload_config(&mut self) {
-        if let Some(d) = ControlConfType::fs_load_if_needed_and_update_info(&mut self.util) {
+        let result = ControlConfType::fs_load_if_needed_and_update_info(&mut self.util);
+        if let Ok(Some(d)) = result {
             self.prev_controlconfig = self.controlconfig.clone();
             self.controlconfig = d;
+        } else if let Err(e) = result {
+            eprintln!("e {:?}", e);
         }
     }
 

@@ -57,6 +57,10 @@ impl Polyline {
     pub fn transform_with<T: TransformVec2>(&self, t: &T) -> Self {
         t.transform_many_vec2(self)
     }
+
+    pub fn add_pt_to_end(&mut self, pt: Vec2) {
+        self.v.push(pt)
+    }
 }
 
 // IsPolyline traits

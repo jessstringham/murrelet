@@ -203,7 +203,7 @@ impl IdxInRange2d {
         vec2(self.i.half_step_pct(), self.j.half_step_pct())
     }
 
-    pub fn lerp_idx(&self, x: f32, y: f32) -> Vec<(usize, usize)> {
+    pub fn lerp_idx(&self, x: f32, y: f32) -> [(usize, usize); 4] {
         // helps tell which indexes to use for lerping
         let x_idx = x as usize;
         let y_idx = y as usize;
@@ -224,7 +224,7 @@ impl IdxInRange2d {
             (true, true) => (a, a, a),
         };
 
-        vec![a, b, c, d]
+        [a, b, c, d]
     }
 
     pub fn next_i(&self) -> Option<IdxInRange2d> {

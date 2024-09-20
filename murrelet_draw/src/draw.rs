@@ -4,15 +4,16 @@ use glam::{vec2, Mat4, Vec2, Vec3};
 use itertools::Itertools;
 use murrelet_common::{IsPolyline, MurreletColor, Polyline, TransformVec2};
 use murrelet_livecode::unitcells::UnitCellContext;
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
 
 use crate::{
+    curve_drawer::CurveDrawer,
     newtypes::RGBandANewtype,
     style::{styleconf::*, StyledPathSvgFill},
 };
 
-#[derive(Debug, Clone, Copy, Livecode, UnitCell, Default)]
+#[derive(Debug, Clone, Copy, Livecode, Default)]
 #[livecode(enum_tag = "external")]
 pub enum PixelShape {
     #[default]
@@ -79,6 +80,14 @@ impl MurreletColorStyle {
     }
 }
 
+pub enum MurreletDrawPlan {
+    Shader(StyledPathSvgFill),
+    DebugPoints(PixelShape),
+    FilledClosed,
+    Outline,
+    Line,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MurreletStyle {
     pub points: Option<PixelShape>,
@@ -100,6 +109,22 @@ impl MurreletStyle {
             color: MurreletColorStyle::color(color),
             stroke_weight,
             ..Default::default()
+        }
+    }
+
+    pub fn drawing_plan(&self) -> MurreletDrawPlan {
+        if let Some(pt) = &self.points {
+            MurreletDrawPlan::DebugPoints(*pt)
+        } else if let MurreletColorStyle::SvgFill(s) = self.color {
+            MurreletDrawPlan::Shader(s)
+        } else if self.closed {
+            if self.filled {
+                MurreletDrawPlan::FilledClosed
+            } else {
+                MurreletDrawPlan::Outline
+            }
+        } else {
+            MurreletDrawPlan::Line
         }
     }
 
@@ -171,6 +196,13 @@ impl MurreletStyle {
     pub fn with_open(&self) -> MurreletStyle {
         MurreletStyle {
             closed: false,
+            ..*self
+        }
+    }
+
+    pub fn with_closed(&self) -> MurreletStyle {
+        MurreletStyle {
+            closed: true,
             ..*self
         }
     }

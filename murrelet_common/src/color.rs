@@ -1,11 +1,20 @@
+use std::fmt;
+
 use palette::{
     rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, RgbHue, Srgb, Srgba, WithAlpha,
 };
 
 // hrm, color is confusing, so make a newtype around LinSrgba for all our color stuff
 // i need to double check i'm handling linear/not rgb right
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Copy, Clone, Default)]
 pub struct MurreletColor(LinSrgba);
+
+impl fmt::Debug for MurreletColor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let [h, s, v, a] = self.into_hsva_components();
+        write!(f, "Color {{ h: {}, s: {}, v: {}, a: {} }}", h, s, v, a)
+    }
+}
 
 impl MurreletColor {
     pub fn from_palette_linsrgba(c: LinSrgba) -> Self {

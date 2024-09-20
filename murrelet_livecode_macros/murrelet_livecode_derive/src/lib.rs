@@ -6,17 +6,17 @@
 extern crate proc_macro;
 
 mod derive_boop;
+mod derive_lazy;
 mod derive_livecode;
 mod derive_nestedit;
-mod derive_unitcell;
 mod parser;
 mod toplevel;
 
 use darling::FromDeriveInput;
 use derive_boop::FieldTokensBoop;
+use derive_lazy::FieldTokensLazy;
 use derive_livecode::FieldTokensLivecode;
 use derive_nestedit::FieldTokensNestEdit;
-use derive_unitcell::FieldTokensUnitCell;
 use parser::{GenFinal, LivecodeReceiver};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
@@ -29,8 +29,8 @@ fn livecode_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensLivecode::from_ast(rec)
 }
 
-fn unitcell_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
-    FieldTokensUnitCell::from_ast(rec)
+fn lazy_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
+    FieldTokensLazy::from_ast(rec)
 }
 
 fn boop_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
@@ -41,25 +41,44 @@ fn nestedit_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensNestEdit::from_ast(rec)
 }
 
-// meh, i usually need all of these, so throw them all in.
+// derives all of the macros I usually need
 #[proc_macro_derive(Livecode, attributes(livecode))]
-pub fn murrelet_livecode_derive(input: TokenStream) -> TokenStream {
+pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
 
     let livecode = livecode_parse_ast(ast_receiver.clone());
-    let boop = boop_parse_ast(ast_receiver.clone());
     let nested = nestedit_parse_ast(ast_receiver.clone());
+    let boop = boop_parse_ast(ast_receiver.clone());
+    let lazy = lazy_parse_ast(ast_receiver.clone());
 
     quote!(
         #livecode
-        #boop
         #nested
+        #boop
+        #lazy
     )
     .into()
 }
 
-// eh, these two are useful for things that are UnitCells but not Livecode
+// because I'm using the name "Livecode" to mean alll the things...
+// useful to avoid recursion for things like lazy that need to also generate
+// just the livecode/unitcell deserializer
+#[proc_macro_derive(LivecodeOnly, attributes(livecode))]
+pub fn murrelet_livecode_derive_livecode(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
+
+    livecode_parse_ast(ast_receiver.clone()).into()
+}
+
+#[proc_macro_derive(Lazy, attributes(livecode))]
+pub fn murrelet_livecode_derive_lazy(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
+    lazy_parse_ast(ast_receiver.clone()).into()
+}
+
 #[proc_macro_derive(Boop, attributes(livecode))]
 pub fn murrelet_livecode_derive_boop(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
@@ -72,13 +91,6 @@ pub fn murrelet_livecode_derive_nestedit(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
     nestedit_parse_ast(ast_receiver.clone()).into()
-}
-
-#[proc_macro_derive(UnitCell, attributes(livecode))]
-pub fn murrelet_livecode_derive_unitcell(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as syn::DeriveInput);
-    let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
-    unitcell_parse_ast(ast_receiver.clone()).into()
 }
 
 // todo, this is if we need to load config

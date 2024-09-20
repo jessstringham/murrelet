@@ -1,17 +1,22 @@
 use std::f32::consts::PI;
 
 use glam::*;
-use murrelet_common::{Circle, IsAngle, IsLength};
+use murrelet_common::{Angle, AnglePi, Circle, IsAngle, IsLength};
 use murrelet_livecode_derive::*;
 
-#[derive(Debug, Clone, UnitCell, Default, Livecode)]
+#[derive(Debug, Clone, Default, Livecode)]
 pub struct CurveDrawer {
     segments: Vec<CurveSegment>,
+    closed: bool, // this is mostly used for algorithms that use curve drawers. you'll need to use a style that's closed
 }
 
 impl CurveDrawer {
-    pub fn new(segments: Vec<CurveSegment>) -> Self {
-        Self { segments }
+    pub fn new(segments: Vec<CurveSegment>, closed: bool) -> Self {
+        Self { segments, closed }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.closed
     }
 
     pub fn segments(&self) -> &[CurveSegment] {
@@ -23,18 +28,24 @@ impl CurveDrawer {
     }
 
     pub fn new_simple_arc<A: IsAngle>(loc: Vec2, radius: f32, start: A, end: A) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_arc(loc, radius, start, end)])
+        CurveDrawer::new(
+            vec![CurveSegment::new_simple_arc(loc, radius, start, end)],
+            false,
+        )
     }
 
     pub fn new_simple_sector<A: IsAngle>(loc: Vec2, radius: f32, start: A, end: A) -> Self {
-        CurveDrawer::new(vec![
-            CurveSegment::new_simple_point(loc),
-            CurveSegment::Arc(CurveArc::new(loc, radius, start.angle_pi(), end.angle_pi())),
-        ])
+        CurveDrawer::new(
+            vec![
+                CurveSegment::new_simple_point(loc),
+                CurveSegment::Arc(CurveArc::new(loc, radius, start.angle_pi(), end.angle_pi())),
+            ],
+            true,
+        )
     }
 
     pub fn new_simple_circle(loc: Vec2, radius: f32) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_circle(loc, radius)])
+        CurveDrawer::new(vec![CurveSegment::new_simple_circle(loc, radius)], true)
     }
 
     pub fn new_from_circle(c: &Circle) -> Self {
@@ -42,15 +53,25 @@ impl CurveDrawer {
     }
 
     pub fn new_simple_line(start: Vec2, end: Vec2) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_line(start, end)])
+        CurveDrawer::new(vec![CurveSegment::new_simple_line(start, end)], false)
     }
 
-    pub fn new_simple_points(vs: Vec<Vec2>) -> Self {
-        CurveDrawer::new(vec![CurveSegment::new_simple_points(vs)])
+    pub fn new_simple_points(vs: Vec<Vec2>, closed: bool) -> Self {
+        CurveDrawer::new(vec![CurveSegment::new_simple_points(vs)], closed)
+    }
+
+    pub fn as_closed(&self) -> Self {
+        let mut new = self.clone();
+        new.closed = true;
+        new
+    }
+
+    pub fn noop() -> Self {
+        Self::new(vec![], false)
     }
 }
 
-#[derive(Debug, Clone, UnitCell, Livecode)]
+#[derive(Debug, Clone, Livecode)]
 pub enum CurveSegment {
     Arc(CurveArc),
     Points(CurvePoints),
@@ -109,7 +130,7 @@ impl CurveSegment {
     }
 }
 
-#[derive(Debug, Clone, UnitCell, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CurveArc {
     #[livecode(serde_default = "zeros")]
     pub loc: Vec2, // center of circle
@@ -124,6 +145,21 @@ impl CurveArc {
             radius,
             start_pi,
             end_pi,
+        }
+    }
+
+    pub fn is_in_arc(&self, angle: AnglePi) -> bool {
+        if (self.end_pi - self.start_pi).abs() >= 2.0 {
+            true
+        } else {
+            // eh, try to align it
+            let angle_pi = angle.angle_pi();
+
+            if self.is_ccw() {
+                angle_pi <= self.end_pi && angle_pi >= self.start_pi
+            } else {
+                angle_pi <= self.start_pi && angle_pi >= self.end_pi
+            }
         }
     }
 
@@ -147,9 +183,34 @@ impl CurveArc {
         let (loc_sin, loc_cos) = curr_angle.sin_cos();
         vec2(loc_cos, loc_sin) * self.radius + self.loc
     }
+
+    // angle tangent to the end point
+    pub fn end_tangent_angle(&self) -> Angle {
+        if self.is_ccw() {
+            self.end_angle().perp_to_left()
+        } else {
+            self.end_angle().perp_to_right()
+        }
+    }
+
+    fn end_angle(&self) -> Angle {
+        AnglePi::new(self.end_pi).into()
+    }
+
+    fn start_angle(&self) -> Angle {
+        AnglePi::new(self.start_pi).into()
+    }
+
+    pub fn start_tangent_angle(&self) -> Angle {
+        if self.is_ccw() {
+            self.start_angle().perp_to_left()
+        } else {
+            self.start_angle().perp_to_right()
+        }
+    }
 }
 
-#[derive(Debug, Clone, UnitCell, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Default)]
 pub struct CurvePoints {
     pub points: Vec<Vec2>,
 }

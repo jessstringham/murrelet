@@ -159,6 +159,32 @@ pub fn combine_boop_vecs_for_world<Src: BoopFromWorld<Target> + Clone, Target: C
         .unzip()
 }
 
+pub fn combine_boop_vec_vecs_for_world<Src: BoopFromWorld<Target> + Clone, Target: Clone>(
+    conf: &BoopConf,
+    t: f32,
+    src: &mut Vec<Vec<Src>>,
+    target: &Vec<Vec<Target>>,
+) -> (Vec<Vec<Src>>, Vec<Vec<Target>>) {
+    let orig_internal_size = target[0].len();
+
+    let mut flat_src = src
+        .iter_mut()
+        .flat_map(|inner_vec| inner_vec.drain(..))
+        .collect();
+    let flat_target = target.into_iter().cloned().flatten().collect_vec();
+
+    let (new_src, new_target) = combine_boop_vecs_for_world(conf, t, &mut flat_src, &flat_target);
+
+    (
+        reshape_to_x_wide(&new_src, orig_internal_size),
+        reshape_to_x_wide(&new_target, orig_internal_size),
+    )
+}
+
+fn reshape_to_x_wide<Target: Clone>(v: &Vec<Target>, dim: usize) -> Vec<Vec<Target>> {
+    v.chunks(dim).map(|chunk| chunk.to_vec()).collect()
+}
+
 pub fn combine_boop_vecs_for_init<Src: BoopFromWorld<Target> + Clone, Target: Clone>(
     conf: &BoopConf,
     t: f32,

@@ -3,9 +3,9 @@
 // needing to create a new type.
 use glam::{Vec2, Vec3};
 use murrelet_common::MurreletColor;
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct F32Newtype {
     v: f32,
 }
@@ -16,7 +16,7 @@ impl F32Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct Vec2Newtype {
     v: Vec2,
 }
@@ -31,7 +31,7 @@ impl Vec2Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct Vec3Newtype {
     v: Vec3,
 }
@@ -46,7 +46,7 @@ impl Vec3Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct RGBandANewtype {
     rgb: Vec3,
     a: f32,

@@ -459,7 +459,6 @@ impl Graphics {
     pub fn update_uniforms_other(
         &mut self,
         c: &GraphicsWindowConf,
-
         more_info: [f32; 4],
         more_info_other: [f32; 4],
     ) {
@@ -504,7 +503,8 @@ impl Graphics {
             format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_DST,
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::COPY_SRC,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,

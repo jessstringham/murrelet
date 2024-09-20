@@ -18,7 +18,7 @@ impl BoopFieldType {
             ControlType::Color => quote! {murrelet_livecode::boop::BoopStateHsva},
 
             // nothing fancy here yet either..
-            ControlType::LazyNodeF32 => quote! {murrelet_livecode::types::LazyNodeF32},
+            ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::LazyNodeF32},
 
             // ControlType::LinSrgbaUnclamped => quote!{[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::Bool => quote! {bool}, // nothing fancy here yet
@@ -301,28 +301,44 @@ impl GenFinal for FieldTokensBoop {
         if unnamed.len() != 1 {
             panic!("multiple fields not supported")
         };
+        let t = unnamed.first().unwrap().clone().ty;
+        let parsed_data_type = ident_from_type(&t);
 
-        let new_type = {
-            let t = unnamed.first().unwrap().clone().ty;
-            let DataFromType { main_type, .. } = ident_from_type(&t);
+        let is_lazy = parsed_data_type.main_how_to.is_lazy();
 
-            update_to_boop_ident(main_type)
+        let (for_struct, for_world, for_boop_init, for_boop_weird) = if is_lazy {
+            // if it's lazy, we don't support boop on it yet, so just create a placeholder type when it's this variant
+            let for_struct = quote! { #variant_ident };
+
+            let for_world = quote! {
+                (#new_enum_ident::#variant_ident, #name::#variant_ident(tar)) => {
+                    #name::#variant_ident(tar.clone())
+                }
+            };
+
+            let for_boop_init =
+                quote! { #name::#variant_ident(targ) => #new_enum_ident::#variant_ident };
+
+            let for_boop_weird = quote! { #new_enum_ident::#variant_ident => false };
+
+            (for_struct, for_world, for_boop_init, for_boop_weird)
+        } else {
+            let new_type = update_to_boop_ident(parsed_data_type.main_type.clone());
+            let for_struct = quote! { #variant_ident(#new_type) };
+
+            let for_world = quote! {
+                (#new_enum_ident::#variant_ident(s), #name::#variant_ident(tar)) => {
+                    #name::#variant_ident(s.boop(&conf.copy_with_new_current_boop(#yaml_name), t, &tar))
+                }
+            };
+
+            let for_boop_init = quote! { #name::#variant_ident(targ) => #new_enum_ident::#variant_ident(#new_type::boop_init_at_time(&conf.copy_with_new_current_boop(#yaml_name), t, &targ)) };
+
+            let for_boop_weird =
+                quote! { #new_enum_ident::#variant_ident(s) => s.any_weird_states() };
+
+            (for_struct, for_world, for_boop_init, for_boop_weird)
         };
-
-        let for_struct = {
-            quote! { #variant_ident(#new_type) }
-        };
-
-        // for world, we check to make sure the new and old are the same or fall back on somethign else
-        let for_world = quote! {
-            (#new_enum_ident::#variant_ident(s), #name::#variant_ident(tar)) => {
-                #name::#variant_ident(s.boop(&conf.copy_with_new_current_boop(#yaml_name), t, &tar))
-            }
-        };
-
-        let for_boop_init = quote! { #name::#variant_ident(targ) => #new_enum_ident::#variant_ident(#new_type::boop_init_at_time(&conf.copy_with_new_current_boop(#yaml_name), t, &targ)) };
-
-        let for_boop_weird = quote! { #new_enum_ident::#variant_ident(s) => s.any_weird_states() };
 
         FieldTokensBoop {
             for_struct,
@@ -421,44 +437,56 @@ impl GenFinal for FieldTokensBoop {
 
         let yaml_name = idents.name().to_string();
 
-        let (for_struct, should_o) = {
-            let (new_ty, should_o) = {
-                let (ref_lc_ident, should_o) = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+        let wrapper = parsed_type_info.wrapper_type();
 
-                    match infer {
-                        HowToControlThis::WithType(_, c) => (BoopFieldType(c).to_token(), true),
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            // check if this is important!!
-                            // let name = idents.config.new_ident(second_ty_ident.clone());
-                            let name = Self::new_ident(second_ty_ident.clone());
-                            (quote! {#name}, true)
-                        }
-                        HowToControlThis::WithNone(_) => (quote! {#second_ty_ident}, false),
-                        e => panic!("need vec something {:?}", e),
-                    }
-                } else {
-                    panic!("vec missing second type");
-                };
-
-                (quote! {Vec<#ref_lc_ident>}, should_o)
+        let for_struct = {
+            let internal_type = match how_to_control_internal {
+                HowToControlThis::WithType(_, c) => BoopFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    let name = Self::new_ident(original_internal_type.clone());
+                    quote! {#name}
+                }
+                HowToControlThis::WithNone(_) => {
+                    let original_internal_type = parsed_type_info.internal_type();
+                    quote! {#original_internal_type}
+                }
+                e => panic!("need vec something {:?}", e),
             };
-            (quote! {#name: #new_ty}, should_o)
+
+            let new_ty = match wrapper {
+                VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
+                VecDepth::Vec => quote! {Vec<#internal_type>},
+                VecDepth::VecVec => quote! {Vec<Vec<#internal_type>>},
+            };
+            quote! {#name: #new_ty}
         };
+
         let for_world = {
-            if should_o {
-                let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
-                quote! {
-                    #name: {
-                        let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &target.#name);
-                        self.#name = new_x; // update the values
-                        vals
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!(),
+                    VecDepth::Vec => {
+                        let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
+                        quote! {
+                            #name: {
+                                let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &target.#name);
+                                self.#name = new_x; // update the values
+                                vals
+                            }
+                        }
+                    }
+                    VecDepth::VecVec => {
+                        let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
+                        quote! {
+                            #name: {
+                                let (new_x, vals) = murrelet_livecode::boop::combine_boop_vec_vecs_for_world(#new_conf, t, &mut self.#name, &target.#name);
+                                self.#name = new_x; // update the values
+                                vals
+                            }
+                        }
                     }
                 }
             } else {
@@ -467,12 +495,27 @@ impl GenFinal for FieldTokensBoop {
         };
 
         let for_boop_init = {
-            if should_o {
+            if how_to_control_internal.needs_to_be_evaluated() {
                 let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
-                quote! {
-                    #name: {
-                        murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name)
-                    }
+
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!(),
+                    VecDepth::Vec => quote! {
+                        #name: {
+                            murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name)
+                        }
+                    },
+                    VecDepth::VecVec => quote! {
+                        #name: {
+                            let mut result = Vec::with_capacity(self.#name.len());
+                            for internal_row in &target.#name {
+                                result.push(
+                                    murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &internal_row)
+                                )
+                            }
+                            result
+                        }
+                    },
                 }
             } else {
                 quote! {#name: target.#name.clone()}
@@ -480,9 +523,22 @@ impl GenFinal for FieldTokensBoop {
         };
 
         let for_boop_weird = {
-            if should_o {
-                quote! {
-                    self.#name.iter().any(|x| x.any_weird_states() )
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!(),
+                    VecDepth::Vec => quote! {
+                        self.#name.iter().any(|x| x.any_weird_states() )
+                    },
+                    VecDepth::VecVec => quote! {
+                        #name: {
+                            let mut any_weird_states = false;
+                            for internal_row in &self.#name {
+                                any_weird_states &=
+                                    internal_row.iter().any(|x| x.any_weird_states() );
+                            }
+                            result
+                        }
+                    },
                 }
             } else {
                 quote! {false}
@@ -619,30 +675,22 @@ impl GenFinal for FieldTokensBoop {
         let orig_ty = idents.orig_ty();
         let yaml_name = name.to_string();
 
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let how_to_control_internal = parsed_type_info.how_to_control_internal();
+
         let for_struct: TokenStream2 = {
-            let new_ty = {
-                let ref_lc_ident = if let DataFromType {
-                    second_type: Some(second_ty_ident),
-                    ..
-                } = ident_from_type(&orig_ty)
-                {
-                    let infer = HowToControlThis::from_type_str(
-                        second_ty_ident.clone().to_string().as_ref(),
-                    );
+            let new_ty = match how_to_control_internal {
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    let name = update_to_boop_ident(internal_type.clone());
+                    quote! {Vec<#name>}
+                }
 
-                    match infer {
-                        HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                            let name = update_to_boop_ident(second_ty_ident.clone());
-                            quote! {Vec<#name>}
-                        }
+                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    quote! {()}
+                }
 
-                        e => panic!("need boop something {:?}", e),
-                    }
-                } else {
-                    panic!("boop missing second type")
-                };
-
-                quote! {#ref_lc_ident}
+                e => panic!("need boop something {:?}", e),
             };
 
             quote! {#name: #new_ty}
@@ -651,31 +699,43 @@ impl GenFinal for FieldTokensBoop {
         let for_world = {
             let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
 
-            quote! {
-                #name: {
-                    // // split the target into nodes and sequencer
-                    let (targets, details): (Vec<_>, Vec<_>) = target.#name.iter().map(|x| {(*(x.node).clone(), x.detail.clone()) }).unzip();
-                    let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &targets);
-                    self.#name = new_x; // update the values
-                    vals.into_iter().zip(details.into_iter()).map(|(node, detail)| {
-                        murrelet_livecode::unitcells::UnitCell::new(node, detail)
-                    }).collect()
+            if how_to_control_internal.is_lazy() {
+                quote! {#name: target.#name.clone() }
+            } else {
+                quote! {
+                    #name: {
+                        // // split the target into nodes and sequencer
+                        let (targets, details): (Vec<_>, Vec<_>) = target.#name.iter().map(|x| {(*(x.node).clone(), x.detail.clone()) }).unzip();
+                        let (new_x, vals) = murrelet_livecode::boop::combine_boop_vecs_for_world(#new_conf, t, &mut self.#name, &targets);
+                        self.#name = new_x; // update the values
+                        vals.into_iter().zip(details.into_iter()).map(|(node, detail)| {
+                            murrelet_livecode::unitcells::UnitCell::new(node, detail)
+                        }).collect()
+                    }
                 }
             }
         };
 
         let for_boop_init = {
-            let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
+            if how_to_control_internal.is_lazy() {
+                quote! {#name: ()}
+            } else {
+                let new_conf = quote! {&conf.copy_with_new_current_boop(#yaml_name)};
 
-            quote! {
-                #name: {
-                    murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name.iter().map(|x| *(x.node).clone()).collect())
+                quote! {
+                    #name: {
+                        murrelet_livecode::boop::combine_boop_vecs_for_init(#new_conf, t, &target.#name.iter().map(|x| *(x.node).clone()).collect())
+                    }
                 }
             }
         };
 
         let for_boop_weird = {
-            quote! {self.#name.iter().any(|x| x.any_weird_states())}
+            if how_to_control_internal.is_lazy() {
+                quote! {false}
+            } else {
+                quote! {self.#name.iter().any(|x| x.any_weird_states())}
+            }
         };
 
         FieldTokensBoop {
@@ -684,5 +744,9 @@ impl GenFinal for FieldTokensBoop {
             for_boop_init,
             for_boop_weird,
         }
+    }
+
+    fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
+        Self::from_noop_struct(idents)
     }
 }

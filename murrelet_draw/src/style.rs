@@ -3,9 +3,9 @@ use crate::{curve_drawer::CurveDrawer, draw::*, transform2d::*};
 use glam::*;
 use md5::{Digest, Md5};
 use murrelet_common::*;
-use murrelet_livecode_derive::{Livecode, UnitCell};
+use murrelet_livecode_derive::Livecode;
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleFilled {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
@@ -36,7 +36,44 @@ pub fn fixed_pt_f32_to_str(x: f32) -> String {
     FixedPointF32::new(x).to_str()
 }
 
+fn find_center_and_size<F: IsPolyline>(points: &F) -> (Vec2, f32, f32) {
+    let mut p = points.into_iter_vec2();
+    // hmmm
+    let s = points
+        .into_iter_vec2()
+        .fold(Vec2::ZERO, |acc, vec| acc + vec);
+    let center = s / p.len() as f32;
+    let size = points
+        .into_iter_vec2()
+        .map(|x| x.distance(center))
+        .max_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap_or(0.01);
+    let first_loc = p.next().unwrap();
+    let first_point = first_loc - center;
+    let angle = f32::atan2(first_point.y, first_point.x);
+
+    (center, size, angle)
+}
+
 impl StyledPathSvgFill {
+    // for nannou
+    pub fn to_points_textured<F: IsPolyline>(&self, raw_points: &F) -> Vec<(Vec2, Vec2)> {
+        // so using this to center it
+        let (center, size, angle) = find_center_and_size(raw_points);
+        let transform = self.transform * mat4_from_mat3_transform(Mat3::from_angle(-angle));
+        let points = raw_points
+            .into_iter_vec2()
+            .map(|x| {
+                let y = (x - center) / size;
+                let z = transform.transform_vec2(y);
+                (x, z)
+            })
+            .collect::<Vec<_>>();
+
+        points
+    }
+
+    // for svg
     pub fn hash(&self) -> String {
         let mut hasher = Md5::new();
         hasher.update(self.src.as_str());
@@ -72,7 +109,7 @@ impl StyledPathSvgFill {
     }
 }
 
-#[derive(Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Clone, Debug, Livecode)]
 pub struct MurreletStyleFilledSvg {
     #[livecode(kind = "none")]
     pub pattern_id: String, // reference to canvas
@@ -109,7 +146,7 @@ impl MurreletStyleFilledSvg {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleRGBAFill {
     pub rgb: Vec3, // red and green, can be negative
     #[livecode(serde_default = "ones")]
@@ -129,7 +166,7 @@ impl MurreletStyleRGBAFill {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleRGBALine {
     pub rgb: Vec3, // red and green, can be negative
     #[livecode(serde_default = "ones")]
@@ -149,7 +186,7 @@ impl MurreletStyleRGBALine {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleDAFill {
     pub rgb: Vec3, // red and green, can be negative
     #[livecode(serde_default = "zeros")]
@@ -169,7 +206,7 @@ impl MurreletStyleDAFill {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleOutlined {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
@@ -211,7 +248,7 @@ impl MurreletStyleOutlined {
     // }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStylePoints {
     pub color: MurreletColor, // fill color
     pub shape: PixelShape,
@@ -238,7 +275,7 @@ impl MurreletStylePoints {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleRGBAPoints {
     pub rgb: Vec3, // fill color
     pub a: f32,
@@ -262,7 +299,7 @@ impl MurreletStyleRGBAPoints {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, UnitCell, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleLined {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
@@ -283,12 +320,12 @@ impl MurreletStyleLined {
 // type DrawingThing<'a, T> = Drawing<'a, T>;
 
 pub mod styleconf {
-    use murrelet_livecode_derive::{Livecode, UnitCell};
+    use murrelet_livecode_derive::Livecode;
 
     use super::*;
 
     // use this one, so you can get the shortcuts
-    #[derive(Clone, Debug, Livecode, UnitCell)]
+    #[derive(Clone, Debug, Livecode)]
     pub enum StyleConf {
         // Verbose(MurreletStyle),
         SvgPattern(MurreletStyleFilledSvg),
@@ -388,7 +425,7 @@ impl MurreletPath {
     pub fn as_curve(&self) -> MurreletCurve {
         match self {
             MurreletPath::Polyline(c) => MurreletCurve {
-                cd: CurveDrawer::new_simple_points(c.clone_to_vec()),
+                cd: CurveDrawer::new_simple_points(c.clone_to_vec(), false),
                 t: Mat4::IDENTITY,
             },
             MurreletPath::Curve(c) => c.clone(),

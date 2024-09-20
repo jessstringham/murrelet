@@ -180,4 +180,9 @@ impl BoundMetric {
     pub fn x_max(&self) -> f32 {
         self.x_bound.right
     }
+
+    pub fn update_with_other(&mut self, other: &BoundMetric) {
+        self.add_point(other.lower_left());
+        self.add_point(other.upper_right());
+    }
 }

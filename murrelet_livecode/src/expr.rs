@@ -4,7 +4,7 @@ use std::{f64::consts::PI, fmt::Debug};
 use evalexpr::*;
 use glam::{vec2, Vec2};
 use itertools::Itertools;
-use murrelet_common::{clamp, ease, lerp, map_range, print_expect, smoothstep, LivecodeValue};
+use murrelet_common::{clamp, ease, lerp, map_range, smoothstep, IdxInRange, LivecodeValue};
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
@@ -18,11 +18,31 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         "ROOT3" => Value::Float(3.0_f64.sqrt()),
 
         // functions
-        "printf" => Function::new(move |argument| {
-            let a = argument.as_float()?;
-            println!("{:?}", a);
+        "print" => Function::new(move |argument| {
+            if let Ok(a) = argument.as_float() {
+                println!("{:?} (float)", a);
+            } else {
+                let a = argument.as_int()?;
+                println!("{:?} (int)", a);
+            }
             Ok(Value::Empty)
         }),
+        "manymod" => Function::new(move |argument| {
+            let a = argument.as_tuple()?;
+
+            let mut result = 0;
+            let mut offset = 1;
+
+            for val in &a {
+                let tuple = val.as_fixed_len_tuple(2)?;
+                let (var, mod_thing) = (tuple[0].as_number()? as i64, tuple[1].as_number()? as i64);
+
+                result += (var % mod_thing) * offset;
+                offset *= mod_thing;
+            }
+            Ok(Value::Int(result))
+        }),
+
         "clamp" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
             let (x, min, max) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
@@ -177,15 +197,39 @@ impl ExprWorldContextValues {
         Ok(())
     }
 
-    pub fn update_ctx_with_prefix(&self, ctx: &mut HashMapContext, prefix: &str) {
-        for (identifier, value) in &self.0 {
-            let name = format!("{}{}", prefix, identifier);
-            add_variable_or_prefix_it(&name, lc_val_to_expr(value), ctx);
-        }
-    }
-
     pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
         self.0.push((name.to_owned(), val))
+    }
+
+    pub fn new_from_idx(idx: IdxInRange) -> Self {
+        Self::new(vec![
+            (format!("i"), LivecodeValue::Int(idx.i() as i64)),
+            (format!("if"), LivecodeValue::Float(idx.i() as f64)),
+            (format!("pct"), LivecodeValue::Float(idx.pct() as f64)),
+            (format!("total"), LivecodeValue::Int(idx.total() as i64)),
+            (format!("totalf"), LivecodeValue::Float(idx.total() as f64)),
+        ])
+    }
+
+    pub fn new_from_totaless_idx(idx: usize) -> Self {
+        Self::new(vec![
+            (format!("i"), LivecodeValue::Int(idx as i64)),
+            (format!("if"), LivecodeValue::Float(idx as f64)),
+        ])
+    }
+
+    pub fn with_prefix(&self, prefix: &str) -> Self {
+        let new_vals = self
+            .0
+            .iter()
+            .map(|(name, value)| (format!("{}{}", prefix, name), *value))
+            .collect_vec();
+        Self::new(new_vals)
+    }
+
+    fn combine(&mut self, vals: ExprWorldContextValues) -> Self {
+        // have the new ones added later, so they'll overwrite if there are duplicates...
+        Self::new([self.0.clone(), vals.0].concat())
     }
 }
 
@@ -255,14 +299,15 @@ impl GuideType {
     }
 }
 
-pub fn add_variable_or_prefix_it(identifier: &str, value: Value, ctx: &mut HashMapContext) {
-    if ctx.get_value(identifier).is_some() {
-        add_variable_or_prefix_it(&format!("_{}", identifier), value, ctx);
-    } else {
-        let r = ctx.set_value(identifier.to_owned(), value.clone());
-        print_expect(r, "couldn't set variable");
-    }
-}
+// hmm can i deprecate this? i like being explicit...
+// pub fn add_variable_or_prefix_it(identifier: &str, value: Value, ctx: &mut HashMapContext) {
+//     if ctx.get_value(identifier).is_some() {
+//         add_variable_or_prefix_it(&format!("_{}", identifier), value, ctx);
+//     } else {
+//         let r = ctx.set_value(identifier.to_owned(), value.clone());
+//         print_expect(r, "couldn't set variable");
+//     }
+// }
 
 // todo, hrm, this is awkward
 #[derive(Debug, Clone)]
@@ -279,7 +324,7 @@ impl MixedEvalDefs {
     }
 
     pub fn set_vals(&mut self, vals: ExprWorldContextValues) {
-        self.vals = vals;
+        self.vals = self.vals.combine(vals);
     }
 
     pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
