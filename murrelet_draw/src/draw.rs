@@ -8,7 +8,6 @@ use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
 
 use crate::{
-    curve_drawer::CurveDrawer,
     newtypes::RGBandANewtype,
     style::{styleconf::*, StyledPathSvgFill},
 };
