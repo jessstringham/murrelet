@@ -9,6 +9,7 @@ members = [
     "murrelet_perform",
     "murrelet_src_audio",
     "murrelet_src_midi",
+    "murrelet_src_osc",
     "murrelet_svg", 
     "examples/murrelet_example",
     "examples/foolish_guillemot",
