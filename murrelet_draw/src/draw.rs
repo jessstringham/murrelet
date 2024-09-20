@@ -8,7 +8,9 @@ use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
 
 use crate::{
-    curve_drawer::CurveDrawer, newtypes::RGBandANewtype, style::{styleconf::*, StyledPathSvgFill}
+    curve_drawer::CurveDrawer,
+    newtypes::RGBandANewtype,
+    style::{styleconf::*, StyledPathSvgFill},
 };
 
 #[derive(Debug, Clone, Copy, Livecode, Default)]
@@ -396,7 +398,6 @@ pub struct CoreSDrawCtx {
     transform: Mat4, // happens before the others
 }
 impl Sdraw for CoreSDrawCtx {
-
     fn transform_points<F: IsPolyline>(&self, face: &F) -> Polyline {
         self.transform.transform_many_vec2(face)
     }

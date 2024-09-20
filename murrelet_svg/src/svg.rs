@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 use std::{
-    cell::RefCell, collections::{HashMap, HashSet}, fmt, rc::Rc
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    fmt,
+    rc::Rc,
 };
 
 use glam::*;
@@ -452,18 +455,12 @@ impl SvgPathCacheRef {
     }
 
     pub fn add_styled_path(&self, layer: &str, styled_path: StyledPath) {
-        self.0
-        .borrow_mut()
-        .add_styled_path(layer, styled_path)
+        self.0.borrow_mut().add_styled_path(layer, styled_path)
     }
 
     pub fn add_styled_text(&self, layer: &str, text: StyledText) {
-        self.0
-        .borrow_mut()
-        .add_styled_text(layer, text)
+        self.0.borrow_mut().add_styled_text(layer, text)
     }
-
-
 }
 
 impl fmt::Debug for SvgPathCacheRef {
