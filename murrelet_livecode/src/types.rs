@@ -46,7 +46,7 @@ impl AdditionalContextNode {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ControlVecElementRepeat<Source> {
     repeat: usize,
-    #[serde(default)]
+    // #[serde(default)]
     prefix: String,
     what: Vec<Source>,
 }
