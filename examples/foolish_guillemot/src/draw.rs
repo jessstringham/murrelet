@@ -29,7 +29,7 @@ impl WebSDrawCtxUnitCell {
         path = path.transform_with_mat4_after(self.ctx.unit_cell_transform());
         path = path.transform_with_mat4_after(self.sdraw.transform());
 
-        self.sdraw.svg_draw.borrow_mut().add_styled_path(
+        self.sdraw.svg_draw.add_styled_path(
             "",
             StyledPath::new_from_path(path, self.svg_style().clone()),
         );
@@ -89,19 +89,19 @@ impl WebSDrawCtx {
 
         let path = StyledPath::new_from_path(cd, self.svg_style().clone());
 
-        self.svg_draw.borrow_mut().add_styled_path("", path)
+        self.svg_draw.add_styled_path("", path)
     }
 
     pub fn make_html(&self) -> Vec<String> {
-        self.svg_draw.borrow().make_html()
+        self.svg_draw.make_html()
     }
 
     pub fn add_guides(&self) {
-        self.svg_draw.borrow_mut().add_guides();
+        self.svg_draw.add_guides();
     }
 
     pub fn save_doc(&self) {
-        self.svg_draw.borrow().save_doc();
+        self.svg_draw.save_doc();
     }
 
     pub fn with_detail(&self, detail: &UnitCellContext) -> WebSDrawCtxUnitCell {

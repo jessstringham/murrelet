@@ -142,15 +142,15 @@ pub mod prebuilt_shaders {
     /// fbm noise. use with ControlNoise
     /// # Attributes
     /// ## Textures
-    ///      None
+    /// N/A
     /// ## Uniforms
-    ///    - `0.xy`: offset for noise
-    ///    - `0.z`: scale, default to 1
-    ///    - `0.a`: default alpha, if 0 will set to noise val instead
-    ///    - `1.x`: min value for noise
-    ///    - `1.y`: max value for noise
+    /// - 0.xy: offset for noise
+    /// - 0.z: scale, default to 1
+    /// - 0.a: default alpha, if 0 will set to noise val instead
+    /// - 1.x: min value for noise
+    /// - 1.y: max value for noise
     /// ## Returns
-    ///   - GraphicsRef
+    /// - GraphicsRef
     pub fn new_shader_noise(c: &GraphicsWindowConf) -> GraphicsRef {
         let shader: String = build_shader_2tex! {
             (
@@ -174,7 +174,7 @@ pub mod prebuilt_shaders {
                 "###;
             )
         };
-        let g = new_shader_2tex(c, "overlay_shader", &shader);
+        let g = new_shader_2tex(c, "fbm noise", &shader);
         g.update_uniforms_other(c, [0.0, 0.0, 1.0, 1.0], [0.0, 1.0, 0.0, 0.0]);
         g
     }
