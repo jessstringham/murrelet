@@ -18,6 +18,12 @@ jobs:
     - uses: dtolnay/rust-toolchain@stable
       with:
         target: wasm32-unknown-unknown
+
+    - name: Install alsa dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libasound2-dev
+
     - name: cargo check
       run: cargo check --verbose
     - name: cargo check (wasm)
@@ -25,7 +31,7 @@ jobs:
     - name: cargo fmt
       run: cargo fmt -- --check
     - name: cargo test
-      run: cargo test --verbose --target wasm32-unknown-unknown
+      run: cargo test --verbose
 
 
 
