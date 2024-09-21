@@ -461,6 +461,10 @@ impl SvgPathCacheRef {
     pub fn add_styled_text(&self, layer: &str, text: StyledText) {
         self.0.borrow_mut().add_styled_text(layer, text)
     }
+
+    pub fn make_html(&self) -> Vec<String> {
+        self.0.borrow().make_html()
+    }
 }
 
 impl fmt::Debug for SvgPathCacheRef {
