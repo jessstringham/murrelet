@@ -1,0 +1,7 @@
+[package]
+name = "tinylivecode"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+micromath = "2.1"

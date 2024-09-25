@@ -13,6 +13,7 @@ members = [
     "murrelet_svg", 
     "examples/murrelet_example",
     "examples/foolish_guillemot",
+    "tinylivecode"
 ]
 
 resolver = "2"
