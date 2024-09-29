@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
 description = "a tiny language for embedded live coding"
-license = "AGPL"
+license = "AGPL-3.0-or-later"
 
 [dependencies]
 micromath = "2.1"

@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
-readme = "https://github.com/jessstringham/murrelet.git"
-license = "AGPL"
+readme = "../README.md"
+license = "AGPL-3.0-or-later"
 description = "Murrelet the live coding framework for visuals"
 
 

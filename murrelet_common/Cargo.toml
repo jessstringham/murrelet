@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
 description = "common functions for murrelet, a livecode framework"
-license = "AGPL"
+license = "AGPL-3.0-or-later"
 
 [dependencies]
 itertools = "0.10.5"
