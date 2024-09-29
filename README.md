@@ -1,6 +1,11 @@
 # Murrelet
 
-*This README is a work in progress!*
+![Build Status](https://github.com/jessstringham/murrelet/actions/workflows/rust.yml/badge.svg)
+![status alpha](https://img.shields.io/badge/status-alpha-red)
+[![crates.io](https://img.shields.io/crates/v/murrelet.svg)](https://crates.io/crates/murrelet)
+
+*Along with this repo, this README is a work in progress!*
+
 
 The crates here are part of the livecode engine that I've been building and using to make nearly all the art as [this.xor.that](http://thisxorthat.art).
 
