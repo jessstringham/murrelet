@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
+description = "gpu functions for murrelet, a livecode framework"
+license = "AGPL"
 
 [features]
 nannou = ["wgpu_for_nannou"]
@@ -13,12 +15,12 @@ no_nannou = ["wgpu_for_latest"]
 wgpu_for_latest = { package = "wgpu", version = "0.20.1", optional = true }
 wgpu_for_nannou = { package = "wgpu", version = "0.17.1", optional = true }
 
-murrelet_common = { path = "../murrelet_common/" }
-murrelet_livecode = { path = "../murrelet_livecode/" }
-murrelet_draw = { path = "../murrelet_draw/" }
-murrelet_livecode_macros = { path = "../murrelet_livecode_macros/" }
-murrelet_livecode_derive = { path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
-murrelet_perform = { path = "../murrelet_perform/" }
+murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
+murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/" }
+murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/" }
+murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros/" }
+murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
+murrelet_perform = { version = "0.1.0", path = "../murrelet_perform/" }
 
 glam = "0.28.0"
 palette = "0.7.6"

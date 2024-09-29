@@ -5,11 +5,12 @@ edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 description = "turns murrelet things into svgs for export or the web"
 repository = "https://github.com/jessstringham/murrelet.git"
+license = "AGPL"
 
 [dependencies]
-murrelet_common = { path = "../murrelet_common/" }
-murrelet_perform = { path = "../murrelet_perform/" }
-murrelet_draw = { path = "../murrelet_draw/" }
+murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
+murrelet_perform = { version = "0.1.0", path = "../murrelet_perform/" }
+murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/" }
 glam = "0.28.0"
 itertools = "0.10.5"
 svg = "0.10.0"

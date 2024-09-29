@@ -2,6 +2,10 @@
 name = "tinylivecode"
 version = "0.1.0"
 edition = "2021"
+authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
+repository = "https://github.com/jessstringham/murrelet.git"
+description = "a tiny language for embedded live coding"
+license = "AGPL"
 
 [dependencies]
 micromath = "2.1"
