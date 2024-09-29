@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
-readme = "https://github.com/jessstringham/murrelet.git"
-license = "AGPL"
+readme = "../README.md"
+license = "AGPL-3.0-or-later"
 description = "Murrelet the live coding framework for visuals"
 
 
@@ -16,9 +16,9 @@ itertools = "0.10.5"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 
-murrelet_common = { path = "../murrelet_common/" }
-murrelet_draw = { path = "../murrelet_draw/" }
-murrelet_livecode = { path = "../murrelet_livecode/" }
-murrelet_livecode_macros = { path = "../murrelet_livecode_macros/" }
-murrelet_livecode_derive = { path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
-murrelet_perform = { path = "../murrelet_perform/" }
+murrelet_common = { version = "0.1.0", path = "../murrelet_common" }
+murrelet_draw = { version = "0.1.0", path = "../murrelet_draw" }
+murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode" }
+murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros" }
+murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
+murrelet_perform = { version = "0.1.0", path = "../murrelet_perform" }

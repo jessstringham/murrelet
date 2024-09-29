@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
+description = "audio input functions for murrelet, a livecode framework"
+license = "AGPL-3.0-or-later"
 
 [dependencies]
-murrelet_common = { path = "../murrelet_common/" }
+murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
 cpal = "0.14"
 rustfft = "6.1.0"
 glam = "0.28.0"
