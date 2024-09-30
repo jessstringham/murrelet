@@ -85,26 +85,6 @@ impl LazyNodeF32Inner {
             .map(|x| x as f32)
             .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
     }
-
-    // pub fn eval_with_ctx(&self) -> LivecodeResult<f32> {
-    //     // start with the global ctx
-    //     let mut ctx = self.world.clone();
-
-    //     ctx.update_with_defs(&self.more_defs)?;
-
-    //     // modify it with the new data
-    //     // todo, handle the result better
-    //     self.more_defs.update_ctx(&mut ctx.ctx_mut())?;
-
-    //     // now grab the actual node
-    //     self.final_eval(&ctx.ctx())
-    // }
-
-    // pub fn eval_with_expr_world_values(&self, vs: ExprWorldContextValues) -> LivecodeResult<f32> {
-    //     let mut ctx = self.build_ctx();
-    //     vs.update_ctx(&mut ctx)?;
-    //     self.final_eval(&ctx)
-    // }
 }
 
 // // expr that we can add things
