@@ -1,4 +1,5 @@
-use evalexpr::{HashMapContext, Node};
+use evalexpr::{HashMapContext, IterateVariablesContext, Node};
+use itertools::Itertools;
 use murrelet_common::{IdxInRange, MurreletColor};
 use serde::Deserialize;
 
@@ -40,44 +41,70 @@ impl LivecodeFromWorld<LazyNodeF32> for ControlLazyNodeF32 {
 }
 
 // todo, figure out how to only build this context once per unitcell/etc
-
 #[derive(Debug, Clone)]
 pub struct LazyNodeF32Inner {
-    n: Node,
-    world: LivecodeWorldState,
+    n: Node,                   // what will be evaluated!
+    world: LivecodeWorldState, // (could be a reference...)
+    more_defs: MixedEvalDefs,
 }
 impl LazyNodeF32Inner {
-    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
-        // start with the global ctx
-        let mut ctx = self.world.clone();
-
-        ctx.update_with_defs(more_defs)?;
-
-        // modify it with the new data
-        // todo, handle the result better
-        more_defs.update_ctx(&mut ctx.ctx_mut())?;
-
-        // now grab the actual node
-        self.final_eval(&ctx.ctx())
+    pub fn new(n: Node, world: LivecodeWorldState) -> Self {
+        Self {
+            n,
+            world,
+            more_defs: MixedEvalDefs::new(),
+        }
     }
 
-    pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
+    // options to add more details...
+    pub fn add_more_defs(&self, more_defs: &MixedEvalDefs) -> Self {
+        let mut c = self.clone();
+        c.more_defs = c.more_defs.combine(more_defs);
+        c
+    }
+
+    pub fn add_expr_values(&self, more_vals: ExprWorldContextValues) -> Self {
+        let mut c = self.clone();
+        c.more_defs.set_vals(more_vals);
+        c
+    }
+
+    // internal function to build the ctx
+    fn build_ctx(&self) -> LivecodeResult<HashMapContext> {
+        let mut ctx = self.world.ctx().clone();
+        self.more_defs.update_ctx(&mut ctx)?;
+        Ok(ctx)
+    }
+
+    // what you'll use
+    pub fn eval(&self) -> LivecodeResult<f32> {
+        let ctx = self.build_ctx()?;
+
         self.n
-            .eval_float_with_context(ctx)
+            .eval_float_with_context(&ctx)
             .map(|x| x as f32)
             .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
     }
 
-    // pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
-    //     let vs = ExprWorldContextValues::new_from_idx(idx, prefix);
-    //     self.eval_with_expr_world_values(vs)
+    // pub fn eval_with_ctx(&self) -> LivecodeResult<f32> {
+    //     // start with the global ctx
+    //     let mut ctx = self.world.clone();
+
+    //     ctx.update_with_defs(&self.more_defs)?;
+
+    //     // modify it with the new data
+    //     // todo, handle the result better
+    //     self.more_defs.update_ctx(&mut ctx.ctx_mut())?;
+
+    //     // now grab the actual node
+    //     self.final_eval(&ctx.ctx())
     // }
 
-    pub fn eval_with_expr_world_values(&self, vs: ExprWorldContextValues) -> LivecodeResult<f32> {
-        let mut ctx = self.world.ctx().clone();
-        vs.update_ctx(&mut ctx)?;
-        self.final_eval(&ctx)
-    }
+    // pub fn eval_with_expr_world_values(&self, vs: ExprWorldContextValues) -> LivecodeResult<f32> {
+    //     let mut ctx = self.build_ctx();
+    //     vs.update_ctx(&mut ctx)?;
+    //     self.final_eval(&ctx)
+    // }
 }
 
 // // expr that we can add things
@@ -85,7 +112,7 @@ impl LazyNodeF32Inner {
 pub enum LazyNodeF32 {
     Uninitialized,
     Node(LazyNodeF32Inner),
-    NoCtxNode(ControlLazyNodeF32),
+    NoCtxNode(ControlLazyNodeF32), // this hasn't been evaluated with .o()? yet
 }
 
 impl Default for LazyNodeF32 {
@@ -97,10 +124,9 @@ impl Default for LazyNodeF32 {
 impl LazyNodeF32 {
     pub fn new(def: ControlLazyNodeF32, world: &LivecodeWorldState) -> Self {
         match def {
-            ControlLazyNodeF32::Expr(n) => Self::Node(LazyNodeF32Inner {
-                n,
-                world: world.clone_to_lazy(),
-            }),
+            ControlLazyNodeF32::Expr(n) => {
+                Self::Node(LazyNodeF32Inner::new(n, world.clone_to_lazy()))
+            }
             _ => Self::NoCtxNode(def),
         }
     }
@@ -114,33 +140,38 @@ impl LazyNodeF32 {
     }
 
     pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
-        match self {
+        // update ctx
+        let with_more_ctx = self.add_more_defs(more_defs)?;
+
+        match with_more_ctx {
             LazyNodeF32::Uninitialized => {
                 Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
             }
-            LazyNodeF32::Node(v) => v.eval_with_ctx(more_defs),
+            LazyNodeF32::Node(v) => v.eval(),
             LazyNodeF32::NoCtxNode(v) => v.result(),
         }
     }
 
-    pub fn final_eval(&self, ctx: &HashMapContext) -> LivecodeResult<f32> {
+    pub fn add_more_defs(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<Self> {
         match self {
             LazyNodeF32::Uninitialized => {
                 Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
             }
-            LazyNodeF32::Node(v) => v.final_eval(ctx),
-            LazyNodeF32::NoCtxNode(v) => v.result(),
+            LazyNodeF32::Node(v) => Ok(LazyNodeF32::Node(v.add_more_defs(more_defs))),
+            LazyNodeF32::NoCtxNode(_) => Ok(self.clone()), // hmm, this is dropping more_defs...
         }
     }
 
+    /// short-hand to evaluate an index with the provided prefix
     pub fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<f32> {
         match self {
             LazyNodeF32::Uninitialized => {
                 Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
             }
             LazyNodeF32::Node(v) => {
-                let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(prefix);
-                v.eval_with_expr_world_values(vals)
+                let vals =
+                    ExprWorldContextValues::new_from_idx(idx).with_prefix(&format!("{}_", prefix));
+                v.add_expr_values(vals).eval()
             }
             LazyNodeF32::NoCtxNode(v) => v.result(),
         }
@@ -153,6 +184,15 @@ impl LazyNodeF32 {
             Err(LivecodeError::Raw(
                 "trying to use uninitialized lazy node".to_owned(),
             ))
+        }
+    }
+
+    /// prints out the variables
+    pub fn variable_names(&self) -> LivecodeResult<Vec<String>> {
+        match self {
+            LazyNodeF32::Uninitialized => Err(LivecodeError::Raw("not initialized".to_owned())),
+            LazyNodeF32::Node(c) => Ok(c.build_ctx()?.iter_variable_names().collect_vec()),
+            LazyNodeF32::NoCtxNode(_) => Err(LivecodeError::Raw("no ctx".to_owned())),
         }
     }
 }

@@ -64,26 +64,21 @@ impl LazyFieldType {
         }
     }
 
-    // todo reuse for world func
     fn for_world(&self, idents: StructIdents) -> TokenStream2 {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => {
-                // quote! {#name: self.#name.eval_lazy(ctx)?}
                 quote! { #name: glam::vec2(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32)}
             }
             ControlType::F32_3 => {
                 quote! {#name: glam::vec3(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32)}
-                // quote! {#name: self.#name.eval_lazy(ctx)?}
             }
             ControlType::Color => {
                 quote! {#name: murrelet_common::MurreletColor::hsva(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32, self.#name[3].eval_lazy(ctx)? as f32)}
-                // quote! {#name: self.#name.eval_lazy(ctx)?}
             }
-            // ControlType::LinSrgbaUnclamped => quote!{#name: murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)},
             ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
-            // _ => quote!{#name: self.#name.eval_lazy(ctx)? as #orig_ty}
+            ControlType::LazyNodeF32 => quote! {#name: self.#name.add_more_defs(ctx)? },
             _ => {
                 // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {
