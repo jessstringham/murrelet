@@ -299,17 +299,6 @@ impl GuideType {
     }
 }
 
-// hmm can i deprecate this? i like being explicit...
-// pub fn add_variable_or_prefix_it(identifier: &str, value: Value, ctx: &mut HashMapContext) {
-//     if ctx.get_value(identifier).is_some() {
-//         add_variable_or_prefix_it(&format!("_{}", identifier), value, ctx);
-//     } else {
-//         let r = ctx.set_value(identifier.to_owned(), value.clone());
-//         print_expect(r, "couldn't set variable");
-//     }
-// }
-
-// todo, hrm, this is awkward
 #[derive(Debug, Clone)]
 pub struct MixedEvalDefs {
     vals: ExprWorldContextValues,
@@ -343,5 +332,16 @@ impl MixedEvalDefs {
 
     pub fn add_node(&mut self, node: AdditionalContextNode) {
         self.nodes.push(node)
+    }
+
+    pub fn combine(&self, more_defs: &MixedEvalDefs) -> Self {
+        let mut c = self.clone();
+        more_defs
+            .nodes
+            .iter()
+            .for_each(|node| c.nodes.push(node.clone()));
+        c.set_vals(more_defs.vals.clone());
+
+        c
     }
 }
