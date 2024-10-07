@@ -876,7 +876,10 @@ impl ImageTexture {
     ) -> Self {
         // load one as dummy to get image
         // let source_dims = wgpu::Texture::from_path(c.window, src_path).unwrap().size();
-        let source_dims = c.dims; // ??
+
+        // hrm, when this was set to width/height, it didn't work, it shrunk the whole thing..
+        // let (_, width, height) = crate::device_state::check_img_size(src_path).unwrap();
+        let source_dims = c.dims; //[width, height]; // c.dims; // ??
         let target_dims = c.dims;
         println!("source: {:?} {:?}", source_dims, target_dims);
 
@@ -885,14 +888,14 @@ impl ImageTexture {
                 raw r###"
                 // the sizes of the input and output maps are in pixels
                 let entire_source_size_pxl = uniforms.more_info_other.xy;
-                let target_size_pxl = uniforms.more_info_other.za;
+                let target_size_pxl = uniforms.more_info_other.zw;
 
                 // let aspect = vec2<f32>(uniforms.dims.x / uniforms.dims.y);
 
-                let source_normalized_dims = vec2<f32>(1.0 / entire_source_size_pxl.x, 1.0 / entire_source_size_pxl.y); //uniforms.dims.za;
+                let source_normalized_dims = vec2<f32>(1.0 / entire_source_size_pxl.x, 1.0 / entire_source_size_pxl.y); //uniforms.dims.zw;
 
                 // grab the intended size of the source window and offset.
-                let windowed_source_size_pxl = uniforms.more_info.za;
+                let windowed_source_size_pxl = uniforms.more_info.zw;
                 let windowed_source_offset_pxl = uniforms.more_info.xy;
 
                 let windowed_source_offset_txl = windowed_source_offset_pxl * source_normalized_dims;
@@ -909,8 +912,8 @@ impl ImageTexture {
                 // now figure out where in the square we should sample, this will just zoom in
                 let target_coords_txl = target_coords_txl1 * window_to_entire_ratio + windowed_source_offset_txl;
 
-                // let result: vec4<f32> = vec4<f32>(target_coords_txl, 0.0, 1.0);
                 let result: vec4<f32> = textureSample(tex, tex_sampler, target_coords_txl);
+
                 "###;
             )
         };

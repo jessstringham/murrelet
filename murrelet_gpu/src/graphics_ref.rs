@@ -22,6 +22,9 @@ pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgb
 #[cfg(feature = "nannou")]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
+#[cfg(not(feature = "nannou"))]
+pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+#[cfg(feature = "nannou")]
 pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
@@ -331,6 +334,13 @@ pub struct GraphicsRef {
 impl GraphicsRef {
     pub fn name(&self) -> String {
         self.graphics.borrow().name.clone()
+    }
+
+    pub fn more_info(&self) -> ([f32; 4], [f32; 4]) {
+        (
+            self.graphics.borrow().uniforms.more_info,
+            self.graphics.borrow().uniforms.more_info_other,
+        )
     }
 
     pub fn new_with_src<'a>(
@@ -784,6 +794,8 @@ impl Graphics {
             &initial_uniform_buffer,
             &sampler,
         );
+
+        println!("bind_group {:?}", bind_group);
 
         Self {
             name,

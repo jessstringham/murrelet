@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use image::GenericImageView;
+use image::{GenericImageView, ImageBuffer};
 
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
@@ -98,11 +98,20 @@ impl OwnedDeviceState {
     }
 }
 
-// hmm, fix this
-// fn compute_row_padding(bytes_per_row: u32) -> u32 {
-//     wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (bytes_per_row % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT)
-// }
+// borrowing from bevy
+fn align_byte_size(value: u32) -> u32 {
+    value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
+}
 
+pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std::error::Error>> {
+    let img = image::open(path)?;
+    let img_rgba = img.to_rgba8();
+    let (img_width, img_height) = img.dimensions();
+
+    Ok((img_rgba.to_vec(), img_width, img_height))
+}
+
+// todo, refactor reuse the img..
 fn write_png_to_texture(
     device_state: &DeviceState,
     path: &PathBuf,
@@ -114,8 +123,9 @@ fn write_png_to_texture(
     let (img_width, img_height) = img.dimensions();
 
     let bytes_per_row = 4 * img_width;
-    // let row_padding = compute_row_padding(bytes_per_row);
-    let row_padding = 0;
+    // this is supposed to help if it's too small..
+    let padded_row = align_byte_size(bytes_per_row);
+    // let row_padding = 0;
     let buffer_rows = img_height;
 
     println!("img_width {:?}", img_width);
@@ -125,12 +135,21 @@ fn write_png_to_texture(
     // just get the name to name the texture
     let p = path.file_name().map(|x| x.to_str()).flatten().unwrap_or("");
 
+    // bah, uh, okay copy this to a buffer of the right length
+    let mut padded_img = vec![0; (padded_row * buffer_rows).try_into().unwrap()];
+    for (row_i, data) in img_rgba.chunks(bytes_per_row as usize).enumerate() {
+        let start = row_i * padded_row as usize;
+        let end = start + data.len();
+
+        padded_img[start..end].copy_from_slice(data);
+    }
+
     // buffer for loading the png
     let buffer = device_state
         .device()
         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("texture from {}", p)),
-            contents: &img_rgba,
+            contents: &padded_img,
             usage: wgpu::BufferUsages::COPY_SRC,
         });
 
@@ -143,7 +162,7 @@ fn write_png_to_texture(
             buffer: &buffer,
             layout: wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(bytes_per_row + row_padding), // rgba
+                bytes_per_row: Some(padded_row), //Some(bytes_per_row + row_padding), // rgba
                 rows_per_image: Some(buffer_rows),
             },
         },
@@ -190,19 +209,6 @@ impl GraphicsAssets {
         }
     }
 
-    pub(crate) fn maybe_load_texture(
-        &self,
-        device_state: &DeviceState,
-        input_texture: &wgpu::Texture,
-    ) {
-        match self {
-            GraphicsAssets::Nothing => {}
-            GraphicsAssets::LocalFilesystem(path) => {
-                write_png_to_texture(device_state, path, input_texture).ok();
-            }
-        }
-    }
-
     pub(crate) fn force_path_buf(&self) -> PathBuf {
         match self {
             GraphicsAssets::Nothing => panic!("expected path!"),
@@ -229,6 +235,20 @@ impl GraphicsAssets {
     //         GraphicsAssets::Nothing => Graphics::texture(c.dims, device, first_format),
     //     };
     // }
+
+    // i don't really think this works..
+    pub(crate) fn maybe_load_texture(
+        &self,
+        device_state: &DeviceState,
+        input_texture: &wgpu::Texture,
+    ) {
+        match self {
+            GraphicsAssets::Nothing => {}
+            GraphicsAssets::LocalFilesystem(path) => {
+                write_png_to_texture(device_state, path, input_texture).ok();
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
