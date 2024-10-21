@@ -317,3 +317,13 @@ impl MurreletCompass {
         CurveDrawer::new(builder.results(), self.closed)
     }
 }
+
+impl Default for MurreletCompass {
+    fn default() -> Self {
+        Self {
+            start: CurveStart::new(Vec2::default(), AnglePi::new(0.0)),
+            dirs: Default::default(),
+            closed: Default::default(),
+        }
+    }
+}

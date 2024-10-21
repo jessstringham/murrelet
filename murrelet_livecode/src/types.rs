@@ -1,6 +1,8 @@
+use core::fmt;
+
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use murrelet_common::IdxInRange;
-use serde::Deserialize;
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer};
 
 use crate::{expr::ExprWorldContextValues, livecode::LivecodeFromWorld, state::LivecodeWorldState};
 
@@ -79,15 +81,12 @@ impl<Source> ControlVecElementRepeat<Source> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "elemty")]
+#[derive(Debug, Clone)]
 pub enum ControlVecElement<Source> {
     Single(Source),
     Repeat(ControlVecElementRepeat<Source>),
 }
 
-// i need to refactor some things now that unitcells and livecode are basically the same.
-// for now just have.. copies :(
 impl<Source> ControlVecElement<Source> {
     pub fn raw(c: Source) -> Self {
         Self::Single(c)
@@ -101,5 +100,41 @@ impl<Source> ControlVecElement<Source> {
             ControlVecElement::Single(c) => Ok(vec![c.o(w)?]),
             ControlVecElement::Repeat(r) => r.eval_and_expand_vec(w),
         }
+    }
+}
+
+// chatgpt
+impl<'de, Source> Deserialize<'de> for ControlVecElement<Source>
+where
+    Source: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_yaml::Value::deserialize(deserializer)?;
+
+        let mut errors = Vec::new();
+
+        // try the simple one
+        match Source::deserialize(value.clone()) {
+            Ok(single) => return Ok(ControlVecElement::Single(single)),
+            Err(e) => errors.push(format!("Single variant failed: {}", e)),
+        }
+
+        //
+        match ControlVecElementRepeat::deserialize(value.clone()) {
+            Ok(repeat) => return Ok(ControlVecElement::Repeat(repeat)),
+            Err(e) => {
+                // it's gonna fail, so just check what
+                errors.push(format!("Repeat variant failed: {}", e))
+            }
+        }
+
+        // Both variants failed, return an error with detailed messages
+        Err(serde::de::Error::custom(format!(
+            "data did not match any variant of ControlVecElement:\n{}",
+            errors.join("\n")
+        )))
     }
 }

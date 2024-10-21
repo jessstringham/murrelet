@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use glam::*;
 use murrelet_common::{Angle, AnglePi, Circle, IsAngle, IsLength};
 use murrelet_livecode_derive::*;
