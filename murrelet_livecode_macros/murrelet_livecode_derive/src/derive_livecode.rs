@@ -337,6 +337,7 @@ impl GenFinal for FieldTokensLivecode {
         }
     }
 
+    // Vec<CurveSegment>, Vec<f32>
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensLivecode {
         let serde = idents.serde();
         let name = idents.name();
@@ -379,13 +380,12 @@ impl GenFinal for FieldTokensLivecode {
             quote! {#serde #name: #new_ty}
         };
 
-        let debug_name = name.to_string();
         let for_world = {
             if how_to_control_internal.needs_to_be_evaluated() {
                 match wrapper {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
-                        quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+                        quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
                     }
                     VecDepth::VecVec => {
                         quote! {
@@ -393,7 +393,7 @@ impl GenFinal for FieldTokensLivecode {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
                                     result.push(
-                                        internal_row.iter().map(|x| x.eval_and_expand_vec(w, #debug_name)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()
+                                        internal_row.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()
                                     )
                                 }
                                 result

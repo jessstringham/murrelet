@@ -80,41 +80,26 @@ impl<Source> ControlVecElementRepeat<Source> {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-// #[serde(untagged)]
-pub struct ControlVecElement<Source> {
-    c: Option<Source>,
-    r: Option<ControlVecElementRepeat<Source>>,
+#[serde(tag = "elemty")]
+pub enum ControlVecElement<Source> {
+    Single(Source),
+    Repeat(ControlVecElementRepeat<Source>),
 }
 
 // i need to refactor some things now that unitcells and livecode are basically the same.
 // for now just have.. copies :(
 impl<Source> ControlVecElement<Source> {
     pub fn raw(c: Source) -> Self {
-        Self {
-            c: Some(c),
-            r: None,
-        }
+        Self::Single(c)
     }
 
-    pub fn eval_and_expand_vec<Target>(
-        &self,
-        w: &LivecodeWorldState,
-        debug_str: &str,
-    ) -> LivecodeResult<Vec<Target>>
+    pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
     where
         Source: LivecodeFromWorld<Target>,
     {
-        match (&self.c, &self.r) {
-            (None, Some(r)) => r.eval_and_expand_vec(w),
-            (Some(c), None) => Ok(vec![c.o(w)?]),
-            (None, None) => Err(LivecodeError::Raw(format!(
-                "vec missing both c and r {}",
-                debug_str
-            ))),
-            (Some(_), Some(_)) => Err(LivecodeError::Raw(format!(
-                "vec has both c and r {}",
-                debug_str
-            ))),
+        match self {
+            ControlVecElement::Single(c) => Ok(vec![c.o(w)?]),
+            ControlVecElement::Repeat(r) => r.eval_and_expand_vec(w),
         }
     }
 }
