@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use image::{GenericImageView, ImageBuffer};
+use image::GenericImageView;
 
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
