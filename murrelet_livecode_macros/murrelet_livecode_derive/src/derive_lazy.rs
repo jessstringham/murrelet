@@ -181,6 +181,7 @@ impl GenFinal for FieldTokensLazy {
         let new_enum_ident = idents.new_ident;
         let name = idents.name;
         let vis = idents.vis;
+        let tags = idents.lazy_enum_tag;
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
@@ -188,6 +189,7 @@ impl GenFinal for FieldTokensLazy {
         quote! {
             #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
             #[allow(non_camel_case_types)]
+            #tags
             #vis enum #new_enum_ident {
                 #[default]
                 DefaultNoop,

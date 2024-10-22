@@ -14,6 +14,7 @@ pub(crate) struct ParsedFieldIdent {
     pub(crate) name: syn::Ident,
     // things for the entire object, like untagged
     pub(crate) tags: TokenStream2,
+    pub(crate) lazy_enum_tag: TokenStream2, // argh, special case for enums right now
 }
 
 // trait and helpers needed to parse a variety of objects
@@ -92,6 +93,7 @@ where
             vis: s.vis.clone(),
             name: name.clone(),
             tags: quote!(), // for now, nothing here
+            lazy_enum_tag: quote!(),
         };
 
         Self::make_struct_final(idents, livecodable_fields)
@@ -126,6 +128,7 @@ where
             vis: e.vis.clone(),
             name: name.clone(),
             tags: e.serde_enum_type(),
+            lazy_enum_tag: e.enum_back_to_quote_for_lazy(), // this is important for Lazy
         };
 
         Self::make_enum_final(idents, variants)
@@ -169,7 +172,8 @@ where
             new_ident: lc_ident.clone(),
             vis: s.vis.clone(),
             name: name.clone(),
-            tags: quote!(), // for now, nothing here
+            tags: quote!(),
+            lazy_enum_tag: quote!(), // for now, nothing here
         };
 
         Self::make_newtype_struct_final(idents, livecodable_fields)
@@ -339,6 +343,7 @@ impl LivecodeFieldReceiver {
     }
 }
 
+// for enums
 #[derive(Debug, FromVariant, Clone)]
 #[darling(attributes(livecode))]
 pub(crate) struct LivecodeVariantReceiver {
@@ -368,8 +373,27 @@ impl LivecodeReceiver {
             default
         }
     }
+
+    fn enum_back_to_quote_for_lazy(&self) -> TokenStream2 {
+        let r = vec![self.enum_tag.as_ref().map(|x| {
+            let enum_tag = x.to_string();
+            quote! {enum_tag = #enum_tag}
+        })]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+        let a = if r.len() > 0 {
+            quote! { #[livecode(#(#r,)*)] }
+        } else {
+            quote! {}
+        };
+
+        a
+    }
 }
 
+// represents an enum
 pub(crate) struct EnumIdents {
     pub(crate) enum_name: syn::Ident,
     pub(crate) data: LivecodeVariantReceiver,

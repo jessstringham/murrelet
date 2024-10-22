@@ -614,7 +614,7 @@ impl UnitCellExprWorldContext {
 
     pub fn from_idx1d(idx: IdxInRange) -> UnitCellExprWorldContext {
         UnitCellExprWorldContext {
-            x: idx.pct() + idx.half_step_pct(),
+            x: idx.pct(),
             y: 0.0,
             z: 0.0,
             x_i: idx.i(),
@@ -630,8 +630,8 @@ impl UnitCellExprWorldContext {
 
     pub fn from_idx2d(idx: IdxInRange2d, h_ratio: f32) -> UnitCellExprWorldContext {
         UnitCellExprWorldContext {
-            x: idx.i.pct() + idx.i.half_step_pct(),
-            y: idx.j.pct() + idx.j.half_step_pct(),
+            x: idx.i.pct(),
+            y: idx.j.pct(),
             z: 0.0,
             x_i: idx.i.i(),
             y_i: idx.j.i(),
@@ -654,9 +654,9 @@ impl UnitCellExprWorldContext {
             + x_idx.i();
 
         UnitCellExprWorldContext {
-            x: x_idx.pct() + x_idx.half_step_pct(),
-            y: y_idx.pct() + y_idx.half_step_pct(),
-            z: z_idx.pct() + z_idx.half_step_pct(),
+            x: x_idx.pct(),
+            y: y_idx.pct(),
+            z: z_idx.pct(),
             x_i: x_idx.i(),
             y_i: y_idx.i(),
             z_i: z_idx.i(),

@@ -59,8 +59,8 @@ impl StyledPathSvgFill {
     // for nannou
     pub fn to_points_textured<F: IsPolyline>(&self, raw_points: &F) -> Vec<(Vec2, Vec2)> {
         // so using this to center it
-        let (center, size, angle) = find_center_and_size(raw_points);
-        let transform = self.transform * mat4_from_mat3_transform(Mat3::from_angle(-angle));
+        let (center, size, _angle) = find_center_and_size(raw_points);
+        let transform = self.transform; // * mat4_from_mat3_transform(Mat3::from_angle(-angle));
         let points = raw_points
             .into_iter_vec2()
             .map(|x| {

@@ -50,6 +50,18 @@ impl AnglePi {
 
         AnglePi(angle)
     }
+
+    pub fn is_neg(&self) -> bool {
+        self.0 < 0.0
+    }
+}
+
+impl std::ops::Neg for AnglePi {
+    type Output = AnglePi;
+
+    fn neg(self) -> Self::Output {
+        AnglePi(-self.0)
+    }
 }
 
 impl<A> std::ops::Add<A> for Angle

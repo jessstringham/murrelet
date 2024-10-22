@@ -15,8 +15,20 @@ pub struct ControlGraphicsRef {
     graphics: GraphicsRef,
 }
 impl ControlGraphicsRef {
-    pub fn new(control: Box<dyn ControlGraphics>, graphics: GraphicsRef) -> ControlGraphicsRef {
-        ControlGraphicsRef { control, graphics }
+    pub fn new(
+        label: &str,
+        control: Box<dyn ControlGraphics>,
+        graphics: Option<GraphicsRef>,
+    ) -> Option<ControlGraphicsRef> {
+        if let Some(gg) = graphics {
+            Some(ControlGraphicsRef {
+                control,
+                graphics: gg,
+            })
+        } else {
+            println!("missing ref! {:?}", label);
+            None
+        }
     }
 
     pub fn update_graphics(&self, c: &GraphicsWindowConf) {
