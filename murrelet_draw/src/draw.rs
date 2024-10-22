@@ -387,6 +387,14 @@ impl CoreSDrawCtxUnitCell {
         core.sdraw.svg_style.color = core.sdraw.svg_style.color.with_alpha(alpha);
         core
     }
+
+    pub fn add_unit_cell_keep_this_expr(&self, other: &UnitCellContext) -> Self {
+        Self {
+            unit_cell: self.unit_cell().combine(other),
+            unit_cell_skew: self.unit_cell_skew(),
+            sdraw: self.sdraw.clone(),
+        }
+    }
 }
 
 // just packages things up so it's easier to use
