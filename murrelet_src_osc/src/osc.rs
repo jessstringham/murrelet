@@ -144,10 +144,26 @@ impl LivecodeOSC {
 fn handle_packet(packet: &OscPacket) -> Option<OSCMessage> {
     match packet {
         OscPacket::Message(msg) => {
-            println!("not used to OscMessage! Can you send as a bundle?");
-            println!("OSC address: {}", msg.addr);
-            println!("OSC arguments: {:?}", msg.args);
-            None
+            if let Some(osc_name) = msg.addr.as_str().strip_prefix(OSC_PREFIX) {
+                let mut values = vec![];
+                match msg.args[..] {
+                    [OscType::Float(value)] => {
+                        values.push(LivecodeOSC::new_f32(osc_name.to_owned(), value));
+                    }
+                    _ => {
+                        println!("OSC data values funny: {:?}", msg.args);
+                    }
+                }
+
+                Some(OSCMessage::new(values))
+            } else {
+                println!("unexpected name, not with {}", OSC_PREFIX);
+
+                println!("OSC address: {}", msg.addr);
+                println!("OSC arguments: {:?}", msg.args);
+
+                None
+            }
         }
         OscPacket::Bundle(bundle) => {
             let mut values = vec![];
@@ -161,7 +177,7 @@ fn handle_packet(packet: &OscPacket) -> Option<OSCMessage> {
                                 values.push(LivecodeOSC::new_f32(osc_name.to_owned(), value));
                             }
                             _ => {
-                                println!("OSC address content funny: {}", msg.addr);
+                                println!("OSC address content funny: {:?}", msg.args);
                             }
                         }
                     } else {

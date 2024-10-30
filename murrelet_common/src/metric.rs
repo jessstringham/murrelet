@@ -118,6 +118,14 @@ impl BoundMetric {
         n
     }
 
+    pub fn new_from_vec_vecs(vvs: &Vec<Vec<Vec2>>) -> BoundMetric {
+        let mut n = Self::new();
+        for v in vvs {
+            n.add_points(v);
+        }
+        n
+    }
+
     pub fn lower_left(&self) -> Vec2 {
         vec2(self.x_bound.left, self.y_bound.left)
     }
