@@ -136,6 +136,20 @@ where
     (1.0 - pct) * start + pct * end
 }
 
+// excluding start/end
+pub fn lerp_x_points_between<T>(start: T, end: T, point_count: usize) -> Vec<T>
+where
+    T: std::ops::Mul<f32, Output = T> + std::ops::Add<Output = T> + Copy,
+    f32: std::ops::Mul<T, Output = T>,
+{
+    let mut result = Vec::with_capacity(point_count);
+    for i in 1..point_count {
+        let pct: f32 = i as f32 / (point_count - 1) as f32;
+        result.push(lerp(start, end, pct));
+    }
+    result
+}
+
 // inclusive
 pub fn clamp<T>(v: T, start: T, end: T) -> T
 where
