@@ -184,6 +184,12 @@ where
     type Target;
 
     fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target>;
+
+    fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<Self::Target> {
+        let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(&format!("{}_", prefix));
+
+        self.eval_lazy(&MixedEvalDefs::new_from_expr(vals))
+    }
 }
 
 impl IsLazy for LazyNodeF32 {

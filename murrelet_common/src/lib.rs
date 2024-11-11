@@ -136,6 +136,18 @@ where
     (1.0 - pct) * start + pct * end
 }
 
+pub fn lerp_vec<T>(start: &[T], end: &[T], pct: f32) -> Vec<T>
+where
+    T: std::ops::Mul<f32, Output = T> + std::ops::Add<Output = T> + Copy,
+    f32: std::ops::Mul<T, Output = T>,
+{
+    start
+        .iter()
+        .zip(end.iter())
+        .map(|(a, b)| lerp(*a, *b, pct))
+        .collect_vec()
+}
+
 // excluding start/end
 pub fn lerp_x_points_between<T>(start: T, end: T, point_count: usize) -> Vec<T>
 where

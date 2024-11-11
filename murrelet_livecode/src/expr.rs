@@ -312,6 +312,13 @@ impl MixedEvalDefs {
         }
     }
 
+    pub fn new_from_expr(vals: ExprWorldContextValues) -> Self {
+        Self {
+            vals,
+            nodes: Vec::new(),
+        }
+    }
+
     pub fn set_vals(&mut self, vals: ExprWorldContextValues) {
         self.vals = self.vals.combine(vals);
     }
