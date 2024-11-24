@@ -759,6 +759,7 @@ impl Graphics {
         let first_texture_format = texture_src_path.to_format(first_format);
         let texture_and_desc = Graphics::texture(c.dims, device, first_texture_format);
         let input_texture = &texture_and_desc.texture;
+        println!("FIRST input_texture {:?}", input_texture);
 
         // maybe load the image source if we have one
         texture_src_path.maybe_load_texture(c.device, input_texture);

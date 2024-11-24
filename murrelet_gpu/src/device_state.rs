@@ -8,9 +8,19 @@ use wgpu_for_nannou as wgpu;
 #[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
+use bytemuck::{Pod, Zeroable};
+use half::f16;
 use wgpu::util::DeviceExt;
 
 use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
+
+#[repr(transparent)]
+#[derive(Clone, Copy, Zeroable, Pod)]
+struct F16U16(u16);
+
+// use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
+// const LOADED_TEXTURE_FORMAT = Rgba16Float;
+// pub const LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 // wrappers around ways of interacting with device/queue
 
@@ -99,7 +109,7 @@ impl OwnedDeviceState {
 }
 
 // borrowing from bevy
-fn align_byte_size(value: u32) -> u32 {
+pub fn align_byte_size(value: u32) -> u32 {
     value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
 }
 
@@ -109,6 +119,40 @@ pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std
     let (img_width, img_height) = img.dimensions();
 
     Ok((img_rgba.to_vec(), img_width, img_height))
+}
+
+fn convert_u8_to_f16u16_buffer(img_rgba: &[u8], width: u32, height: u32) -> Vec<u8> {
+    // Convert u8 data to F16U16, scaling to [0.0, 1.0]
+    let img_data_f16u16: Vec<F16U16> = img_rgba
+        .chunks(4) // assuming RGBA data
+        .flat_map(|pixel| {
+            pixel.iter().map(|&c| {
+                let f = f16::from_f32(c as f32 / 255.0);
+                F16U16(f.to_bits())
+            })
+        })
+        .collect();
+
+    // Calculate row padding for 256-byte alignment
+    let bytes_per_pixel = std::mem::size_of::<F16U16>() * 4; // 4 channels per pixel
+    let unpadded_bytes_per_row = bytes_per_pixel * width as usize;
+    let padded_bytes_per_row = ((unpadded_bytes_per_row + 255) / 256) * 256;
+    let padding_per_row = padded_bytes_per_row - unpadded_bytes_per_row;
+
+    // Prepare the padded image data
+    let mut padded_img_data = Vec::with_capacity(padded_bytes_per_row * height as usize);
+
+    let row_size = 4 * width as usize;
+
+    for row in img_data_f16u16.chunks(row_size) {
+        // Convert `&[F16U16]` to `&[u8]`
+        let row_bytes: &[u8] = bytemuck::cast_slice(row);
+        padded_img_data.extend_from_slice(row_bytes);
+        // Add padding
+        padded_img_data.extend(std::iter::repeat(0u8).take(padding_per_row));
+    }
+
+    padded_img_data
 }
 
 // todo, refactor reuse the img..
@@ -135,11 +179,25 @@ fn write_png_to_texture(
     // just get the name to name the texture
     let p = path.file_name().map(|x| x.to_str()).flatten().unwrap_or("");
 
+    // let img_data_f16: Vec<F16> = img_rgba
+    //     .pixels()
+    //     .flat_map(|p| {
+    //         p.0.iter().map(|&c| F16(f16::from_f32(c as f32 / 255.0)))
+    //     })
+    //     .collect();
+
+    // let padded_img = convert_u8_to_f16u16_buffer(&img_rgba, img_width, img_height);
+
     // bah, uh, okay copy this to a buffer of the right length
     let mut padded_img = vec![0; (padded_row * buffer_rows).try_into().unwrap()];
+    // for (row_i, data) in img_rgba.chunks(bytes_per_row as usize).enumerate() {
     for (row_i, data) in img_rgba.chunks(bytes_per_row as usize).enumerate() {
         let start = row_i * padded_row as usize;
         let end = start + data.len();
+
+        // if row_i % 100 == 0 {
+        //     println!("data {:?}", data);
+        // }
 
         padded_img[start..end].copy_from_slice(data);
     }

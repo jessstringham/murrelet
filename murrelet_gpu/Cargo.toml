@@ -32,9 +32,9 @@ rand = "0.8"
 itertools = "0.10.5"
 regex = "1.7.3"
 
-
+half = "2.4.1"
 
 
 image = "0.25.2"
 
-bytemuck="1.16.1"
+bytemuck={version="1.16.1", features = ["derive"] }

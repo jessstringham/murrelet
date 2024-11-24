@@ -7,7 +7,9 @@ use serde::Serialize;
 
 use crate::{
     device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf},
-    graphics_ref::{BasicUniform, Graphics, GraphicsCreator, GraphicsRef},
+    graphics_ref::{
+        BasicUniform, Graphics, GraphicsCreator, GraphicsRef, DEFAULT_LOADED_TEXTURE_FORMAT,
+    },
     shader_str::*,
 };
 
@@ -17,7 +19,9 @@ use wgpu_for_nannou as wgpu;
 #[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
-const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+// const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+// const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Uint;
+
 const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 /// For example
@@ -943,6 +947,8 @@ impl ImageTexture {
                 target_dims[1] as f32,
             ],
         );
+
+        println!("IMG TEXTURE {:?}", graphics.input_texture_descriptor());
 
         Self {
             name: name.to_owned(),
