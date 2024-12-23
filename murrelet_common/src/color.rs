@@ -33,6 +33,12 @@ impl MurreletColor {
         Self::hsva(0.0, 0.0, 0.0, 0.0)
     }
 
+
+    // shorthand for a really bright color
+    pub fn hue(h: f32) -> MurreletColor {
+        Self::hsva(h, 1.0, 1.0, 1.0)
+    }
+
     pub fn hsva(h: f32, s: f32, v: f32, a: f32) -> MurreletColor {
         let c = Hsva::new(RgbHue::from_degrees(h * 360.0), s, v, a);
         Self::from_hsva(c)

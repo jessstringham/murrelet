@@ -143,6 +143,38 @@ impl Transform2d {
         }
         rotate
     }
+
+    pub fn inverse(&self) -> Self {
+        let mut vs = vec![];
+
+
+
+        for t in self.0.iter().rev() {
+            let v = match t {
+                Transform2dStep::Translate(v2) => Transform2dStep::Translate(V2{v: vec2(-v2.v.x, -v2.v.y)}),
+                Transform2dStep::Rotate(rotate) => Transform2dStep::Rotate(Rotate2 { center: rotate.center, angle_pi: -rotate.angle_pi }),
+                Transform2dStep::Scale(v2) => Transform2dStep::Scale(V2{v: Vec2::new(1.0 / v2.v.x, 1.0 / v2.v.y)}),
+                Transform2dStep::Skew(_v22) => {
+                    todo!();
+
+                    // claud says
+
+                    // let det = mat2.x.x * mat2.y.y - mat2.x.y * mat2.y.x;
+                    // let inv_det = 1.0 / det;
+
+                    // let inverse = Mat2::new(
+                    //     Vec2::new(mat2.y.y * inv_det, -mat2.x.y * inv_det),
+                    //     Vec2::new(-mat2.y.x * inv_det, mat2.x.x * inv_det)
+                    // );
+                    // Transform2dStep::Skew(inverse)
+                },
+            };
+            vs.push(v);
+
+        };
+        Self::new(vs)
+    }
+
 }
 
 impl Default for ControlTransform2d {
