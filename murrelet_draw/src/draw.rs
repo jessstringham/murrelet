@@ -66,7 +66,7 @@ impl MurreletColorStyle {
         MurreletColorStyle::Color(MurreletColor::white())
     }
 
-    fn black() -> MurreletColorStyle {
+    pub fn black() -> MurreletColorStyle {
         MurreletColorStyle::Color(MurreletColor::black())
     }
 
@@ -94,6 +94,7 @@ pub struct MurreletStyle {
     pub filled: bool,
     pub color: MurreletColorStyle, // if filled, fill, otherwise stroke. only for draw.
     pub stroke_weight: f32,
+    pub stroke_color: MurreletColorStyle,
 }
 impl MurreletStyle {
     pub fn new(
@@ -171,6 +172,7 @@ impl MurreletStyle {
             closed: true,
             filled: true,
             stroke_weight: 0.0,
+            stroke_color: MurreletColorStyle::black(),
         }
     }
 
