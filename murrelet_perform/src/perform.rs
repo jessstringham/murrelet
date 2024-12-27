@@ -524,7 +524,7 @@ impl AppConfig {
 #[derive(Debug)]
 struct BoopHolder<ConfType, BoopConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
+    ConfType: ConfCommon<BoopConfType> + Sync + Send,
     BoopConfType: BoopFromWorld<ConfType> + Clone,
 {
     boop: BoopConfType,  // holds the state
@@ -534,7 +534,7 @@ where
 
 impl<ConfType, BoopConfType> BoopHolder<ConfType, BoopConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
+    ConfType: ConfCommon<BoopConfType> + Sync + Send,
     BoopConfType: BoopFromWorld<ConfType> + Clone,
 {
     fn new(conf: &BoopConf, target: ConfType) -> Self {
@@ -559,7 +559,7 @@ where
 #[derive(Debug)]
 enum BoopMng<ConfType, BoopConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
+    ConfType: ConfCommon<BoopConfType> + Sync + Send,
     BoopConfType: BoopConfCommon<ConfType>,
 {
     Uninitialized,
@@ -569,7 +569,7 @@ where
 
 impl<ConfType, BoopConfType> BoopMng<ConfType, BoopConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
+    ConfType: ConfCommon<BoopConfType> + Sync + Send,
     BoopConfType: BoopConfCommon<ConfType>,
 {
     fn any_weird_states(&self) -> bool {
@@ -658,7 +658,7 @@ fn capture_folder(save_path: &Path, run_id: u64) -> PathBuf {
 
 pub struct LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
+    ConfType: ConfCommon<BoopConfType> + Send + Sync,
     BoopConfType: BoopConfCommon<ConfType>,
     ControlConfType: LiveCodeCommon<ConfType>,
 {
@@ -675,7 +675,7 @@ where
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
+    ConfType: ConfCommon<BoopConfType> + Send + Sync,
     BoopConfType: BoopConfCommon<ConfType>,
     ControlConfType: LiveCodeCommon<ConfType>,
 {

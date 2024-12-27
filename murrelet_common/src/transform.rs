@@ -78,13 +78,13 @@ impl FromTranslate for Mat4 {
 }
 
 // experimental way to do a transform with a function
-pub trait Vec2TransformFunction: Fn(Vec2) -> Vec2 {
+pub trait Vec2TransformFunction: Fn(Vec2) -> Vec2 + Send + Sync {
     fn clone_box(&self) -> Box<dyn Vec2TransformFunction>;
 }
 
 impl<T> Vec2TransformFunction for T
 where
-    T: 'static + Fn(Vec2) -> Vec2 + Clone,
+    T: 'static + Fn(Vec2) -> Vec2 + Clone + Send + Sync,
 {
     fn clone_box(&self) -> Box<dyn Vec2TransformFunction> {
         Box::new(self.clone())

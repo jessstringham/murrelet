@@ -9,6 +9,8 @@ pub enum LivecodeError {
     Raw(String), // my custom errors
     EvalExpr(String, EvalexprError),
     Io(String, std::io::Error),
+    NestGetExtra(String),
+    NestGetInvalid(String),
 }
 impl LivecodeError {}
 impl std::fmt::Display for LivecodeError {
@@ -17,6 +19,8 @@ impl std::fmt::Display for LivecodeError {
             LivecodeError::Raw(msg) => write!(f, "{}", msg),
             LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
             LivecodeError::Io(msg, err) => write!(f, "{}: {}", msg, err),
+            LivecodeError::NestGetExtra(err) => write!(f, "nest get has unusable tokens...: {}", err),
+            LivecodeError::NestGetInvalid(err) => write!(f, "nest get requested for odd thing...: {}", err),
         }
     }
 }

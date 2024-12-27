@@ -427,7 +427,7 @@ impl CellNeighbor {
     }
 }
 
-pub trait TileInfo: Debug + Any {
+pub trait TileInfo: Debug + Any + Sync + Send {
     // hmm, not sure about this Any
     fn clone_box(&self) -> Box<dyn TileInfo>;
     fn face(&self) -> Vec<Vec2>;

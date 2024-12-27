@@ -5,6 +5,7 @@ use crate::parser::*;
 
 pub(crate) struct FieldTokensNestEdit {
     pub(crate) for_nestedit: TokenStream2,
+    pub(crate) for_nestedit_get: TokenStream2,
 }
 impl GenFinal for FieldTokensNestEdit {
     // Something(f32)
@@ -23,6 +24,10 @@ impl GenFinal for FieldTokensNestEdit {
                     // #name{#(#for_nestedit,)*}
                     // self.clone()
                 }
+
+                fn nest_get(&self, _getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
+                    Err(murrelet_livecode::types::LivecodeError::NestGetExtra("newtypes".to_owned())) // maybe in the future!
+                }
             }
         }
     }
@@ -35,14 +40,27 @@ impl GenFinal for FieldTokensNestEdit {
 
         let for_nestedit = variants.iter().map(|a| a.for_nestedit.clone());
 
+        let for_nestedit_get = variants.iter().map(|a| a.for_nestedit_get.clone());
+
+
         quote! {
             impl murrelet_livecode::nestedit::NestEditable for #name {
                 fn nest_update(&self, mods: murrelet_livecode::nestedit::NestedMod) -> #name {
                     #name{#(#for_nestedit,)*}
                 }
+
+                fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
+                        match getter {
+                            #(#for_nestedit_get,)*
+                            _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(getter.join(".")))
+                        }
+                    }
+
+                }
+
             }
         }
-    }
+
 
     fn make_enum_final(
         idents: ParsedFieldIdent,
@@ -51,6 +69,7 @@ impl GenFinal for FieldTokensNestEdit {
         let name = idents.name;
 
         let for_nestedit = variants.iter().map(|a| a.for_nestedit.clone());
+        let for_nestedit_get = variants.iter().map(|a| a.for_nestedit_get.clone());
 
         quote! {
             impl murrelet_livecode::nestedit::NestEditable for #name {
@@ -62,6 +81,16 @@ impl GenFinal for FieldTokensNestEdit {
                     };
                     w.clone()
                 }
+
+                fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
+
+                    match self {
+                        #(#for_nestedit_get,)*
+                        _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(getter.join(".")))
+                    }
+
+                }
+
             }
         }
     }
@@ -78,7 +107,11 @@ impl GenFinal for FieldTokensNestEdit {
             #parent_ident(self.0.nest_update(mods))
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            self.0.nest_get(&remaining)
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
     }
 
     // e.g. TileAxisLocs::V(TileAxisVs)
@@ -107,7 +140,12 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            #name::#variant_ident(e) => e.nest_get(getter)
+            // next_getter.nest_get(first_part, &remaining)
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
     }
 
     // e.g. TileAxis::Diag
@@ -120,7 +158,13 @@ impl GenFinal for FieldTokensNestEdit {
         let for_nestedit =
             quote! { (Some(x), _) if x == #variant_ident_str => #name::#variant_ident };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            //#variant_ident_str => #name::#variant_ident
+            // next_getter.nest_get(first_part, &remaining)
+            #name::#variant_ident => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("unitcell enum")))
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
     }
 
     // s: String, context
@@ -136,7 +180,12 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            [#name_str, rest @ ..] => Err(murrelet_livecode::types::LivecodeError::NestGetExtra("string".to_owned()))
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+
     }
 
     // f32, Vec2, etc
@@ -149,12 +198,18 @@ impl GenFinal for FieldTokensNestEdit {
             #name: self.#name.nest_update(mods.next_loc(#yaml_name))
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            [#yaml_name, rest @ ..] => self.#name.nest_get(rest)
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+
     }
 
     // v: Vec<f32>
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensNestEdit {
         let name = idents.name();
+        let yaml_name = name.to_string();
 
         let for_nestedit = {
             // todo, just clone for now
@@ -163,7 +218,17 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            [#yaml_name, num, rest @ ..] => {
+                match num.parse::<usize>() {
+                    Ok(index) => self.#name[index].nest_get(rest),
+                    Err(_) => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("couldn't parse as num {}", num)))
+                }
+            }
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+
     }
 
     fn from_newtype_recurse_struct_vec(_idents: StructIdents) -> Self {
@@ -174,7 +239,12 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            [rest @ ..] => { self.0.nest_get(rest) }
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+
     }
 
     // this is the interesting one!
@@ -189,7 +259,12 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            [#yaml_name, rest @ ..] => self.#name.nest_get(rest)
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+
     }
 
     // UnitCells<Something>
@@ -197,7 +272,7 @@ impl GenFinal for FieldTokensNestEdit {
         // this is similar to vec, but then we rewrap with the UnitCell info
         let name = idents.name();
         // let orig_ty = idents.orig_ty();
-        // let yaml_name = name.to_string();
+        let yaml_name = name.to_string();
 
         // no-op
         let for_nestedit: TokenStream2 = {
@@ -206,13 +281,25 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            [#yaml_name, rest @ ..] => {
+                if let Some(first) = self.#name.iter().next() {
+                    first.node.nest_get(rest)
+                } else {
+                    Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("unitcell is empty: {}", getter.join("."))))
+                }
+            }
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+
     }
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
         // Self::from_noop_struct(idents)
 
         let name = idents.name();
+        let yaml_name = name.to_string();
 
         let for_nestedit = {
             quote! {
@@ -220,6 +307,14 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit }
+        let for_nestedit_get = quote! {
+            // next_getter.nest_get(first_part, &remaining)
+            [#yaml_name, ..] => {
+                Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("lazy not implemented yet: {}", getter.join(","))))
+            }
+        };
+
+        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+
     }
 }
