@@ -439,6 +439,14 @@ impl StructIdents {
     pub(crate) fn back_to_quote(&self) -> TokenStream2 {
         self.data.back_to_quote_for_lazy()
     }
+
+    pub(crate) fn is_serde_flatten(&self) -> bool {
+        if let Some(x) = &self.data.serde_opts {
+            x == "flatten"
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

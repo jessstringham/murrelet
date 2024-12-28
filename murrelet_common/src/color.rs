@@ -33,7 +33,6 @@ impl MurreletColor {
         Self::hsva(0.0, 0.0, 0.0, 0.0)
     }
 
-
     // shorthand for a really bright color
     pub fn hue(h: f32) -> MurreletColor {
         Self::hsva(h, 1.0, 1.0, 1.0)

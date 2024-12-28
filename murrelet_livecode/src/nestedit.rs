@@ -78,7 +78,10 @@ where
 fn nest_default(getter: &[&str], self_as_str: String) -> LivecodeResult<String> {
     match getter {
         [] => Ok(self_as_str),
-        extra => Err(LivecodeError::NestGetExtra(extra.join(".")))
+        extra => Err(LivecodeError::NestGetExtra(format!(
+            "at a number, but received {}",
+            extra.join(".")
+        ))),
     }
 }
 
@@ -90,15 +93,12 @@ impl NestEditable for f32 {
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
         nest_default(getter, format!("{}", self))
     }
-
-
 }
 
 impl NestEditable for u64 {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().map(|x| x as u64).unwrap_or(*self)
     }
-
 
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
         nest_default(getter, format!("{}", self))
@@ -109,7 +109,6 @@ impl NestEditable for u8 {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().map(|x| x as u8).unwrap_or(*self)
     }
-
 
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
         nest_default(getter, format!("{}", self))
@@ -132,7 +131,6 @@ impl NestEditable for i32 {
     }
 
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
-
         nest_default(getter, format!("{}", self))
     }
 }
@@ -150,7 +148,10 @@ impl NestEditable for Vec2 {
             [] => Ok(format!("{}", self)),
             ["x"] => Ok(format!("{}", self.x)),
             ["y"] => Ok(format!("{}", self.y)),
-            extra => Err(LivecodeError::NestGetExtra(extra.join(".")))
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a vec2, but got {}",
+                extra.join(".")
+            ))),
         }
     }
 }
@@ -170,7 +171,10 @@ impl NestEditable for Vec3 {
             ["x"] => Ok(format!("{}", self.x)),
             ["y"] => Ok(format!("{}", self.y)),
             ["z"] => Ok(format!("{}", self.z)),
-            extra => Err(LivecodeError::NestGetExtra(extra.join(".")))
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a vec3 but got {}",
+                extra.join(".")
+            ))),
         }
     }
 }
@@ -197,7 +201,7 @@ impl NestEditable for MurreletColor {
             ["s"] => Ok(format!("{}", s)),
             ["v"] => Ok(format!("{}", v)),
             ["a"] => Ok(format!("{}", a)),
-            extra => Err(LivecodeError::NestGetExtra(extra.join(".")))
+            extra => Err(LivecodeError::NestGetExtra(extra.join("."))),
         }
     }
 }
@@ -216,10 +220,12 @@ impl NestEditable for bool {
     }
 
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
-
         match getter {
             [] => Ok(format!("{:?}", self)),
-            extra => Err(LivecodeError::NestGetExtra(extra.join(".")))
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a bool, but got {}",
+                extra.join(".")
+            ))),
         }
     }
 }
@@ -232,7 +238,10 @@ impl NestEditable for String {
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
         match getter {
             [] => Ok(format!("{:?}", self)),
-            extra => Err(LivecodeError::NestGetExtra(extra.join(".")))
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a string, but got {}",
+                extra.join(".")
+            ))),
         }
     }
 }
@@ -243,7 +252,9 @@ impl NestEditable for AdditionalContextNode {
     }
 
     fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
-        Err(LivecodeError::NestGetExtra("AdditionalContextNode".to_owned())) // maybe in the future!
+        Err(LivecodeError::NestGetExtra(
+            "AdditionalContextNode".to_owned(),
+        )) // maybe in the future!
     }
 }
 

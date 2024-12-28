@@ -19,8 +19,12 @@ impl std::fmt::Display for LivecodeError {
             LivecodeError::Raw(msg) => write!(f, "{}", msg),
             LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
             LivecodeError::Io(msg, err) => write!(f, "{}: {}", msg, err),
-            LivecodeError::NestGetExtra(err) => write!(f, "nest get has unusable tokens...: {}", err),
-            LivecodeError::NestGetInvalid(err) => write!(f, "nest get requested for odd thing...: {}", err),
+            LivecodeError::NestGetExtra(err) => {
+                write!(f, "nest get has unusable tokens...: {}", err)
+            }
+            LivecodeError::NestGetInvalid(err) => {
+                write!(f, "nest get requested for odd thing...: {}", err)
+            }
         }
     }
 }

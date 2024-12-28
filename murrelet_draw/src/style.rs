@@ -6,7 +6,6 @@ use murrelet_common::*;
 use murrelet_livecode::{lazy::ControlLazyNodeF32, livecode::ControlF32, types::ControlVecElement};
 use murrelet_livecode_derive::Livecode;
 
-
 fn _black() -> [ControlF32; 4] {
     [
         ControlF32::Raw(0.0),
@@ -24,7 +23,6 @@ fn _black_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
         ControlVecElement::Single(ControlLazyNodeF32::Float(1.0)),
     ]
 }
-
 
 #[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleFilled {

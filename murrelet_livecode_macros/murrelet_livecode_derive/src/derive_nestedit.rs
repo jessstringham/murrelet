@@ -6,6 +6,7 @@ use crate::parser::*;
 pub(crate) struct FieldTokensNestEdit {
     pub(crate) for_nestedit: TokenStream2,
     pub(crate) for_nestedit_get: TokenStream2,
+    pub(crate) for_nestedit_get_flatten: Option<TokenStream2>,
 }
 impl GenFinal for FieldTokensNestEdit {
     // Something(f32)
@@ -37,11 +38,29 @@ impl GenFinal for FieldTokensNestEdit {
         variants: Vec<FieldTokensNestEdit>,
     ) -> TokenStream2 {
         let name = idents.name;
+        let name_str = name.to_string();
 
         let for_nestedit = variants.iter().map(|a| a.for_nestedit.clone());
 
         let for_nestedit_get = variants.iter().map(|a| a.for_nestedit_get.clone());
 
+        // for serde flatten ones
+        let flattened_nestedit_get = variants
+            .iter()
+            .map(|a| a.for_nestedit_get_flatten.clone())
+            .flatten();
+
+        let flatten_if_statement = if flattened_nestedit_get.clone().count() > 0 {
+            quote! {
+                for flattened in vec![#(#flattened_nestedit_get),*].into_iter() {
+                    if let Ok(result) = flattened {
+                        return Ok(result);
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
 
         quote! {
             impl murrelet_livecode::nestedit::NestEditable for #name {
@@ -50,17 +69,19 @@ impl GenFinal for FieldTokensNestEdit {
                 }
 
                 fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
-                        match getter {
-                            #(#for_nestedit_get,)*
-                            _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(getter.join(".")))
+                    match getter {
+                        #(#for_nestedit_get,)*
+                        _ => {
+                            // if we have an error, go through and check the flattened ones
+                            #flatten_if_statement;
+                            Err(murrelet_livecode::types::LivecodeError::NestGetExtra(
+                                format!("struct {} didn't match: {}", #name_str, getter.join("."))))
                         }
                     }
-
                 }
-
             }
         }
-
+    }
 
     fn make_enum_final(
         idents: ParsedFieldIdent,
@@ -84,10 +105,12 @@ impl GenFinal for FieldTokensNestEdit {
 
                 fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
 
+                    // first check the assumption
                     match self {
                         #(#for_nestedit_get,)*
-                        _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(getter.join(".")))
+                        _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("enum didn't match {}", getter.join("."))))
                     }
+
 
                 }
 
@@ -111,7 +134,13 @@ impl GenFinal for FieldTokensNestEdit {
             self.0.nest_get(&remaining)
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+        let for_nestedit_get_flatten = None;
+
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten,
+        }
     }
 
     // e.g. TileAxisLocs::V(TileAxisVs)
@@ -145,7 +174,11 @@ impl GenFinal for FieldTokensNestEdit {
             // next_getter.nest_get(first_part, &remaining)
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 
     // e.g. TileAxis::Diag
@@ -164,7 +197,11 @@ impl GenFinal for FieldTokensNestEdit {
             #name::#variant_ident => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("unitcell enum")))
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 
     // s: String, context
@@ -184,8 +221,11 @@ impl GenFinal for FieldTokensNestEdit {
             [#name_str, rest @ ..] => Err(murrelet_livecode::types::LivecodeError::NestGetExtra("string".to_owned()))
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
-
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 
     // f32, Vec2, etc
@@ -202,8 +242,11 @@ impl GenFinal for FieldTokensNestEdit {
             [#yaml_name, rest @ ..] => self.#name.nest_get(rest)
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
-
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 
     // v: Vec<f32>
@@ -227,10 +270,14 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
-
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 
+    // i don't remember what this is...
     fn from_newtype_recurse_struct_vec(_idents: StructIdents) -> Self {
         let for_nestedit = {
             // todo, just clone for now
@@ -243,8 +290,11 @@ impl GenFinal for FieldTokensNestEdit {
             [rest @ ..] => { self.0.nest_get(rest) }
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
-
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 
     // this is the interesting one!
@@ -263,8 +313,19 @@ impl GenFinal for FieldTokensNestEdit {
             [#yaml_name, rest @ ..] => self.#name.nest_get(rest)
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
+        let for_nestedit_get_flatten = if idents.is_serde_flatten() {
+            Some(quote! {
+                self.#name.nest_get(getter)
+            })
+        } else {
+            None
+        };
 
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten,
+        }
     }
 
     // UnitCells<Something>
@@ -291,8 +352,11 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
-
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
@@ -314,7 +378,10 @@ impl GenFinal for FieldTokensNestEdit {
             }
         };
 
-        FieldTokensNestEdit { for_nestedit, for_nestedit_get }
-
+        FieldTokensNestEdit {
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_flatten: None,
+        }
     }
 }
