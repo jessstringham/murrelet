@@ -23,47 +23,51 @@ impl PolylineLayerFile {
     }
 }
 
-#[derive(Livecode, Clone, Debug)]
-pub struct AssetFilenames {
-    // hmm, the parsers are all in a different part of the code
-    polyline_layers_files: Vec<PolylineLayerFile>,
-}
+
 
 pub fn _empty_filenames() -> ControlAssetFilenames {
-    ControlAssetFilenames { polyline_layers_files: vec![] }
+    ControlAssetFilenames { files: vec![] }
 }
 
 pub fn _empty_filenames_lazy() -> ControlLazyAssetFilenames {
-    ControlLazyAssetFilenames { polyline_layers_files: vec![] }
+    ControlLazyAssetFilenames { files: vec![] }
+}
+
+#[derive(Livecode, Clone, Debug)]
+pub struct AssetFilenames {
+    // hmm, the parsers are all in a different part of the code
+    files: Vec<PolylineLayerFile>,
 }
 
 impl AssetFilenames {
-    pub fn new(polyline_layers_files: Vec<String>) -> Self {
+    pub fn new(files: Vec<String>) -> Self {
         Self {
-            polyline_layers_files: polyline_layers_files
+            files: files
                 .into_iter()
                 .map(|x| PolylineLayerFile::new(x))
-                .collect_vec(),
+                .collect_vec()
         }
     }
 
     pub fn empty() -> Self {
         Self {
-            polyline_layers_files: Vec::new(),
+            files: Vec::new(),
         }
     }
 
     pub fn load(&self, load_funcs: &[Box<dyn AssetLoader>]) -> Assets {
         let mut m = HashMap::new();
-        for filename in &self.polyline_layers_files {
+        for filename in &self.files {
             let path = filename.path();
 
+            println!("loading file {:?}", filename.path());
             // depending on the filetype...
 
             if let Some(ext) = path.extension() {
                 let ext_str = ext.to_str();
                 for func in load_funcs {
                     if func.is_match(ext_str.unwrap()) {
+
                         let filename_stem = path
                             .file_stem()
                             .unwrap_or_default()
