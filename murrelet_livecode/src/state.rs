@@ -1,3 +1,4 @@
+use assets::{Assets, AssetsRef};
 use evalexpr::HashMapContext;
 use murrelet_common::*;
 
@@ -25,6 +26,7 @@ impl LivecodeWorldStateStage {
 pub struct LivecodeWorldState {
     context: HashMapContext,
     stage: LivecodeWorldStateStage,
+    assets: AssetsRef,
 }
 impl LivecodeWorldState {
     fn clone_ctx_and_add_world(
@@ -56,6 +58,7 @@ impl LivecodeWorldState {
         livecode_src: &LivecodeSrc,
         time: LiveCodeTimeInstantInfo,
         node: AdditionalContextNode,
+        assets: AssetsRef,
     ) -> LivecodeResult<LivecodeWorldState> {
         let context =
             Self::clone_ctx_and_add_world(evalexpr_func_ctx, livecode_src, Some(time), Some(node))?;
@@ -63,6 +66,7 @@ impl LivecodeWorldState {
         Ok(LivecodeWorldState {
             context,
             stage: LivecodeWorldStateStage::World(time),
+            assets: assets.clone(),
         })
     }
 
@@ -75,6 +79,7 @@ impl LivecodeWorldState {
         Ok(LivecodeWorldState {
             context,
             stage: LivecodeWorldStateStage::Timeless,
+            assets: Assets::empty_ref()
         })
     }
 
@@ -146,6 +151,7 @@ impl LivecodeWorldState {
             stage: self
                 .stage
                 .add_step(LivecodeWorldStateStage::Unit(self.time())),
+            assets: self.assets.clone()
         };
 
         Ok(r)
@@ -158,7 +164,12 @@ impl LivecodeWorldState {
             stage: self
                 .stage
                 .add_step(LivecodeWorldStateStage::Lazy(self.time())),
+            assets: self.assets.clone()
         }
+    }
+
+    pub fn asset_layer(&self, key: &str, layer: &str) -> Option<Vec<Polyline>> {
+        self.assets.asset_layer(key, layer).map(|x| x.clone())
     }
 }
 

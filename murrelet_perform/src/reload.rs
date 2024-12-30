@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use evalexpr::HashMapContext;
+use murrelet_common::assets::{Assets, AssetsRef};
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::state::*;
@@ -250,12 +251,14 @@ impl LiveCodeUtil {
         livecode_src: &'a LivecodeSrc,
         timing_conf: &LivecodeTimingConfig,
         node: &AdditionalContextNode,
+        assets: AssetsRef,
     ) -> LivecodeResult<LivecodeWorldState> {
         LivecodeWorldState::new(
             &self.global_funcs,
             livecode_src,
             self.time(timing_conf),
             node.clone(),
+            assets,
         )
     }
 }

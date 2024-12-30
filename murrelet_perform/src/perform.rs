@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use glam::{vec3, Mat4, Vec2};
+use murrelet_common::assets::{Assets, AssetsRef};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
@@ -18,6 +19,7 @@ use murrelet_livecode::livecode::LivecodeFromWorld;
 use murrelet_livecode::livecode::*;
 use murrelet_livecode_derive::Livecode;
 
+use crate::asset_loader::*;
 use crate::reload::*;
 
 pub trait CommonTrait: std::fmt::Debug + Clone {}
@@ -449,6 +451,8 @@ fn _default_should_reset_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(false)
 }
 
+
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode)]
 pub struct AppConfig {
@@ -490,6 +494,8 @@ pub struct AppConfig {
     // so I usually disable this
     #[livecode(serde_default = "false")]
     pub reload_on_bar: bool,
+    #[livecode(serde_default = "_empty_filenames")]
+    pub assets: AssetFilenames,
 }
 impl AppConfig {
     pub fn should_clear_bg(&self) -> bool {
@@ -672,6 +678,7 @@ where
     // sorry, the cache is mixed between boom_mng, but sometimes we need this
     cached_timeless_app_config: Option<AppConfigTiming>,
     cached_world: Option<LivecodeWorldState>,
+    assets: AssetsRef,
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
@@ -682,19 +689,21 @@ where
     pub fn new_web(
         conf: String,
         livecode_src: LivecodeSrc,
+        load_funcs: &[Box<dyn AssetLoader>],
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
         let controlconfig = ControlConfType::parse(&conf)
             .map_err(|err| LivecodeError::Raw(format!("error parsing {}", err)))?;
-        Self::new_full(controlconfig, None, livecode_src)
+        Self::new_full(controlconfig, None, livecode_src, load_funcs)
     }
 
     // this one panics if something goes wrong
     pub fn new(
         save_path: PathBuf,
         livecode_src: LivecodeSrc,
+        load_funcs: &[Box<dyn AssetLoader>],
     ) -> LiveCoder<ConfType, ControlConfType, BoopConfType> {
         let controlconfig = ControlConfType::fs_load();
-        let result = Self::new_full(controlconfig, Some(save_path), livecode_src);
+        let result = Self::new_full(controlconfig, Some(save_path), livecode_src, load_funcs);
         result.expect("error loading!")
     }
 
@@ -702,6 +711,7 @@ where
         controlconfig: ControlConfType,
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
+        load_funcs: &[Box<dyn AssetLoader>],
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
         let run_id = run_id();
 
@@ -717,7 +727,18 @@ where
             boop_mng: BoopMng::Uninitialized,
             cached_timeless_app_config: None, // uninitialized
             cached_world: None,
+            assets: Assets::empty_ref(),
         };
+
+        // hrm, before doing most things, load the assets (but we'll do this line again...)
+
+        s.cached_timeless_app_config = Some(s._timing_config().o(&s._timeless_world()?)?);
+        s._update_world()?;
+
+        let w = s.world();
+        let app_conf = s.controlconfig._app_config().o(w)?;
+        let assets = app_conf.assets.load(load_funcs);
+        s.assets = assets.to_ref();
 
         // use the object to create a world and generate the configs
         s.set_processed_config()?;
@@ -861,7 +882,9 @@ where
 
         let ctx = &self.controlconfig._app_config().ctx;
 
-        let world = self.util.world(&self.livecode_src, &timing_conf, ctx)?;
+        let world = self
+            .util
+            .world(&self.livecode_src, &timing_conf, ctx, self.assets.clone())?;
 
         self.cached_world = Some(world);
         Ok(())

@@ -1,3 +1,4 @@
+pub mod asset_loader;
 pub mod load;
 pub mod perform;
 pub mod reload;

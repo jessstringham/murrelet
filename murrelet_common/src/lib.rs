@@ -5,6 +5,7 @@ use num_traits::NumCast;
 
 pub mod intersection;
 
+pub mod assets;
 mod color;
 mod geometry;
 mod idx;
