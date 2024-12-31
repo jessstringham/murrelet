@@ -79,7 +79,7 @@ impl LivecodeWorldState {
         Ok(LivecodeWorldState {
             context,
             stage: LivecodeWorldStateStage::Timeless,
-            assets: Assets::empty_ref()
+            assets: Assets::empty_ref(),
         })
     }
 
@@ -151,7 +151,7 @@ impl LivecodeWorldState {
             stage: self
                 .stage
                 .add_step(LivecodeWorldStateStage::Unit(self.time())),
-            assets: self.assets.clone()
+            assets: self.assets.clone(),
         };
 
         Ok(r)
@@ -164,7 +164,7 @@ impl LivecodeWorldState {
             stage: self
                 .stage
                 .add_step(LivecodeWorldStateStage::Lazy(self.time())),
-            assets: self.assets.clone()
+            assets: self.assets.clone(),
         }
     }
 

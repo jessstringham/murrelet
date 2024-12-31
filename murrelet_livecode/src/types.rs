@@ -1,6 +1,7 @@
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use murrelet_common::IdxInRange;
 use serde::{Deserialize, Deserializer};
+use serde_yaml::Location;
 
 use crate::{expr::ExprWorldContextValues, livecode::LivecodeFromWorld, state::LivecodeWorldState};
 
@@ -11,6 +12,7 @@ pub enum LivecodeError {
     Io(String, std::io::Error),
     NestGetExtra(String),
     NestGetInvalid(String),
+    SerdeLoc(Location, String),
 }
 impl LivecodeError {}
 impl std::fmt::Display for LivecodeError {
@@ -24,6 +26,10 @@ impl std::fmt::Display for LivecodeError {
             }
             LivecodeError::NestGetInvalid(err) => {
                 write!(f, "nest get requested for odd thing...: {}", err)
+            }
+            LivecodeError::SerdeLoc(location, err) => {
+                let loc = format!("{},{}", location.line(), location.column());
+                write!(f, "parse_error :: loc: {}, err: {}", loc, err)
             }
         }
     }

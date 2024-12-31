@@ -23,8 +23,6 @@ impl PolylineLayerFile {
     }
 }
 
-
-
 pub fn _empty_filenames() -> ControlAssetFilenames {
     ControlAssetFilenames { files: vec![] }
 }
@@ -45,14 +43,12 @@ impl AssetFilenames {
             files: files
                 .into_iter()
                 .map(|x| PolylineLayerFile::new(x))
-                .collect_vec()
+                .collect_vec(),
         }
     }
 
     pub fn empty() -> Self {
-        Self {
-            files: Vec::new(),
-        }
+        Self { files: Vec::new() }
     }
 
     pub fn load(&self, load_funcs: &[Box<dyn AssetLoader>]) -> Assets {
@@ -67,7 +63,6 @@ impl AssetFilenames {
                 let ext_str = ext.to_str();
                 for func in load_funcs {
                     if func.is_match(ext_str.unwrap()) {
-
                         let filename_stem = path
                             .file_stem()
                             .unwrap_or_default()

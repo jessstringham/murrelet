@@ -451,8 +451,6 @@ fn _default_should_reset_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(false)
 }
 
-
-
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode)]
 pub struct AppConfig {
@@ -691,8 +689,13 @@ where
         livecode_src: LivecodeSrc,
         load_funcs: &[Box<dyn AssetLoader>],
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
-        let controlconfig = ControlConfType::parse(&conf)
-            .map_err(|err| LivecodeError::Raw(format!("error parsing {}", err)))?;
+        let controlconfig = ControlConfType::parse(&conf).map_err(|err| {
+            if let Some(error) = err.location() {
+                LivecodeError::SerdeLoc(error, err.to_string())
+            } else {
+                LivecodeError::Raw(err.to_string())
+            }
+        })?;
         Self::new_full(controlconfig, None, livecode_src, load_funcs)
     }
 
@@ -810,7 +813,7 @@ where
             self.prev_controlconfig = self.controlconfig.clone();
             self.controlconfig = d;
         } else if let Err(e) = result {
-            eprintln!("e {:?}", e);
+            eprintln!("Error {}", e);
         }
     }
 

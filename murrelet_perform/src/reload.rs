@@ -161,7 +161,11 @@ pub trait LiveCoderLoader: Sized {
                     }
                     Err(err) => {
                         util.update_info_error();
-                        Err(LivecodeError::Raw(format!("bad json! {}", err)))
+                        if let Some(error) = err.location() {
+                            Err(LivecodeError::SerdeLoc(error, err.to_string()))
+                        } else {
+                            Err(LivecodeError::Raw(err.to_string()))
+                        }
                     }
                 }
             } else {
