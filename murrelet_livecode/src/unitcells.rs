@@ -1,6 +1,8 @@
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
@@ -690,6 +692,16 @@ impl UnitCellExprWorldContext {
 
 impl IntoExprWorldContext for UnitCellExprWorldContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
+        // make a few rns
+        let mut rng = StdRng::seed_from_u64((self.seed + 19247.0) as u64);
+
+        let rn0 = rng.gen_range(0.0..1.0);
+        let rn1 = rng.gen_range(0.0..1.0);
+        let rn2 = rng.gen_range(0.0..1.0);
+        let rn3 = rng.gen_range(0.0..1.0);
+        let rn4 = rng.gen_range(0.0..1.0);
+        let rn5 = rng.gen_range(0.0..1.0);
+
         let v = vec![
             ("x".to_owned(), LivecodeValue::Float(self.x as f64)),
             ("y".to_owned(), LivecodeValue::Float(self.y as f64)),
@@ -721,6 +733,12 @@ impl IntoExprWorldContext for UnitCellExprWorldContext {
                 LivecodeValue::Float((self.total_x * self.total_y * self.total_z) as f64),
             ),
             ("seed".to_owned(), LivecodeValue::Float(self.seed as f64)),
+            ("rn0".to_owned(), LivecodeValue::Float(rn0)),
+            ("rn1".to_owned(), LivecodeValue::Float(rn1)),
+            ("rn2".to_owned(), LivecodeValue::Float(rn2)),
+            ("rn3".to_owned(), LivecodeValue::Float(rn3)),
+            ("rn4".to_owned(), LivecodeValue::Float(rn4)),
+            ("rn5".to_owned(), LivecodeValue::Float(rn5)),
             (
                 "h_ratio".to_owned(),
                 LivecodeValue::Float(self.h_ratio as f64),
