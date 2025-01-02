@@ -121,7 +121,7 @@ impl GenFinal for FieldTokensLivecode {
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
 
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize)]
+            #[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
             #vis struct #new_ident {
                 #(#for_struct,)*
             }
@@ -159,7 +159,7 @@ impl GenFinal for FieldTokensLivecode {
         let enum_tag = idents.tags;
 
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize)]
+            #[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
             #[allow(non_camel_case_types)]
             #enum_tag
             #vis enum #new_ident {
@@ -196,7 +196,7 @@ impl GenFinal for FieldTokensLivecode {
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
 
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize)]
+            #[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
             #vis struct #new_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {

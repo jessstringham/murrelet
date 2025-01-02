@@ -10,12 +10,13 @@ use crate::{
     types::{LivecodeError, LivecodeResult},
 };
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ControlLazyNodeF32 {
     Int(i32),
     Bool(bool),
     Float(f32),
+    #[schemars(with = "String")]
     Expr(Node),
 }
 

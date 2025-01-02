@@ -39,9 +39,9 @@ impl std::error::Error for LivecodeError {}
 
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, schemars::JsonSchema)]
 #[serde(transparent)]
-pub struct AdditionalContextNode(Node);
+pub struct AdditionalContextNode(#[schemars(with = "String")] Node);
 
 impl Default for AdditionalContextNode {
     fn default() -> Self {
@@ -57,7 +57,7 @@ impl AdditionalContextNode {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 pub struct ControlVecElementRepeat<Source> {
     repeat: usize,
     // #[serde(default)]
@@ -93,7 +93,7 @@ impl<Source> ControlVecElementRepeat<Source> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, schemars::JsonSchema)]
 pub enum ControlVecElement<Source> {
     Single(Source),
     Repeat(ControlVecElementRepeat<Source>),

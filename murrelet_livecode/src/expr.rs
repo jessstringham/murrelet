@@ -128,6 +128,12 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = smoothstep(t, edge0, edge1);
             Ok(Value::Float(f))
         }),
+        "step" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (src, val) = (tuple[0].as_number()?, tuple[1].as_number()?);
+            let f = if src > val { 1.0 } else { 0.0 };
+            Ok(Value::Float(f as f64))
+        }),
         "pulse" => Function::new(|argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
             let (pct, t, size) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);

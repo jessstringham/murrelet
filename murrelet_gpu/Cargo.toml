@@ -38,3 +38,5 @@ half = "2.4.1"
 image = "0.25.2"
 
 bytemuck={version="1.16.1", features = ["derive"] }
+
+schemars = "0.8.21"

@@ -25,3 +25,5 @@ regex = "1.7.3"
 glam = "0.28.0"
 palette = "0.7.6"
 anyhow = "1.0.86"
+
+schemars = "0.8.21"
