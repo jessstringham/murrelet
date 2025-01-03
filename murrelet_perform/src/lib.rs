@@ -1,4 +1,5 @@
 pub mod asset_loader;
+pub mod cli;
 pub mod load;
 pub mod perform;
 pub mod reload;

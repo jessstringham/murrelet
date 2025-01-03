@@ -27,3 +27,4 @@ palette = "0.7.6"
 anyhow = "1.0.86"
 
 schemars = "0.8.21"
+clap = {version = "4.5.23", features = ["derive"]}

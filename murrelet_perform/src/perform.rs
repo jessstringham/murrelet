@@ -20,7 +20,9 @@ use murrelet_livecode::livecode::*;
 use murrelet_livecode_derive::Livecode;
 
 use crate::asset_loader::*;
+use crate::cli::BaseConfigArgs;
 use crate::reload::*;
+use clap::Parser;
 
 pub trait CommonTrait: std::fmt::Debug + Clone {}
 
@@ -677,6 +679,7 @@ where
     cached_timeless_app_config: Option<AppConfigTiming>,
     cached_world: Option<LivecodeWorldState>,
     assets: AssetsRef,
+    maybe_args: Option<BaseConfigArgs>, // should redesign this...
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
@@ -696,7 +699,7 @@ where
                 LivecodeError::Raw(err.to_string())
             }
         })?;
-        Self::new_full(controlconfig, None, livecode_src, load_funcs)
+        Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }
 
     // this one panics if something goes wrong
@@ -706,7 +709,16 @@ where
         load_funcs: &[Box<dyn AssetLoader>],
     ) -> LiveCoder<ConfType, ControlConfType, BoopConfType> {
         let controlconfig = ControlConfType::fs_load();
-        let result = Self::new_full(controlconfig, Some(save_path), livecode_src, load_funcs);
+
+        let args = BaseConfigArgs::parse();
+
+        let result = Self::new_full(
+            controlconfig,
+            Some(save_path),
+            livecode_src,
+            load_funcs,
+            Some(args),
+        );
         result.expect("error loading!")
     }
 
@@ -715,6 +727,7 @@ where
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
         load_funcs: &[Box<dyn AssetLoader>],
+        maybe_args: Option<BaseConfigArgs>,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
         let run_id = run_id();
 
@@ -731,6 +744,7 @@ where
             cached_timeless_app_config: None, // uninitialized
             cached_world: None,
             assets: Assets::empty_ref(),
+            maybe_args,
         };
 
         // hrm, before doing most things, load the assets (but we'll do this line again...)
@@ -956,7 +970,12 @@ where
                 let img_name = capture_frame_name.with_extension("txt");
                 fs::write(img_name, format!("{:?}", self.config())).expect("Unable to write file");
                 let img_name = capture_frame_name.with_extension("yaml");
-                fs::copy(env::args().collect::<Vec<String>>()[1].clone(), img_name).unwrap();
+
+                if let Some(env) = &self.maybe_args {
+                    fs::copy(env.config_path.clone(), img_name).unwrap();
+                } else {
+                    println!("Hm, didn't have a base config args, but trying to save...");
+                }
             }
         }
         Ok(())

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use evalexpr::HashMapContext;
-use murrelet_common::assets::{Assets, AssetsRef};
+use murrelet_common::assets::AssetsRef;
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::state::*;
@@ -10,7 +10,7 @@ use murrelet_livecode::types::{AdditionalContextNode, LivecodeError, LivecodeRes
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::perform::ControlAppConfig;
 
@@ -54,6 +54,7 @@ pub trait LiveCoderLoader: Sized {
     fn fs_load() -> Self {
         // todo, make this return a result..
         let args: Vec<String> = env::args().collect();
+        // Self::fs_load_from_filename(&args[1], &args[2])
         Self::fs_load_from_filename(&args[1], &args[2])
     }
 
@@ -69,6 +70,7 @@ pub trait LiveCoderLoader: Sized {
         }
     }
 
+    // TODO, update all this to use clap isntead!
     fn fs_config_filename() -> String {
         let args: Vec<String> = env::args().collect();
         args[1].clone()
