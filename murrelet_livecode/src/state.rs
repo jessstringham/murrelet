@@ -1,4 +1,3 @@
-use assets::{Assets, AssetsRef};
 use evalexpr::HashMapContext;
 use murrelet_common::*;
 

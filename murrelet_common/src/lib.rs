@@ -5,7 +5,7 @@ use num_traits::NumCast;
 
 pub mod intersection;
 
-pub mod assets;
+mod assets;
 mod color;
 mod geometry;
 mod idx;
@@ -14,6 +14,7 @@ mod metric;
 mod polyline;
 mod transform;
 
+pub use assets::*;
 pub use color::*;
 pub use geometry::*;
 pub use idx::*;
