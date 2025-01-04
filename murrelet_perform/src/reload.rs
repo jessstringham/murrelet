@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use evalexpr::HashMapContext;
-use murrelet_common::assets::AssetsRef;
+use murrelet_common::AssetsRef;
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::state::*;

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use glam::{vec3, Mat4, Vec2};
-use murrelet_common::assets::{Assets, AssetsRef};
+use murrelet_common::{Assets, AssetsRef};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use itertools::Itertools;
-use murrelet_common::assets::{Asset, Assets};
+use murrelet_common::{Asset, Assets};
 use murrelet_livecode_derive::Livecode;
 
 pub trait AssetLoader {
