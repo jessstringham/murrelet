@@ -1044,4 +1044,12 @@ where
     pub fn time_delta(&self) -> f32 {
         self.world().time().seconds_between_render_times()
     }
+
+    pub fn sketch_args(&self) -> Vec<String> {
+        if let Some(args) = &self.maybe_args {
+            args.sketch_args.clone()
+        } else {
+            vec![]
+        }
+    }
 }
