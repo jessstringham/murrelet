@@ -66,7 +66,7 @@ pub trait LiveCoderLoader: Sized {
         // todo make this a result too
         match Self::fs_parse_data(filename, includes_dir) {
             Ok(x) => x,
-            Err(err) => panic!("didn't work {}", err),
+            Err(err) => panic!("{}", err),
         }
     }
 

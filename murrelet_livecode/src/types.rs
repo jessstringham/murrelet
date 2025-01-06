@@ -28,6 +28,7 @@ impl std::fmt::Display for LivecodeError {
                 write!(f, "nest get requested for odd thing...: {}", err)
             }
             LivecodeError::SerdeLoc(location, err) => {
+                // if it's err, hrm, remove the controlvec ones
                 let loc = format!("{},{}", location.line(), location.column());
                 write!(f, "parse_error :: loc: {}, err: {}", loc, err)
             }
@@ -131,7 +132,7 @@ where
         // try the simple one
         match Source::deserialize(value.clone()) {
             Ok(single) => return Ok(ControlVecElement::Single(single)),
-            Err(e) => errors.push(format!("Single variant failed: {}", e)),
+            Err(e) => errors.push(format!("{}", e)),
         }
 
         //
@@ -139,14 +140,14 @@ where
             Ok(repeat) => return Ok(ControlVecElement::Repeat(repeat)),
             Err(e) => {
                 // it's gonna fail, so just check what
-                errors.push(format!("Repeat variant failed: {}", e))
+                errors.push(format!("(repeat {})", e))
             }
         }
 
         // Both variants failed, return an error with detailed messages
         Err(serde::de::Error::custom(format!(
-            "data did not match any variant of ControlVecElement:\n{}",
-            errors.join("\n")
+            "ControlVecElement {}",
+            errors.join(" ")
         )))
     }
 }
