@@ -26,7 +26,7 @@ const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16F
 
 /// For example
 /// Examples:
-///    
+///
 ///    build_shader!{
 ///     raw r###"
 ///     fn shape(in: vec3<f32>) -> f32 {
@@ -243,6 +243,34 @@ impl RenderTrait for TwoSourcesRender {
     }
 }
 
+// holds a gpu pipeline :O
+pub struct PipelineRender {
+    pub source: GraphicsRef,
+    pub pipeline: GPUPipelineRef,
+    pub dest: GraphicsRef,
+}
+
+impl PipelineRender {
+    pub fn new_box(source: GraphicsRef, pipeline: GPUPipelineRef, dest: GraphicsRef) -> Box<Self> {
+        Box::new(Self { source, pipeline, dest })
+    }
+}
+impl RenderTrait for PipelineRender {
+    fn render(&self, device_state_for_render: &DeviceStateForRender) {
+        // write source to pipeline source
+        self.source.render(device_state_for_render.device_state(), &self.pipeline.source());
+        self.pipeline.render(device_state_for_render);
+    }
+
+    fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        self.pipeline.debug_print()
+    }
+
+    fn dest(&self) -> Option<GraphicsRef> {
+        Some(self.dest.clone())
+    }
+}
+
 // given a list of inputs, choose which one to use
 pub struct ChoiceRender {
     pub sources: Vec<GraphicsRef>,
@@ -398,6 +426,7 @@ pub struct GPUPipeline {
     pub dag: Vec<Box<dyn RenderTrait>>,
     choices: Vec<usize>,
     names: HashMap<String, GraphicsRef>,
+    source: Option<String>
 }
 
 impl GPUPipeline {
@@ -406,7 +435,12 @@ impl GPUPipeline {
             dag: Vec::new(),
             choices: Vec::new(),
             names: HashMap::new(),
+            source: None,
         }
+    }
+
+    pub fn set_source(&mut self, src: &str) {
+        self.source = Some(src.to_string());
     }
 
     pub fn add_step(&mut self, d: Box<dyn RenderTrait>) {
@@ -447,6 +481,12 @@ impl GPUPipeline {
     pub fn debug_print(&self) -> Vec<RenderDebugPrint> {
         self.dag.iter().flat_map(|x| x.debug_print()).collect()
     }
+
+    fn source(&self) -> GraphicsRef {
+        // hm this should happen on start
+        let name = self.source.as_ref().expect("should have set a source if you're gonna get it source");
+        self.get_graphic(&name).expect(&format!("gave a source {} that doesn't exist", name))
+    }
 }
 
 impl Default for GPUPipeline {
@@ -454,6 +494,33 @@ impl Default for GPUPipeline {
         Self::new()
     }
 }
+
+#[derive(Clone)]
+pub struct GPUPipelineRef(Rc<RefCell<GPUPipeline>>);
+
+impl GPUPipelineRef {
+
+    pub fn new(pipeline: GPUPipeline) -> Self {
+        GPUPipelineRef(Rc::new(RefCell::new(pipeline)))
+    }
+
+    pub fn render(&self, device: &DeviceStateForRender) {
+        self.0.borrow().render(device)
+    }
+
+    pub fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        self.0.borrow().debug_print()
+    }
+
+    pub fn source(&self) -> GraphicsRef {
+        self.0.borrow().source()
+    }
+
+    pub fn get_graphic(&self, name: &str) -> Option<GraphicsRef> {
+        self.0.borrow().get_graphic(name)
+    }
+}
+
 
 pub struct SingleTextureRender {
     pub source: ImageTextureRef,
@@ -606,7 +673,26 @@ macro_rules! build_shader_pipeline {
         }
     };
 
-    // two sources to output: a -> t
+    // one source to create one graphicsref: a -> T => t;
+    (@parse $pipeline:ident ($source:ident -> $subpipe:ident => $dest:ident;$($tail:tt)*)) => {
+        {
+            println!("add pipeline");
+            let $dest = $subpipe.out().clone();
+            $pipeline.add_step(
+                PipelineRender::new_box(
+                    $source.clone(),
+                    $subpipe.gpu_pipeline(),
+                    $dest.clone()
+                )
+            );
+            pipeline_add_label!($pipeline, $source);
+            pipeline_add_label!($pipeline, $dest);
+
+            build_shader_pipeline!(@parse $pipeline ($($tail)*));
+        }
+    };
+
+    // one source to output: a -> t
     (@parse $pipeline:ident ($source:ident -> $dest:ident;$($tail:tt)*)) => {
         {
             println!("add simple");
