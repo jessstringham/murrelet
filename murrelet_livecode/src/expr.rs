@@ -173,6 +173,14 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let len = vec2(x as f32, y as f32).length();
             Ok(Value::Float(len as f64))
         }),
+
+        "pow" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (x, y) = (tuple[0].as_number()?, tuple[1].as_number()?);
+
+            let p = x.powf(y);
+            Ok(Value::Float(p))
+        }),
         "sin" => Function::new(move |argument| {
             let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
                 Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?),

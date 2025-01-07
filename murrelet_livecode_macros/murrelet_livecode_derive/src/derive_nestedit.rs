@@ -233,10 +233,16 @@ impl GenFinal for FieldTokensNestEdit {
         let name = idents.name();
         let yaml_name = name.to_string();
 
-        // we'll just use the trait!
-        let for_nestedit = quote! {
-            #name: self.#name.nest_update(mods.next_loc(#yaml_name))
+        // we'll just use the trait! (unless it's none, then we bail
+        let for_nestedit = match idents.how_to_control_this() {
+            HowToControlThis::WithNone(_) => quote! {
+                #name: self.#name.clone()
+            },
+            _ => quote! {
+                #name: self.#name.nest_update(mods.next_loc(#yaml_name))
+            }
         };
+
 
         let for_nestedit_get = quote! {
             [#yaml_name, rest @ ..] => self.#name.nest_get(rest)
