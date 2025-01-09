@@ -698,3 +698,8 @@ impl FixedPointVec2 {
         Self::new_from_fixed_point(self.x.nudge(x), self.y.nudge(y))
     }
 }
+
+
+pub fn approx_eq_eps(x: f32, y: f32, eps: f32) -> bool {
+    (x - y).abs() <= eps
+}

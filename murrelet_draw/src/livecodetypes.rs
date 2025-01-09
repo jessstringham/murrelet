@@ -16,6 +16,10 @@ pub mod anglepi {
         pub fn new<A: IsAngle>(f: A) -> Self {
             Self(f.angle_pi())
         }
+
+        pub fn from_angle_pi(angle_pi: f32) -> Self {
+            Self(angle_pi)
+        }
     }
 
     impl From<LivecodeAnglePi> for Angle {
