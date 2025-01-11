@@ -19,15 +19,16 @@ impl ControlGraphicsRef {
         label: &str,
         control: Box<dyn ControlGraphics>,
         graphics: Option<GraphicsRef>,
-    ) -> Option<ControlGraphicsRef> {
+    ) -> Vec<ControlGraphicsRef> {
+        // using a vec here to make it easier to concat with other lists
         if let Some(gg) = graphics {
-            Some(ControlGraphicsRef {
+            vec![ControlGraphicsRef {
                 control,
                 graphics: gg,
-            })
+            }]
         } else {
             println!("missing ref! {:?}", label);
-            None
+            vec![]
         }
     }
 
