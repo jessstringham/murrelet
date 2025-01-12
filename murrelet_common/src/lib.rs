@@ -699,7 +699,6 @@ impl FixedPointVec2 {
     }
 }
 
-
 pub fn approx_eq_eps(x: f32, y: f32, eps: f32) -> bool {
     (x - y).abs() <= eps
 }

@@ -240,9 +240,8 @@ impl GenFinal for FieldTokensNestEdit {
             },
             _ => quote! {
                 #name: self.#name.nest_update(mods.next_loc(#yaml_name))
-            }
+            },
         };
-
 
         let for_nestedit_get = quote! {
             [#yaml_name, rest @ ..] => self.#name.nest_get(rest)

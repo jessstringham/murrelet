@@ -3,7 +3,8 @@ use std::f32::consts::PI;
 
 use glam::*;
 use murrelet_common::{
-    a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SpotOnCurve, TransformVec2
+    a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
+    SpotOnCurve, TransformVec2,
 };
 use murrelet_livecode_derive::Livecode;
 
@@ -140,7 +141,7 @@ impl Transform2d {
                     if approx_eq_eps(s.v.x, -1.0, 1e-6) && approx_eq_eps(s.v.y, 1.0, 1e-6) {
                         is_mirrored = !is_mirrored;
                     }
-                },
+                }
                 Transform2dStep::Skew(_) => todo!(),
             }
         }
@@ -157,7 +158,7 @@ impl Transform2d {
                     if approx_eq_eps(s.v.x, 1.0, 1e-6) && approx_eq_eps(s.v.y, -1.0, 1e-6) {
                         is_mirrored = !is_mirrored;
                     }
-                },
+                }
                 Transform2dStep::Skew(_) => todo!(),
             }
         }

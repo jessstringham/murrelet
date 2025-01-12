@@ -252,13 +252,20 @@ pub struct PipelineRender {
 
 impl PipelineRender {
     pub fn new_box(source: GraphicsRef, pipeline: GPUPipelineRef, dest: GraphicsRef) -> Box<Self> {
-        Box::new(Self { source, pipeline, dest })
+        Box::new(Self {
+            source,
+            pipeline,
+            dest,
+        })
     }
 }
 impl RenderTrait for PipelineRender {
     fn render(&self, device_state_for_render: &DeviceStateForRender) {
         // write source to pipeline source
-        self.source.render(device_state_for_render.device_state(), &self.pipeline.source());
+        self.source.render(
+            device_state_for_render.device_state(),
+            &self.pipeline.source(),
+        );
         self.pipeline.render(device_state_for_render);
     }
 
@@ -426,7 +433,7 @@ pub struct GPUPipeline {
     pub dag: Vec<Box<dyn RenderTrait>>,
     choices: Vec<usize>,
     names: HashMap<String, GraphicsRef>,
-    source: Option<String>
+    source: Option<String>,
 }
 
 impl GPUPipeline {
@@ -484,8 +491,12 @@ impl GPUPipeline {
 
     fn source(&self) -> GraphicsRef {
         // hm this should happen on start
-        let name = self.source.as_ref().expect("should have set a source if you're gonna get it source");
-        self.get_graphic(&name).expect(&format!("gave a source {} that doesn't exist", name))
+        let name = self
+            .source
+            .as_ref()
+            .expect("should have set a source if you're gonna get it source");
+        self.get_graphic(&name)
+            .expect(&format!("gave a source {} that doesn't exist", name))
     }
 }
 
@@ -499,7 +510,6 @@ impl Default for GPUPipeline {
 pub struct GPUPipelineRef(Rc<RefCell<GPUPipeline>>);
 
 impl GPUPipelineRef {
-
     pub fn new(pipeline: GPUPipeline) -> Self {
         GPUPipelineRef(Rc::new(RefCell::new(pipeline)))
     }
@@ -520,7 +530,6 @@ impl GPUPipelineRef {
         self.0.borrow().get_graphic(name)
     }
 }
-
 
 pub struct SingleTextureRender {
     pub source: ImageTextureRef,
