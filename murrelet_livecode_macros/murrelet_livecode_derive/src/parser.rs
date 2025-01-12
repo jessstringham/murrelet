@@ -2,6 +2,9 @@ use darling::{ast, FromDeriveInput, FromField, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
+const DEBUG_THIS: bool = false;
+
+
 pub(crate) fn prefix_ident(prefix: &str, name: syn::Ident) -> syn::Ident {
     let lc_name = format!("{}{}", prefix, name);
     syn::Ident::new(&lc_name, name.span())
@@ -51,6 +54,11 @@ where
 
     fn make_struct(s: &LivecodeReceiver) -> TokenStream2 {
         let name = s.ident.clone();
+
+        if DEBUG_THIS {
+            println!("{}::make_struct {}",  Self::classname(), name.to_string());
+        }
+
         let lc_ident = Self::new_ident(name.clone());
 
         // shouldn't be calling this with something that's not a struct..
@@ -102,6 +110,10 @@ where
     fn make_enum(e: &LivecodeReceiver) -> TokenStream2 {
         let name = e.ident.clone();
 
+        if DEBUG_THIS {
+            println!("{}::make_enum {}", Self::classname(), name.to_string());
+        }
+
         let new_enum_ident = Self::new_ident(e.ident.clone());
 
         let variants = e.data.clone().take_enum().unwrap();
@@ -134,8 +146,17 @@ where
         Self::make_enum_final(idents, variants)
     }
 
+    fn classname() -> String {
+        std::any::type_name::<Self>().split("::").last().unwrap_or("").to_owned()
+    }
+
     fn make_newtype(s: &LivecodeReceiver) -> TokenStream2 {
         let name = s.ident.clone();
+
+        if DEBUG_THIS {
+            println!("{}::make_newtype {}", Self::classname(), name.to_string());
+        }
+
         let lc_ident = Self::new_ident(name.clone());
 
         // shouldn't be calling this with something that's not a struct..
@@ -153,10 +174,16 @@ where
                     // HowToControlThis::WithNone(_) => Self::from_noop_struct(idents),
                     // creating with a set type
                     HowToControlThis::WithType(_, _) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_struct");
+                        }
                         Self::from_newtype_struct(idents, name.clone())
                     }
                     // creating a Vec<Something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_recurse_struct_vec");
+                        }
                         Self::from_newtype_recurse_struct_vec(idents)
                     }
                     // creating a : Something in livecode

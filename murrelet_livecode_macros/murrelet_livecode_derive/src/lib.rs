@@ -7,6 +7,7 @@ extern crate proc_macro;
 
 mod derive_boop;
 mod derive_lazy;
+mod derive_lerpable;
 mod derive_livecode;
 mod derive_nestedit;
 mod parser;
@@ -15,6 +16,7 @@ mod toplevel;
 use darling::FromDeriveInput;
 use derive_boop::FieldTokensBoop;
 use derive_lazy::FieldTokensLazy;
+use derive_lerpable::FieldTokensLerpable;
 use derive_livecode::FieldTokensLivecode;
 use derive_nestedit::FieldTokensNestEdit;
 use parser::{GenFinal, LivecodeReceiver};
@@ -41,6 +43,10 @@ fn nestedit_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensNestEdit::from_ast(rec)
 }
 
+fn lerpable_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
+    FieldTokensLerpable::from_ast(rec)
+}
+
 // derives all of the macros I usually need
 #[proc_macro_derive(Livecode, attributes(livecode))]
 pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
@@ -49,12 +55,14 @@ pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
 
     let livecode = livecode_parse_ast(ast_receiver.clone());
     let nested = nestedit_parse_ast(ast_receiver.clone());
+    let lerpable = lerpable_parse_ast(ast_receiver.clone());
     let boop = boop_parse_ast(ast_receiver.clone());
     let lazy = lazy_parse_ast(ast_receiver.clone());
 
     quote!(
         #livecode
         #nested
+        #lerpable
         #boop
         #lazy
     )
@@ -91,6 +99,13 @@ pub fn murrelet_livecode_derive_nestedit(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
     nestedit_parse_ast(ast_receiver.clone()).into()
+}
+
+#[proc_macro_derive(Lerpable, attributes(livecode))]
+pub fn murrelet_livecode_derive_lerpable(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
+    lerpable_parse_ast(ast_receiver.clone()).into()
 }
 
 // todo, this is if we need to load config
