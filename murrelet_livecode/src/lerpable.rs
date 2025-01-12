@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use evalexpr::Node;
 use glam::{vec2, vec3, Vec2, Vec3};
 use itertools::Itertools;
-use murrelet_common::{lerp, MurreletColor};
+use murrelet_common::{lerp, IdxInRange, MurreletColor};
 
-use crate::{lazy::LazyNodeF32, types::AdditionalContextNode, unitcells::UnitCell};
+use crate::{lazy::LazyNodeF32, types::AdditionalContextNode, unitcells::{UnitCell, UnitCellContext, UnitCellExprWorldContext}};
 
 pub fn step<T: Clone>(this: &T, other: &T, pct: f32) -> T {
     if pct > 0.5 {
@@ -87,12 +87,25 @@ impl Lerpable for MurreletColor {
     }
 }
 
+
+
+impl Lerpable for UnitCellContext {
+    fn lerpify(&self, other: &Self, pct: f32) -> Self {
+
+        let ctx = self.ctx().experimental_lerp(&other.ctx(), pct);
+        let detail = self.detail.experimental_lerp(other.detail, pct);
+        let tile_info = step(&self.tile_info, &other.tile_info, pct);
+        UnitCellContext::new_with_option_info(ctx, detail, tile_info)
+
+    }
+}
+
 impl<T: Lerpable> Lerpable for UnitCell<T> {
     fn lerpify(&self, other: &Self, pct: f32) -> Self {
         let node = self.node.lerpify(&other.node, pct);
 
-        // wheeeeeeeee
-        let detail = step(&self.detail, &other.detail, pct);
+
+        let detail = self.detail.lerpify(&other.detail, pct);
 
         UnitCell::new(node, detail)
     }

@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
 use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
+use crate::lerpable::Lerpable;
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
@@ -485,6 +486,18 @@ impl UnitCellContext {
         }
     }
 
+    pub fn new_with_option_info(
+        ctx: UnitCellExprWorldContext,
+        detail: UnitCellDetails,
+        tile_info: Option<Box<dyn TileInfo>>,
+    ) -> UnitCellContext {
+        UnitCellContext {
+            ctx,
+            detail,
+            tile_info
+        }
+    }
+
     pub fn rect_for_face(&self) -> Rect {
         // todo, replace this with rect_bound
         let mut b = BoundMetric::new();
@@ -594,6 +607,24 @@ pub struct UnitCellExprWorldContext {
     h_ratio: f32, // width is always 100, what is h
 }
 impl UnitCellExprWorldContext {
+
+    // this just needs to be interesting.... not correct
+    pub fn experimental_lerp(&self, other: &Self, pct: f32) -> Self {
+        UnitCellExprWorldContext {
+            x: self.x.lerpify(&other.x, pct),
+            y: self.y.lerpify(&other.y, pct),
+            z: self.z.lerpify(&other.z, pct),
+            x_i: self.x_i.lerpify(&other.x_i, pct),
+            y_i: self.y_i.lerpify(&other.y_i, pct),
+            z_i: self.z_i.lerpify(&other.z_i, pct),
+            total_x: self.total_x.lerpify(&other.total_x, pct),
+            total_y: self.total_y.lerpify(&other.total_y, pct),
+            total_z: self.total_z.lerpify(&other.total_z, pct),
+            seed: self.seed.lerpify(&other.seed, pct),
+            h_ratio: self.h_ratio.lerpify(&other.h_ratio, pct),
+        }
+    }
+
     pub fn from_idx2d_and_actual_xy(
         xy: Vec2,
         idx: IdxInRange2d,
