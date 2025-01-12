@@ -5,11 +5,12 @@ use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
 use murrelet_livecode::lazy::ControlLazyNodeF32;
+use murrelet_livecode::lerpable::Lerpable;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{
     AdditionalContextNode, ControlVecElement, LivecodeError, LivecodeResult,
 };
-use std::{env, fs};
+use std::fs;
 
 use murrelet_common::run_id;
 use std::path::{Path, PathBuf};
@@ -495,7 +496,9 @@ pub struct AppConfig {
     #[livecode(serde_default = "false")]
     pub reload_on_bar: bool,
     #[livecode(serde_default = "_empty_filenames")]
-    pub assets: AssetFilenames,
+    pub assets: AssetFilenames, // for svg files!
+    #[livecode(serde_default = "0")] // if 0, it won't run at all
+    pub lerp_rate: f32,
 }
 impl AppConfig {
     pub fn should_clear_bg(&self) -> bool {
@@ -524,6 +527,10 @@ impl AppConfig {
 
     fn reload_on_bar(&self) -> bool {
         self.reload_on_bar
+    }
+
+    fn should_lerp(&self) -> bool {
+        self.lerp_rate >= 0.0
     }
 }
 
@@ -669,21 +676,23 @@ where
     ControlConfType: LiveCodeCommon<ConfType>,
 {
     run_id: u64,
-    controlconfig: ControlConfType,
+    controlconfig: ControlConfType,                // latest one
+    queued_configcontrol: Option<ControlConfType>, // if a new one comes in before we're done, queue it!
     util: LiveCodeUtil,
-    livecode_src: LivecodeSrc,
+    livecode_src: LivecodeSrc, // get info from outside world
     save_path: Option<PathBuf>,
-    prev_controlconfig: ControlConfType,
+    prev_controlconfig: ControlConfType, // last one
     boop_mng: BoopMng<ConfType, BoopConfType>,
     // sorry, the cache is mixed between boom_mng, but sometimes we need this
     cached_timeless_app_config: Option<AppConfigTiming>,
     cached_world: Option<LivecodeWorldState>,
     assets: AssetsRef,
     maybe_args: Option<BaseConfigArgs>, // should redesign this...
+    lerp_pct: f32,                      // moving between things
 }
 impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
 where
-    ConfType: ConfCommon<BoopConfType> + Send + Sync,
+    ConfType: ConfCommon<BoopConfType> + Send + Sync + Lerpable,
     BoopConfType: BoopConfCommon<ConfType>,
     ControlConfType: LiveCodeCommon<ConfType>,
 {
@@ -736,6 +745,7 @@ where
         let mut s = LiveCoder {
             run_id,
             controlconfig: controlconfig.clone(),
+            queued_configcontrol: None,
             livecode_src,
             util,
             save_path,
@@ -745,6 +755,7 @@ where
             cached_world: None,
             assets: Assets::empty_ref(),
             maybe_args,
+            lerp_pct: 1.0, // start in the done state!
         };
 
         // hrm, before doing most things, load the assets (but we'll do this line again...)
@@ -786,7 +797,20 @@ where
 
         let w = self.world();
 
-        let target = self.controlconfig.o(&w)?;
+        let mut target = self.controlconfig.o(&w)?;
+        let mut lerp_change = 0.0;
+
+        // todo, make this optional
+        if target.config_app_loc().should_lerp() {
+            if self.lerp_pct < 1.0 {
+                let old_target = self.prev_controlconfig.o(&w)?;
+                target = old_target.lerpify(&target, self.lerp_pct);
+            }
+
+            // prepare this for next time
+            lerp_change = self.time_delta() * target.config_app_loc().lerp_rate;
+            // println!("lerp_change {:?}", lerp_change);
+        };
 
         let t = w.time().bar();
 
@@ -797,6 +821,19 @@ where
             // todo, should this be an error too?
             println!("some nans");
         }
+        self.lerp_pct += lerp_change;
+
+        // println!("lerp {} {}", self.queued_configcontrol.is_some(), self.lerp_pct);
+
+        if self.lerp_pct >= 1.0 {
+            if let Some(new_target) = &self.queued_configcontrol {
+                self.prev_controlconfig = self.controlconfig.clone();
+                self.controlconfig = new_target.clone();
+                self.lerp_pct = 0.0;
+                self.queued_configcontrol = None;
+            }
+        }
+
         Ok(())
     }
 
@@ -824,8 +861,14 @@ where
     fn reload_config(&mut self) {
         let result = ControlConfType::fs_load_if_needed_and_update_info(&mut self.util);
         if let Ok(Some(d)) = result {
-            self.prev_controlconfig = self.controlconfig.clone();
-            self.controlconfig = d;
+            // if we're in the middle of something, put this in the queue
+            if self.lerp_pct < 1.0 && self.lerp_pct > 0.0 {
+                self.queued_configcontrol = Some(d);
+            } else {
+                self.prev_controlconfig = self.controlconfig.clone();
+                self.controlconfig = d;
+                self.lerp_pct = 0.0; // reloaded, so time to reload it!
+            }
         } else if let Err(e) = result {
             eprintln!("Error {}", e);
         }
@@ -837,6 +880,8 @@ where
             Ok(d) => {
                 self.prev_controlconfig = self.controlconfig.clone();
                 self.controlconfig = d;
+                self.queued_configcontrol = None;
+                self.lerp_pct = 0.0;
                 Ok(())
             }
             Err(e) => Err(e),

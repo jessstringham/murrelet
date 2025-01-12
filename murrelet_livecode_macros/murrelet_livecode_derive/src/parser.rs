@@ -4,7 +4,6 @@ use quote::quote;
 
 const DEBUG_THIS: bool = false;
 
-
 pub(crate) fn prefix_ident(prefix: &str, name: syn::Ident) -> syn::Ident {
     let lc_name = format!("{}{}", prefix, name);
     syn::Ident::new(&lc_name, name.span())
@@ -56,7 +55,7 @@ where
         let name = s.ident.clone();
 
         if DEBUG_THIS {
-            println!("{}::make_struct {}",  Self::classname(), name.to_string());
+            println!("{}::make_struct {}", Self::classname(), name.to_string());
         }
 
         let lc_ident = Self::new_ident(name.clone());
@@ -147,7 +146,11 @@ where
     }
 
     fn classname() -> String {
-        std::any::type_name::<Self>().split("::").last().unwrap_or("").to_owned()
+        std::any::type_name::<Self>()
+            .split("::")
+            .last()
+            .unwrap_or("")
+            .to_owned()
     }
 
     fn make_newtype(s: &LivecodeReceiver) -> TokenStream2 {

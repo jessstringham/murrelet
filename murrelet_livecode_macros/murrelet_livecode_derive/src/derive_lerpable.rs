@@ -55,8 +55,9 @@ impl GenFinal for FieldTokensLerpable {
         quote! {
             impl murrelet_livecode::lerpable::Lerpable for #name {
                 fn lerpify(&self, other: &Self, pct: f32) -> Self {
-                    match self {
+                    match (self, other) {
                         #(#for_lerpable,)*
+                        _ => murrelet_livecode::lerpable::step(self, other, pct)
                     }
                 }
             }
@@ -68,17 +69,18 @@ impl GenFinal for FieldTokensLerpable {
         name.clone()
     }
 
-    fn from_newtype_struct(_idents: StructIdents, _parent_ident: syn::Ident) -> FieldTokensLerpable {
+    fn from_newtype_struct(
+        _idents: StructIdents,
+        _parent_ident: syn::Ident,
+    ) -> FieldTokensLerpable {
         // let name = idents.control_type();
 
         // these will fall to todo!()
-        let for_lerpable = quote!{
+        let for_lerpable = quote! {
             self.0.lerpify(&other.0, pct)
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // e.g. TileAxisLocs::V(TileAxisVs)
@@ -88,13 +90,12 @@ impl GenFinal for FieldTokensLerpable {
 
         // let unnamed = idents.data.fields.fields;
 
+        // if they're the same, lerp the struct inside. otherwise, will default to the step!
         let for_lerpable = quote! {
-            #name::#variant_ident(s) => murrelet_livecode::lerpable::step(self, other, pct)
+            (#name::#variant_ident(self_s), #name::#variant_ident(other_s)) => #name::#variant_ident(self_s.lerpify(&other_s, pct))
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // e.g. TileAxis::Diag
@@ -102,13 +103,12 @@ impl GenFinal for FieldTokensLerpable {
         let variant_ident = idents.variant_ident();
         let name = idents.enum_ident();
 
+        // hmm, not really needed, since it can fall back on th global step
         let for_lerpable: TokenStream2 = {
-            quote! { #name::#variant_ident => murrelet_livecode::lerpable::step(self, other, pct) }
+            quote! { (#name::#variant_ident, #name::#variant_ident) => murrelet_livecode::lerpable::step(self, other, pct) }
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // s: String, context
@@ -119,9 +119,7 @@ impl GenFinal for FieldTokensLerpable {
             quote! { #name: murrelet_livecode::lerpable::step(&self.#name, &other.#name, pct) }
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // f32, Vec2, etc
@@ -133,9 +131,7 @@ impl GenFinal for FieldTokensLerpable {
             quote! { #name: self.#name.lerpify(&other.#name, pct) }
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // v: Vec<f32>
@@ -149,14 +145,11 @@ impl GenFinal for FieldTokensLerpable {
             }
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // Thing(Vec<Something>);
     fn from_newtype_recurse_struct_vec(_idents: StructIdents) -> Self {
-
         // let parsed_type_info = ident_from_type(&orig_ty);
         // let how_to_control_internal = parsed_type_info.how_to_control_internal();
 
@@ -167,10 +160,7 @@ impl GenFinal for FieldTokensLerpable {
             }
         };
 
-
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // this is the interesting one!
@@ -185,9 +175,7 @@ impl GenFinal for FieldTokensLerpable {
             }
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     // UnitCells<Something>
@@ -204,9 +192,7 @@ impl GenFinal for FieldTokensLerpable {
             }
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
@@ -220,8 +206,6 @@ impl GenFinal for FieldTokensLerpable {
             }
         };
 
-        FieldTokensLerpable {
-            for_lerpable,
-        }
+        FieldTokensLerpable { for_lerpable }
     }
 }

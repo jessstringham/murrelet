@@ -10,7 +10,7 @@ use murrelet_livecode::types::{AdditionalContextNode, LivecodeError, LivecodeRes
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::perform::ControlAppConfig;
 

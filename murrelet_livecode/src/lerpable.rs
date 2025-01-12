@@ -17,8 +17,7 @@ pub fn step<T: Clone>(this: &T, other: &T, pct: f32) -> T {
 
 pub fn combine_vecs<T: Clone + Lerpable>(this: &Vec<T>, other: &Vec<T>, pct: f32) -> Vec<T> {
     // for now, just take the shortest, but we'll update this...
-    this
-        .iter()
+    this.iter()
         .zip(other.iter())
         .map(|(a, b)| a.lerpify(b, pct))
         .collect_vec()
