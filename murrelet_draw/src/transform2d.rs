@@ -2,9 +2,9 @@
 use std::f32::consts::PI;
 
 use glam::*;
+use itertools::Itertools;
 use murrelet_common::{
-    a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
-    SpotOnCurve, TransformVec2,
+    a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2
 };
 use murrelet_livecode_derive::Livecode;
 
@@ -46,6 +46,10 @@ impl Transform2d {
         Transform2d::new(vec![Transform2dStep::Scale(V2::new(vec2(
             scale_x, scale_y,
         )))])
+    }
+
+    pub fn scale_vec2(scale: Vec2) -> Transform2d {
+        Transform2d::new(vec![Transform2dStep::Scale(V2::new(scale))])
     }
 
     pub fn translate(x: f32, y: f32) -> Transform2d {
@@ -212,6 +216,12 @@ impl Transform2d {
         }
         Self::new(vs)
     }
+
+    pub fn to_simple(&self) -> SimpleTransform2d {
+        SimpleTransform2d::new(self.0.iter().map(|t| {
+            t.to_simple()
+        }).collect_vec())
+    }
 }
 
 impl Default for ControlTransform2d {
@@ -314,6 +324,15 @@ impl Transform2dStep {
             }
             Transform2dStep::Scale(t) => Mat3::from_scale(t.v),
             Transform2dStep::Skew(t) => Mat3::from_mat2(Mat2::from_cols(t.v0, t.v1)),
+        }
+    }
+
+    fn to_simple(&self) -> SimpleTransform2dStep {
+        match self {
+            Transform2dStep::Translate(v2) => SimpleTransform2dStep::Translate(v2.v),
+            Transform2dStep::Rotate(rotate2) => SimpleTransform2dStep::Rotate(rotate2.center, rotate2.angle_pi()),
+            Transform2dStep::Scale(v2) => SimpleTransform2dStep::Scale(v2.v),
+            Transform2dStep::Skew(v22) => SimpleTransform2dStep::Skew(v22.v0, v22.v1),
         }
     }
 }

@@ -136,7 +136,7 @@ impl<Target: Default> Default for UnitCell<Target> {
             node: Default::default(),
             detail: UnitCellContext::new(
                 UnitCellExprWorldContext::from_idx1d(IdxInRange::new(0, 1)),
-                Mat4::IDENTITY,
+                SimpleTransform2d::ident(),
             ),
         }
     }
@@ -159,7 +159,7 @@ impl<Target> UnitCell<Target> {
         self.detail.transform().transform_vec2(v)
     }
 
-    pub fn transform(&self) -> Mat4 {
+    pub fn transform(&self) -> SimpleTransform2d {
         self.detail.transform()
     }
 
@@ -451,7 +451,7 @@ pub struct UnitCellContext {
     pub tile_info: Option<Box<dyn TileInfo>>,
 }
 impl UnitCellContext {
-    pub fn new(ctx: UnitCellExprWorldContext, transform: Mat4) -> UnitCellContext {
+    pub fn new(ctx: UnitCellExprWorldContext, transform: SimpleTransform2d) -> UnitCellContext {
         UnitCellContext {
             ctx,
             detail: UnitCellDetails::new(transform),
@@ -527,7 +527,7 @@ impl UnitCellContext {
         self.ctx
     }
 
-    pub fn transform(&self) -> Mat4 {
+    pub fn transform(&self) -> SimpleTransform2d {
         self.detail.transform()
     }
 
@@ -554,7 +554,7 @@ impl UnitCellContext {
         self.detail.is_base()
     }
 
-    pub fn transform_with_skew_mat4(&self) -> Mat4 {
+    pub fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
         self.detail.transform_with_skew_mat4()
     }
 
@@ -576,11 +576,11 @@ impl UnitCellContext {
         self.detail.transform_no_skew(v)
     }
 
-    pub fn transform_no_skew_mat4(&self) -> Mat4 {
+    pub fn transform_no_skew_mat4(&self) -> SimpleTransform2d {
         self.detail.transform_no_skew_mat4()
     }
 
-    pub fn adjust_shape(&self) -> Mat4 {
+    pub fn adjust_shape(&self) -> SimpleTransform2d {
         self.detail.adjust_shape()
     }
 }
@@ -787,14 +787,14 @@ pub enum UnitCellDetails {
 
 impl UnitCellDetails {
     // for a while we just did wallpaper, so default to that
-    pub fn new(transform_vertex: Mat4) -> Self {
+    pub fn new(transform_vertex: SimpleTransform2d) -> Self {
         Self::Wallpaper(UnitCellDetailsWallpaper {
             transform_vertex,
-            adjust_shape: Mat4::IDENTITY,
+            adjust_shape: SimpleTransform2d::ident(),
             is_base: true,
         })
     }
-    pub fn new_fancy(transform_vertex: Mat4, adjust_shape: Mat4, is_base: bool) -> Self {
+    pub fn new_fancy(transform_vertex: SimpleTransform2d, adjust_shape: SimpleTransform2d, is_base: bool) -> Self {
         Self::Wallpaper(UnitCellDetailsWallpaper {
             transform_vertex,
             adjust_shape,
@@ -814,14 +814,14 @@ impl UnitCellDetails {
         }
     }
 
-    fn transform(&self) -> Mat4 {
+    fn transform(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(x) => x.transform(),
             UnitCellDetails::Function(_) => todo!(),
         }
     }
 
-    fn transform_with_skew_mat4(&self) -> Mat4 {
+    fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(x) => x.transform_with_skew_mat4(),
             UnitCellDetails::Function(_) => todo!(),
@@ -850,14 +850,14 @@ impl UnitCellDetails {
         }
     }
 
-    fn transform_no_skew_mat4(&self) -> Mat4 {
+    fn transform_no_skew_mat4(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(w) => w.transform_no_skew_mat(),
             UnitCellDetails::Function(_) => todo!(),
         }
     }
 
-    pub fn adjust_shape(&self) -> Mat4 {
+    pub fn adjust_shape(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(w) => w.adjust_shape(),
             UnitCellDetails::Function(_) => todo!(),
@@ -868,6 +868,15 @@ impl UnitCellDetails {
         match self {
             UnitCellDetails::Wallpaper(w) => w.is_base(),
             UnitCellDetails::Function(_) => true,
+        }
+    }
+
+    pub(crate) fn experimental_lerp(&self, other: &UnitCellDetails, pct: f32) -> UnitCellDetails {
+        match (self, other) {
+            (UnitCellDetails::Wallpaper(w1), UnitCellDetails::Wallpaper(w2)) => {
+                w1.experimental_lerp(w2, pct)
+            },
+            _ => todo!(),
         }
     }
 }
@@ -898,8 +907,8 @@ impl UnitCellDetailsFunction {
 
 #[derive(Debug, Clone)]
 pub struct UnitCellDetailsWallpaper {
-    pub transform_vertex: Mat4,
-    pub adjust_shape: Mat4,
+    pub transform_vertex: SimpleTransform2d,
+    pub adjust_shape: SimpleTransform2d,
     pub is_base: bool, // in cases of symmetry, will tell if this is the first one. useful for borders
 }
 
@@ -908,10 +917,12 @@ impl UnitCellDetailsWallpaper {
         self.transform_with_skew(Vec2::ZERO)
     }
 
-    pub fn transform_no_skew_mat(&self) -> Mat4 {
+    pub fn transform_no_skew_mat(&self) -> SimpleTransform2d {
         // adjust the shape (symmetry, rotation), translate the center
-        let new_center = Mat4::from_vec2_translate(self.offset());
-        new_center * self.adjust_shape
+        let offset = self.offset();
+        let new_center = SimpleTransform2d::translate(offset);
+        // let new_center = Mat4::from_vec2_translate(self.offset());
+        self.adjust_shape.add_after(&new_center)
     }
 
     pub fn transform_no_skew<F: IsPolyline>(&self, v: &F) -> Polyline {
@@ -924,24 +935,23 @@ impl UnitCellDetailsWallpaper {
     }
 
     // how to move the location of something
-    pub fn transform_vertex(&self) -> Mat4 {
-        self.transform_vertex
+    pub fn transform_vertex(&self) -> SimpleTransform2d {
+        self.transform_vertex.clone()
     }
 
     // how to transform a shape, e.g. rotation and flip
-    pub fn adjust_shape(&self) -> Mat4 {
-        self.adjust_shape
+    pub fn adjust_shape(&self) -> SimpleTransform2d {
+        self.adjust_shape.clone()
     }
 
-    pub fn transform(&self) -> Mat4 {
+    pub fn transform(&self) -> SimpleTransform2d {
         self.transform_vertex()
     }
 
     fn combine(&self, detail: &UnitCellDetails) -> UnitCellDetails {
         UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper {
-            transform_vertex: detail.as_wallpaper().unwrap().transform_vertex
-                * self.transform_vertex,
-            adjust_shape: detail.as_wallpaper().unwrap().adjust_shape * self.adjust_shape,
+            transform_vertex: detail.as_wallpaper().unwrap().transform_vertex.add_after(&self.transform_vertex),
+            adjust_shape: detail.as_wallpaper().unwrap().adjust_shape.add_after(&self.adjust_shape),
             is_base: self.is_base && detail.as_wallpaper().unwrap().is_base,
         })
     }
@@ -954,7 +964,15 @@ impl UnitCellDetailsWallpaper {
         self.is_base
     }
 
-    fn transform_with_skew_mat4(&self) -> Mat4 {
-        self.transform_vertex
+    fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
+        self.transform_vertex.clone()
+    }
+
+    fn experimental_lerp(&self, other: &UnitCellDetailsWallpaper, pct: f32) -> UnitCellDetails {
+        UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper{
+            transform_vertex: self.transform_vertex.experimental_lerp(&other.transform_vertex, pct),
+            adjust_shape: self.adjust_shape.experimental_lerp(&other.adjust_shape, pct),
+            is_base: self.is_base || other.is_base,
+        })
     }
 }

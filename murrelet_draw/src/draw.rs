@@ -2,7 +2,7 @@
 
 use glam::{vec2, Mat4, Vec2, Vec3};
 use itertools::Itertools;
-use murrelet_common::{IsPolyline, MurreletColor, Polyline, TransformVec2};
+use murrelet_common::{IsPolyline, MurreletColor, Polyline, SimpleTransform2d, TransformVec2};
 use murrelet_livecode::unitcells::UnitCellContext;
 use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
@@ -376,7 +376,7 @@ impl CoreSDrawCtxUnitCell {
         self.unit_cell_skew
     }
 
-    pub fn unit_cell_transform(&self) -> Mat4 {
+    pub fn unit_cell_transform(&self) -> SimpleTransform2d {
         if self.unit_cell_skew {
             self.unit_cell.transform_with_skew_mat4()
         } else {
