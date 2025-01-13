@@ -109,8 +109,9 @@ fn make_grid(
                 //     * Mat3::from_scale(cell_size.x / 100.0 * Vec2::ONE);
                 let transform = Transform2d::new(vec![
                     Transform2dStep::scale(cell_size.x / 100.0, cell_size.x / 100.0),
-                    Transform2dStep::translate_vec(center)
-                ]).to_simple();
+                    Transform2dStep::translate_vec(center),
+                ])
+                .to_simple();
                 UnitCellContext::new(ctx, transform)
             })
         })

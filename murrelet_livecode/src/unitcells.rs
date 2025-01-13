@@ -494,7 +494,7 @@ impl UnitCellContext {
         UnitCellContext {
             ctx,
             detail,
-            tile_info
+            tile_info,
         }
     }
 
@@ -607,7 +607,6 @@ pub struct UnitCellExprWorldContext {
     h_ratio: f32, // width is always 100, what is h
 }
 impl UnitCellExprWorldContext {
-
     // this just needs to be interesting.... not correct
     pub fn experimental_lerp(&self, other: &Self, pct: f32) -> Self {
         UnitCellExprWorldContext {
@@ -794,7 +793,11 @@ impl UnitCellDetails {
             is_base: true,
         })
     }
-    pub fn new_fancy(transform_vertex: SimpleTransform2d, adjust_shape: SimpleTransform2d, is_base: bool) -> Self {
+    pub fn new_fancy(
+        transform_vertex: SimpleTransform2d,
+        adjust_shape: SimpleTransform2d,
+        is_base: bool,
+    ) -> Self {
         Self::Wallpaper(UnitCellDetailsWallpaper {
             transform_vertex,
             adjust_shape,
@@ -875,7 +878,7 @@ impl UnitCellDetails {
         match (self, other) {
             (UnitCellDetails::Wallpaper(w1), UnitCellDetails::Wallpaper(w2)) => {
                 w1.experimental_lerp(w2, pct)
-            },
+            }
             _ => todo!(),
         }
     }
@@ -950,8 +953,16 @@ impl UnitCellDetailsWallpaper {
 
     fn combine(&self, detail: &UnitCellDetails) -> UnitCellDetails {
         UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper {
-            transform_vertex: detail.as_wallpaper().unwrap().transform_vertex.add_after(&self.transform_vertex),
-            adjust_shape: detail.as_wallpaper().unwrap().adjust_shape.add_after(&self.adjust_shape),
+            transform_vertex: detail
+                .as_wallpaper()
+                .unwrap()
+                .transform_vertex
+                .add_after(&self.transform_vertex),
+            adjust_shape: detail
+                .as_wallpaper()
+                .unwrap()
+                .adjust_shape
+                .add_after(&self.adjust_shape),
             is_base: self.is_base && detail.as_wallpaper().unwrap().is_base,
         })
     }
@@ -969,9 +980,13 @@ impl UnitCellDetailsWallpaper {
     }
 
     fn experimental_lerp(&self, other: &UnitCellDetailsWallpaper, pct: f32) -> UnitCellDetails {
-        UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper{
-            transform_vertex: self.transform_vertex.experimental_lerp(&other.transform_vertex, pct),
-            adjust_shape: self.adjust_shape.experimental_lerp(&other.adjust_shape, pct),
+        UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper {
+            transform_vertex: self
+                .transform_vertex
+                .experimental_lerp(&other.transform_vertex, pct),
+            adjust_shape: self
+                .adjust_shape
+                .experimental_lerp(&other.adjust_shape, pct),
             is_base: self.is_base || other.is_base,
         })
     }

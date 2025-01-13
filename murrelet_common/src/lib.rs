@@ -165,10 +165,7 @@ where
 }
 
 pub fn vec_lerp(a: &Vec2, b: &Vec2, pct: f32) -> Vec2 {
-    vec2(
-        lerp(a.x, b.x, pct),
-        lerp(a.y, b.y, pct),
-    )
+    vec2(lerp(a.x, b.x, pct), lerp(a.y, b.y, pct))
 }
 
 // inclusive

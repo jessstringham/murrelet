@@ -4,7 +4,8 @@ use std::f32::consts::PI;
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::{
-    a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2
+    a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
+    SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2,
 };
 use murrelet_livecode_derive::Livecode;
 
@@ -218,9 +219,7 @@ impl Transform2d {
     }
 
     pub fn to_simple(&self) -> SimpleTransform2d {
-        SimpleTransform2d::new(self.0.iter().map(|t| {
-            t.to_simple()
-        }).collect_vec())
+        SimpleTransform2d::new(self.0.iter().map(|t| t.to_simple()).collect_vec())
     }
 }
 
@@ -330,7 +329,9 @@ impl Transform2dStep {
     fn to_simple(&self) -> SimpleTransform2dStep {
         match self {
             Transform2dStep::Translate(v2) => SimpleTransform2dStep::Translate(v2.v),
-            Transform2dStep::Rotate(rotate2) => SimpleTransform2dStep::Rotate(rotate2.center, rotate2.angle_pi()),
+            Transform2dStep::Rotate(rotate2) => {
+                SimpleTransform2dStep::Rotate(rotate2.center, rotate2.angle_pi())
+            }
             Transform2dStep::Scale(v2) => SimpleTransform2dStep::Scale(v2.v),
             Transform2dStep::Skew(v22) => SimpleTransform2dStep::Skew(v22.v0, v22.v1),
         }
