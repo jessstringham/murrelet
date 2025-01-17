@@ -2,7 +2,7 @@
 //! trait just makes it easier to use different types to
 //! do that.
 use glam::{vec2, vec3, Mat2, Mat3, Mat4, Vec2, Vec3};
-use itertools::{enumerate, Itertools};
+use itertools::Itertools;
 
 use crate::{
     lerp,
@@ -173,6 +173,9 @@ impl SimpleTransform2d {
         let mut v = vec![];
         // tood
         for (i, x) in other.0.iter().enumerate() {
+            if i >= self.0.len() {
+                break;
+            }
             v.push(self.0[i].experimental_lerp(x, pct))
         }
 

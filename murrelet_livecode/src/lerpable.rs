@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use evalexpr::Node;
 use glam::{vec2, vec3, Vec2, Vec3};
-use itertools::Itertools;
 use murrelet_common::{lerp, MurreletColor};
 
 use crate::{
@@ -21,10 +20,27 @@ pub fn step<T: Clone>(this: &T, other: &T, pct: f32) -> T {
 
 pub fn combine_vecs<T: Clone + Lerpable>(this: &Vec<T>, other: &Vec<T>, pct: f32) -> Vec<T> {
     // for now, just take the shortest, but we'll update this...
-    this.iter()
-        .zip(other.iter())
-        .map(|(a, b)| a.lerpify(b, pct))
-        .collect_vec()
+
+    let mut v = vec![];
+    // figure out how many to show
+    let this_len = this.len();
+    let other_len = other.len();
+    let count = lerp(this_len as f32, other_len as f32, pct) as usize;
+    for i in 0..count {
+        let result = match (i >= this_len, i >= other_len) {
+            (true, true) => unreachable!(),
+            (true, false) => other[i].clone(),
+            (false, true) => this[i].clone(),
+            (false, false) => this[i].lerpify(&other[i], pct),
+        };
+        v.push(result);
+    }
+    v
+
+    // this.iter()
+    //     .zip(other.iter())
+    //     .map(|(a, b)| a.lerpify(b, pct))
+    //     .collect_vec()
 }
 
 pub trait Lerpable {
