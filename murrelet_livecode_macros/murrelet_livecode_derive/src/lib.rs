@@ -6,6 +6,7 @@
 extern crate proc_macro;
 
 mod derive_boop;
+mod derive_graphics_trait;
 mod derive_lazy;
 mod derive_lerpable;
 mod derive_livecode;
@@ -15,6 +16,7 @@ mod toplevel;
 
 use darling::FromDeriveInput;
 use derive_boop::FieldTokensBoop;
+use derive_graphics_trait::impl_graphics_trait;
 use derive_lazy::FieldTokensLazy;
 use derive_lerpable::FieldTokensLerpable;
 use derive_livecode::FieldTokensLivecode;
@@ -119,4 +121,10 @@ pub fn murrelet_livecode_top_level_livecode(input: TokenStream) -> TokenStream {
 pub fn murrelet_livecode_livecoder_traits(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     impl_all_the_traits(ast.ident).into()
+}
+
+#[proc_macro_derive(LiveGraphics, attributes(graphics))]
+pub fn murrelet_livecode_graphics(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    impl_graphics_trait(ast).into()
 }

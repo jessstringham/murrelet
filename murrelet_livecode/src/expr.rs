@@ -407,4 +407,10 @@ impl MixedEvalDefs {
 
         c
     }
+
+    pub fn new_simple(name: &str, val: LivecodeValue) -> Self {
+        let mut c = Self::new();
+        c.set_val(name, val);
+        c
+    }
 }
