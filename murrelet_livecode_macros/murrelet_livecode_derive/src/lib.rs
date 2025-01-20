@@ -79,7 +79,21 @@ pub fn murrelet_livecode_derive_livecode(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
 
-    livecode_parse_ast(ast_receiver.clone()).into()
+    // livecode_parse_ast(ast_receiver.clone()).into()
+
+    // and then i realized i still need nested and lerpable too....
+
+    let livecode = livecode_parse_ast(ast_receiver.clone());
+    let nested = nestedit_parse_ast(ast_receiver.clone());
+    let lerpable = lerpable_parse_ast(ast_receiver.clone());
+
+    quote!(
+        #livecode
+        #nested
+        #lerpable
+    )
+    .into()
+
 }
 
 #[proc_macro_derive(Lazy, attributes(livecode))]

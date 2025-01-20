@@ -879,7 +879,7 @@ impl UnitCellDetails {
             (UnitCellDetails::Wallpaper(w1), UnitCellDetails::Wallpaper(w2)) => {
                 w1.experimental_lerp(w2, pct)
             }
-            _ => todo!(),
+            _ => if pct > 0.5 { self.clone() } else { other.clone() },
         }
     }
 }

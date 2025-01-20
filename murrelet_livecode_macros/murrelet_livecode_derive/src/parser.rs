@@ -72,23 +72,45 @@ where
 
                 match field.how_to_control_this() {
                     // leave this field alone (useful for String and HashMaps)
-                    HowToControlThis::WithNone(_) => Self::from_noop_struct(idents),
+                    HowToControlThis::WithNone(_) => {
+                        if DEBUG_THIS {
+                            println!("-> from_noop_struct");
+                        }
+                        Self::from_noop_struct(idents)
+                    },
                     // creating with a set type
-                    HowToControlThis::WithType(_, _) => Self::from_type_struct(idents),
+                    HowToControlThis::WithType(_, _) => {
+                        if DEBUG_THIS {
+                            println!("-> from_type_struct");
+                        }
+                        Self::from_type_struct(idents)
+                    },
                     // creating a Vec<Something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_vec");
+                        }
                         Self::from_recurse_struct_vec(idents)
                     }
                     // creating a : Something in livecode
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_struct");
+                        }
                         Self::from_recurse_struct_struct(idents)
                     }
                     HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_lazy");
+                        }
                         Self::from_recurse_struct_lazy(idents)
                     }
 
                     // dealing with UnitCell<something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::UnitCell) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_unitcell");
+                        }
                         Self::from_recurse_struct_unitcell(idents)
                     }
                 }

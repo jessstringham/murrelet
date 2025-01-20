@@ -54,6 +54,12 @@ impl Lerpable for f32 {
     }
 }
 
+impl<T: Lerpable + Clone> Lerpable for Vec<T> {
+    fn lerpify(&self, other: &Self, pct: f32) -> Self {
+        combine_vecs(&self, &other, pct)
+    }
+}
+
 impl Lerpable for u64 {
     fn lerpify(&self, other: &Self, pct: f32) -> Self {
         lerp(*self as f32, *other as f32, pct) as u64
