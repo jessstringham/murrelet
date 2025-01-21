@@ -77,14 +77,14 @@ where
                             println!("-> from_noop_struct");
                         }
                         Self::from_noop_struct(idents)
-                    },
+                    }
                     // creating with a set type
                     HowToControlThis::WithType(_, _) => {
                         if DEBUG_THIS {
                             println!("-> from_type_struct");
                         }
                         Self::from_type_struct(idents)
-                    },
+                    }
                     // creating a Vec<Something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
                         if DEBUG_THIS {

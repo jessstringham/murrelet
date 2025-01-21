@@ -530,7 +530,7 @@ impl AppConfig {
     }
 
     fn should_lerp(&self) -> bool {
-        self.lerp_rate >= 0.0
+        self.lerp_rate > 0.0
     }
 }
 

@@ -93,7 +93,6 @@ pub fn murrelet_livecode_derive_livecode(input: TokenStream) -> TokenStream {
         #lerpable
     )
     .into()
-
 }
 
 #[proc_macro_derive(Lazy, attributes(livecode))]
