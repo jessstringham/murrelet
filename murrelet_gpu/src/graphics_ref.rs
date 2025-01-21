@@ -2,6 +2,7 @@
 use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
+use murrelet_livecode::nestedit;
 use std::rc::Rc;
 
 #[cfg(feature = "nannou")]
@@ -15,6 +16,8 @@ use wgpu::util::DeviceExt;
 use wgpu::TextureDescriptor;
 
 use crate::device_state::*;
+use crate::gpu_livecode::ControlGraphics;
+use crate::gpu_macros::RenderTrait;
 use crate::shader_str::VERTEX_SHADER;
 
 #[cfg(not(feature = "nannou"))]
@@ -430,7 +433,21 @@ impl GraphicsRef {
             bind_group,
         )
     }
+
+    pub fn with_control_graphics<T>(&self, control_graphic_fn: Box<impl Fn(T) -> Box<dyn ControlGraphics> + 'static>) -> GraphicsRefWithControlGraphics<T> {
+        GraphicsRefWithControlGraphics {
+            graphics: self.clone(),
+            control_graphic_fn
+        }
+    }
 }
+
+pub struct GraphicsRefWithControlGraphics<T> {
+    graphics: GraphicsRef,
+    control_graphic_fn: Box<dyn Fn(T) -> Box<dyn ControlGraphics>>,
+}
+
+
 
 // for now this is just so nannou can create textures...
 #[derive(Debug)]

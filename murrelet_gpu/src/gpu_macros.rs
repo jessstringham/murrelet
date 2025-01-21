@@ -6,11 +6,9 @@ use murrelet_common::MurreletTime;
 use serde::Serialize;
 
 use crate::{
-    device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf},
-    graphics_ref::{
-        BasicUniform, Graphics, GraphicsCreator, GraphicsRef, DEFAULT_LOADED_TEXTURE_FORMAT,
-    },
-    shader_str::*,
+    device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf}, gpu_livecode::ControlGraphics, graphics_ref::{
+        BasicUniform, Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlGraphics, DEFAULT_LOADED_TEXTURE_FORMAT
+    }, shader_str::*
 };
 
 #[cfg(feature = "nannou")]
@@ -429,20 +427,28 @@ impl RenderTrait for DisplayRender {
     }
 }
 
-pub struct GPUPipeline {
+pub struct GPUPipeline<GraphicConf> {
     pub dag: Vec<Box<dyn RenderTrait>>,
     choices: Vec<usize>,
-    names: HashMap<String, GraphicsRef>,
+    names: HashMap<String, GraphicsRef>, // todo, do i need this with ctrl?
+    ctrl: Vec<GraphicsRefWithControlGraphics<GraphicConf>>,
     source: Option<String>,
 }
 
-impl GPUPipeline {
-    pub fn new() -> GPUPipeline {
+impl<GraphicConf> GPUPipeline<GraphicConf> {
+    pub fn new() -> GPUPipeline<GraphicConf> {
         GPUPipeline {
             dag: Vec::new(),
             choices: Vec::new(),
             names: HashMap::new(),
+            ctrl: Vec::new(),
             source: None,
+        }
+    }
+
+    pub fn control_graphics(&self, t: GraphicConf) {
+        for c in &self.ctrl {
+
         }
     }
 
@@ -500,7 +506,7 @@ impl GPUPipeline {
     }
 }
 
-impl Default for GPUPipeline {
+impl<GraphicConf> Default for GPUPipeline<GraphicConf> {
     fn default() -> Self {
         Self::new()
     }
