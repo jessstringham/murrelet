@@ -2,7 +2,6 @@
 use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
-use murrelet_livecode::nestedit;
 use std::rc::Rc;
 
 #[cfg(feature = "nannou")]
@@ -17,7 +16,6 @@ use wgpu::TextureDescriptor;
 
 use crate::device_state::*;
 use crate::gpu_livecode::{ControlGraphics, ControlGraphicsRef};
-use crate::gpu_macros::RenderTrait;
 use crate::shader_str::VERTEX_SHADER;
 
 #[cfg(not(feature = "nannou"))]
@@ -436,10 +434,11 @@ impl GraphicsRef {
 
     pub fn with_control_graphics<T>(
         &self,
+        label: &'static str,
         control_graphic_fn: Arc<impl Fn(&T) -> Box<dyn ControlGraphics> + 'static>,
     ) -> GraphicsRefWithControlFn<T> {
         GraphicsRefWithControlFn {
-            // label: label.to_string(),
+            label,
             graphics: self.clone(),
             control_graphic_fn,
         }
@@ -458,6 +457,7 @@ impl GraphicsRef {
 
 #[derive(Clone)]
 pub struct GraphicsRefWithControlFn<GraphicsConf> {
+    pub label: &'static str,
     pub graphics: GraphicsRef,
     pub control_graphic_fn: Arc<dyn Fn(&GraphicsConf) -> Box<dyn ControlGraphics>>,
 }
@@ -466,7 +466,7 @@ impl<GraphicsConf> GraphicsRefWithControlFn<GraphicsConf> {
     pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef> {
         let ctrl_graphics = (self.control_graphic_fn)(conf);
 
-        ControlGraphicsRef::new(ctrl_graphics, Some(self.graphics.clone()))
+        ControlGraphicsRef::new(self.label, ctrl_graphics, Some(self.graphics.clone()))
 
         // if let Some(control_graphic_fn) = self.control_graphic_fn {
         //     let ctrl_graphics = (*control_graphic_fn)(c, conf);
@@ -486,6 +486,7 @@ impl<GraphicsConf> GraphicsRefWithControlFn<GraphicsConf> {
     pub fn control_graphics_fn(&self) -> Option<GraphicsRefWithControlFn<GraphicsConf>> {
         // Some(self.clone())
         let c = GraphicsRefWithControlFn {
+            label: self.label,
             graphics: self.graphics.clone(),
             control_graphic_fn: self.control_graphic_fn.clone(),
         };

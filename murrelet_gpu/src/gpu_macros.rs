@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 
 use glam::Vec2;
 use murrelet_common::MurreletTime;
@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::{
     device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf},
-    gpu_livecode::{ControlGraphics, ControlGraphicsRef},
+    gpu_livecode::ControlGraphicsRef,
     graphics_ref::{
         BasicUniform, Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlFn,
         DEFAULT_LOADED_TEXTURE_FORMAT,
@@ -438,7 +438,7 @@ impl RenderTrait for DisplayRender {
 pub struct GPUPipeline<GraphicConf> {
     pub dag: Vec<Box<dyn RenderTrait>>,
     choices: Vec<usize>,
-    // names: HashMap<String, GraphicsRef>, // todo, do i need this with ctrl?
+    names: HashMap<String, GraphicsRef>, // todo, do i need this with ctrl?
     ctrl: Vec<GraphicsRefWithControlFn<GraphicConf>>,
     source: Option<String>,
 }
@@ -448,7 +448,7 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
         GPUPipeline {
             dag: Vec::new(),
             choices: Vec::new(),
-            // names: HashMap::new(),
+            names: HashMap::new(),
             ctrl: Vec::new(),
             source: None,
         }
@@ -488,12 +488,11 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
     }
 
     pub fn add_label(&mut self, name: &str, g: GraphicsRef) {
-        // self.names.insert(name.to_string(), g);
+        self.names.insert(name.to_string(), g);
     }
 
     pub fn get_graphic(&self, name: &str) -> Option<GraphicsRef> {
-        // self.names.get(name).cloned()
-        None
+        self.names.get(name).cloned()
     }
 
     // no-op if it doesn't exist
@@ -597,7 +596,7 @@ impl RenderTrait for SingleTextureRender {
 #[macro_export]
 macro_rules! with_control_graphics {
     ($instance:expr, |$param:ident: $ttype:ident| $body:expr) => {
-        $instance.with_control_graphics(Arc::new(|$param: &$ttype| {
+        $instance.with_control_graphics(stringify!($param), Arc::new(|$param: &$ttype| {
             Box::new($body) as Box<dyn ControlGraphics>
         }))
     };

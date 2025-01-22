@@ -11,24 +11,26 @@ pub trait ControlGraphics {
 }
 
 pub struct ControlGraphicsRef {
+    pub label: &'static str,
     control: Box<dyn ControlGraphics>,
     graphics: GraphicsRef,
 }
 impl ControlGraphicsRef {
     pub fn new(
-        // label: &str,
+        label: &'static str,
         control: Box<dyn ControlGraphics>,
         graphics: Option<GraphicsRef>,
     ) -> Vec<ControlGraphicsRef> {
         // using a vec here to make it easier to concat with other lists
         if let Some(gg) = graphics {
             vec![ControlGraphicsRef {
+                label,
                 control,
                 graphics: gg,
             }]
         } else {
-            // println!("missing ref! {:?}", label);
-            println!("missing ref!");
+            println!("missing ref! {:?}", label);
+            // println!("missing ref!");
             vec![]
         }
     }

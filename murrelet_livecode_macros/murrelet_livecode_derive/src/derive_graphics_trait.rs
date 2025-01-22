@@ -11,6 +11,7 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) kind: Option<String>,
     pub(crate) ctrl: Option<String>,
     pub(crate) texture: Option<String>,
+    pub(crate) reset: Option<String>,
 }
 
 // for enums
@@ -75,7 +76,6 @@ fn parse_graphics(
     let mut drawers = vec![];
     let mut pipelines = vec![];
     let mut graphics = vec![];
-    let mut draw_src = vec![];
     let mut ctrl = vec![];
     let mut to_texture = vec![];
 
@@ -84,21 +84,51 @@ fn parse_graphics(
             let kind = GraphicKind::parse(&kind);
             let ident = ident.clone();
             match kind {
-                GraphicKind::Drawer => drawers.push(quote! {&self.#ident}),
+                GraphicKind::Drawer => drawers.push(quote! {v.push(&self.#ident)}),
                 GraphicKind::Pipeline => {
-                    pipelines.push(quote! {&self.#ident});
-                    ctrl.push(quote! {self.#ident.control_graphics(&livecoder)});
+
+                    let result = if let Some(reset) = &f.reset {
+                        let reset_fn = syn::parse_str::<syn::Path>(&reset).expect("that's not a function!");
+
+                        quote! {
+                            if #reset_fn(render_in) {
+                                v.push(&self.#ident as &dyn GraphicsRenderer);
+                            }
+                        }
+                    } else {
+                        quote! {
+                            v.push(&self.#ident as &dyn GraphicsRenderer);
+                        }
+                    };
+                    pipelines.push(result);
+                    ctrl.push(quote! {v.extend(self.#ident.control_graphics(&livecoder).into_iter())});
                 }
                 GraphicKind::Graphics => {
-                    graphics.push(quote! {self.#ident.gpu_pipelines(render_in)});
+                    graphics.push(quote! {self.#ident.gpu_pipelines(render_in) as dyn GraphicsRenderer});
                     if let Some(ctrl_) = &f.ctrl {
-                        ctrl.push(quote! {self.#ident.control_graphics(&#ctrl_)});
+                        let cc = syn::Ident::new(ctrl_, ident.span());
+                        ctrl.push(quote! {v.extend(self.#ident.control_graphics(&livecoder.#cc).into_iter())});
                     }
                 }
                 GraphicKind::DrawSrc => {
-                    draw_src.push(quote! {&self.#ident});
+                    let result = if let Some(reset) = &f.reset {
+                        let reset_fn = syn::parse_str::<syn::Path>(&reset).expect("that's not a function!");
+
+                        quote! {
+                            if #reset_fn(render_in) {
+                                v.push(&self.#ident as &dyn GraphicsRenderer);
+                            }
+                        }
+                    } else {
+                        quote! {
+                            v.push(&self.#ident as &dyn GraphicsRenderer);
+                        }
+                    };
+                    pipelines.push(result);
+
                     if let Some(ctrl_) = &f.ctrl {
                         let ctrl_ident = syn::Ident::new(ctrl_, name.span());
+
                         ctrl.push(quote! {self.#ident.control_graphics(&livecoder.#ctrl_ident)});
                     }
                     if let Some(t) = &f.texture {
@@ -108,11 +138,14 @@ fn parse_graphics(
                 GraphicKind::Ref => {
                     // let name = ident.to_string();
                     if let Some(ctrl_) = &f.ctrl {
+                        let ctrl_ident = syn::Ident::new(ctrl_, name.span());
+                        let ident_str = ident.to_string();
                         ctrl.push(quote! {
-                            ControlGraphicsRef::new(
-                                Box::new(#ctrl_.clone()),
+                            v.extend(ControlGraphicsRef::new(
+                                #ident_str,
+                                Box::new(livecoder.#ctrl_ident.clone()),
                                 Some(self.#ident.clone()),
-                            )
+                            ).into_iter())
                         });
                     }
                 }
@@ -124,60 +157,34 @@ fn parse_graphics(
 
         impl SimpleGraphicsMng<#ctrlcls> for #name {
             fn drawers(&self) -> Vec<&Drawer> {
-                vec![#(#drawers,)*]
+                let mut v:  Vec<&Drawer> = vec![];
+                #(#drawers;)*
+                v
             }
             fn gpu_pipelines(&self, render_in: &GraphicsRenderIn) -> Vec<&dyn GraphicsRenderer> {
-                vec![
-                    #(#draw_src,)*
-                    vec![#(#pipelines,)*],
-                ]
-                .into_iter()
-                .concat()
+                let mut v: Vec<&dyn GraphicsRenderer> = vec![];
+                #(#pipelines;)*
+                v
             }
 
             fn control_graphics<'a>(&'a self, livecoder: &'a #ctrlcls) -> Vec<ControlGraphicsRef> {
-                vec![
-                    #(#ctrl,)*
-
-                    // // ControlGraphicsRef::new(
-                    // //     "sin_distort",
-                    // //     Box::new(livecoder.graphics.resonance.clone()),
-                    // //     self.gpu_pipeline.get_graphic("sin_distort"),
-                    // // ),
-                    // ControlGraphicsRef::new(
-                    //     "feedback_displace_res",
-                    //     Box::new(livecoder.graphics.feedback_displace_res.clone()),
-                    //     self.gpu_pipeline.get_graphic("feedback_displace_res"),
-                    // ),
-                    // ControlGraphicsRef::new(
-                    //     "noise",
-                    //     Box::new(livecoder.graphics.noise.clone()),
-                    //     self.gpu_pipeline.get_graphic("noise"),
-                    // ),
-                    // ControlGraphicsRef::new(
-                    //     "displace",
-                    //     Box::new(livecoder.graphics.displace),
-                    //     self.gpu_pipeline.get_graphic("displace"),
-                    // ),
-                    // ControlGraphicsRef::new(
-                    //     "feedback_transform",
-                    //     Box::new(livecoder.graphics.feedback.clone()),
-                    //     self.gpu_pipeline.get_graphic("feedback_transform"),
-                    // ),
-                    // ControlGraphicsRef::new(
-                    //     "feedback_displace",
-                    //     Box::new(livecoder.graphics.feedback_displace),
-                    //     self.gpu_pipeline.get_graphic("feedback_displace"),
-                    // ),
-                ]
-                .into_iter()
-                .concat()
+                let mut v: Vec<ControlGraphicsRef> = vec![];
+                #(#ctrl;)*
+                v
             }
 
             fn to_texture_map(&self) -> Vec<(StrId, Texture)> {
                 vec![#(#to_texture,)*]
             }
-
         }
+
+        impl GraphicsRenderer for #name {
+            fn render(&self, device: &DeviceStateForRender) {
+                // for pipeline in self.gpu_pipelines(&GraphicsRenderIn::new(true)) {
+                //     pipeline.render(device);
+                // }
+            }
+        }
+
     }
 }
