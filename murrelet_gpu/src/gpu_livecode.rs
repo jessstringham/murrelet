@@ -131,7 +131,7 @@ impl ControlGraphics for [f32; 4] {
 
 impl ControlGraphics for f32 {
     fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
-        ( [*self, 0.0, 0.0, 0.0], [0.0; 4])
+        ([*self, 0.0, 0.0, 0.0], [0.0; 4])
     }
     // fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
     //     g.update_uniforms(c, [*self, 0.0, 0.0, 0.0]);

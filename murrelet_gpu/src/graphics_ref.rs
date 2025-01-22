@@ -2,6 +2,7 @@
 use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
+use glam::Mat4;
 use std::rc::Rc;
 
 #[cfg(feature = "nannou")]
@@ -36,7 +37,7 @@ fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vertex {
     position: [f32; 2],
 }
@@ -59,7 +60,109 @@ pub const VERTICES: [Vertex; 4] = [
     },
 ];
 
-#[derive(Debug, Copy, Clone)]
+// when you want to use vertices for real!!
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct ViewProjection {
+    view_proj: [[f32; 4]; 4], // 4x4 matrix
+}
+impl ViewProjection {
+    fn from_mat4(m: Mat4) -> Self {
+        Self {
+            view_proj: m.to_cols_array_2d(),
+        }
+    }
+
+    fn identity() -> ViewProjection {
+        Self::from_mat4(Mat4::IDENTITY)
+    }
+}
+
+pub struct Scene {
+    view: ViewProjection, // update this as needed
+}
+
+// this is the conf that you'll interface with
+#[derive(Debug, Clone)]
+pub struct Triangulate {
+    vertices: Vec<Vertex>,
+    order: Vec<u16>,
+}
+
+impl Triangulate {
+    fn vertices(&self) -> &[Vertex] {
+        &self.vertices
+    }
+
+    fn add_vertex(&mut self, v: Vertex) -> u16 {
+        self.vertices.push(v);
+        (self.vertices.len() - 1) as u16
+    }
+
+    fn add_rect(&mut self, v: &[u16]) {
+        // triangulateeee
+        // for i in 0..v.len() - 2 {
+
+        // }
+
+        assert!(v.len() == 4);
+
+        // todo, actually write this...
+        self.order.extend([v[0], v[1], v[2], v[1], v[3], v[2]])
+    }
+
+    fn order(&self) -> &[u16] {
+        &self.order
+    }
+}
+
+// this is the conf that you'll interface with
+#[derive(Debug, Clone)]
+pub struct InputVertexConf {
+    vs_mod: &'static str,
+    view: ViewProjection,
+    topology: wgpu::PrimitiveTopology,
+    vertices: Vec<Vertex>,
+    order: Vec<u16>,
+}
+
+impl InputVertexConf {
+    pub fn buffer_slice(&self) -> &[u16] {
+        self.order.as_slice()
+    }
+
+    pub fn set_view(mut self, m: Mat4) -> Self {
+        self.view = ViewProjection::from_mat4(m);
+        self
+    }
+
+    pub fn vs_mod(&self, device: &wgpu::Device) -> wgpu::ShaderModule {
+        shader_from_path(device, self.vs_mod)
+    }
+
+    pub fn with_custom_vertices(mut self, tri: &Triangulate) -> Self {
+        self.vertices = tri.vertices.clone();
+        self.topology = wgpu::PrimitiveTopology::TriangleList;
+        self.order = tri.order.clone();
+        self
+    }
+
+    pub fn indices(&self) -> u32 {
+        self.order.len() as u32
+    }
+
+    pub fn default() -> Self {
+        Self {
+            vs_mod: VERTEX_SHADER,
+            view: ViewProjection::identity(),
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            vertices: VERTICES.to_vec(),
+            order: vec![0, 1, 2, 1, 3, 2],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct ShaderOptions {
     sampler_address_mode_u: wgpu::AddressMode,
     sampler_address_mode_v: wgpu::AddressMode,
@@ -139,13 +242,14 @@ struct TextureCreator {
     format: wgpu::TextureFormat,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct GraphicsCreator {
     first_texture: TextureCreator,
     second_texture: Option<TextureCreator>,
     details: ShaderOptions,
     color_blend: wgpu::BlendComponent,
     dst_texture: TextureCreator,
+    input_vertex: InputVertexConf, // defaults to the square
 }
 impl Default for GraphicsCreator {
     fn default() -> Self {
@@ -162,6 +266,7 @@ impl Default for GraphicsCreator {
             dst_texture: TextureCreator {
                 format: DEFAULT_TEXTURE_FORMAT,
             },
+            input_vertex: InputVertexConf::default(),
         }
     }
 }
@@ -175,6 +280,11 @@ impl GraphicsCreator {
         self.second_texture = Some(TextureCreator {
             format: DEFAULT_TEXTURE_FORMAT,
         });
+        self
+    }
+
+    pub fn with_custom_input_vertex(mut self, v: InputVertexConf) -> Self {
+        self.input_vertex = v;
         self
     }
 
@@ -507,6 +617,7 @@ pub struct Graphics {
     conf: GraphicsCreator,
     bind_group: wgpu::BindGroup,
     vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
     render_pipeline: wgpu::RenderPipeline,
     pub uniforms: BasicUniform,
     pub uniforms_buffer: wgpu::Buffer, // used internally
@@ -545,7 +656,6 @@ impl Graphics {
     pub fn update_uniforms_other_tuple(
         &mut self,
         c: &GraphicsWindowConf,
-
         more_info: ([f32; 4], [f32; 4]),
     ) {
         let (more_info, more_info_other) = more_info;
@@ -701,9 +811,9 @@ impl Graphics {
     }
 
     fn _render_pipeline(
+        vertex_conf: &InputVertexConf,
         device: &wgpu::Device,
         bind_group_layout: &wgpu::BindGroupLayout,
-        vs_mod: &wgpu::ShaderModule,
         fs_mod: &wgpu::ShaderModule,
         dst_format: wgpu::TextureFormat,
     ) -> wgpu::RenderPipeline {
@@ -717,6 +827,11 @@ impl Graphics {
             attributes: &vertex_buffer_layouts_attributes,
         };
 
+        let primitive = wgpu::PrimitiveState {
+            topology: vertex_conf.topology,
+            ..wgpu::PrimitiveState::default()
+        };
+
         let color_state = vec![Some(wgpu::ColorTargetState {
             format: dst_format,
             blend: Some(wgpu::BlendState::REPLACE), //None,
@@ -727,16 +842,13 @@ impl Graphics {
             label: None,
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &vs_mod,
+                module: &vertex_conf.vs_mod(device),
                 entry_point: "main",
                 buffers: &[vertex_buffer_layouts],
                 #[cfg(not(feature = "nannou"))]
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
-                ..wgpu::PrimitiveState::default()
-            },
+            primitive,
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
@@ -753,12 +865,22 @@ impl Graphics {
         device.create_render_pipeline(&rp_desc)
     }
 
-    fn _vertex_buffer(device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    fn _vertex_buffer(
+        device: &wgpu::Device,
+        vertex_conf: &InputVertexConf,
+    ) -> (wgpu::Buffer, wgpu::Buffer) {
+        let v = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&VERTICES[..]),
+            contents: bytemuck::cast_slice(&vertex_conf.vertices[..]),
             usage: wgpu::BufferUsages::VERTEX,
-        })
+        });
+        let i = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&vertex_conf.order[..]),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        (v, i)
     }
 
     fn _pipeline_layout(
@@ -803,6 +925,7 @@ impl Graphics {
         texture_src_path: GraphicsAssets,
         conf: GraphicsCreator,
     ) -> Self {
+        let conf_c = conf.clone();
         let has_second_texture = conf.second_texture.is_some();
         let details = conf.details;
         let first_format = conf.first_texture.format;
@@ -813,7 +936,7 @@ impl Graphics {
         // todo, figure out msaa samples
         // let msaa_samples = 1;
 
-        let vs_mod = shader_from_path(device, VERTEX_SHADER);
+        // let vs_mod = shader_from_path(device, VERTEX_SHADER);
         let fs_mod = shader_from_path(device, fs_shader_data);
 
         // make a bind group layout
@@ -846,8 +969,13 @@ impl Graphics {
 
         let initial_uniform_buffer = initial_uniform.to_buffer(device);
 
-        let render_pipeline =
-            Graphics::_render_pipeline(device, &bind_group_layout, &vs_mod, &fs_mod, dst_format);
+        let render_pipeline = Graphics::_render_pipeline(
+            &conf.input_vertex,
+            device,
+            &bind_group_layout,
+            &fs_mod,
+            dst_format,
+        );
 
         let bind_group = Graphics::_bind_group(
             device,
@@ -860,14 +988,17 @@ impl Graphics {
 
         println!("bind_group {:?}", bind_group);
 
+        let (vertex_buffer, index_buffer) = Graphics::_vertex_buffer(device, &conf.input_vertex);
+
         Self {
             name,
-            conf,
+            conf: conf_c,
             render_pipeline,
             bind_group,
             uniforms: initial_uniform,
             uniforms_buffer: initial_uniform_buffer,
-            vertex_buffer: Graphics::_vertex_buffer(device),
+            vertex_buffer,
+            index_buffer,
             input_texture_view,
             input_texture_view_other,
             // things i might need to create custom bind groups later
@@ -931,7 +1062,12 @@ impl Graphics {
             rpass.set_pipeline(&self.render_pipeline);
             rpass.set_bind_group(0, bind_group, &[]);
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            rpass.draw(0..VERTICES.len() as u32, 0..1);
+            rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            rpass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
+            // if self.conf.input_vertex.topology == wgpu::PrimitiveTopology::TriangleList {
+            // } else {
+            //     rpass.draw(0..VERTICES.len() as u32, 0..1);
+            // }
             drop(rpass);
         }
 

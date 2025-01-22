@@ -11,7 +11,7 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) kind: Option<String>,
     pub(crate) ctrl: Option<String>,
     pub(crate) texture: Option<String>,
-    pub(crate) reset: Option<String>,
+    pub(crate) run: Option<String>,
 }
 
 // for enums
@@ -86,12 +86,12 @@ fn parse_graphics(
             match kind {
                 GraphicKind::Drawer => drawers.push(quote! {v.push(&self.#ident)}),
                 GraphicKind::Pipeline => {
-
-                    let result = if let Some(reset) = &f.reset {
-                        let reset_fn = syn::parse_str::<syn::Path>(&reset).expect("that's not a function!");
+                    let result = if let Some(should_run) = &f.run {
+                        let should_run_fn = syn::parse_str::<syn::Path>(&should_run)
+                            .expect("that's not a function!");
 
                         quote! {
-                            if #reset_fn(render_in) {
+                            if !#should_run_fn(render_in) {
                                 v.push(&self.#ident as &dyn GraphicsRenderer);
                             }
                         }
@@ -101,21 +101,26 @@ fn parse_graphics(
                         }
                     };
                     pipelines.push(result);
-                    ctrl.push(quote! {v.extend(self.#ident.control_graphics(&livecoder).into_iter())});
+                    ctrl.push(
+                        quote! {v.extend(self.#ident.control_graphics(&livecoder).into_iter())},
+                    );
                 }
                 GraphicKind::Graphics => {
-                    graphics.push(quote! {self.#ident.gpu_pipelines(render_in) as dyn GraphicsRenderer});
+                    graphics.push(
+                        quote! {self.#ident.gpu_pipelines(render_in) as dyn GraphicsRenderer},
+                    );
                     if let Some(ctrl_) = &f.ctrl {
                         let cc = syn::Ident::new(ctrl_, ident.span());
                         ctrl.push(quote! {v.extend(self.#ident.control_graphics(&livecoder.#cc).into_iter())});
                     }
                 }
                 GraphicKind::DrawSrc => {
-                    let result = if let Some(reset) = &f.reset {
-                        let reset_fn = syn::parse_str::<syn::Path>(&reset).expect("that's not a function!");
+                    let result = if let Some(should_run) = &f.run {
+                        let should_run_fn = syn::parse_str::<syn::Path>(&should_run)
+                            .expect("that's not a function!");
 
                         quote! {
-                            if #reset_fn(render_in) {
+                            if !#should_run_fn(render_in) {
                                 v.push(&self.#ident as &dyn GraphicsRenderer);
                             }
                         }
