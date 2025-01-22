@@ -76,6 +76,32 @@ impl ViewProjection {
     fn identity() -> ViewProjection {
         Self::from_mat4(Mat4::IDENTITY)
     }
+
+    fn as_bytes(&self) -> &[u8] {
+        bytemuck::bytes_of(self)
+    }
+
+    fn uniforms_size(&self) -> u64 {
+        std::mem::size_of::<Self>() as wgpu::BufferAddress
+    }
+
+    fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: self.uniforms_size(),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        })
+    }
+
+    fn copy_to_buffer(
+        &self,
+        dest: &wgpu::Buffer,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+    ) {
+        encoder.copy_buffer_to_buffer(&self.to_buffer(device), 0, dest, 0, self.uniforms_size());
+    }
 }
 
 pub struct Scene {
@@ -90,6 +116,13 @@ pub struct Triangulate {
 }
 
 impl Triangulate {
+    pub fn new() -> Self {
+        Triangulate {
+            vertices: vec![],
+            order: vec![],
+        }
+    }
+
     fn vertices(&self) -> &[Vertex] {
         &self.vertices
     }
@@ -129,6 +162,21 @@ pub struct InputVertexConf {
 impl InputVertexConf {
     pub fn buffer_slice(&self) -> &[u16] {
         self.order.as_slice()
+    }
+
+    pub fn from_triangulate(vs_mod: &'static str, t: &Triangulate) -> Self {
+        let mut c = Self::default();
+        c.vs_mod = vs_mod;
+        c.vertices = t.vertices.clone();
+        c.order = t.order.clone();
+        c
+        // Self {
+        //     vs_mod,
+        //     view: ViewProjection::identity(), // start simple...
+        //     topology: wgpu::PrimitiveTopology::TriangleList,
+        //     vertices: todo!(),
+        //     order: todo!(),
+        // }
     }
 
     pub fn set_view(mut self, m: Mat4) -> Self {
@@ -283,8 +331,13 @@ impl GraphicsCreator {
         self
     }
 
-    pub fn with_custom_input_vertex(mut self, v: InputVertexConf) -> Self {
-        self.input_vertex = v;
+    // pub fn with_custom_input_vertex(mut self, v: InputVertexConf) -> Self {
+    //     self.input_vertex = v;
+    //     self
+    // }
+
+    pub fn with_custom_triangle(mut self, vs_mod: &'static str, t: &Triangulate) -> Self {
+        self.input_vertex = InputVertexConf::from_triangulate(vs_mod, t);
         self
     }
 
@@ -616,8 +669,7 @@ pub struct Graphics {
     name: String,
     conf: GraphicsCreator,
     bind_group: wgpu::BindGroup,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
+    vertex_buffers: VertexBuffers,
     render_pipeline: wgpu::RenderPipeline,
     pub uniforms: BasicUniform,
     pub uniforms_buffer: wgpu::Buffer, // used internally
@@ -865,24 +917,6 @@ impl Graphics {
         device.create_render_pipeline(&rp_desc)
     }
 
-    fn _vertex_buffer(
-        device: &wgpu::Device,
-        vertex_conf: &InputVertexConf,
-    ) -> (wgpu::Buffer, wgpu::Buffer) {
-        let v = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&vertex_conf.vertices[..]),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let i = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&vertex_conf.order[..]),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        (v, i)
-    }
-
     fn _pipeline_layout(
         device: &wgpu::Device,
         bind_group_layout: &wgpu::BindGroupLayout,
@@ -988,7 +1022,7 @@ impl Graphics {
 
         println!("bind_group {:?}", bind_group);
 
-        let (vertex_buffer, index_buffer) = Graphics::_vertex_buffer(device, &conf.input_vertex);
+        let vertex_buffers = VertexBuffers::from_conf(device, &conf.input_vertex);
 
         Self {
             name,
@@ -997,8 +1031,7 @@ impl Graphics {
             bind_group,
             uniforms: initial_uniform,
             uniforms_buffer: initial_uniform_buffer,
-            vertex_buffer,
-            index_buffer,
+            vertex_buffers,
             input_texture_view,
             input_texture_view_other,
             // things i might need to create custom bind groups later
@@ -1061,8 +1094,11 @@ impl Graphics {
             let mut rpass = encoder.begin_render_pass(&render_pass_desc);
             rpass.set_pipeline(&self.render_pipeline);
             rpass.set_bind_group(0, bind_group, &[]);
-            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            rpass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
+            rpass.set_index_buffer(
+                self.vertex_buffers.index.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
             rpass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
             // if self.conf.input_vertex.topology == wgpu::PrimitiveTopology::TriangleList {
             // } else {
@@ -1077,8 +1113,52 @@ impl Graphics {
     pub fn render(&self, device: &DeviceState, output_texture_view: &wgpu::TextureView) {
         self.render_with_custom_bind_group(device, output_texture_view, &self.bind_group)
     }
+
+    pub fn update_view(&self, c: &GraphicsWindowConf, m: Mat4) {
+        self.vertex_buffers.update_view(c, m);
+    }
 }
 
 pub fn quick_texture(dims: [u32; 2], device: &wgpu::Device) -> TextureAndDesc {
     Graphics::texture(dims, device, DEFAULT_TEXTURE_FORMAT)
+}
+
+pub struct VertexBuffers {
+    vertex: wgpu::Buffer,  // sets the vertices of the thing
+    index: wgpu::Buffer,   // used with vertices to form triangles, using TriangleList primative
+    uniform: wgpu::Buffer, // this we update to change the camera!
+}
+
+impl VertexBuffers {
+    // inits them all
+    fn from_conf(device: &wgpu::Device, conf: &InputVertexConf) -> Self {
+        let vertex = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&conf.vertices[..]),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let order = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&conf.order[..]),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&conf.order[..]),
+            usage: wgpu::BufferUsages::UNIFORM,
+        });
+
+        Self {
+            vertex,
+            index: order,
+            uniform,
+        }
+    }
+    fn update_view(&self, c: &GraphicsWindowConf, m: Mat4) {
+        let queue = &c.device.queue();
+        // self.conf.set_view(m); // hmm, running into borrow things here
+        let v = ViewProjection::from_mat4(m);
+
+        queue.write_buffer(&self.uniform, 0, v.as_bytes());
+    }
 }
