@@ -595,10 +595,10 @@ impl RenderTrait for SingleTextureRender {
 // makes it easier to ad control grpahics
 #[macro_export]
 macro_rules! with_control_graphics {
-    ($instance:expr, |$param:ident: $ttype:ident| $body:expr) => {
-        $instance.with_control_graphics(stringify!($param), Arc::new(|$param: &$ttype| {
+    ($name:ident = $instance:expr, |$param:ident: $ttype:ident| $body:expr) => {
+        let $name = $instance.with_control_graphics(stringify!($name), Arc::new(|$param: &$ttype| {
             Box::new($body) as Box<dyn ControlGraphics>
-        }))
+        }));
     };
 }
 
