@@ -1,14 +1,18 @@
 #![allow(dead_code)]
-use std::{cell::RefCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use glam::Vec2;
 use murrelet_common::MurreletTime;
 use serde::Serialize;
 
 use crate::{
-    device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf}, gpu_livecode::ControlGraphics, graphics_ref::{
-        BasicUniform, Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlGraphics, DEFAULT_LOADED_TEXTURE_FORMAT
-    }, shader_str::*
+    device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf},
+    gpu_livecode::{ControlGraphics, ControlGraphicsRef},
+    graphics_ref::{
+        BasicUniform, Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlFn,
+        DEFAULT_LOADED_TEXTURE_FORMAT,
+    },
+    shader_str::*,
 };
 
 #[cfg(feature = "nannou")]
@@ -242,14 +246,18 @@ impl RenderTrait for TwoSourcesRender {
 }
 
 // holds a gpu pipeline :O
-pub struct PipelineRender {
+pub struct PipelineRender<GraphicsConf> {
     pub source: GraphicsRef,
-    pub pipeline: GPUPipelineRef,
+    pub pipeline: GPUPipelineRef<GraphicsConf>,
     pub dest: GraphicsRef,
 }
 
-impl PipelineRender {
-    pub fn new_box(source: GraphicsRef, pipeline: GPUPipelineRef, dest: GraphicsRef) -> Box<Self> {
+impl<GraphicsConf> PipelineRender<GraphicsConf> {
+    pub fn new_box(
+        source: GraphicsRef,
+        pipeline: GPUPipelineRef<GraphicsConf>,
+        dest: GraphicsRef,
+    ) -> Box<Self> {
         Box::new(Self {
             source,
             pipeline,
@@ -257,7 +265,7 @@ impl PipelineRender {
         })
     }
 }
-impl RenderTrait for PipelineRender {
+impl<GraphicsConf> RenderTrait for PipelineRender<GraphicsConf> {
     fn render(&self, device_state_for_render: &DeviceStateForRender) {
         // write source to pipeline source
         self.source.render(
@@ -430,8 +438,8 @@ impl RenderTrait for DisplayRender {
 pub struct GPUPipeline<GraphicConf> {
     pub dag: Vec<Box<dyn RenderTrait>>,
     choices: Vec<usize>,
-    names: HashMap<String, GraphicsRef>, // todo, do i need this with ctrl?
-    ctrl: Vec<GraphicsRefWithControlGraphics<GraphicConf>>,
+    // names: HashMap<String, GraphicsRef>, // todo, do i need this with ctrl?
+    ctrl: Vec<GraphicsRefWithControlFn<GraphicConf>>,
     source: Option<String>,
 }
 
@@ -440,16 +448,26 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
         GPUPipeline {
             dag: Vec::new(),
             choices: Vec::new(),
-            names: HashMap::new(),
+            // names: HashMap::new(),
             ctrl: Vec::new(),
             source: None,
         }
     }
 
-    pub fn control_graphics(&self, t: GraphicConf) {
-        for c in &self.ctrl {
+    pub fn add_control_graphics(
+        &mut self,
+        _label: &str,
+        control_graphics_fn: GraphicsRefWithControlFn<GraphicConf>,
+    ) {
+        self.ctrl.push(control_graphics_fn)
+    }
 
+    pub fn control_graphics(&self, t: &GraphicConf) -> Vec<ControlGraphicsRef> {
+        let mut v = vec![];
+        for c in &self.ctrl {
+            v.extend(c.control_graphics(t).into_iter());
         }
+        v
     }
 
     pub fn set_source(&mut self, src: &str) {
@@ -470,11 +488,12 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
     }
 
     pub fn add_label(&mut self, name: &str, g: GraphicsRef) {
-        self.names.insert(name.to_string(), g);
+        // self.names.insert(name.to_string(), g);
     }
 
     pub fn get_graphic(&self, name: &str) -> Option<GraphicsRef> {
-        self.names.get(name).cloned()
+        // self.names.get(name).cloned()
+        None
     }
 
     // no-op if it doesn't exist
@@ -506,17 +525,17 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
     }
 }
 
-impl<GraphicConf> Default for GPUPipeline<GraphicConf> {
+impl<GraphicsConf> Default for GPUPipeline<GraphicsConf> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[derive(Clone)]
-pub struct GPUPipelineRef(Rc<RefCell<GPUPipeline>>);
+pub struct GPUPipelineRef<GraphicsConf>(Rc<RefCell<GPUPipeline<GraphicsConf>>>);
 
-impl GPUPipelineRef {
-    pub fn new(pipeline: GPUPipeline) -> Self {
+impl<GraphicsConf> GPUPipelineRef<GraphicsConf> {
+    pub fn new(pipeline: GPUPipeline<GraphicsConf>) -> Self {
         GPUPipelineRef(Rc::new(RefCell::new(pipeline)))
     }
 
@@ -534,6 +553,10 @@ impl GPUPipelineRef {
 
     pub fn get_graphic(&self, name: &str) -> Option<GraphicsRef> {
         self.0.borrow().get_graphic(name)
+    }
+
+    pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef> {
+        self.0.borrow().control_graphics(conf)
     }
 }
 
@@ -570,10 +593,24 @@ impl RenderTrait for SingleTextureRender {
     }
 }
 
+// makes it easier to ad control grpahics
+#[macro_export]
+macro_rules! with_control_graphics {
+    ($instance:expr, |$param:ident: $ttype:ident| $body:expr) => {
+        $instance.with_control_graphics(Arc::new(|$param: &$ttype| {
+            Box::new($body) as Box<dyn ControlGraphics>
+        }))
+    };
+}
+
+// this is basically ran for every node, so can add label and such
 #[macro_export]
 macro_rules! pipeline_add_label {
     ($pipeline:ident, $val:ident) => {{
-        $pipeline.add_label(stringify!($val), $val.clone());
+        $pipeline.add_label(stringify!($val), $val.graphics());
+        if let Some(ctrl) = $val.control_graphics_fn() {
+            $pipeline.add_control_graphics(stringify!($val), ctrl);
+        }
     }};
 }
 
@@ -588,7 +625,7 @@ macro_rules! build_shader_pipeline {
             println!("add display");
             $pipeline.add_step(
                 DisplayRender::new_box(
-                    $source.clone(),
+                    $source.graphics(),
                 )
             );
             pipeline_add_label!($pipeline, $source);
@@ -603,8 +640,8 @@ macro_rules! build_shader_pipeline {
             println!("add display");
             $pipeline.add_step(
                 TextureRender::new_box(
-                    $source.clone(),
-                    $dest.clone(),
+                    $source.graphics(),
+                    $dest.graphics(),
                 )
             );
             // pipeline_add_label!($pipeline, $source);
@@ -621,7 +658,7 @@ macro_rules! build_shader_pipeline {
             $pipeline.add_step(
                 SingleTextureRender::new_box(
                     $source.clone(),
-                    $dest.clone(),
+                    $dest.graphics(),
                 )
             );
             pipeline_add_label!($pipeline, $dest);
@@ -637,8 +674,8 @@ macro_rules! build_shader_pipeline {
             $pipeline.add_step(
                 PingPongRender::new_box(
                     $count,
-                    $ping.clone(),
-                    $pong.clone())
+                    $ping.graphics(),
+                    $pong.graphics())
             );
             pipeline_add_label!($pipeline, $ping);
             pipeline_add_label!($pipeline, $pong);
@@ -655,10 +692,10 @@ macro_rules! build_shader_pipeline {
                 ChoiceRender::new_box(
                     // todo, allow for more than two
                     vec![
-                        $source.clone(),
-                        $($source_rest.clone(), )*
+                        $source.graphics(),
+                        $($source_rest.graphics(), )*
                     ],
-                    $dest.clone()
+                    $dest.graphics()
                 )
             );
             pipeline_add_label!($pipeline, $source);
@@ -676,9 +713,9 @@ macro_rules! build_shader_pipeline {
 
             $pipeline.add_step(
                 TwoSourcesRender::new_box(
-                    $source1.clone(),
-                    $source2.clone(),
-                    $dest.clone())
+                    $source1.graphics(),
+                    $source2.graphics(),
+                    $dest.graphics())
             );
             pipeline_add_label!($pipeline, $source1);
             pipeline_add_label!($pipeline, $source2);
@@ -695,9 +732,9 @@ macro_rules! build_shader_pipeline {
             let $dest = $subpipe.out().clone();
             $pipeline.add_step(
                 PipelineRender::new_box(
-                    $source.clone(),
+                    $source.graphics(),
                     $subpipe.gpu_pipeline(),
-                    $dest.clone()
+                    $dest.graphics()
                 )
             );
             pipeline_add_label!($pipeline, $source);
@@ -713,8 +750,8 @@ macro_rules! build_shader_pipeline {
             println!("add simple");
             $pipeline.add_step(
                 SimpleRender::new_box(
-                    $source.clone(),
-                    $dest.clone()
+                    $source.graphics(),
+                    $dest.graphics()
                 )
             );
             pipeline_add_label!($pipeline, $source);
@@ -732,7 +769,7 @@ macro_rules! build_shader_pipeline {
         }
     };
 
-    // capture the initial one
+    // capture the initial one and prefix it with @parse
     ($($raw:tt)*) => {
         {
             println!("new pipeline!");

@@ -16,7 +16,7 @@ pub struct ControlGraphicsRef {
 }
 impl ControlGraphicsRef {
     pub fn new(
-        label: &str,
+        // label: &str,
         control: Box<dyn ControlGraphics>,
         graphics: Option<GraphicsRef>,
     ) -> Vec<ControlGraphicsRef> {
@@ -27,11 +27,11 @@ impl ControlGraphicsRef {
                 graphics: gg,
             }]
         } else {
-            println!("missing ref! {:?}", label);
+            // println!("missing ref! {:?}", label);
+            println!("missing ref!");
             vec![]
         }
     }
-
     pub fn update_graphics(&self, c: &GraphicsWindowConf) {
         self.control.update_graphics(c, &self.graphics);
     }

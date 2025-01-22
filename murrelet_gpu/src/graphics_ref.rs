@@ -16,7 +16,7 @@ use wgpu::util::DeviceExt;
 use wgpu::TextureDescriptor;
 
 use crate::device_state::*;
-use crate::gpu_livecode::ControlGraphics;
+use crate::gpu_livecode::{ControlGraphics, ControlGraphicsRef};
 use crate::gpu_macros::RenderTrait;
 use crate::shader_str::VERTEX_SHADER;
 
@@ -434,20 +434,64 @@ impl GraphicsRef {
         )
     }
 
-    pub fn with_control_graphics<T>(&self, control_graphic_fn: Box<impl Fn(T) -> Box<dyn ControlGraphics> + 'static>) -> GraphicsRefWithControlGraphics<T> {
-        GraphicsRefWithControlGraphics {
+    pub fn with_control_graphics<T>(
+        &self,
+        control_graphic_fn: Arc<impl Fn(&T) -> Box<dyn ControlGraphics> + 'static>,
+    ) -> GraphicsRefWithControlFn<T> {
+        GraphicsRefWithControlFn {
+            // label: label.to_string(),
             graphics: self.clone(),
-            control_graphic_fn
+            control_graphic_fn,
         }
+    }
+
+    pub fn graphics(&self) -> GraphicsRef {
+        self.clone()
+    }
+
+    pub fn control_graphics_fn<GraphicsConf>(
+        &self,
+    ) -> Option<GraphicsRefWithControlFn<GraphicsConf>> {
+        None
     }
 }
 
-pub struct GraphicsRefWithControlGraphics<T> {
-    graphics: GraphicsRef,
-    control_graphic_fn: Box<dyn Fn(T) -> Box<dyn ControlGraphics>>,
+#[derive(Clone)]
+pub struct GraphicsRefWithControlFn<GraphicsConf> {
+    pub graphics: GraphicsRef,
+    pub control_graphic_fn: Arc<dyn Fn(&GraphicsConf) -> Box<dyn ControlGraphics>>,
 }
 
+impl<GraphicsConf> GraphicsRefWithControlFn<GraphicsConf> {
+    pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef> {
+        let ctrl_graphics = (self.control_graphic_fn)(conf);
 
+        ControlGraphicsRef::new(ctrl_graphics, Some(self.graphics.clone()))
+
+        // if let Some(control_graphic_fn) = self.control_graphic_fn {
+        //     let ctrl_graphics = (*control_graphic_fn)(c, conf);
+        //     // ControlGraphicsRef::new(
+        //     //     ctrl_graphics,
+        //     //     Some(self.graphics.clone())
+        //     // )
+        // } else {
+        //     vec![]
+        // }
+    }
+
+    pub fn graphics(&self) -> GraphicsRef {
+        self.graphics.clone()
+    }
+
+    pub fn control_graphics_fn(&self) -> Option<GraphicsRefWithControlFn<GraphicsConf>> {
+        // Some(self.clone())
+        let c = GraphicsRefWithControlFn {
+            graphics: self.graphics.clone(),
+            control_graphic_fn: self.control_graphic_fn.clone(),
+        };
+        Some(c)
+    }
+}
 
 // for now this is just so nannou can create textures...
 #[derive(Debug)]
