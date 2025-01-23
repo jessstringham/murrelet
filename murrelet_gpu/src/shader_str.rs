@@ -296,15 +296,18 @@ struct VertexOutput {
 @vertex
 fn main(@location(0) pos: vec3<f32>) -> VertexOutput {
   let world_pos: vec4<f32> = vec4<f32>(pos, 1.0);
-  // let clip_pos: vec4<f32> = uniforms.view_proj * world_pos;
+  let clip_pos: vec4<f32> = uniforms.view_proj * world_pos;
 
-
-  let clip_pos: vec4<f32> = vec4<f32>(pos.z * 0.5 + 0.5, 0.0, 0.0, 1.0);
+  // let clip_pos: vec4<f32> = vec4<f32>(
+  //   uniforms.view_proj[0][0],
+  //   uniforms.view_proj[1][1],
+  //   uniforms.view_proj[2][2],
+  //   1.0);
 
   let tex_coords: vec2<f32> = vec2<f32>(pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5));
 
-  let ccc = vec4<f32>(pos.xy, 0.0, 1.0);
+  // let ccc = vec4<f32>(pos.xy, 0.0, 1.0);
 
-  return VertexOutput(tex_coords, clip_pos, ccc);
+  return VertexOutput(tex_coords, clip_pos, clip_pos);
 
 }";

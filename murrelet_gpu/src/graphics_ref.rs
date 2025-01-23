@@ -88,7 +88,9 @@ impl ViewProjection {
     }
 
     fn as_bytes(&self) -> &[u8] {
-        println!("self.view_proj {:?}", self.view_proj);
+        // println!("bytemuck::cast_slice(&self.view_proj) {:?}", bytemuck::cast_slice::<[[f32; 4]; 4], &[u8]>(&self.view_proj));
+        // bytemuck::bytes_of(self)
+        // let x = bytemuck::cast_slice(&self.view_proj);
         bytemuck::bytes_of(self)
     }
 
@@ -96,23 +98,40 @@ impl ViewProjection {
         std::mem::size_of::<Self>() as wgpu::BufferAddress
     }
 
+    fn write_buffer(
+        &self,
+        dest: &wgpu::Buffer,
+        queue: &wgpu::Queue,
+    ) {
+        queue.write_buffer(
+             dest,
+             0,
+             self.as_bytes());
+    }
+
+
     fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
         device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
+            label: Some("view proj buffer for 3d vertex shader"),
             size: self.uniforms_size(),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         })
     }
 
-    fn copy_to_buffer(
-        &self,
-        dest: &wgpu::Buffer,
-        device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
-    ) {
-        encoder.copy_buffer_to_buffer(&self.to_buffer(device), 0, dest, 0, self.uniforms_size());
-    }
+    // fn copy_to_buffer(
+    //     &self,
+    //     dest: &wgpu::Buffer,
+    //     device: &wgpu::Device,
+    //     encoder: &mut wgpu::CommandEncoder,
+    // ) {
+    //     encoder.copy_buffer_to_buffer(
+    //         &self.to_buffer(device),
+    //          0,
+    //          dest,
+    //          0,
+    //          self.uniforms_size());
+    // }
 }
 
 pub struct Scene {
@@ -1221,8 +1240,7 @@ impl VertexBuffers {
         // self.conf.set_view(m); // hmm, running into borrow things here
         let v = ViewProjection::from_mat4(m);
 
-        // v.copy_to_buffer(&self.uniform, c.device(), queue);
-
-        queue.write_buffer(&self.uniform, 0, v.as_bytes());
+        // queue.write_buffer(&self.uniform, 0, v.as_bytes());
+        v.write_buffer(&self.uniform, queue);
     }
 }
