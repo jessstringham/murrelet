@@ -17,7 +17,7 @@ use wgpu::TextureDescriptor;
 
 use crate::device_state::*;
 use crate::gpu_livecode::{ControlGraphics, ControlGraphicsRef};
-use crate::shader_str::VERTEX_SHADER;
+use crate::shader_str::{VERTEX_SHADER, VERTEX_SHADER_3D};
 
 #[cfg(not(feature = "nannou"))]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -39,24 +39,34 @@ fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex {
-    position: [f32; 2],
+    position: [f32; 3],
+}
+
+impl Vertex {
+    pub fn new(position: [f32; 3]) -> Self {
+        Self { position }
+    }
+    pub fn pos(&self) -> [f32; 3] {
+        self.position
+    }
 }
 
 unsafe impl Zeroable for Vertex {}
 unsafe impl Pod for Vertex {}
 
+// in the default vertex shader, z is dropped
 pub const VERTICES: [Vertex; 4] = [
     Vertex {
-        position: [-1.0, 1.0],
+        position: [-1.0, 1.0, 0.0],
     },
     Vertex {
-        position: [-1.0, -1.0],
+        position: [-1.0, -1.0, 0.0],
     },
     Vertex {
-        position: [1.0, 1.0],
+        position: [1.0, 1.0, 0.0],
     },
     Vertex {
-        position: [1.0, -1.0],
+        position: [1.0, -1.0, 0.0],
     },
 ];
 
@@ -78,6 +88,7 @@ impl ViewProjection {
     }
 
     fn as_bytes(&self) -> &[u8] {
+        println!("self.view_proj {:?}", self.view_proj);
         bytemuck::bytes_of(self)
     }
 
@@ -123,28 +134,35 @@ impl Triangulate {
         }
     }
 
-    fn vertices(&self) -> &[Vertex] {
+    pub fn vertices(&self) -> &[Vertex] {
         &self.vertices
     }
 
-    fn add_vertex(&mut self, v: Vertex) -> u16 {
-        self.vertices.push(v);
+    pub fn add_vertex(&mut self, v: [f32; 3]) -> u16 {
+        let vv = Vertex::new(v);
+        self.vertices.push(vv);
         (self.vertices.len() - 1) as u16
     }
 
-    fn add_rect(&mut self, v: &[u16]) {
+    pub fn add_rect(&mut self, v: &[u16; 4]) {
         // triangulateeee
         // for i in 0..v.len() - 2 {
 
         // }
 
-        assert!(v.len() == 4);
+        // assert!(v.len() == 4);
 
         // todo, actually write this...
         self.order.extend([v[0], v[1], v[2], v[1], v[3], v[2]])
+
+        // [0, 1, 2, 1, 3, 2]
     }
 
     fn order(&self) -> &[u16] {
+        &self.order
+    }
+
+    pub fn indices(&self) -> &[u16] {
         &self.order
     }
 }
@@ -152,6 +170,7 @@ impl Triangulate {
 // this is the conf that you'll interface with
 #[derive(Debug, Clone)]
 pub struct InputVertexConf {
+    is_3d: bool, // todo, maybe can simplify now that i have this, e.g. vs_mod
     vs_mod: &'static str,
     view: ViewProjection,
     topology: wgpu::PrimitiveTopology,
@@ -164,9 +183,10 @@ impl InputVertexConf {
         self.order.as_slice()
     }
 
-    pub fn from_triangulate(vs_mod: &'static str, t: &Triangulate) -> Self {
+    pub fn from_triangulate(t: &Triangulate) -> Self {
         let mut c = Self::default();
-        c.vs_mod = vs_mod;
+        c.is_3d = true;
+        c.vs_mod = VERTEX_SHADER_3D;
         c.vertices = t.vertices.clone();
         c.order = t.order.clone();
         c
@@ -206,8 +226,11 @@ impl InputVertexConf {
             topology: wgpu::PrimitiveTopology::TriangleList,
             vertices: VERTICES.to_vec(),
             order: vec![0, 1, 2, 1, 3, 2],
+            is_3d: false,
         }
     }
+
+
 }
 
 #[derive(Debug, Clone)]
@@ -336,8 +359,8 @@ impl GraphicsCreator {
     //     self
     // }
 
-    pub fn with_custom_triangle(mut self, vs_mod: &'static str, t: &Triangulate) -> Self {
-        self.input_vertex = InputVertexConf::from_triangulate(vs_mod, t);
+    pub fn with_custom_triangle(mut self, t: &Triangulate) -> Self {
+        self.input_vertex = InputVertexConf::from_triangulate(t);
         self
     }
 
@@ -389,6 +412,10 @@ impl GraphicsCreator {
         }
 
         GraphicsRef::new(name, c, fs_shader, self)
+    }
+
+    fn is_3d(&self) -> bool {
+        self.input_vertex.is_3d
     }
 }
 
@@ -574,6 +601,11 @@ impl GraphicsRef {
             .update_uniforms_other(c, more_info, more_info_other)
     }
 
+    pub fn update_view(&self, c: &GraphicsWindowConf, m: Mat4) {
+        self.graphics.borrow_mut().update_view(c, m);
+    }
+
+
     pub fn render_to_texture(&self, device_state: &DeviceState, texture: &wgpu::TextureView) {
         self.graphics.borrow_mut().render(device_state, texture)
     }
@@ -616,6 +648,12 @@ impl GraphicsRef {
     ) -> Option<GraphicsRefWithControlFn<GraphicsConf>> {
         None
     }
+
+    pub fn cam(&self) -> Mat4 {
+        let col = self.graphics.borrow().conf.input_vertex.view.view_proj;
+        Mat4::from_cols_array_2d(&col)
+    }
+
 }
 
 #[derive(Clone)]
@@ -756,6 +794,7 @@ impl Graphics {
         device: &wgpu::Device,
         has_second_texture: bool,
         multisampled: bool,
+        is_3d: bool,
     ) -> wgpu::BindGroupLayout {
         let mut bind_group_offset = 0;
 
@@ -805,6 +844,24 @@ impl Graphics {
             count: None,
         });
 
+        if is_3d {
+            // hrm, so hopefully won't have two inputs as well!
+
+            // and finish up with vertex uniforms if we'll use them
+            bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            });
+        }
+
+
+
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &bind_group_layout_entries,
@@ -824,6 +881,7 @@ impl Graphics {
         input_texture_view: &wgpu::TextureView,
         input_texture_view_other: &Option<wgpu::TextureView>,
         initial_uniform_buffer: &wgpu::Buffer,
+        initial_camera: Option<&wgpu::Buffer>,
         sampler: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         let mut entries = Vec::new();
@@ -853,6 +911,16 @@ impl Graphics {
             resource: initial_uniform_buffer.as_entire_binding(),
         });
 
+        // if it's 3d, add the camera
+        if let Some(cam) = initial_camera {
+            assert!(binding_offset != 3); // shoulnd't have two texture for 3d!
+            entries.push(wgpu::BindGroupEntry {
+                binding: 3,
+                resource: cam.as_entire_binding(),
+            })
+        }
+
+
         let bf: wgpu::BindGroupDescriptor = wgpu::BindGroupDescriptor {
             label: None,
             layout,
@@ -871,16 +939,17 @@ impl Graphics {
     ) -> wgpu::RenderPipeline {
         let pipeline_layout = Graphics::_pipeline_layout(device, bind_group_layout);
 
-        let vertex_buffer_layouts_attributes = wgpu::vertex_attr_array![0 => Float32x2];
+        // let vertex_buffer_layouts_attributes = ;
 
         let vertex_buffer_layouts = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &vertex_buffer_layouts_attributes,
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3],
         };
 
         let primitive = wgpu::PrimitiveState {
             topology: vertex_conf.topology,
+            cull_mode: None,
             ..wgpu::PrimitiveState::default()
         };
 
@@ -999,7 +1068,7 @@ impl Graphics {
         println!("other input {:?}", input_texture_view_other);
 
         let sampler = Graphics::_sampler(device, details);
-        let bind_group_layout = Graphics::_bind_group_layout(device, has_second_texture, false);
+        let bind_group_layout = Graphics::_bind_group_layout(device, has_second_texture, false, conf.input_vertex.is_3d);
 
         let initial_uniform_buffer = initial_uniform.to_buffer(device);
 
@@ -1011,18 +1080,18 @@ impl Graphics {
             dst_format,
         );
 
+        let vertex_buffers = VertexBuffers::from_conf(device, &conf.input_vertex);
+
         let bind_group = Graphics::_bind_group(
             device,
             &bind_group_layout,
             &input_texture_view,
             &input_texture_view_other,
             &initial_uniform_buffer,
+            if conf.input_vertex.is_3d { Some(&vertex_buffers.uniform)} else { None },
             &sampler,
         );
 
-        println!("bind_group {:?}", bind_group);
-
-        let vertex_buffers = VertexBuffers::from_conf(device, &conf.input_vertex);
 
         Self {
             name,
@@ -1056,6 +1125,7 @@ impl Graphics {
             texture_view,
             &self.input_texture_view_other, // i don't know what to do with this, leave it None or let there be one..
             &self.uniforms_buffer,
+            if self.conf.input_vertex.is_3d { Some(&self.vertex_buffers.uniform)} else { None },
             &self.sampler,
         )
     }
@@ -1100,10 +1170,6 @@ impl Graphics {
                 wgpu::IndexFormat::Uint16,
             );
             rpass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
-            // if self.conf.input_vertex.topology == wgpu::PrimitiveTopology::TriangleList {
-            // } else {
-            //     rpass.draw(0..VERTICES.len() as u32, 0..1);
-            // }
             drop(rpass);
         }
 
@@ -1142,11 +1208,7 @@ impl VertexBuffers {
             contents: bytemuck::cast_slice(&conf.order[..]),
             usage: wgpu::BufferUsages::INDEX,
         });
-        let uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&conf.order[..]),
-            usage: wgpu::BufferUsages::UNIFORM,
-        });
+        let uniform = conf.view.to_buffer(device);
 
         Self {
             vertex,
@@ -1155,9 +1217,11 @@ impl VertexBuffers {
         }
     }
     fn update_view(&self, c: &GraphicsWindowConf, m: Mat4) {
-        let queue = &c.device.queue();
+        let queue = c.device.queue();
         // self.conf.set_view(m); // hmm, running into borrow things here
         let v = ViewProjection::from_mat4(m);
+
+        // v.copy_to_buffer(&self.uniform, c.device(), queue);
 
         queue.write_buffer(&self.uniform, 0, v.as_bytes());
     }

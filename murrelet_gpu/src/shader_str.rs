@@ -1,6 +1,6 @@
 pub const PREFIX: &str = r#"
 @fragment
-fn main(@location(0) tex_coords: vec2<f32>) -> FragmentOutput {
+fn main(@location(0) tex_coords: vec2<f32>, @location(1) clip_pos: vec4<f32>) -> FragmentOutput {
 "#;
 
 pub const SUFFIX: &str = r#"
@@ -177,11 +177,11 @@ fn fbm(i: vec2<f32>) -> f32 {
 
   let m2: mat2x2<f32> = mat2x2<f32>(vec2<f32>(0.8, 0.6), vec2<f32>(-0.6, 0.8));
   var f: f32 = 0.;
-  f = f + 0.5000 * noise2(p); 
+  f = f + 0.5000 * noise2(p);
   p = m2 * p * 2.02;
-  f = f + 0.2500 * noise2(p); 
+  f = f + 0.2500 * noise2(p);
   p = m2 * p * 2.03;
-  f = f + 0.1250 * noise2(p); 
+  f = f + 0.1250 * noise2(p);
   p = m2 * p * 2.01;
   f = f + 0.0625 * noise2(p);
   return f / 0.9375;
@@ -268,12 +268,43 @@ fn toroid_noise(r1: f32, r2: f32, xy: vec2<f32>) -> f32 {
 
 pub const VERTEX_SHADER: &str = "struct VertexOutput {
   @location(0) tex_coords: vec2<f32>,
+  @location(1) clip_pos: vec4<f32>,
   @builtin(position) out_pos: vec4<f32>,
 };
 
 @vertex
-fn main(@location(0) pos: vec2<f32>) -> VertexOutput {
+fn main(@location(0) pos: vec3<f32>) -> VertexOutput {
   let tex_coords: vec2<f32> = vec2<f32>(pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5));
-  let out_pos: vec4<f32> = vec4<f32>(pos, 0.0, 1.0);
-  return VertexOutput(tex_coords, out_pos);
+  let out_pos: vec4<f32> = vec4<f32>(pos.xy, 0.0, 1.0);
+  return VertexOutput(tex_coords, out_pos, out_pos);
+}";
+
+
+
+pub const VERTEX_SHADER_3D: &str = "
+struct Uniforms {
+  view_proj: mat4x4<f32>,
+};
+@group(0) @binding(3) var<uniform> uniforms: Uniforms;
+
+struct VertexOutput {
+  @location(0) tex_coords: vec2<f32>,
+  @location(1) clip_pos: vec4<f32>,
+  @builtin(position) out_pos: vec4<f32>,
+};
+
+@vertex
+fn main(@location(0) pos: vec3<f32>) -> VertexOutput {
+  let world_pos: vec4<f32> = vec4<f32>(pos, 1.0);
+  // let clip_pos: vec4<f32> = uniforms.view_proj * world_pos;
+
+
+  let clip_pos: vec4<f32> = vec4<f32>(pos.z * 0.5 + 0.5, 0.0, 0.0, 1.0);
+
+  let tex_coords: vec2<f32> = vec2<f32>(pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5));
+
+  let ccc = vec4<f32>(pos.xy, 0.0, 1.0);
+
+  return VertexOutput(tex_coords, clip_pos, ccc);
+
 }";
