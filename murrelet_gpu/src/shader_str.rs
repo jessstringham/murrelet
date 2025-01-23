@@ -1,6 +1,6 @@
 pub const PREFIX: &str = r#"
 @fragment
-fn main(@location(0) tex_coords: vec2<f32>, @location(1) clip_pos: vec4<f32>) -> FragmentOutput {
+fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>) -> FragmentOutput {
 "#;
 
 pub const SUFFIX: &str = r#"
@@ -268,15 +268,16 @@ fn toroid_noise(r1: f32, r2: f32, xy: vec2<f32>) -> f32 {
 
 pub const VERTEX_SHADER: &str = "struct VertexOutput {
   @location(0) tex_coords: vec2<f32>,
-  @location(1) clip_pos: vec4<f32>,
+  @location(1) shad_info: vec4<f32>,
+  @location(2) normal: vec3<f32>,
   @builtin(position) out_pos: vec4<f32>,
 };
 
 @vertex
-fn main(@location(0) pos: vec3<f32>) -> VertexOutput {
+fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) face_loc: vec2<f32>) -> VertexOutput {
   let tex_coords: vec2<f32> = vec2<f32>(pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5));
   let out_pos: vec4<f32> = vec4<f32>(pos.xy, 0.0, 1.0);
-  return VertexOutput(tex_coords, out_pos, out_pos);
+  return VertexOutput(tex_coords, vec4<f32>(tex_coords.xy, 0.0, 0.0), vec3<f32>(0.0, 0.0, 1.0), out_pos);
 }";
 
 
@@ -289,25 +290,20 @@ struct Uniforms {
 
 struct VertexOutput {
   @location(0) tex_coords: vec2<f32>,
-  @location(1) clip_pos: vec4<f32>,
+  @location(1) shad_info: vec4<f32>,
+  @location(2) normal: vec3<f32>,
   @builtin(position) out_pos: vec4<f32>,
 };
 
 @vertex
-fn main(@location(0) pos: vec3<f32>) -> VertexOutput {
+fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) face_loc: vec2<f32>) -> VertexOutput {
   let world_pos: vec4<f32> = vec4<f32>(pos, 1.0);
   let clip_pos: vec4<f32> = uniforms.view_proj * world_pos;
 
-  // let clip_pos: vec4<f32> = vec4<f32>(
-  //   uniforms.view_proj[0][0],
-  //   uniforms.view_proj[1][1],
-  //   uniforms.view_proj[2][2],
-  //   1.0);
+  let shad_info: vec4<f32> = vec4<f32>(face_loc, clip_pos.za);
 
   let tex_coords: vec2<f32> = vec2<f32>(pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5));
 
-  // let ccc = vec4<f32>(pos.xy, 0.0, 1.0);
-
-  return VertexOutput(tex_coords, clip_pos, clip_pos);
+  return VertexOutput(tex_coords, shad_info, normal, clip_pos);
 
 }";

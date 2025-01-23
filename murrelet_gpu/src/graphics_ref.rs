@@ -2,7 +2,8 @@
 use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
-use glam::Mat4;
+use glam::{Mat4, Vec3};
+use wgpu_for_latest::RenderPassDepthStencilAttachment;
 use std::rc::Rc;
 
 #[cfg(feature = "nannou")]
@@ -40,11 +41,13 @@ fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex {
     position: [f32; 3],
+    normal: [f32; 3],
+    face_pos: [f32; 2]
 }
 
 impl Vertex {
-    pub fn new(position: [f32; 3]) -> Self {
-        Self { position }
+    pub fn new(position: [f32; 3], normal: [f32; 3], face_pos: [f32; 2]) -> Self {
+        Self { position, normal, face_pos }
     }
     pub fn pos(&self) -> [f32; 3] {
         self.position
@@ -58,15 +61,23 @@ unsafe impl Pod for Vertex {}
 pub const VERTICES: [Vertex; 4] = [
     Vertex {
         position: [-1.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 0.0],
+        face_pos: [1.0, 0.0],
     },
     Vertex {
         position: [-1.0, -1.0, 0.0],
+        normal: [0.0, 0.0, 0.0],
+        face_pos: [0.0, 0.0],
     },
     Vertex {
         position: [1.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 0.0],
+        face_pos: [1.0, 1.0],
     },
     Vertex {
         position: [1.0, -1.0, 0.0],
+        normal: [0.0, 0.0, 0.0],
+        face_pos: [1.0, 0.0],
     },
 ];
 
@@ -157,22 +168,25 @@ impl Triangulate {
         &self.vertices
     }
 
-    pub fn add_vertex(&mut self, v: [f32; 3]) -> u16 {
-        let vv = Vertex::new(v);
+    pub fn add_vertex(&mut self, v: [f32; 3], n: [f32; 3], face_pos: [f32; 2]) -> u16 {
+        let vv = Vertex::new(v, n, face_pos);
         self.vertices.push(vv);
         (self.vertices.len() - 1) as u16
     }
 
-    pub fn add_rect(&mut self, v: &[u16; 4]) {
-        // triangulateeee
-        // for i in 0..v.len() - 2 {
+    // alternatively can add vertices and then add teh vec
+    pub fn add_rect(&mut self, v: &[Vec3; 4]) {
 
-        // }
+        let edge1 = v[1] - v[0];
+        let edge2 = v[2] - v[0];
+        let normal = edge1.cross(edge2).normalize().to_array();
 
-        // assert!(v.len() == 4);
+        let v0 = self.add_vertex(v[0].to_array(), normal, [1.0, 0.0]);
+        let v1 = self.add_vertex(v[1].to_array(), normal, [0.0, 0.0]);
+        let v2 = self.add_vertex(v[2].to_array(), normal, [1.0, 1.0]);
+        let v3 = self.add_vertex(v[3].to_array(), normal, [0.0, 1.0]);
 
-        // todo, actually write this...
-        self.order.extend([v[0], v[1], v[2], v[1], v[3], v[2]])
+        self.order.extend([v0, v1, v2, v1, v3, v2])
 
         // [0, 1, 2, 1, 3, 2]
     }
@@ -737,6 +751,7 @@ pub struct Graphics {
     // i guess need this to create nannou texture
     pub texture_and_desc: TextureAndDesc,
     pub other_texture_and_desc: Option<TextureAndDesc>,
+    depth_view: Option<wgpu::TextureView>,
 }
 
 impl Graphics {
@@ -963,12 +978,13 @@ impl Graphics {
         let vertex_buffer_layouts = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3],
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
         };
 
         let primitive = wgpu::PrimitiveState {
             topology: vertex_conf.topology,
-            cull_mode: None,
+            // cull_mode: None,
+            cull_mode: Some(wgpu::Face::Back),
             ..wgpu::PrimitiveState::default()
         };
 
@@ -977,6 +993,18 @@ impl Graphics {
             blend: Some(wgpu::BlendState::REPLACE), //None,
             write_mask: wgpu::ColorWrites::ALL,
         })];
+
+        let depth_stencil = if vertex_conf.is_3d {
+            Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: Default::default(),
+            })
+        } else {
+            None
+        };
 
         let rp_desc = wgpu::RenderPipelineDescriptor {
             label: None,
@@ -989,7 +1017,7 @@ impl Graphics {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             primitive,
-            depth_stencil: None,
+            depth_stencil,
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
                 module: &fs_mod,
@@ -1111,6 +1139,27 @@ impl Graphics {
             &sampler,
         );
 
+        let depth_view = if conf.input_vertex.is_3d {
+            let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+                size: wgpu::Extent3d {
+                    width: c.dims[0],
+                    height: c.dims[1],
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Depth32Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                label: Some("Depth Texture"),
+                view_formats: &[],
+            });
+            let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+            Some(depth_view)
+        } else {
+            None
+        };
 
         Self {
             name,
@@ -1128,6 +1177,7 @@ impl Graphics {
             // things needed mostly for nannou right now..
             texture_and_desc,
             other_texture_and_desc,
+            depth_view,
         }
     }
 
@@ -1149,6 +1199,21 @@ impl Graphics {
         )
     }
 
+    pub fn depth_stencil_attachment(&self) -> Option<wgpu::RenderPassDepthStencilAttachment> {
+        if let Some(depth_view) = &self.depth_view {
+            Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn render_with_custom_bind_group(
         &self,
         device_state: &DeviceState,
@@ -1160,6 +1225,7 @@ impl Graphics {
             .create_command_encoder(&Default::default());
 
         {
+
             let render_pass_desc = wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -1177,7 +1243,7 @@ impl Graphics {
                 occlusion_query_set: None,
                 #[cfg(not(feature = "nannou"))]
                 timestamp_writes: None,
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: self.depth_stencil_attachment(),
             };
 
             let mut rpass = encoder.begin_render_pass(&render_pass_desc);
