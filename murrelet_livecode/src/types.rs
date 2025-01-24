@@ -13,6 +13,7 @@ pub enum LivecodeError {
     NestGetExtra(String),
     NestGetInvalid(String),
     SerdeLoc(Location, String),
+    WGPU(String),
 }
 impl LivecodeError {}
 impl std::fmt::Display for LivecodeError {
@@ -32,6 +33,7 @@ impl std::fmt::Display for LivecodeError {
                 let loc = format!("{},{}", location.line(), location.column());
                 write!(f, "parse_error :: loc: {}, err: {}", loc, err)
             }
+            LivecodeError::WGPU(err) => write!(f, "shader parse error: {}", err),
         }
     }
 }

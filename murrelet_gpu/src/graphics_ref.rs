@@ -3,7 +3,6 @@ use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
-use wgpu_for_latest::RenderPassDepthStencilAttachment;
 use std::rc::Rc;
 
 #[cfg(feature = "nannou")]
@@ -37,6 +36,9 @@ fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
     })
 }
 
+
+// for each vertex, this is what we'll pass in
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex {
@@ -51,6 +53,10 @@ impl Vertex {
     }
     pub fn pos(&self) -> [f32; 3] {
         self.position
+    }
+
+    pub fn pos_vec3(&self) -> Vec3 {
+        glam::vec3(self.position[0], self.position[1], self.position[2])
     }
 }
 
@@ -84,18 +90,20 @@ pub const VERTICES: [Vertex; 4] = [
 // when you want to use vertices for real!!
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct ViewProjection {
+struct VertexUniforms {
     view_proj: [[f32; 4]; 4], // 4x4 matrix
+    light_proj: [[f32; 4]; 4], // 4x4 matrix, to make the view of the light
 }
-impl ViewProjection {
-    fn from_mat4(m: Mat4) -> Self {
+impl VertexUniforms {
+    fn from_mat4(view: Mat4, light: Mat4) -> Self {
         Self {
-            view_proj: m.to_cols_array_2d(),
+            view_proj: view.to_cols_array_2d(),
+            light_proj: light.to_cols_array_2d(),
         }
     }
 
-    fn identity() -> ViewProjection {
-        Self::from_mat4(Mat4::IDENTITY)
+    fn identity() -> VertexUniforms {
+        Self::from_mat4(Mat4::IDENTITY, Mat4::IDENTITY)
     }
 
     fn as_bytes(&self) -> &[u8] {
@@ -123,7 +131,7 @@ impl ViewProjection {
 
     fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
         device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("view proj buffer for 3d vertex shader"),
+            label: Some("view and light proj buffer for 3d vertex shader"),
             size: self.uniforms_size(),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -146,7 +154,7 @@ impl ViewProjection {
 }
 
 pub struct Scene {
-    view: ViewProjection, // update this as needed
+    view: VertexUniforms, // update this as needed
 }
 
 // this is the conf that you'll interface with
@@ -205,7 +213,7 @@ impl Triangulate {
 pub struct InputVertexConf {
     is_3d: bool, // todo, maybe can simplify now that i have this, e.g. vs_mod
     vs_mod: &'static str,
-    view: ViewProjection,
+    view: VertexUniforms,
     topology: wgpu::PrimitiveTopology,
     vertices: Vec<Vertex>,
     order: Vec<u16>,
@@ -223,22 +231,25 @@ impl InputVertexConf {
         c.vertices = t.vertices.clone();
         c.order = t.order.clone();
         c
-        // Self {
-        //     vs_mod,
-        //     view: ViewProjection::identity(), // start simple...
-        //     topology: wgpu::PrimitiveTopology::TriangleList,
-        //     vertices: todo!(),
-        //     order: todo!(),
-        // }
     }
 
-    pub fn set_view(mut self, m: Mat4) -> Self {
-        self.view = ViewProjection::from_mat4(m);
+    pub fn set_view(mut self, view: Mat4, light: Mat4) -> Self {
+        self.view = VertexUniforms::from_mat4(view, light);
         self
     }
 
     pub fn vs_mod(&self, device: &wgpu::Device) -> wgpu::ShaderModule {
         shader_from_path(device, self.vs_mod)
+    }
+
+    pub fn shadow_vs_mod(&self, device: &wgpu::Device) -> wgpu::ShaderModule {
+        shader_from_path(device, "
+@group(0) @binding(0) var<uniform> light_proj_view: mat4x4<f32>;
+
+@vertex
+fn main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
+    return light_proj_view * vec4<f32>(position, 1.0);
+}")
     }
 
     pub fn with_custom_vertices(mut self, tri: &Triangulate) -> Self {
@@ -255,7 +266,7 @@ impl InputVertexConf {
     pub fn default() -> Self {
         Self {
             vs_mod: VERTEX_SHADER,
-            view: ViewProjection::identity(),
+            view: VertexUniforms::identity(),
             topology: wgpu::PrimitiveTopology::TriangleList,
             vertices: VERTICES.to_vec(),
             order: vec![0, 1, 2, 1, 3, 2],
@@ -634,8 +645,8 @@ impl GraphicsRef {
             .update_uniforms_other(c, more_info, more_info_other)
     }
 
-    pub fn update_view(&self, c: &GraphicsWindowConf, m: Mat4) {
-        self.graphics.borrow_mut().update_view(c, m);
+    pub fn update_view(&self, c: &GraphicsWindowConf, view: Mat4, light: Mat4) {
+        self.graphics.borrow_mut().update_view(c, view, light);
     }
 
 
@@ -735,6 +746,15 @@ pub struct TextureAndDesc {
     pub desc: wgpu::TextureDescriptor<'static>,
 }
 
+pub struct TextureFor3d {
+    shadow_pipeline: wgpu::RenderPipeline,
+    depth_view: wgpu::TextureView,
+    shadow_view: wgpu::TextureView,
+    shadow_sampler: wgpu::Sampler,
+    shadow_bind_group: wgpu::BindGroup,
+    shadow_bind_group_layout: wgpu::BindGroupLayout,
+}
+
 // represents things needed to create a single texture... it's a bit of a mess
 pub struct Graphics {
     name: String,
@@ -751,7 +771,7 @@ pub struct Graphics {
     // i guess need this to create nannou texture
     pub texture_and_desc: TextureAndDesc,
     pub other_texture_and_desc: Option<TextureAndDesc>,
-    depth_view: Option<wgpu::TextureView>,
+    textures_for_3d: Option<TextureFor3d>,
 }
 
 impl Graphics {
@@ -892,9 +912,25 @@ impl Graphics {
                 },
                 count: None,
             });
+
+            bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
+                binding: 4,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Depth,
+                },
+                count: None,
+            });
+
+            bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
+                binding: 5,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                count: None,
+            });
         }
-
-
 
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
@@ -916,6 +952,7 @@ impl Graphics {
         input_texture_view_other: &Option<wgpu::TextureView>,
         initial_uniform_buffer: &wgpu::Buffer,
         initial_camera: Option<&wgpu::Buffer>,
+        views_for_3d: &Option<TextureFor3d>,
         sampler: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         let mut entries = Vec::new();
@@ -945,13 +982,33 @@ impl Graphics {
             resource: initial_uniform_buffer.as_entire_binding(),
         });
 
-        // if it's 3d, add the camera
+        // if it's 3d, add the camera and light
         if let Some(cam) = initial_camera {
             assert!(binding_offset != 3); // shoulnd't have two texture for 3d!
             entries.push(wgpu::BindGroupEntry {
                 binding: 3,
                 resource: cam.as_entire_binding(),
-            })
+            });
+
+            // this should be set too, can make this nicer
+            if let Some(v) = &views_for_3d  {
+
+                // entries.push(wgpu::BindGroupEntry {
+                //     binding: 4,
+                //     resource: wgpu::BindingResource::TextureView(&v.depth_view),
+                // });
+
+                entries.push(wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(&v.shadow_view),
+                });
+
+                entries.push(wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::Sampler(&v.shadow_sampler),
+                });
+            }
+
         }
 
 
@@ -983,8 +1040,8 @@ impl Graphics {
 
         let primitive = wgpu::PrimitiveState {
             topology: vertex_conf.topology,
-            // cull_mode: None,
-            cull_mode: Some(wgpu::Face::Back),
+            cull_mode: None,
+            // cull_mode: Some(wgpu::Face::Back),
             ..wgpu::PrimitiveState::default()
         };
 
@@ -1012,7 +1069,7 @@ impl Graphics {
             vertex: wgpu::VertexState {
                 module: &vertex_conf.vs_mod(device),
                 entry_point: "main",
-                buffers: &[vertex_buffer_layouts],
+                buffers: &[vertex_buffer_layouts.clone()],
                 #[cfg(not(feature = "nannou"))]
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
@@ -1030,8 +1087,16 @@ impl Graphics {
             // cache: None,
         };
 
-        device.create_render_pipeline(&rp_desc)
+
+        let main_pipeline = device.create_render_pipeline(&rp_desc);
+
+        main_pipeline
+
+
     }
+
+
+
 
     fn _pipeline_layout(
         device: &wgpu::Device,
@@ -1129,17 +1194,9 @@ impl Graphics {
 
         let vertex_buffers = VertexBuffers::from_conf(device, &conf.input_vertex);
 
-        let bind_group = Graphics::_bind_group(
-            device,
-            &bind_group_layout,
-            &input_texture_view,
-            &input_texture_view_other,
-            &initial_uniform_buffer,
-            if conf.input_vertex.is_3d { Some(&vertex_buffers.uniform)} else { None },
-            &sampler,
-        );
 
-        let depth_view = if conf.input_vertex.is_3d {
+
+        let textures_for_3d = if conf.input_vertex.is_3d {
             let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
                 size: wgpu::Extent3d {
                     width: c.dims[0],
@@ -1156,10 +1213,112 @@ impl Graphics {
             });
             let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-            Some(depth_view)
+            let shadow_texture = device.create_texture(&wgpu::TextureDescriptor {
+                size: wgpu::Extent3d {
+                    width: c.dims[0],
+                    height: c.dims[1],
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Depth32Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                label: Some("Shadow Texture"),
+                view_formats: &[],
+            });
+            let shadow_view = shadow_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+            let shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                label: Some("Shadow Sampler"),
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear, // make it smooth
+                min_filter: wgpu::FilterMode::Linear,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                compare: Some(wgpu::CompareFunction::LessEqual), // for comparison!
+                lod_min_clamp: 0.0,
+                lod_max_clamp: 1.0,
+                anisotropy_clamp: 1,
+                border_color: Default::default(),
+            });
+
+            let shadow_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX, // | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some("Shadow Bind Group Layout"),
+            });
+
+            let shadow_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &shadow_bind_group_layout, // Matches the shadow pipeline layout
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: vertex_buffers.uniform.as_entire_binding(),
+                    }
+                ],
+                label: Some("Shadow Bind Group"),
+            });
+
+            // needs to be same
+            let vertex_buffer_layouts = wgpu::VertexBufferLayout {
+                array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+                step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+            };
+
+                let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Shadow Pipeline Layout"),
+                    bind_group_layouts: &[&shadow_bind_group_layout], // This must match the bind groups used
+                    push_constant_ranges: &[],
+                });
+                let shadow_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    layout: Some(&shadow_pipeline_layout),
+                    vertex: wgpu::VertexState {
+                        module: &conf.input_vertex.shadow_vs_mod(device),
+                        entry_point: "main",
+                        buffers: &[vertex_buffer_layouts],
+                    },
+                    fragment: None, // No fragment shader, depth only
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: wgpu::TextureFormat::Depth32Float, // Matches shadow texture format
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less, // Closer depth wins
+                        stencil: wgpu::StencilState::default(),
+                        bias: Default::default(),
+                    }),
+                    multisample: wgpu::MultisampleState::default(),
+                    label: Some("shadow pipeline`"),
+                    multiview: None,
+                });
+
+            Some(TextureFor3d{depth_view, shadow_view, shadow_pipeline, shadow_sampler, shadow_bind_group, shadow_bind_group_layout })
         } else {
             None
         };
+
+        let bind_group = Graphics::_bind_group(
+            device,
+            &bind_group_layout,
+            &input_texture_view,
+            &input_texture_view_other,
+            &initial_uniform_buffer,
+            if conf.input_vertex.is_3d { Some(&vertex_buffers.uniform)} else { None },
+            &textures_for_3d,
+            &sampler,
+        );
 
         Self {
             name,
@@ -1177,7 +1336,7 @@ impl Graphics {
             // things needed mostly for nannou right now..
             texture_and_desc,
             other_texture_and_desc,
-            depth_view,
+            textures_for_3d,
         }
     }
 
@@ -1195,12 +1354,13 @@ impl Graphics {
             &self.input_texture_view_other, // i don't know what to do with this, leave it None or let there be one..
             &self.uniforms_buffer,
             if self.conf.input_vertex.is_3d { Some(&self.vertex_buffers.uniform)} else { None },
+            &self.textures_for_3d,
             &self.sampler,
         )
     }
 
     pub fn depth_stencil_attachment(&self) -> Option<wgpu::RenderPassDepthStencilAttachment> {
-        if let Some(depth_view) = &self.depth_view {
+        if let Some(TextureFor3d { depth_view, .. }) = &self.textures_for_3d {
             Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_view,
                 depth_ops: Some(wgpu::Operations {
@@ -1226,6 +1386,31 @@ impl Graphics {
 
         {
 
+            if let Some(TextureFor3d { shadow_view, shadow_pipeline, shadow_bind_group, .. }) = &self.textures_for_3d {
+                let mut shadow_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Shadow Pass"),
+                    color_attachments: &[],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &shadow_view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: true,
+                        }),
+                        stencil_ops: None,
+                    }),
+                });
+                shadow_pass.set_pipeline(shadow_pipeline);
+                shadow_pass.set_bind_group(0, &shadow_bind_group, &[]);
+                shadow_pass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
+                shadow_pass.set_index_buffer(
+                    self.vertex_buffers.index.slice(..),
+                    wgpu::IndexFormat::Uint16,
+                );
+                shadow_pass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
+
+            }
+
+
             let render_pass_desc = wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -1249,6 +1434,7 @@ impl Graphics {
             let mut rpass = encoder.begin_render_pass(&render_pass_desc);
             rpass.set_pipeline(&self.render_pipeline);
             rpass.set_bind_group(0, bind_group, &[]);
+            // rpass.set_bind_group(0, shadow_bind_group, &[]);
             rpass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
             rpass.set_index_buffer(
                 self.vertex_buffers.index.slice(..),
@@ -1265,8 +1451,8 @@ impl Graphics {
         self.render_with_custom_bind_group(device, output_texture_view, &self.bind_group)
     }
 
-    pub fn update_view(&self, c: &GraphicsWindowConf, m: Mat4) {
-        self.vertex_buffers.update_view(c, m);
+    pub fn update_view(&self, c: &GraphicsWindowConf, view: Mat4, light: Mat4) {
+        self.vertex_buffers.update_view(c, view, light);
     }
 }
 
@@ -1301,10 +1487,10 @@ impl VertexBuffers {
             uniform,
         }
     }
-    fn update_view(&self, c: &GraphicsWindowConf, m: Mat4) {
+    fn update_view(&self, c: &GraphicsWindowConf, view: Mat4, light: Mat4) {
         let queue = c.device.queue();
         // self.conf.set_view(m); // hmm, running into borrow things here
-        let v = ViewProjection::from_mat4(m);
+        let v = VertexUniforms::from_mat4(view, light);
 
         // queue.write_buffer(&self.uniform, 0, v.as_bytes());
         v.write_buffer(&self.uniform, queue);

@@ -106,9 +106,12 @@ macro_rules! build_shader {
     };
 }
 
+
+// i think i originally added this so i could use it?
 pub enum ShaderStr {
     Binding1Tex,
     Binding2Tex,
+    Binding3d,
     Includes,
     Prefix,
     Suffix,
@@ -121,6 +124,7 @@ impl ShaderStr {
             ShaderStr::Includes => INCLUDES,
             ShaderStr::Prefix => PREFIX,
             ShaderStr::Suffix => SUFFIX,
+            ShaderStr::Binding3d => BINDING_3D,
         }
     }
 }
@@ -133,6 +137,20 @@ macro_rules! build_shader_2tex {
             format!(
                 "{}\n{}\n{}",
                 ShaderStr::Binding2Tex.to_str(),
+                ShaderStr::Includes.to_str(),
+                build_shader!(@parse ($($raw)*)),
+            )
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! build_shader_3d {
+    ($($raw:tt)*) => {
+        {
+            format!(
+                "{}\n{}\n{}",
+                ShaderStr::Binding3d.to_str(),
                 ShaderStr::Includes.to_str(),
                 build_shader!(@parse ($($raw)*)),
             )

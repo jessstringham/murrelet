@@ -676,12 +676,12 @@ where
     ControlConfType: LiveCodeCommon<ConfType>,
 {
     run_id: u64,
-    controlconfig: ControlConfType,                // latest one
+    pub controlconfig: ControlConfType,                // latest one
     queued_configcontrol: Option<ControlConfType>, // if a new one comes in before we're done, queue it!
     util: LiveCodeUtil,
     livecode_src: LivecodeSrc, // get info from outside world
     save_path: Option<PathBuf>,
-    prev_controlconfig: ControlConfType, // last one
+    pub prev_controlconfig: ControlConfType, // last one
     boop_mng: BoopMng<ConfType, BoopConfType>,
     // sorry, the cache is mixed between boom_mng, but sometimes we need this
     cached_timeless_app_config: Option<AppConfigTiming>,
