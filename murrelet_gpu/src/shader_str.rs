@@ -1,7 +1,4 @@
-pub const PREFIX: &str = r#"
-@fragment
-fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>, @location(3) light_space_pos: vec4<f32>, @location(4) world_pos: vec3<f32>) -> FragmentOutput {
-"#;
+
 
 pub const SUFFIX: &str = r#"
     return FragmentOutput(result);
@@ -302,7 +299,13 @@ struct VertexOutput {
 fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) face_loc: vec2<f32>) -> VertexOutput {
   let tex_coords: vec2<f32> = vec2<f32>(pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5));
   let out_pos: vec4<f32> = vec4<f32>(pos.xy, 0.0, 1.0);
-  return VertexOutput(tex_coords, vec4<f32>(0.0), vec3<f32>(0.0), vec4<f32>(0.0), vec3<f32>(0.0), out_pos);
+  return VertexOutput(
+    tex_coords,
+    vec4<f32>(0.0), // shad_info
+    vec3<f32>(0.0), //normal
+    vec4<f32>(0.0), //light space pos
+    vec3<f32>(0.0), //world_pos,
+    out_pos);
 }";
 
 
@@ -336,3 +339,8 @@ fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2
   return VertexOutput(tex_coords, shad_info, normal, light_space_pos, pos, clip_pos);
 
 }";
+
+pub const PREFIX: &str = r#"
+@fragment
+fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>, @location(3) light_space_pos: vec4<f32>, @location(4) world_pos: vec3<f32>) -> FragmentOutput {
+"#;

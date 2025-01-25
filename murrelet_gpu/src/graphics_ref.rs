@@ -183,10 +183,11 @@ impl Triangulate {
     }
 
     // alternatively can add vertices and then add teh vec
-    pub fn add_rect(&mut self, v: &[Vec3; 4]) {
+    pub fn add_rect(&mut self, v: &[Vec3; 4], flip: bool) {
 
-        let edge1 = v[1] - v[0];
-        let edge2 = v[2] - v[0];
+
+        let edge1 = v[0] - v[1];
+        let edge2 = v[3] - v[1];
         let normal = edge1.cross(edge2).normalize().to_array();
 
         let v0 = self.add_vertex(v[0].to_array(), normal, [1.0, 0.0]);
@@ -194,7 +195,11 @@ impl Triangulate {
         let v2 = self.add_vertex(v[2].to_array(), normal, [1.0, 1.0]);
         let v3 = self.add_vertex(v[3].to_array(), normal, [0.0, 1.0]);
 
-        self.order.extend([v0, v1, v2, v1, v3, v2])
+        if !flip {
+            self.order.extend([v0, v2, v1, v1, v2, v3])
+        } else {
+            self.order.extend([v0, v1, v2, v1, v3, v2])
+        }
 
         // [0, 1, 2, 1, 3, 2]
     }
@@ -1290,10 +1295,14 @@ impl Graphics {
                         entry_point: "main",
                         buffers: &[vertex_buffer_layouts],
                     },
-                    fragment: None, // No fragment shader, depth only
-                    primitive: wgpu::PrimitiveState::default(),
+                    fragment: None,
+                    primitive: wgpu::PrimitiveState{
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        cull_mode: None,
+                        ..Default::default()
+                    },
                     depth_stencil: Some(wgpu::DepthStencilState {
-                        format: wgpu::TextureFormat::Depth32Float, // Matches shadow texture format
+                        format: wgpu::TextureFormat::Depth32Float,
                         depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::Less, // Closer depth wins
                         stencil: wgpu::StencilState::default(),
@@ -1385,7 +1394,7 @@ impl Graphics {
             .create_command_encoder(&Default::default());
 
         {
-
+            // do the shadow pass if needed
             if let Some(TextureFor3d { shadow_view, shadow_pipeline, shadow_bind_group, .. }) = &self.textures_for_3d {
                 let mut shadow_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Shadow Pass"),
@@ -1407,7 +1416,7 @@ impl Graphics {
                     wgpu::IndexFormat::Uint16,
                 );
                 shadow_pass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
-
+                drop(shadow_pass);
             }
 
 
@@ -1434,7 +1443,6 @@ impl Graphics {
             let mut rpass = encoder.begin_render_pass(&render_pass_desc);
             rpass.set_pipeline(&self.render_pipeline);
             rpass.set_bind_group(0, bind_group, &[]);
-            // rpass.set_bind_group(0, shadow_bind_group, &[]);
             rpass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
             rpass.set_index_buffer(
                 self.vertex_buffers.index.slice(..),
