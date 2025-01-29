@@ -1,7 +1,12 @@
+
+
 #[allow(dead_code)]
 use glam::{vec2, Vec2};
 use itertools::Itertools;
 use num_traits::NumCast;
+use std::hash::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
 
 pub mod intersection;
 
@@ -22,6 +27,7 @@ pub use iter::*;
 pub use metric::*;
 pub use polyline::*;
 pub use transform::*;
+
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -567,6 +573,16 @@ impl StrId {
     pub fn as_str(&self) -> &str {
         let len = self.0.iter().position(|&x| x == 0).unwrap_or(MAX_STRID_LEN);
         std::str::from_utf8(&self.0[..len]).unwrap()
+    }
+
+    pub fn to_seed(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.0.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    pub fn to_rn(&self) -> f32 {
+        (self.to_seed() as f64 / u64::MAX as f64) as f32
     }
 }
 

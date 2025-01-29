@@ -352,7 +352,7 @@ pub mod styleconf {
     #[derive(Clone, Debug, Livecode)]
     pub enum StyleConf {
         // Verbose(MurreletStyle),
-        SvgPattern(MurreletStyleFilledSvg),
+        Texture(MurreletStyleFilledSvg),
         Fill(MurreletStyleFilled),
         Outline(MurreletStyleOutlined),
         Points(MurreletStylePoints),
@@ -376,7 +376,7 @@ pub mod styleconf {
                 StyleConf::RGBAOutline(a) => a.to_style().with_no_fill(),
                 StyleConf::Points(a) => a.to_style(),
                 StyleConf::RGBAPoints(a) => a.to_style(),
-                StyleConf::SvgPattern(a) => a.to_style(),
+                StyleConf::Texture(a) => a.to_style(),
             }
         }
 

@@ -7,6 +7,8 @@ use clap::Parser;
 pub struct BaseConfigArgs {
     pub config_path: PathBuf,
     pub template_path: PathBuf, // todo, i probably should drop this
+    #[arg(long, help = "record video")]
+    pub capture: bool,
 
     #[arg(trailing_var_arg = true)]
     pub sketch_args: Vec<String>,

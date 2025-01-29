@@ -4,11 +4,11 @@ use std::{f64::consts::PI, fmt::Debug};
 use evalexpr::*;
 use glam::{vec2, Vec2};
 use itertools::Itertools;
-use murrelet_common::{clamp, ease, lerp, map_range, smoothstep, IdxInRange, LivecodeValue};
+use murrelet_common::{clamp, ease, lerp, map_range, smoothstep, IdxInRange, IdxInRange2d, LivecodeValue};
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
+use crate::{types::{AdditionalContextNode, LivecodeError, LivecodeResult}, unitcells::UnitCellExprWorldContext};
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{

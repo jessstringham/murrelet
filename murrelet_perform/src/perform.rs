@@ -1032,8 +1032,11 @@ where
     {
         let w = self.world();
 
+
+        let should_capture = self.maybe_args.as_ref().map(|env| env.capture).unwrap_or(false);
+
         let frame = w.actual_frame_u64();
-        if (self.app_config().capture && frame != 0) || self.app_config().should_capture() {
+        if (self.app_config().capture && frame != 0) || self.app_config().should_capture() || should_capture {
             let frame_freq = 1;
             if frame % frame_freq == 0 {
                 self.capture(capture_frame_fn)?;
