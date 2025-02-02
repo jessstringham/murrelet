@@ -4,11 +4,16 @@ use std::{f64::consts::PI, fmt::Debug};
 use evalexpr::*;
 use glam::{vec2, Vec2};
 use itertools::Itertools;
-use murrelet_common::{clamp, ease, lerp, map_range, smoothstep, IdxInRange, IdxInRange2d, LivecodeValue};
+use murrelet_common::{
+    clamp, ease, lerp, map_range, smoothstep, IdxInRange, IdxInRange2d, LivecodeValue,
+};
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::{types::{AdditionalContextNode, LivecodeError, LivecodeResult}, unitcells::UnitCellExprWorldContext};
+use crate::{
+    types::{AdditionalContextNode, LivecodeError, LivecodeResult},
+    unitcells::UnitCellExprWorldContext,
+};
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{
@@ -213,14 +218,13 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         }),
         "res" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(9)?;
-            let (x, y, aa, bb, m, n, a, b, offset_z) = (
+            let (x, y, aa, bb, m, n, a, b) = (
                 tuple[0].as_number()?, tuple[1].as_number()?,
                 tuple[2].as_number()?, tuple[3].as_number()?,
                 tuple[4].as_number()?, tuple[5].as_number()?,
                 tuple[6].as_number()?, tuple[7].as_number()?,
-                tuple[8].as_number()?
             );
-            let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos()  * (m * PI * y / b).cos() + offset_z;
+            let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos() * (m * PI * y / b).cos();
             Ok(Value::Float(f as f64))
         })
     }.map_err(|err| {LivecodeError::EvalExpr(format!("error in init_evalexpr_func_ctx!"), err)})

@@ -383,6 +383,28 @@ pub mod styleconf {
         pub fn color(&self) -> MurreletColor {
             self.to_style().color.as_color()
         }
+
+        pub fn outline(color: MurreletColor, stroke_weight: f32) -> Self {
+            Self::Outline(MurreletStyleOutlined {
+                color,
+                stroke_weight,
+            })
+        }
+
+        pub fn line(color: MurreletColor, stroke_weight: f32) -> Self {
+            Self::Line(MurreletStyleLined {
+                color,
+                stroke_weight,
+            })
+        }
+
+        pub fn fill(color: MurreletColor) -> Self {
+            Self::Fill(MurreletStyleFilled {
+                color,
+                stroke_weight: 0.0,
+                stroke_color: MurreletColor::black(),
+            })
+        }
     }
 
     impl Default for StyleConf {

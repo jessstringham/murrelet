@@ -58,14 +58,14 @@ pub fn murrelet_livecode_derive_all(input: TokenStream) -> TokenStream {
     let livecode = livecode_parse_ast(ast_receiver.clone());
     let nested = nestedit_parse_ast(ast_receiver.clone());
     let lerpable = lerpable_parse_ast(ast_receiver.clone());
-    let boop = boop_parse_ast(ast_receiver.clone());
+    // let boop = boop_parse_ast(ast_receiver.clone());
     let lazy = lazy_parse_ast(ast_receiver.clone());
 
     quote!(
         #livecode
         #nested
         #lerpable
-        #boop
+        // #boop
         #lazy
     )
     .into()
