@@ -106,6 +106,8 @@ pub(crate) struct FieldTokensLivecode {
     pub(crate) for_struct: TokenStream2,
     pub(crate) for_world: TokenStream2,
     pub(crate) for_to_control: TokenStream2, // a way to convert from original to control
+    pub(crate) for_variable_idents: TokenStream2,
+    pub(crate) for_function_idents: TokenStream2,
 }
 impl GenFinal for FieldTokensLivecode {
     fn make_struct_final(
@@ -119,6 +121,8 @@ impl GenFinal for FieldTokensLivecode {
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
+        let for_variable_idents = variants.iter().map(|x| x.for_variable_idents.clone());
+        let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
         quote! {
             #[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
@@ -141,6 +145,26 @@ impl GenFinal for FieldTokensLivecode {
                     }
                 }
             }
+
+            impl murrelet_livecode::livecode::GetLivecodeIdentifiers for #new_ident {
+                fn variable_identifiers(&self) -> Vec<murrelet_livecode::livecode::LivecodeVariable> {
+                    vec![#(#for_variable_idents,)*]
+                        .concat()
+                        .into_iter()
+                        .collect::<std::collections::HashSet<_>>()
+                        .into_iter()
+                        .collect::<Vec<_>>()
+                }
+
+                fn function_identifiers(&self) -> Vec<murrelet_livecode::livecode::LivecodeFunction> {
+                    vec![#(#for_function_idents,)*]
+                        .concat()
+                        .into_iter()
+                        .collect::<std::collections::HashSet<_>>()
+                        .into_iter()
+                        .collect::<Vec<_>>()
+                }
+            }
         }
     }
 
@@ -155,6 +179,8 @@ impl GenFinal for FieldTokensLivecode {
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
+        let for_variable_idents = variants.iter().map(|x| x.for_variable_idents.clone());
+        let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
         let enum_tag = idents.tags;
 
@@ -180,6 +206,20 @@ impl GenFinal for FieldTokensLivecode {
                     }
                 }
             }
+
+            impl murrelet_livecode::livecode::GetLivecodeIdentifiers for #new_ident {
+                fn variable_identifiers(&self) -> Vec<murrelet_livecode::livecode::LivecodeVariable> {
+                    match self {
+                        #(#for_variable_idents,)*
+                    }
+                }
+
+                fn function_identifiers(&self) -> Vec<murrelet_livecode::livecode::LivecodeFunction> {
+                    match self {
+                        #(#for_function_idents,)*
+                    }
+                }
+            }
         }
     }
 
@@ -194,6 +234,8 @@ impl GenFinal for FieldTokensLivecode {
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
         let for_to_control = variants.iter().map(|x| x.for_to_control.clone());
+        let for_variable_idents = variants.iter().map(|x| x.for_variable_idents.clone());
+        let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
         quote! {
             #[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
@@ -208,6 +250,16 @@ impl GenFinal for FieldTokensLivecode {
             impl murrelet_livecode::livecode::LivecodeToControl<#new_ident> for #name {
                 fn to_control(&self) -> #new_ident {
                     #new_ident(#(#for_to_control,)*)
+                }
+            }
+
+            impl murrelet_livecode::livecode::GetLivecodeIdentifiers for #new_ident {
+                fn variable_identifiers(&self) -> Vec<murrelet_livecode::livecode::LivecodeVariable> {
+                    #(#for_variable_idents)*
+                }
+
+                fn function_identifiers(&self) -> Vec<murrelet_livecode::livecode::LivecodeFunction> {
+                    #(#for_function_idents)*
                 }
             }
         }
@@ -232,10 +284,21 @@ impl GenFinal for FieldTokensLivecode {
         let for_to_control =
             LivecodeFieldType(ctrl).for_newtype_control(idents.clone(), parent_ident.clone());
 
+        let (for_variable_idents, for_function_idents) = if idents.how_to_control_this_is_none() {
+            (quote! { vec![] }, quote! { vec![] })
+        } else {
+            (
+                quote! {self.0.variable_identifiers()},
+                quote! {self.0.function_identifiers()},
+            )
+        };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
@@ -266,10 +329,17 @@ impl GenFinal for FieldTokensLivecode {
         let for_to_control =
             quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
 
+        let for_variable_idents =
+            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
+        let for_function_idents =
+            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
@@ -289,10 +359,15 @@ impl GenFinal for FieldTokensLivecode {
             quote! { #name::#variant_ident => #new_ident::#variant_ident }
         };
 
+        let for_variable_idents = quote! { #new_ident::#variant_ident => vec![] };
+        let for_function_idents = quote! { #new_ident::#variant_ident => vec![] };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
@@ -309,10 +384,15 @@ impl GenFinal for FieldTokensLivecode {
         };
         let for_to_control = quote! {#name: self.#name.clone()};
 
+        let for_variable_idents = quote! { self.#name.variable_identifiers() };
+        let for_function_idents = quote! { self.#name.function_identifiers() };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
@@ -330,10 +410,22 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_to_control = LivecodeFieldType(ctrl).for_control(idents.clone());
 
+        // we'll just use the trait (i want to try it for the above, but we'll come back to that!)
+        let (for_variable_idents, for_function_idents) = if idents.how_to_control_this_is_none() {
+            (quote! { vec![] }, quote! { vec![] })
+        } else {
+            (
+                quote! {self.#name.variable_identifiers()},
+                quote! {self.#name.function_identifiers()},
+            )
+        };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
@@ -377,8 +469,6 @@ impl GenFinal for FieldTokensLivecode {
                 }
             };
 
-
-
             quote! {#serde #name: #new_ty}
         };
 
@@ -387,7 +477,13 @@ impl GenFinal for FieldTokensLivecode {
                 match wrapper {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
-                        quote! {#name: self.#name.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()}
+                        quote! {
+                        #name: self.#name.iter()
+                            .map(|x| x.eval_and_expand_vec(w))
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter()
+                            .flatten()
+                            .collect()}
                     }
                     VecDepth::VecVec => {
                         quote! {
@@ -395,7 +491,12 @@ impl GenFinal for FieldTokensLivecode {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
                                     result.push(
-                                        internal_row.iter().map(|x| x.eval_and_expand_vec(w)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect()
+                                        internal_row.iter()
+                                            .map(|x| x.eval_and_expand_vec(w))
+                                            .collect::<Result<Vec<_>, _>>()?
+                                            .into_iter()
+                                            .flatten()
+                                            .collect()
                                     )
                                 }
                                 result
@@ -458,10 +559,64 @@ impl GenFinal for FieldTokensLivecode {
             // }
         };
 
+        let for_variable_idents = {
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
+                    VecDepth::Vec => {
+                        quote! {self.#name.iter().map(|x| x.variable_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter().collect::<Vec<_>>()}
+                    }
+                    VecDepth::VecVec => {
+                        quote! {
+                            {
+                                let mut result = Vec::with_capacity(self.#name.len());
+                                for internal_row in &self.#name {
+                                    result.extend(
+                                        internal_row.iter().map(|x| x.variable_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
+                                    );
+                                }
+                                result
+                            }
+                        }
+                    }
+                }
+            } else {
+                quote! {vec![]}
+            }
+        };
+
+        let for_function_idents = {
+            if how_to_control_internal.needs_to_be_evaluated() {
+                match wrapper {
+                    VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
+                    VecDepth::Vec => {
+                        quote! {self.#name.iter().map(|x| x.function_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter().collect::<Vec<_>>()}
+                    }
+                    VecDepth::VecVec => {
+                        quote! {
+                            {
+                                let mut result = Vec::with_capacity(self.#name.len());
+                                for internal_row in &self.#name {
+                                    result.extend(
+                                        internal_row.iter().map(|x| x.function_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
+                                    );
+                                }
+                                result
+                            }
+                        }
+                    }
+                }
+            } else {
+                quote! {vec![]}
+            }
+        };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
@@ -487,10 +642,15 @@ impl GenFinal for FieldTokensLivecode {
             quote! {#name: self.#name.to_control()}
         };
 
+        let for_variable_idents = quote! { self.#name.variable_identifiers() };
+        let for_function_idents = quote! { self.#name.function_identifiers() };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
@@ -582,13 +742,20 @@ impl GenFinal for FieldTokensLivecode {
             }
         };
 
+        // we just need to grab
+        let for_variable_idents = quote! { self.#target.variable_identifiers() };
+        let for_function_idents = quote! { self.#target.function_identifiers() };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 
+    // Thing(Vec<Something>);
     fn from_newtype_recurse_struct_vec(idents: StructIdents) -> Self {
         let serde = idents.serde();
         let orig_ty = idents.orig_ty();
@@ -646,10 +813,28 @@ impl GenFinal for FieldTokensLivecode {
             }
         };
 
+        let for_variable_idents = {
+            if how_to_control_internal.needs_to_be_evaluated() {
+                quote! {self.0.iter().map(|x| x.variable_identifiers()).flatten().collect::<std::collections::HashSet<_>>().into_iter().collect::<Vec<_>>()}
+            } else {
+                quote! { vec![] }
+            }
+        };
+
+        let for_function_idents = {
+            if how_to_control_internal.needs_to_be_evaluated() {
+                quote! {self.0.iter().map(|x| x.function_identifiers()).flatten().collect::<std::collections::HashSet<_>>().into_iter().collect::<Vec<_>>()}
+            } else {
+                quote! { vec![] }
+            }
+        };
+
         FieldTokensLivecode {
             for_struct,
             for_world,
             for_to_control,
+            for_variable_idents,
+            for_function_idents,
         }
     }
 

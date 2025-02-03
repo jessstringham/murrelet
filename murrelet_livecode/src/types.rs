@@ -1,11 +1,14 @@
+use std::collections::HashSet;
+
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
-use murrelet_common::{IdxInRange, IdxInRange2d};
+use itertools::Itertools;
+use murrelet_common::IdxInRange2d;
 use serde::{Deserialize, Deserializer};
 use serde_yaml::Location;
 
 use crate::{
-    expr::{ExprWorldContextValues, IntoExprWorldContext},
-    livecode::LivecodeFromWorld,
+    expr::IntoExprWorldContext,
+    livecode::{GetLivecodeIdentifiers, LivecodeFromWorld},
     state::LivecodeWorldState,
     unitcells::UnitCellExprWorldContext,
 };
@@ -106,6 +109,36 @@ pub struct ControlVecElementRepeat<Source> {
     // #[serde(default)]
     prefix: String,
     what: Vec<Source>,
+}
+
+impl<T: GetLivecodeIdentifiers> GetLivecodeIdentifiers for ControlVecElement<T> {
+    fn variable_identifiers(&self) -> Vec<crate::livecode::LivecodeVariable> {
+        match self {
+            ControlVecElement::Single(c) => c.variable_identifiers(),
+            ControlVecElement::Repeat(c) => c
+                .what
+                .iter()
+                .map(|x| x.variable_identifiers())
+                .flatten()
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect_vec(),
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<crate::livecode::LivecodeFunction> {
+        match self {
+            ControlVecElement::Single(c) => c.function_identifiers(),
+            ControlVecElement::Repeat(c) => c
+                .what
+                .iter()
+                .map(|x| x.function_identifiers())
+                .flatten()
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect_vec(),
+        }
+    }
 }
 
 impl<Source> ControlVecElementRepeat<Source> {

@@ -5,15 +5,14 @@ use evalexpr::*;
 use glam::{vec2, Vec2};
 use itertools::Itertools;
 use murrelet_common::{
-    clamp, ease, lerp, map_range, smoothstep, IdxInRange, IdxInRange2d, LivecodeValue,
+    clamp, ease, lerp, map_range, smoothstep, IdxInRange, LivecodeValue,
 };
 use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::{
-    types::{AdditionalContextNode, LivecodeError, LivecodeResult},
-    unitcells::UnitCellExprWorldContext,
-};
+use crate::
+    types::{AdditionalContextNode, LivecodeError, LivecodeResult}
+;
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{

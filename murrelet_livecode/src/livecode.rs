@@ -1,10 +1,14 @@
 #![allow(dead_code)]
+use std::collections::HashMap;
+use std::collections::HashSet;
+
 use evalexpr::build_operator_tree;
 use evalexpr::Node;
 use glam::vec2;
 use glam::vec3;
 use glam::Vec2;
 use glam::Vec3;
+use itertools::Itertools;
 use murrelet_common::clamp;
 
 use murrelet_common::MurreletColor;
@@ -13,6 +17,7 @@ use serde::Deserialize;
 use crate::lazy::ControlLazyNodeF32;
 use crate::lazy::LazyNodeF32;
 use crate::state::LivecodeWorldState;
+use crate::types::AdditionalContextNode;
 use crate::types::ControlVecElement;
 use crate::types::LivecodeError;
 use crate::types::LivecodeResult;
@@ -133,6 +138,208 @@ impl LivecodeToControl<ControlF32> for u64 {
 impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
     fn to_control(&self) -> ControlLazyNodeF32 {
         ControlLazyNodeF32::new(self.n().cloned().unwrap())
+    }
+}
+
+// wrappers around identifiers evalexpr gives us, right now
+// just to control midi controller
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub struct LivecodeVariable {
+    name: String,
+}
+impl LivecodeVariable {
+    pub fn from_str(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub struct LivecodeFunction {
+    name: String,
+}
+impl LivecodeFunction {
+    pub fn from_str(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+        }
+    }
+}
+
+pub trait GetLivecodeIdentifiers {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable>;
+    fn function_identifiers(&self) -> Vec<LivecodeFunction>;
+}
+
+impl GetLivecodeIdentifiers for ControlF32 {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        match self {
+            ControlF32::Int(_) => vec![],
+            ControlF32::Bool(_) => vec![],
+            ControlF32::Float(_) => vec![],
+            ControlF32::Expr(node) => node
+                .iter_variable_identifiers()
+                .dedup()
+                .map(|x| LivecodeVariable::from_str(x))
+                .collect_vec(),
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        match self {
+            ControlF32::Int(_) => vec![],
+            ControlF32::Bool(_) => vec![],
+            ControlF32::Float(_) => vec![],
+            ControlF32::Expr(node) => node
+                .iter_variable_identifiers()
+                .dedup()
+                .map(|x| LivecodeFunction::from_str(x))
+                .collect_vec(),
+        }
+    }
+}
+
+impl GetLivecodeIdentifiers for [ControlF32; 2] {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        vec![
+            self[0].variable_identifiers(),
+            self[1].variable_identifiers(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<LivecodeVariable>>()
+        .into_iter()
+        .collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        vec![
+            self[0].function_identifiers(),
+            self[1].function_identifiers(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<LivecodeFunction>>()
+        .into_iter()
+        .collect_vec()
+    }
+}
+
+impl GetLivecodeIdentifiers for [ControlF32; 3] {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        vec![
+            self[0].variable_identifiers(),
+            self[1].variable_identifiers(),
+            self[2].variable_identifiers(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<LivecodeVariable>>()
+        .into_iter()
+        .collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        vec![
+            self[0].function_identifiers(),
+            self[1].function_identifiers(),
+            self[2].function_identifiers(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<LivecodeFunction>>()
+        .into_iter()
+        .collect_vec()
+    }
+}
+
+impl GetLivecodeIdentifiers for [ControlF32; 4] {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        vec![
+            self[0].variable_identifiers(),
+            self[1].variable_identifiers(),
+            self[2].variable_identifiers(),
+            self[3].variable_identifiers(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<LivecodeVariable>>()
+        .into_iter()
+        .collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        vec![
+            self[0].function_identifiers(),
+            self[1].function_identifiers(),
+            self[2].function_identifiers(),
+            self[3].function_identifiers(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<LivecodeFunction>>()
+        .into_iter()
+        .collect_vec()
+    }
+}
+
+impl GetLivecodeIdentifiers for String {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        vec![]
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        vec![]
+    }
+}
+
+impl GetLivecodeIdentifiers for AdditionalContextNode {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        vec![]
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        vec![]
+    }
+}
+
+impl<K, V> GetLivecodeIdentifiers for HashMap<K, V> {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        vec![]
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        vec![]
+    }
+}
+
+
+impl GetLivecodeIdentifiers for ControlBool {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        match self {
+            ControlBool::Int(_) => vec![],
+            ControlBool::Raw(_) => vec![],
+            ControlBool::Float(_) => vec![],
+            ControlBool::Expr(node) => node
+                .iter_variable_identifiers()
+                .dedup()
+                .map(|x| LivecodeVariable::from_str(x))
+                .collect_vec(),
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        match self {
+            ControlBool::Int(_) => vec![],
+            ControlBool::Raw(_) => vec![],
+            ControlBool::Float(_) => vec![],
+            ControlBool::Expr(node) => node
+                .iter_variable_identifiers()
+                .dedup()
+                .map(|x| LivecodeFunction::from_str(x))
+                .collect_vec(),
+        }
     }
 }
 

@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use std::path::PathBuf;
 
 use image::GenericImageView;
@@ -14,6 +15,7 @@ use wgpu::util::DeviceExt;
 
 use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
 
+#[allow(dead_code)]
 #[repr(transparent)]
 #[derive(Clone, Copy, Zeroable, Pod)]
 struct F16U16(u16);
@@ -121,6 +123,7 @@ pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std
     Ok((img_rgba.to_vec(), img_width, img_height))
 }
 
+#[allow(dead_code)]
 fn convert_u8_to_f16u16_buffer(img_rgba: &[u8], width: u32, height: u32) -> Vec<u8> {
     // Convert u8 data to F16U16, scaling to [0.0, 1.0]
     let img_data_f16u16: Vec<F16U16> = img_rgba

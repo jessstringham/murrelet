@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs},
-    livecode::LivecodeFromWorld,
+    livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeVariable},
     state::LivecodeWorldState,
     types::{LivecodeError, LivecodeResult},
 };
@@ -40,6 +40,23 @@ impl LivecodeFromWorld<LazyNodeF32> for ControlLazyNodeF32 {
         Ok(LazyNodeF32::new(self.clone(), w))
     }
 }
+
+impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
+    fn variable_identifiers(&self) -> Vec<crate::livecode::LivecodeVariable> {
+        match self {
+            ControlLazyNodeF32::Expr(node) => node.iter_variable_identifiers().sorted().dedup().map(|x| LivecodeVariable::from_str(x)).collect_vec(),
+            _ => vec![]
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<crate::livecode::LivecodeFunction> {
+        match self {
+            ControlLazyNodeF32::Expr(node) => node.iter_function_identifiers().sorted().dedup().map(|x| LivecodeFunction::from_str(x)).collect_vec(),
+            _ => vec![]
+        }
+    }
+}
+
 
 // todo, figure out how to only build this context once per unitcell/etc
 #[derive(Debug, Clone)]

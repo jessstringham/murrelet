@@ -4,6 +4,7 @@ use quote::quote;
 use crate::parser::*;
 
 pub(crate) struct FieldTokensNestEdit {
+    #[allow(dead_code)]
     kind: String,
     pub(crate) for_nestedit: TokenStream2,
     pub(crate) for_nestedit_get: TokenStream2,

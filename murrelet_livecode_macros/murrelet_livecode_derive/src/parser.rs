@@ -484,6 +484,13 @@ impl StructIdents {
         self.data.how_to_control_this()
     }
 
+    pub(crate) fn how_to_control_this_is_none(&self) -> bool {
+        match self.how_to_control_this() {
+            HowToControlThis::WithNone(_) => true,
+            _ => false
+        }
+    }
+
     pub(crate) fn control_type(&self) -> ControlType {
         self.how_to_control_this().get_control_type()
     }

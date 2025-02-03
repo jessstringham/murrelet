@@ -816,7 +816,7 @@ where
             // println!("lerp_change {:?}", lerp_change);
         };
 
-        let t = w.time().bar();
+        let _t = w.time().bar();
 
         // let boop_conf = target.config_app_loc().boop.to_livecode();
 

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 
 use quote::quote;
 
-use crate::{derive_boop::update_to_boop_ident, derive_livecode::update_to_control_ident};
+use crate::derive_livecode::update_to_control_ident;
 
 // ugly quick fix, just generate this code
 pub(crate) fn top_level_livecode(ident: syn::Ident) -> TokenStream2 {
