@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use glam::{vec3, Mat4, Vec2};
-use murrelet_common::{Assets, AssetsRef};
+use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 // use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
@@ -10,6 +10,7 @@ use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{
     AdditionalContextNode, ControlVecElement, LivecodeError, LivecodeResult,
 };
+use std::collections::HashMap;
 use std::fs;
 
 use murrelet_common::run_id;
@@ -28,7 +29,10 @@ use clap::Parser;
 pub trait CommonTrait: std::fmt::Debug + Clone {}
 
 // requirements for the control conf
-pub trait LiveCodeCommon<T>: LivecodeFromWorld<T> + LiveCoderLoader + CommonTrait {}
+pub trait LiveCodeCommon<T>:
+    GetLivecodeIdentifiers + LivecodeFromWorld<T> + LiveCoderLoader + CommonTrait
+{
+}
 
 // requirements for the conf
 // pub trait ConfCommon<T: BoopFromWorld<Self>>: CommonTrait {
@@ -38,7 +42,6 @@ pub trait ConfCommon: CommonTrait {
 
 // requirements for the boop
 // pub trait BoopConfCommon<T>: BoopFromWorld<T> + CommonTrait {}
-
 
 #[derive(Clone, Debug)]
 pub struct SvgDrawConfig {
@@ -678,7 +681,7 @@ where
     ControlConfType: LiveCodeCommon<ConfType>,
 {
     run_id: u64,
-    pub controlconfig: ControlConfType,                // latest one
+    pub controlconfig: ControlConfType,            // latest one
     queued_configcontrol: Option<ControlConfType>, // if a new one comes in before we're done, queue it!
     util: LiveCodeUtil,
     livecode_src: LivecodeSrc, // get info from outside world
@@ -915,6 +918,28 @@ where
 
         self.livecode_src.update(&update_input);
 
+        if app.elapsed_frames() % 20 == 0 {
+            let variables = self
+                .controlconfig
+                .variable_identifiers()
+                .into_iter()
+                .map(|x| {
+                    (
+                        x.name.clone(),
+                        LivecodeUsage {
+                            name: x.name.clone(),
+                            is_used: true,
+                            value: None, // todo
+                        },
+                    )
+                })
+                .collect::<HashMap<_, _>>();
+
+            println!("variables {:?}", variables);
+
+            self.livecode_src.feedback(&variables);
+        }
+
         // needs to happen before checking is on bar
         self.util.update_with_frame(app.elapsed_frames());
 
@@ -1040,11 +1065,17 @@ where
     {
         let w = self.world();
 
-
-        let should_capture = self.maybe_args.as_ref().map(|env| env.capture).unwrap_or(false);
+        let should_capture = self
+            .maybe_args
+            .as_ref()
+            .map(|env| env.capture)
+            .unwrap_or(false);
 
         let frame = w.actual_frame_u64();
-        if (self.app_config().capture && frame != 0) || self.app_config().should_capture() || should_capture {
+        if (self.app_config().capture && frame != 0)
+            || self.app_config().should_capture()
+            || should_capture
+        {
             let frame_freq = 1;
             if frame % frame_freq == 0 {
                 self.capture(capture_frame_fn)?;

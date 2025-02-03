@@ -1,7 +1,7 @@
 //#![allow(dead_code)]
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use murrelet_common::{print_expect, IsLivecodeSrc, LivecodeValue, MurreletTime};
-use std::error::Error;
+use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
@@ -17,6 +17,8 @@ const MIDI_COUNT: usize = 16;
 const MIDI_FIGHTER_TWISTER_NAME: &'static str = "Midi Fighter Twister";
 const MIDI_FIGHTER_SPECTRA_NAME: &'static str = "Midi Fighter Spectra";
 const NANO_KONTROL_NAME: &'static str = "nanoKONTROL2 SLIDER/KNOB";
+
+// const MIDI_MNG_REGEX = Regex::new(r"^\d+$").unwrap();
 
 impl IsLivecodeSrc for MidiMng {
     fn update(&mut self, _: &murrelet_common::LivecodeSrcUpdateInput) {
@@ -46,19 +48,74 @@ impl IsLivecodeSrc for MidiMng {
         }
         vals
     }
+
+    fn feedback(&mut self, variables: &HashMap<String, murrelet_common::LivecodeUsage>) {
+
+        println!("feedback");
+        if let Some(out) = self.out.get_mut(&MidiDevice::MidiTwister) {
+            println!("has twister");
+
+            let mut twister = TwisterController{out};
+
+            for i in 0..16u8 {
+                if let Some(u) = variables.get(&format!("m{}", i)) {
+                    let amount = if let Some(v) = u.value {
+                        v
+                    } else {
+                        self.values.dials[i as usize]
+                    };
+                    let val = (amount * 128.0) as u8;
+
+                    twister.set_encoder(i, val);
+                    twister.set_led(i, 0x7F);
+                } else {
+                    twister.set_encoder(i, 0);
+                    twister.set_led(i, 0);
+                };
+            }
+        }
+    }
+}
+
+struct TwisterController<'a> {
+    out: &'a mut MidiOutputConnection
+}
+impl<'a> TwisterController<'a> {
+    fn set_led(&mut self, dial: u8, amount: u8) {
+        let msg = &[0xB1, dial, amount];
+        self.out.send(&msg[..]).map_err(|x| x.to_string()).ok();
+    }
+
+    fn set_encoder(&mut self, dial: u8, amount: u8) {
+        let msg = &[0xB0, dial, amount];
+        self.out.send(&msg[..]).map_err(|x| x.to_string()).ok();
+    }
 }
 
 pub struct MidiMng {
     cxn: MidiCxn,
     pub values: MidiValues,
+    out: HashMap<MidiDevice, MidiOutputConnection>,
 }
 
 impl MidiMng {
+    const FIGHTER: &[&'static str] = &[
+        "mf0", "mf1", "mf2", "mf3", "mf4", "mf5", "mf6", "mf7", "mf8", "mf10", "mf11", "mf12",
+        "mf13", "mf14", "mf15",
+    ];
+
+    const TWISTER: &[&'static str] = &[
+        "m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m10", "m11", "m12", "m13", "m14",
+        "m15",
+    ];
+
     pub fn new() -> MidiMng {
         let cxn = MidiCxn::new();
+        let out = get_midi_out();
         MidiMng {
             cxn,
             values: MidiValues::new(16, 16, 16), // eh, just take the max of devices
+            out,
         }
     }
 }
@@ -170,7 +227,7 @@ pub enum KeyPress {
     Dial(u8, u8),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum MidiDevice {
     Akai,
     MidiFighter,
@@ -267,17 +324,14 @@ impl MidiMessage {
 pub struct MidiConn {
     device: MidiDevice,
     input: MidiInputConnection<Sender<MidiMessage>>,
-    output: Option<MidiOutputConnection>,
 }
 
 fn connect_one_midi(
     device: MidiDevice,
     in_port: &midir::MidiInputPort,
-    out_port: &midir::MidiOutputPort,
     event_tx: Sender<MidiMessage>,
 ) -> Option<MidiConn> {
     let this_midi_in = MidiInput::new(&format!("midir-from-{}", device.to_str())).ok()?;
-    let this_midi_out = MidiOutput::new(&format!("midir-to-{}", device.to_str())).ok()?;
 
     let maybe_conn_in = this_midi_in.connect(
         in_port,
@@ -290,14 +344,11 @@ fn connect_one_midi(
         event_tx.clone(),
     );
 
-    let maybe_conn_out = this_midi_out.connect(out_port, &format!("midi-out-{}", device.to_str()));
-
     let conn_in = maybe_conn_in.ok()?;
 
     Some(MidiConn {
         device,
         input: conn_in,
-        output: maybe_conn_out.ok(),
     })
 }
 
@@ -305,19 +356,17 @@ fn connect_one_midi(
 fn connect_midi(event_tx: Sender<MidiMessage>) -> Vec<MidiConn> {
     // set up one just to get the port list
     let maybe_midi_in = MidiInput::new("midir-to-list-ports");
-    let maybe_midi_out = MidiOutput::new("midir-to-list-ports");
 
-    if let (Some(mut midi_in), Some(mut midi_out)) = (maybe_midi_in.ok(), maybe_midi_out.ok()) {
+    if let Some(mut midi_in) = maybe_midi_in.ok() {
         midi_in.ignore(Ignore::None);
 
         let in_ports = midi_in.ports();
-        let out_ports = midi_out.ports();
 
         let mut result = vec![];
-        for (idx, in_port) in in_ports.iter().enumerate() {
+        for in_port in in_ports.iter() {
             let name = midi_in.port_name(in_port).ok();
             let device = MidiDevice::from_name(name);
-            if let Some(c) = connect_one_midi(device, in_port, &out_ports[idx], event_tx.clone()) {
+            if let Some(c) = connect_one_midi(device, in_port, event_tx.clone()) {
                 result.push(c);
             }
         }
@@ -327,6 +376,30 @@ fn connect_midi(event_tx: Sender<MidiMessage>) -> Vec<MidiConn> {
         println!("issue with midi!");
         vec![]
     }
+}
+
+fn get_midi_out() -> HashMap<MidiDevice, MidiOutputConnection> {
+    let mut hm = HashMap::new();
+    let maybe_midi_out = MidiOutput::new("midir-to-list-ports");
+    if let Some(midi_out) = maybe_midi_out.ok() {
+        let out_ports = midi_out.ports();
+
+        for out_port in &out_ports {
+            let name = midi_out.port_name(out_port).ok();
+            let device = MidiDevice::from_name(name);
+
+            let this_midi_out = MidiOutput::new(&format!("midir-to-{}", device.to_str())).ok();
+
+            if let Some(mo) = this_midi_out {
+                let maybe_conn_out = mo.connect(out_port, &format!("midi-out-{}", device.to_str()));
+
+                if let Ok(connection) = maybe_conn_out {
+                    hm.insert(device, connection);
+                }
+            }
+        }
+    }
+    hm
 }
 
 pub struct MidiCxn {

@@ -145,7 +145,7 @@ impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
 // just to control midi controller
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct LivecodeVariable {
-    name: String,
+    pub name: String,
 }
 impl LivecodeVariable {
     pub fn from_str(name: &str) -> Self {

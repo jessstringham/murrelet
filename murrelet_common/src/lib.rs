@@ -1,12 +1,10 @@
-
-
 #[allow(dead_code)]
 use glam::{vec2, Vec2};
 use itertools::Itertools;
 use num_traits::NumCast;
+use std::collections::HashMap;
 use std::hash::DefaultHasher;
 use std::hash::{Hash, Hasher};
-
 
 pub mod intersection;
 
@@ -27,7 +25,6 @@ pub use iter::*;
 pub use metric::*;
 pub use polyline::*;
 pub use transform::*;
-
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -445,9 +442,25 @@ impl LivecodeValue {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct LivecodeUsage {
+    pub name: String,
+    pub is_used: bool,
+    pub value: Option<f32>,
+}
+
+impl LivecodeUsage {
+    pub fn new(name: String, is_used: bool, value: Option<f32>) -> Self {
+        Self { name, is_used, value }
+    }
+}
+
 pub trait IsLivecodeSrc {
     fn update(&mut self, input: &LivecodeSrcUpdateInput);
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
+    fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>) {
+        // default don't do anything
+    }
 }
 
 pub struct LivecodeSrc {
@@ -554,6 +567,13 @@ impl LivecodeSrc {
     pub fn to_world_vals(&self) -> Vec<(String, LivecodeValue)> {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
     }
+
+    pub fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>) {
+        for v in self.vs.iter_mut() {
+            v.feedback(variables);
+        }
+    }
+
 }
 
 const MAX_STRID_LEN: usize = 16;
