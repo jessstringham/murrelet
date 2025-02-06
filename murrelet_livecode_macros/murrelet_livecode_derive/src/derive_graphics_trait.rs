@@ -142,6 +142,7 @@ fn parse_graphics(
                 }
                 GraphicKind::Ref => {
                     // let name = ident.to_string();
+
                     if let Some(ctrl_) = &f.ctrl {
                         let ctrl_ident = syn::Ident::new(ctrl_, name.span());
                         let ident_str = ident.to_string();
@@ -151,7 +152,7 @@ fn parse_graphics(
                                 Box::new(livecoder.#ctrl_ident.clone()),
                                 Some(self.#ident.clone()),
                             ).into_iter())
-                        });
+                        })
                     }
                 }
             }

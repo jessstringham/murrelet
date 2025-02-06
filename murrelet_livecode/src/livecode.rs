@@ -314,7 +314,6 @@ impl<K, V> GetLivecodeIdentifiers for HashMap<K, V> {
     }
 }
 
-
 impl GetLivecodeIdentifiers for ControlBool {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         match self {

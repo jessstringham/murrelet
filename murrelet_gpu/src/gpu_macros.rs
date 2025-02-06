@@ -106,7 +106,6 @@ macro_rules! build_shader {
     };
 }
 
-
 // i think i originally added this so i could use it?
 pub enum ShaderStr {
     Binding1Tex,
@@ -1073,7 +1072,6 @@ impl ImageTexture {
                 let target_coords_txl = target_coords_txl1 * window_to_entire_ratio + windowed_source_offset_txl;
 
                 let result: vec4<f32> = textureSample(tex, tex_sampler, target_coords_txl);
-
                 "###;
             )
         };

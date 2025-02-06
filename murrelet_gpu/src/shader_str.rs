@@ -1,5 +1,3 @@
-
-
 pub const SUFFIX: &str = r#"
     return FragmentOutput(result);
 }
@@ -47,8 +45,6 @@ var tex_sampler: sampler;
 var<uniform> uniforms: Uniforms;
 "#;
 
-
-
 pub const BINDING_3D: &str = r#"
 struct FragmentOutput {
     @location(0) f_color: vec4<f32>,
@@ -67,7 +63,6 @@ struct Uniforms {
 @group(0) @binding(5) var shadow_sampler: sampler_comparison;
 
 "#;
-
 
 pub const INCLUDES: &str = r#"
 
@@ -307,8 +302,6 @@ fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2
     vec3<f32>(0.0), //world_pos,
     out_pos);
 }";
-
-
 
 pub const VERTEX_SHADER_3D: &str = "
 struct Uniforms {

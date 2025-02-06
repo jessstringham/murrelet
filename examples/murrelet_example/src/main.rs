@@ -66,7 +66,7 @@ impl Model {
             //Box::new(BlteMng::new()),
         ]);
 
-        let livecode = LiveCode::new(capture_path_prefix, livecode_src);
+        let livecode = LiveCode::new(capture_path_prefix, livecode_src, &[]);
         // let drawing_state = {
         //     Drawing::new(&livecode.config().drawing)
         // };

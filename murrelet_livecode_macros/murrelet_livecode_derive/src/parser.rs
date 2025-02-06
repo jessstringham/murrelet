@@ -487,7 +487,7 @@ impl StructIdents {
     pub(crate) fn how_to_control_this_is_none(&self) -> bool {
         match self.how_to_control_this() {
             HowToControlThis::WithNone(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
