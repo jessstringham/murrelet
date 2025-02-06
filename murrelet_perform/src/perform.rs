@@ -935,8 +935,6 @@ where
                 })
                 .collect::<HashMap<_, _>>();
 
-            println!("variables {:?}", variables);
-
             self.livecode_src.feedback(&variables);
         }
 

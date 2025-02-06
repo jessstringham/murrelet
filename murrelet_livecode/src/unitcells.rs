@@ -587,7 +587,19 @@ impl UnitCellContext {
 
 impl IntoExprWorldContext for UnitCellContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
-        self.ctx.as_expr_world_context_values()
+        let mut ctx_vals = self.ctx.as_expr_world_context_values();
+
+        let loc = self
+            .detail
+            .transform_with_skew(&vec![vec2(-50.0, -50.0), vec2(50.0, 50.0)]);
+        let locs = loc.into_iter_vec2().collect_vec();
+        let width = locs[1].x - locs[0].x;
+        let height = locs[1].y - locs[0].y;
+
+        ctx_vals.set_val("u_width", LivecodeValue::float(width));
+        ctx_vals.set_val("u_height", LivecodeValue::float(height));
+
+        ctx_vals
     }
 }
 

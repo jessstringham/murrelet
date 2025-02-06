@@ -6,17 +6,19 @@ use murrelet_livecode_derive::Livecode;
 
 pub trait AssetLoader {
     fn is_match(&self, file_extension: &str) -> bool;
-    fn load(&self, filename: &Path) -> Asset;
+    fn load(&self, layers: &[&str], filename: &Path) -> Asset;
 }
 
 #[derive(Livecode, Clone, Debug)]
 pub struct PolylineLayerFile {
     #[livecode(kind = "none")]
     name: String,
+    #[livecode(kind = "none")]
+    layers: String,
 }
 impl PolylineLayerFile {
-    pub fn new(name: String) -> Self {
-        Self { name }
+    pub fn new(name: String, layers: String) -> Self {
+        Self { name, layers }
     }
     pub fn path(&self) -> &Path {
         Path::new(&self.name)
@@ -38,14 +40,14 @@ pub struct AssetFilenames {
 }
 
 impl AssetFilenames {
-    pub fn new(files: Vec<String>) -> Self {
-        Self {
-            files: files
-                .into_iter()
-                .map(|x| PolylineLayerFile::new(x))
-                .collect_vec(),
-        }
-    }
+    // pub fn new(files: Vec<String>) -> Self {
+    //     Self {
+    //         files: files
+    //             .into_iter()
+    //             .map(|x| PolylineLayerFile::new(x))
+    //             .collect_vec(),
+    //     }
+    // }
 
     pub fn empty() -> Self {
         Self { files: Vec::new() }
@@ -68,7 +70,8 @@ impl AssetFilenames {
                             .unwrap_or_default()
                             .to_string_lossy()
                             .into_owned();
-                        m.insert(filename_stem, func.load(path));
+                        let layers: Vec<&str> = filename.layers.split(",").collect_vec();
+                        m.insert(filename_stem, func.load(&layers, path));
                     }
                 }
             }

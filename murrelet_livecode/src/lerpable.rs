@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use evalexpr::Node;
 use glam::{vec2, vec3, Vec2, Vec3};
@@ -18,15 +18,29 @@ pub fn step<T: Clone>(this: &T, other: &T, pct: f32) -> T {
     }
 }
 
-pub fn combine_vecs<T: Clone + Lerpable>(this: &Vec<T>, other: &Vec<T>, pct: f32) -> Vec<T> {
+pub fn combine_vecs<T: Clone + Lerpable + Debug>(
+    this: &Vec<T>,
+    other: &Vec<T>,
+    pct: f32,
+) -> Vec<T> {
     // for now, just take the shortest, but we'll update this...
 
     let mut v = vec![];
     // figure out how many to show
     let this_len = this.len();
     let other_len = other.len();
-    let count = lerp(this_len as f32, other_len as f32, pct) as usize;
+    // round is important! or can get cases where two things of the same length return a count of something less!
+    // could also do a special check, but i think this might look better too?
+    let count = if this_len == other_len {
+        this_len
+    } else {
+        lerp(this_len as f32, other_len as f32, pct).round() as usize
+    };
+    // println!("start");
+    // println!("pct {} this_len {} other_len {} count {}", pct, this_len, other_len, count);
     for i in 0..count {
+        // println!("sss i {:?} this has (i) {:?} that has (i) {:?}", i, this.get(i).is_some(), other.get(i).is_some());
+        // println!("sss i {:?} this has (i) {:?} that has (i) {:?}", i, this.get(i), other.get(i));
         let result = match (i >= this_len, i >= other_len) {
             (true, true) => unreachable!(),
             (true, false) => other[i].clone(),
@@ -54,8 +68,11 @@ impl Lerpable for f32 {
     }
 }
 
-impl<T: Lerpable + Clone> Lerpable for Vec<T> {
+impl<T: Lerpable + Clone + Debug> Lerpable for Vec<T> {
     fn lerpify(&self, other: &Self, pct: f32) -> Self {
+        if self.len() == 0 || other.len() == 0 {
+            return self.clone();
+        }
         combine_vecs(&self, &other, pct)
     }
 }

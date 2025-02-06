@@ -451,7 +451,11 @@ pub struct LivecodeUsage {
 
 impl LivecodeUsage {
     pub fn new(name: String, is_used: bool, value: Option<f32>) -> Self {
-        Self { name, is_used, value }
+        Self {
+            name,
+            is_used,
+            value,
+        }
     }
 }
 
@@ -573,7 +577,6 @@ impl LivecodeSrc {
             v.feedback(variables);
         }
     }
-
 }
 
 const MAX_STRID_LEN: usize = 16;

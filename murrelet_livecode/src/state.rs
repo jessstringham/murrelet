@@ -167,8 +167,12 @@ impl LivecodeWorldState {
         }
     }
 
-    pub fn asset_layer(&self, key: &str, layer: &str) -> Option<Vec<Polyline>> {
-        self.assets.asset_layer(key, layer).map(|x| x.clone())
+    pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<Vec<Polyline>> {
+        self.assets.asset_layer(key, layer_idx).map(|x| x.clone())
+    }
+
+    pub fn asset_layers_in_key(&self, key: &str) -> &[String] {
+        self.assets.layer_for_key(key)
     }
 }
 

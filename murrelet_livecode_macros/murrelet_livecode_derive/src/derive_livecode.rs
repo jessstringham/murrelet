@@ -668,7 +668,6 @@ impl GenFinal for FieldTokensLivecode {
                 HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = update_to_control_ident(internal_type);
-
                     quote! {#name}
                 }
 
@@ -743,8 +742,18 @@ impl GenFinal for FieldTokensLivecode {
         };
 
         // we just need to grab
-        let for_variable_idents = quote! { self.#target.variable_identifiers() };
-        let for_function_idents = quote! { self.#target.function_identifiers() };
+        let for_variable_idents = quote! {
+            vec![
+                self.#target.variable_identifiers(),
+                self.#name.variable_identifiers()
+            ].into_iter().concat()
+        };
+        let for_function_idents = quote! {
+            vec![
+                self.#target.function_identifiers(),
+                self.#name.function_identifiers()
+            ].into_iter().concat()
+        };
 
         FieldTokensLivecode {
             for_struct,

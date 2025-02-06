@@ -50,12 +50,8 @@ impl IsLivecodeSrc for MidiMng {
     }
 
     fn feedback(&mut self, variables: &HashMap<String, murrelet_common::LivecodeUsage>) {
-
-        println!("feedback");
         if let Some(out) = self.out.get_mut(&MidiDevice::MidiTwister) {
-            println!("has twister");
-
-            let mut twister = TwisterController{out};
+            let mut twister = TwisterController { out };
 
             for i in 0..16u8 {
                 if let Some(u) = variables.get(&format!("m{}", i)) {
@@ -78,7 +74,7 @@ impl IsLivecodeSrc for MidiMng {
 }
 
 struct TwisterController<'a> {
-    out: &'a mut MidiOutputConnection
+    out: &'a mut MidiOutputConnection,
 }
 impl<'a> TwisterController<'a> {
     fn set_led(&mut self, dial: u8, amount: u8) {
