@@ -1,4 +1,4 @@
-app: 
+app:
   debug: false
   capture: false
   width: 600.0
@@ -28,15 +28,16 @@ drawing:
   node:
     val: x + something * a
     curve:
+      closed: true
       start:
         type: Basic  # Reference
         loc: [0.0, 0.0]
-        angle: 0.0
+        angle_pi: 0.0
       dirs:
         - type: Line
           length: 50.0
         - type: Angle
-          angle: 0.5
+          angle_pi: 0.5
         - type: Arc
           arc_length: 0.5
           radius: 50.0

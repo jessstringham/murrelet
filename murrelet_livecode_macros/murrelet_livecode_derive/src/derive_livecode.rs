@@ -764,13 +764,13 @@ impl GenFinal for FieldTokensLivecode {
             vec![
                 self.#target.variable_identifiers(),
                 self.#name.variable_identifiers()
-            ].into_iter().concat()
+            ].concat()
         };
         let for_function_idents = quote! {
             vec![
                 self.#target.function_identifiers(),
                 self.#name.function_identifiers()
-            ].into_iter().concat()
+            ].concat()
         };
 
         FieldTokensLivecode {
