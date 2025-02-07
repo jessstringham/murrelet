@@ -3,13 +3,34 @@ use crate::{curve_drawer::CurveDrawer, draw::*, transform2d::*};
 use glam::*;
 use md5::{Digest, Md5};
 use murrelet_common::*;
+use murrelet_livecode::{lazy::ControlLazyNodeF32, livecode::ControlF32, types::ControlVecElement};
 use murrelet_livecode_derive::Livecode;
+
+fn _black() -> [ControlF32; 4] {
+    [
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(1.0),
+    ]
+}
+
+fn _black_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
+    vec![
+        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::Single(ControlLazyNodeF32::Float(1.0)),
+    ]
+}
 
 #[derive(Copy, Clone, Debug, Livecode, Default)]
 pub struct MurreletStyleFilled {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
     pub stroke_weight: f32,
+    #[livecode(serde_default = "_black")]
+    pub stroke_color: MurreletColor,
 }
 impl MurreletStyleFilled {
     fn to_style(&self) -> MurreletStyle {
@@ -18,6 +39,7 @@ impl MurreletStyleFilled {
             filled: true,
             color: MurreletColorStyle::color(self.color),
             stroke_weight: self.stroke_weight,
+            stroke_color: MurreletColorStyle::color(self.stroke_color),
             ..Default::default()
         }
     }
@@ -271,6 +293,7 @@ impl MurreletStylePoints {
             filled: false,
             color: MurreletColorStyle::color(self.color),
             stroke_weight: self.stroke_weight,
+            ..Default::default()
         }
     }
 }
@@ -295,6 +318,7 @@ impl MurreletStyleRGBAPoints {
             filled: false,
             color: MurreletColorStyle::rgbafill(self.rgb, self.a),
             stroke_weight: self.stroke_weight,
+            ..Default::default()
         }
     }
 }
@@ -328,7 +352,7 @@ pub mod styleconf {
     #[derive(Clone, Debug, Livecode)]
     pub enum StyleConf {
         // Verbose(MurreletStyle),
-        SvgPattern(MurreletStyleFilledSvg),
+        Texture(MurreletStyleFilledSvg),
         Fill(MurreletStyleFilled),
         Outline(MurreletStyleOutlined),
         Points(MurreletStylePoints),
@@ -352,12 +376,34 @@ pub mod styleconf {
                 StyleConf::RGBAOutline(a) => a.to_style().with_no_fill(),
                 StyleConf::Points(a) => a.to_style(),
                 StyleConf::RGBAPoints(a) => a.to_style(),
-                StyleConf::SvgPattern(a) => a.to_style(),
+                StyleConf::Texture(a) => a.to_style(),
             }
         }
 
         pub fn color(&self) -> MurreletColor {
             self.to_style().color.as_color()
+        }
+
+        pub fn outline(color: MurreletColor, stroke_weight: f32) -> Self {
+            Self::Outline(MurreletStyleOutlined {
+                color,
+                stroke_weight,
+            })
+        }
+
+        pub fn line(color: MurreletColor, stroke_weight: f32) -> Self {
+            Self::Line(MurreletStyleLined {
+                color,
+                stroke_weight,
+            })
+        }
+
+        pub fn fill(color: MurreletColor) -> Self {
+            Self::Fill(MurreletStyleFilled {
+                color,
+                stroke_weight: 0.0,
+                stroke_color: MurreletColor::black(),
+            })
         }
     }
 

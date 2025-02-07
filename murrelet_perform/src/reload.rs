@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use evalexpr::HashMapContext;
+use murrelet_common::AssetsRef;
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::state::*;
@@ -53,6 +54,7 @@ pub trait LiveCoderLoader: Sized {
     fn fs_load() -> Self {
         // todo, make this return a result..
         let args: Vec<String> = env::args().collect();
+        // Self::fs_load_from_filename(&args[1], &args[2])
         Self::fs_load_from_filename(&args[1], &args[2])
     }
 
@@ -64,10 +66,11 @@ pub trait LiveCoderLoader: Sized {
         // todo make this a result too
         match Self::fs_parse_data(filename, includes_dir) {
             Ok(x) => x,
-            Err(err) => panic!("didn't work {}", err),
+            Err(err) => panic!("{}", err),
         }
     }
 
+    // TODO, update all this to use clap isntead!
     fn fs_config_filename() -> String {
         let args: Vec<String> = env::args().collect();
         args[1].clone()
@@ -160,7 +163,11 @@ pub trait LiveCoderLoader: Sized {
                     }
                     Err(err) => {
                         util.update_info_error();
-                        Err(LivecodeError::Raw(format!("bad json! {}", err)))
+                        if let Some(error) = err.location() {
+                            Err(LivecodeError::SerdeLoc(error, err.to_string()))
+                        } else {
+                            Err(LivecodeError::Raw(err.to_string()))
+                        }
                     }
                 }
             } else {
@@ -250,12 +257,14 @@ impl LiveCodeUtil {
         livecode_src: &'a LivecodeSrc,
         timing_conf: &LivecodeTimingConfig,
         node: &AdditionalContextNode,
+        assets: AssetsRef,
     ) -> LivecodeResult<LivecodeWorldState> {
         LivecodeWorldState::new(
             &self.global_funcs,
             livecode_src,
             self.time(timing_conf),
             node.clone(),
+            assets,
         )
     }
 }

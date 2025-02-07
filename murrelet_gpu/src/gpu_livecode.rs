@@ -7,30 +7,37 @@ use murrelet_livecode_derive::Livecode;
 use crate::{device_state::GraphicsWindowConf, graphics_ref::GraphicsRef};
 
 pub trait ControlGraphics {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef);
+    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
+        g.update_uniforms_other_tuple(c, self.more_info_other_tuple());
+    }
+
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]);
 }
 
 pub struct ControlGraphicsRef {
-    control: Box<dyn ControlGraphics>,
+    pub label: &'static str,
+    pub control: Box<dyn ControlGraphics>,
     graphics: GraphicsRef,
 }
 impl ControlGraphicsRef {
     pub fn new(
-        label: &str,
+        label: &'static str,
         control: Box<dyn ControlGraphics>,
         graphics: Option<GraphicsRef>,
-    ) -> Option<ControlGraphicsRef> {
+    ) -> Vec<ControlGraphicsRef> {
+        // using a vec here to make it easier to concat with other lists
         if let Some(gg) = graphics {
-            Some(ControlGraphicsRef {
+            vec![ControlGraphicsRef {
+                label,
                 control,
                 graphics: gg,
-            })
+            }]
         } else {
             println!("missing ref! {:?}", label);
-            None
+            // println!("missing ref!");
+            vec![]
         }
     }
-
     pub fn update_graphics(&self, c: &GraphicsWindowConf) {
         self.control.update_graphics(c, &self.graphics);
     }
@@ -78,38 +85,38 @@ impl GPUNoise {
 }
 
 impl ControlGraphics for GPUNoise {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms_other_tuple(c, self.more_info());
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        self.more_info()
     }
 }
 
 impl ControlGraphics for Vec2 {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms(c, [self.x, self.y, 0.0, 0.0]);
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        ([self.x, self.y, 0.0, 0.0], [0.0; 4])
     }
 }
 
 impl ControlGraphics for Vec3 {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms(c, [self.x, self.y, self.z, 0.0]);
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        ([self.x, self.y, self.z, 0.0], [0.0; 4])
     }
 }
 
 impl ControlGraphics for MurreletColor {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms(c, self.into_rgba_components());
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        (self.into_rgba_components(), [0.0; 4])
     }
 }
 
 impl ControlGraphics for [f32; 4] {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms(c, [self[0], self[1], self[2], self[3]]);
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        ([self[0], self[1], self[2], self[3]], [0.0; 4])
     }
 }
 
 impl ControlGraphics for f32 {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms(c, [*self, 0.0, 0.0, 0.0]);
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        ([*self, 0.0, 0.0, 0.0], [0.0; 4])
     }
 }
 
@@ -126,8 +133,8 @@ impl GPURGBAGradient {
 }
 
 impl ControlGraphics for GPURGBAGradient {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms_other_tuple(c, self.more_info());
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        self.more_info()
     }
 }
 

@@ -11,13 +11,16 @@ description = "macros for murrelet, a live coding framework"
 [lib]
 proc-macro = true
 
+[features]
+schemars = ["murrelet_livecode/schemars"]
+
 [dependencies]
 syn = "2.0.15"
 quote = "1.0.18"
 proc-macro2 = "1.0.37"
 darling = "0.20.3"
-murrelet_livecode = { version = "0.1.0", path = "../../murrelet_livecode"}
 serde = { version = "1.0.104", features = ["derive"] }
+murrelet_livecode = { version = "0.1.0", path = "../../murrelet_livecode", default-features = false}
 
 # just for examples...
 murrelet_common = { version = "0.1.0", path = "../../murrelet_common"}

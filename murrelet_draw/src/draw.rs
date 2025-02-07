@@ -2,7 +2,7 @@
 
 use glam::{vec2, Mat4, Vec2, Vec3};
 use itertools::Itertools;
-use murrelet_common::{IsPolyline, MurreletColor, Polyline, TransformVec2};
+use murrelet_common::{IsPolyline, MurreletColor, Polyline, SimpleTransform2d, TransformVec2};
 use murrelet_livecode::unitcells::UnitCellContext;
 use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
@@ -66,7 +66,7 @@ impl MurreletColorStyle {
         MurreletColorStyle::Color(MurreletColor::white())
     }
 
-    fn black() -> MurreletColorStyle {
+    pub fn black() -> MurreletColorStyle {
         MurreletColorStyle::Color(MurreletColor::black())
     }
 
@@ -94,6 +94,7 @@ pub struct MurreletStyle {
     pub filled: bool,
     pub color: MurreletColorStyle, // if filled, fill, otherwise stroke. only for draw.
     pub stroke_weight: f32,
+    pub stroke_color: MurreletColorStyle,
 }
 impl MurreletStyle {
     pub fn new(
@@ -171,6 +172,7 @@ impl MurreletStyle {
             closed: true,
             filled: true,
             stroke_weight: 0.0,
+            stroke_color: MurreletColorStyle::black(),
         }
     }
 
@@ -374,7 +376,7 @@ impl CoreSDrawCtxUnitCell {
         self.unit_cell_skew
     }
 
-    pub fn unit_cell_transform(&self) -> Mat4 {
+    pub fn unit_cell_transform(&self) -> SimpleTransform2d {
         if self.unit_cell_skew {
             self.unit_cell.transform_with_skew_mat4()
         } else {

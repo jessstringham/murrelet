@@ -9,13 +9,20 @@ license = "AGPL-3.0-or-later"
 
 [features]
 for_the_web = []
+schemars = [
+    "dep:schemars",
+    "murrelet_livecode/schemars",
+    "murrelet_draw/schemars",
+    "murrelet_livecode_macros/schemars",
+    "murrelet_livecode_derive/schemars",
+]
 
 [dependencies]
 murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
-murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/" }
-murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/" }
-murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros/" }
-murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
+murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/", default-features = false }
+murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/", default-features = false }
+murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros/", default-features = false }
+murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/", default-features = false }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 evalexpr = "11.1.0"
@@ -25,3 +32,7 @@ regex = "1.7.3"
 glam = "0.28.0"
 palette = "0.7.6"
 anyhow = "1.0.86"
+
+schemars = { version = "0.8.21", optional = true }
+
+clap = { version = "4.5.23", features = ["derive"] }

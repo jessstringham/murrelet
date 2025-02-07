@@ -2,9 +2,10 @@
 use std::f32::consts::PI;
 
 use glam::*;
+use itertools::Itertools;
 use murrelet_common::{
-    a_pi, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline, SpotOnCurve,
-    TransformVec2,
+    a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
+    SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2,
 };
 use murrelet_livecode_derive::Livecode;
 
@@ -46,6 +47,10 @@ impl Transform2d {
         Transform2d::new(vec![Transform2dStep::Scale(V2::new(vec2(
             scale_x, scale_y,
         )))])
+    }
+
+    pub fn scale_vec2(scale: Vec2) -> Transform2d {
+        Transform2d::new(vec![Transform2dStep::Scale(V2::new(scale))])
     }
 
     pub fn translate(x: f32, y: f32) -> Transform2d {
@@ -131,6 +136,40 @@ impl Transform2d {
         scale
     }
 
+    pub fn approx_mirror_x(&self) -> bool {
+        let mut is_mirrored = false;
+        for a in &self.0 {
+            match a {
+                Transform2dStep::Translate(_) => {}
+                Transform2dStep::Rotate(_) => {}
+                Transform2dStep::Scale(s) => {
+                    if approx_eq_eps(s.v.x, -1.0, 1e-6) && approx_eq_eps(s.v.y, 1.0, 1e-6) {
+                        is_mirrored = !is_mirrored;
+                    }
+                }
+                Transform2dStep::Skew(_) => todo!(),
+            }
+        }
+        is_mirrored
+    }
+
+    pub fn approx_mirror_y(&self) -> bool {
+        let mut is_mirrored = false;
+        for a in &self.0 {
+            match a {
+                Transform2dStep::Translate(_) => {}
+                Transform2dStep::Rotate(_) => {}
+                Transform2dStep::Scale(s) => {
+                    if approx_eq_eps(s.v.x, 1.0, 1e-6) && approx_eq_eps(s.v.y, -1.0, 1e-6) {
+                        is_mirrored = !is_mirrored;
+                    }
+                }
+                Transform2dStep::Skew(_) => todo!(),
+            }
+        }
+        is_mirrored
+    }
+
     pub fn approx_rotate(&self) -> AnglePi {
         let mut rotate = AnglePi::new(0.0);
         for a in &self.0 {
@@ -142,6 +181,34 @@ impl Transform2d {
             }
         }
         rotate
+    }
+
+    pub fn inverse(&self) -> Self {
+        let mut vs = vec![];
+
+        for t in self.0.iter().rev() {
+            let v = match t {
+                Transform2dStep::Translate(v2) => Transform2dStep::Translate(V2 {
+                    v: vec2(-v2.v.x, -v2.v.y),
+                }),
+                Transform2dStep::Rotate(rotate) => Transform2dStep::Rotate(Rotate2 {
+                    center: rotate.center,
+                    angle_pi: -rotate.angle_pi,
+                }),
+                Transform2dStep::Scale(v2) => Transform2dStep::Scale(V2 {
+                    v: Vec2::new(1.0 / v2.v.x, 1.0 / v2.v.y),
+                }),
+                Transform2dStep::Skew(_v22) => {
+                    todo!();
+                }
+            };
+            vs.push(v);
+        }
+        Self::new(vs)
+    }
+
+    pub fn to_simple(&self) -> SimpleTransform2d {
+        SimpleTransform2d::new(self.0.iter().map(|t| t.to_simple()).collect_vec())
     }
 }
 
@@ -245,6 +312,17 @@ impl Transform2dStep {
             }
             Transform2dStep::Scale(t) => Mat3::from_scale(t.v),
             Transform2dStep::Skew(t) => Mat3::from_mat2(Mat2::from_cols(t.v0, t.v1)),
+        }
+    }
+
+    fn to_simple(&self) -> SimpleTransform2dStep {
+        match self {
+            Transform2dStep::Translate(v2) => SimpleTransform2dStep::Translate(v2.v),
+            Transform2dStep::Rotate(rotate2) => {
+                SimpleTransform2dStep::Rotate(rotate2.center, rotate2.angle_pi())
+            }
+            Transform2dStep::Scale(v2) => SimpleTransform2dStep::Scale(v2.v),
+            Transform2dStep::Skew(v22) => SimpleTransform2dStep::Skew(v22.v0, v22.v1),
         }
     }
 }

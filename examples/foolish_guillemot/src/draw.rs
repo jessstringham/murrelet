@@ -26,7 +26,7 @@ impl WebSDrawCtxUnitCell {
     pub fn draw_curve_path(&self, cd: MurreletPath) {
         // todo, this is a little clumsy
         let mut path = cd;
-        path = path.transform_with_mat4_after(self.ctx.unit_cell_transform());
+        path = path.transform_with(&self.ctx.unit_cell_transform());
         path = path.transform_with_mat4_after(self.sdraw.transform());
 
         self.sdraw.svg_draw.add_styled_path(

@@ -7,6 +7,9 @@ repository = "https://github.com/jessstringham/murrelet.git"
 description = "livecode base functions for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
+[features]
+schemars = ["dep:schemars"]
+
 [dependencies]
 murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
 itertools = "0.10.5"
@@ -20,6 +23,5 @@ evalexpr = {version="11.1.0", features = ["serde_support"]}
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 
-
-
+schemars = { version = "0.8.21", optional = true }
 

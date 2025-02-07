@@ -4,6 +4,8 @@ use murrelet_common::*;
 use murrelet_livecode::unitcells::{UnitCellContext, UnitCellCreator, UnitCellExprWorldContext};
 use murrelet_livecode_derive::*;
 
+use crate::transform2d::{Transform2d, Transform2dStep};
+
 const REFERENCE_SIZE: f32 = 100.0;
 
 #[derive(Clone, Debug, Livecode)]
@@ -103,9 +105,12 @@ fn make_grid(
 
                 center *= REFERENCE_SIZE;
 
-                let transform = Mat3::from_translation(center)
-                    * Mat3::from_scale(cell_size.x / 100.0 * Vec2::ONE);
-                UnitCellContext::new(ctx, mat4_from_mat3_transform(transform))
+                let transform = Transform2d::new(vec![
+                    Transform2dStep::scale(cell_size.x / 100.0, cell_size.x / 100.0),
+                    Transform2dStep::translate_vec(center),
+                ])
+                .to_simple();
+                UnitCellContext::new(ctx, transform)
             })
         })
         .collect_vec()

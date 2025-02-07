@@ -102,7 +102,7 @@ impl MurreletModel {
 
         let livecode_src = LivecodeSrc::new(vec![Box::new(AppInputValues::new(false))]);
 
-        match LiveCode::new_web(conf, livecode_src) {
+        match LiveCode::new_web(conf, livecode_src, &vec![]) {
             Ok(livecode) => {
                 let r = MurreletModel { livecode };
                 WasmMurreletModelResult::ok(r)

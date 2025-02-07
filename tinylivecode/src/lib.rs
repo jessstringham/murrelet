@@ -97,7 +97,7 @@ impl TinyExpr {
         Ok(Self { stack })
     }
 
-    pub fn eval(&self, x: f32, y: f32) -> ParseResult<f32> {
+    pub fn eval(&self, x: f32, y: f32, t: f32) -> ParseResult<f32> {
         let mut eval_stack = Stack::new();
 
         let mut stack_iterator = self.stack.iter();
@@ -216,6 +216,7 @@ impl TinyExpr {
                 ExprNode::Number(r) => eval_stack.push(r)?,
                 ExprNode::X => eval_stack.push(x)?,
                 ExprNode::Y => eval_stack.push(y)?,
+                ExprNode::T => eval_stack.push(t)?,
             };
         }
 
@@ -234,6 +235,7 @@ enum ExprNode {
     Number(f32),
     X,
     Y,
+    T,
     // unary
     Sin,
     Cos,
@@ -257,6 +259,7 @@ impl ExprNode {
         match token {
             "x" => Ok(ExprNode::X),
             "y" => Ok(ExprNode::Y),
+            "t" => Ok(ExprNode::T),
             "sin" => Ok(ExprNode::Sin),
             "cos" => Ok(ExprNode::Cos),
             "atan2" => Ok(ExprNode::Atan2),
@@ -316,9 +319,9 @@ mod tests {
         }
     }
 
-    fn evaluate(s: &str, x: f32, y: f32) -> TestEvalResult {
+    fn evaluate(s: &str, x: f32, y: f32, t: f32) -> TestEvalResult {
         let e = match TinyExpr::from_str(s) {
-            Ok(r) => match r.eval(x, y) {
+            Ok(r) => match r.eval(x, y, t) {
                 Ok(a) => TestEvalResult::Ok(a),
                 Err(err) => TestEvalResult::ErrEval(err),
             },
@@ -337,27 +340,27 @@ mod tests {
 
     #[test]
     fn it_works() {
-        match evaluate("2.3", 0.0, 0.0) {
+        match evaluate("2.3", 0.0, 0.0, 1.0) {
             TestEvalResult::Ok(r) => assert_eq!(r, 2.3),
             _ => assert!(false),
         }
 
-        match evaluate("2", 0.0, 0.0) {
+        match evaluate("2", 0.0, 0.0, 1.0) {
             TestEvalResult::Ok(r) => assert_eq!(r, 2.0),
             _ => assert!(false),
         }
 
-        match evaluate("x", 5.0, 0.0) {
+        match evaluate("x", 5.0, 0.0, 1.0) {
             TestEvalResult::Ok(r) => assert_eq!(r, 5.0),
             _ => assert!(false),
         }
 
-        match evaluate("y", 0.0, 6.0) {
+        match evaluate("y", 0.0, 6.0, 1.0) {
             TestEvalResult::Ok(r) => assert_eq!(r, 6.0),
             _ => assert!(false),
         }
 
-        match evaluate("x y add", 2.0, 5.0) {
+        match evaluate("x y add", 2.0, 5.0, 1.0) {
             TestEvalResult::Ok(r) => {
                 assert_eq!(r, 7.0)
             }
@@ -366,7 +369,7 @@ mod tests {
             }
         }
 
-        match evaluate("x y 0.0 lerp", 2.0, 5.0) {
+        match evaluate("x y 0.0 lerp", 2.0, 5.0, 1.0) {
             TestEvalResult::Ok(r) => {
                 assert_eq!(r, 2.0)
             }
@@ -375,7 +378,7 @@ mod tests {
             }
         }
 
-        match evaluate("x y 1.0 lerp", 2.0, 5.0) {
+        match evaluate("x y 1.0 lerp", 2.0, 5.0, 1.0) {
             TestEvalResult::Ok(r) => {
                 assert_eq!(r, 5.0)
             }
@@ -384,7 +387,7 @@ mod tests {
             }
         }
 
-        match evaluate("x y mul 4.0 add", 2.0, 5.0) {
+        match evaluate("x y mul 4.0 add", 2.0, 5.0, 1.0) {
             TestEvalResult::Ok(r) => {
                 assert_eq!(r, 14.0)
             }
@@ -396,13 +399,13 @@ mod tests {
 
     #[test]
     fn it_does_not_work_empty() {
-        let empty_result = evaluate("", 0.0, 0.0);
+        let empty_result = evaluate("", 0.0, 0.0, 1.0);
         assert!(empty_result.is_err_eval());
     }
 
     #[test]
     fn it_does_not_work_gobbligook() {
-        let empty_result = evaluate("gobbligook", 0.0, 0.0);
+        let empty_result = evaluate("gobbligook", 0.0, 0.0, 1.0);
         assert!(empty_result.is_err_from_str());
     }
 }

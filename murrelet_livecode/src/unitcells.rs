@@ -1,11 +1,14 @@
 use glam::*;
 use itertools::Itertools;
 use murrelet_common::*;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
 use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
+use crate::lerpable::Lerpable;
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
@@ -133,7 +136,7 @@ impl<Target: Default> Default for UnitCell<Target> {
             node: Default::default(),
             detail: UnitCellContext::new(
                 UnitCellExprWorldContext::from_idx1d(IdxInRange::new(0, 1)),
-                Mat4::IDENTITY,
+                SimpleTransform2d::ident(),
             ),
         }
     }
@@ -156,7 +159,7 @@ impl<Target> UnitCell<Target> {
         self.detail.transform().transform_vec2(v)
     }
 
-    pub fn transform(&self) -> Mat4 {
+    pub fn transform(&self) -> SimpleTransform2d {
         self.detail.transform()
     }
 
@@ -427,7 +430,7 @@ impl CellNeighbor {
     }
 }
 
-pub trait TileInfo: Debug + Any {
+pub trait TileInfo: Debug + Any + Sync + Send {
     // hmm, not sure about this Any
     fn clone_box(&self) -> Box<dyn TileInfo>;
     fn face(&self) -> Vec<Vec2>;
@@ -448,7 +451,7 @@ pub struct UnitCellContext {
     pub tile_info: Option<Box<dyn TileInfo>>,
 }
 impl UnitCellContext {
-    pub fn new(ctx: UnitCellExprWorldContext, transform: Mat4) -> UnitCellContext {
+    pub fn new(ctx: UnitCellExprWorldContext, transform: SimpleTransform2d) -> UnitCellContext {
         UnitCellContext {
             ctx,
             detail: UnitCellDetails::new(transform),
@@ -483,6 +486,18 @@ impl UnitCellContext {
         }
     }
 
+    pub fn new_with_option_info(
+        ctx: UnitCellExprWorldContext,
+        detail: UnitCellDetails,
+        tile_info: Option<Box<dyn TileInfo>>,
+    ) -> UnitCellContext {
+        UnitCellContext {
+            ctx,
+            detail,
+            tile_info,
+        }
+    }
+
     pub fn rect_for_face(&self) -> Rect {
         // todo, replace this with rect_bound
         let mut b = BoundMetric::new();
@@ -512,7 +527,7 @@ impl UnitCellContext {
         self.ctx
     }
 
-    pub fn transform(&self) -> Mat4 {
+    pub fn transform(&self) -> SimpleTransform2d {
         self.detail.transform()
     }
 
@@ -539,7 +554,7 @@ impl UnitCellContext {
         self.detail.is_base()
     }
 
-    pub fn transform_with_skew_mat4(&self) -> Mat4 {
+    pub fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
         self.detail.transform_with_skew_mat4()
     }
 
@@ -561,18 +576,30 @@ impl UnitCellContext {
         self.detail.transform_no_skew(v)
     }
 
-    pub fn transform_no_skew_mat4(&self) -> Mat4 {
+    pub fn transform_no_skew_mat4(&self) -> SimpleTransform2d {
         self.detail.transform_no_skew_mat4()
     }
 
-    pub fn adjust_shape(&self) -> Mat4 {
+    pub fn adjust_shape(&self) -> SimpleTransform2d {
         self.detail.adjust_shape()
     }
 }
 
 impl IntoExprWorldContext for UnitCellContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
-        self.ctx.as_expr_world_context_values()
+        let mut ctx_vals = self.ctx.as_expr_world_context_values();
+
+        let loc = self
+            .detail
+            .transform_with_skew(&vec![vec2(-50.0, -50.0), vec2(50.0, 50.0)]);
+        let locs = loc.into_iter_vec2().collect_vec();
+        let width = locs[1].x - locs[0].x;
+        let height = locs[1].y - locs[0].y;
+
+        ctx_vals.set_val("u_width", LivecodeValue::float(width));
+        ctx_vals.set_val("u_height", LivecodeValue::float(height));
+
+        ctx_vals
     }
 }
 
@@ -592,6 +619,23 @@ pub struct UnitCellExprWorldContext {
     h_ratio: f32, // width is always 100, what is h
 }
 impl UnitCellExprWorldContext {
+    // this just needs to be interesting.... not correct
+    pub fn experimental_lerp(&self, other: &Self, pct: f32) -> Self {
+        UnitCellExprWorldContext {
+            x: self.x.lerpify(&other.x, pct),
+            y: self.y.lerpify(&other.y, pct),
+            z: self.z.lerpify(&other.z, pct),
+            x_i: self.x_i.lerpify(&other.x_i, pct),
+            y_i: self.y_i.lerpify(&other.y_i, pct),
+            z_i: self.z_i.lerpify(&other.z_i, pct),
+            total_x: self.total_x.lerpify(&other.total_x, pct),
+            total_y: self.total_y.lerpify(&other.total_y, pct),
+            total_z: self.total_z.lerpify(&other.total_z, pct),
+            seed: self.seed.lerpify(&other.seed, pct),
+            h_ratio: self.h_ratio.lerpify(&other.h_ratio, pct),
+        }
+    }
+
     pub fn from_idx2d_and_actual_xy(
         xy: Vec2,
         idx: IdxInRange2d,
@@ -690,6 +734,16 @@ impl UnitCellExprWorldContext {
 
 impl IntoExprWorldContext for UnitCellExprWorldContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
+        // make a few rns
+        let mut rng = StdRng::seed_from_u64((self.seed + 19247.0) as u64);
+
+        let rn0 = rng.gen_range(0.0..1.0);
+        let rn1 = rng.gen_range(0.0..1.0);
+        let rn2 = rng.gen_range(0.0..1.0);
+        let rn3 = rng.gen_range(0.0..1.0);
+        let rn4 = rng.gen_range(0.0..1.0);
+        let rn5 = rng.gen_range(0.0..1.0);
+
         let v = vec![
             ("x".to_owned(), LivecodeValue::Float(self.x as f64)),
             ("y".to_owned(), LivecodeValue::Float(self.y as f64)),
@@ -721,6 +775,12 @@ impl IntoExprWorldContext for UnitCellExprWorldContext {
                 LivecodeValue::Float((self.total_x * self.total_y * self.total_z) as f64),
             ),
             ("seed".to_owned(), LivecodeValue::Float(self.seed as f64)),
+            ("rn0".to_owned(), LivecodeValue::Float(rn0)),
+            ("rn1".to_owned(), LivecodeValue::Float(rn1)),
+            ("rn2".to_owned(), LivecodeValue::Float(rn2)),
+            ("rn3".to_owned(), LivecodeValue::Float(rn3)),
+            ("rn4".to_owned(), LivecodeValue::Float(rn4)),
+            ("rn5".to_owned(), LivecodeValue::Float(rn5)),
             (
                 "h_ratio".to_owned(),
                 LivecodeValue::Float(self.h_ratio as f64),
@@ -738,14 +798,18 @@ pub enum UnitCellDetails {
 
 impl UnitCellDetails {
     // for a while we just did wallpaper, so default to that
-    pub fn new(transform_vertex: Mat4) -> Self {
+    pub fn new(transform_vertex: SimpleTransform2d) -> Self {
         Self::Wallpaper(UnitCellDetailsWallpaper {
             transform_vertex,
-            adjust_shape: Mat4::IDENTITY,
+            adjust_shape: SimpleTransform2d::ident(),
             is_base: true,
         })
     }
-    pub fn new_fancy(transform_vertex: Mat4, adjust_shape: Mat4, is_base: bool) -> Self {
+    pub fn new_fancy(
+        transform_vertex: SimpleTransform2d,
+        adjust_shape: SimpleTransform2d,
+        is_base: bool,
+    ) -> Self {
         Self::Wallpaper(UnitCellDetailsWallpaper {
             transform_vertex,
             adjust_shape,
@@ -765,14 +829,14 @@ impl UnitCellDetails {
         }
     }
 
-    fn transform(&self) -> Mat4 {
+    fn transform(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(x) => x.transform(),
             UnitCellDetails::Function(_) => todo!(),
         }
     }
 
-    fn transform_with_skew_mat4(&self) -> Mat4 {
+    fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(x) => x.transform_with_skew_mat4(),
             UnitCellDetails::Function(_) => todo!(),
@@ -801,14 +865,14 @@ impl UnitCellDetails {
         }
     }
 
-    fn transform_no_skew_mat4(&self) -> Mat4 {
+    fn transform_no_skew_mat4(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(w) => w.transform_no_skew_mat(),
             UnitCellDetails::Function(_) => todo!(),
         }
     }
 
-    pub fn adjust_shape(&self) -> Mat4 {
+    pub fn adjust_shape(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(w) => w.adjust_shape(),
             UnitCellDetails::Function(_) => todo!(),
@@ -819,6 +883,21 @@ impl UnitCellDetails {
         match self {
             UnitCellDetails::Wallpaper(w) => w.is_base(),
             UnitCellDetails::Function(_) => true,
+        }
+    }
+
+    pub(crate) fn experimental_lerp(&self, other: &UnitCellDetails, pct: f32) -> UnitCellDetails {
+        match (self, other) {
+            (UnitCellDetails::Wallpaper(w1), UnitCellDetails::Wallpaper(w2)) => {
+                w1.experimental_lerp(w2, pct)
+            }
+            _ => {
+                if pct > 0.5 {
+                    self.clone()
+                } else {
+                    other.clone()
+                }
+            }
         }
     }
 }
@@ -849,8 +928,8 @@ impl UnitCellDetailsFunction {
 
 #[derive(Debug, Clone)]
 pub struct UnitCellDetailsWallpaper {
-    pub transform_vertex: Mat4,
-    pub adjust_shape: Mat4,
+    pub transform_vertex: SimpleTransform2d,
+    pub adjust_shape: SimpleTransform2d,
     pub is_base: bool, // in cases of symmetry, will tell if this is the first one. useful for borders
 }
 
@@ -859,10 +938,11 @@ impl UnitCellDetailsWallpaper {
         self.transform_with_skew(Vec2::ZERO)
     }
 
-    pub fn transform_no_skew_mat(&self) -> Mat4 {
+    pub fn transform_no_skew_mat(&self) -> SimpleTransform2d {
         // adjust the shape (symmetry, rotation), translate the center
-        let new_center = Mat4::from_vec2_translate(self.offset());
-        new_center * self.adjust_shape
+        let offset = self.offset();
+        let new_center = SimpleTransform2d::translate(offset);
+        self.adjust_shape.add_after(&new_center)
     }
 
     pub fn transform_no_skew<F: IsPolyline>(&self, v: &F) -> Polyline {
@@ -875,24 +955,31 @@ impl UnitCellDetailsWallpaper {
     }
 
     // how to move the location of something
-    pub fn transform_vertex(&self) -> Mat4 {
-        self.transform_vertex
+    pub fn transform_vertex(&self) -> SimpleTransform2d {
+        self.transform_vertex.clone()
     }
 
     // how to transform a shape, e.g. rotation and flip
-    pub fn adjust_shape(&self) -> Mat4 {
-        self.adjust_shape
+    pub fn adjust_shape(&self) -> SimpleTransform2d {
+        self.adjust_shape.clone()
     }
 
-    pub fn transform(&self) -> Mat4 {
+    pub fn transform(&self) -> SimpleTransform2d {
         self.transform_vertex()
     }
 
     fn combine(&self, detail: &UnitCellDetails) -> UnitCellDetails {
         UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper {
-            transform_vertex: detail.as_wallpaper().unwrap().transform_vertex
-                * self.transform_vertex,
-            adjust_shape: detail.as_wallpaper().unwrap().adjust_shape * self.adjust_shape,
+            transform_vertex: detail
+                .as_wallpaper()
+                .unwrap()
+                .transform_vertex
+                .add_after(&self.transform_vertex),
+            adjust_shape: detail
+                .as_wallpaper()
+                .unwrap()
+                .adjust_shape
+                .add_after(&self.adjust_shape),
             is_base: self.is_base && detail.as_wallpaper().unwrap().is_base,
         })
     }
@@ -905,7 +992,15 @@ impl UnitCellDetailsWallpaper {
         self.is_base
     }
 
-    fn transform_with_skew_mat4(&self) -> Mat4 {
-        self.transform_vertex
+    fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
+        self.transform_vertex.clone()
+    }
+
+    fn experimental_lerp(&self, other: &UnitCellDetailsWallpaper, pct: f32) -> UnitCellDetails {
+        UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper {
+            transform_vertex: self.transform_vertex.lerpify(&other.transform_vertex, pct),
+            adjust_shape: self.adjust_shape.lerpify(&other.adjust_shape, pct),
+            is_base: self.is_base || other.is_base,
+        })
     }
 }

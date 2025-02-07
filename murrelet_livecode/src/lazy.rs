@@ -5,17 +5,19 @@ use serde::Deserialize;
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs},
-    livecode::LivecodeFromWorld,
+    livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeVariable},
     state::LivecodeWorldState,
     types::{LivecodeError, LivecodeResult},
 };
 
 #[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlLazyNodeF32 {
     Int(i32),
     Bool(bool),
     Float(f32),
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     Expr(Node),
 }
 
@@ -37,6 +39,32 @@ impl ControlLazyNodeF32 {
 impl LivecodeFromWorld<LazyNodeF32> for ControlLazyNodeF32 {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyNodeF32> {
         Ok(LazyNodeF32::new(self.clone(), w))
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
+    fn variable_identifiers(&self) -> Vec<crate::livecode::LivecodeVariable> {
+        match self {
+            ControlLazyNodeF32::Expr(node) => node
+                .iter_variable_identifiers()
+                .sorted()
+                .dedup()
+                .map(|x| LivecodeVariable::from_str(x))
+                .collect_vec(),
+            _ => vec![],
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<crate::livecode::LivecodeFunction> {
+        match self {
+            ControlLazyNodeF32::Expr(node) => node
+                .iter_function_identifiers()
+                .sorted()
+                .dedup()
+                .map(|x| LivecodeFunction::from_str(x))
+                .collect_vec(),
+            _ => vec![],
+        }
     }
 }
 
@@ -82,6 +110,7 @@ impl LazyNodeF32Inner {
 
         self.n
             .eval_float_with_context(&ctx)
+            .or_else(|_| self.n.eval_int_with_context(&ctx).map(|x| x as f64))
             .map(|x| x as f32)
             .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
     }
@@ -184,6 +213,12 @@ where
     type Target;
 
     fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target>;
+
+    fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<Self::Target> {
+        let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(&format!("{}_", prefix));
+
+        self.eval_lazy(&MixedEvalDefs::new_from_expr(vals))
+    }
 }
 
 impl IsLazy for LazyNodeF32 {

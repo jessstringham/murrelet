@@ -7,6 +7,10 @@ repository = "https://github.com/jessstringham/murrelet.git"
 description = "livecode macros for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
+[features]
+schemars = ["murrelet_livecode/schemars", "murrelet_livecode_derive/schemars"]
+
+
 [dependencies]
-murrelet_livecode_derive = { version = "0.1.0", path = "murrelet_livecode_derive"}
-murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode"}
+murrelet_livecode_derive = { version = "0.1.0", path = "murrelet_livecode_derive", default-features = false }
+murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode", default-features = false }

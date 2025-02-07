@@ -2,9 +2,13 @@
 use glam::{vec2, Vec2};
 use itertools::Itertools;
 use num_traits::NumCast;
+use std::collections::HashMap;
+use std::hash::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 pub mod intersection;
 
+mod assets;
 mod color;
 mod geometry;
 mod idx;
@@ -13,6 +17,7 @@ mod metric;
 mod polyline;
 mod transform;
 
+pub use assets::*;
 pub use color::*;
 pub use geometry::*;
 pub use idx::*;
@@ -134,6 +139,36 @@ where
     f32: std::ops::Mul<T, Output = T>,
 {
     (1.0 - pct) * start + pct * end
+}
+
+pub fn lerp_vec<T>(start: &[T], end: &[T], pct: f32) -> Vec<T>
+where
+    T: std::ops::Mul<f32, Output = T> + std::ops::Add<Output = T> + Copy,
+    f32: std::ops::Mul<T, Output = T>,
+{
+    start
+        .iter()
+        .zip(end.iter())
+        .map(|(a, b)| lerp(*a, *b, pct))
+        .collect_vec()
+}
+
+// excluding start/end
+pub fn lerp_x_points_between<T>(start: T, end: T, point_count: usize) -> Vec<T>
+where
+    T: std::ops::Mul<f32, Output = T> + std::ops::Add<Output = T> + Copy,
+    f32: std::ops::Mul<T, Output = T>,
+{
+    let mut result = Vec::with_capacity(point_count);
+    for i in 1..point_count {
+        let pct: f32 = i as f32 / (point_count - 1) as f32;
+        result.push(lerp(start, end, pct));
+    }
+    result
+}
+
+pub fn vec_lerp(a: &Vec2, b: &Vec2, pct: f32) -> Vec2 {
+    vec2(lerp(a.x, b.x, pct), lerp(a.y, b.y, pct))
 }
 
 // inclusive
@@ -407,9 +442,33 @@ impl LivecodeValue {
     }
 }
 
+// I use this to send data back to LiveCodeSrc's, e.g. make a MIDI controller
+// LED glow when it's used in the config.
+#[derive(Debug, Clone)]
+pub struct LivecodeUsage {
+    pub name: String,
+    pub is_used: bool,
+    pub value: Option<f32>,
+}
+
+impl LivecodeUsage {
+    pub fn new(name: String, is_used: bool, value: Option<f32>) -> Self {
+        Self {
+            name,
+            is_used,
+            value,
+        }
+    }
+}
+
 pub trait IsLivecodeSrc {
     fn update(&mut self, input: &LivecodeSrcUpdateInput);
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
+    // this is a way to give usage feedback to the livecode src, e.g. tell a MIDI controller
+    // we're using a parameter, or what value to set indicator lights to.
+    fn feedback(&mut self, _variables: &HashMap<String, LivecodeUsage>) {
+        // default don't do anything
+    }
 }
 
 pub struct LivecodeSrc {
@@ -516,6 +575,12 @@ impl LivecodeSrc {
     pub fn to_world_vals(&self) -> Vec<(String, LivecodeValue)> {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
     }
+
+    pub fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>) {
+        for v in self.vs.iter_mut() {
+            v.feedback(variables);
+        }
+    }
 }
 
 const MAX_STRID_LEN: usize = 16;
@@ -535,6 +600,17 @@ impl StrId {
     pub fn as_str(&self) -> &str {
         let len = self.0.iter().position(|&x| x == 0).unwrap_or(MAX_STRID_LEN);
         std::str::from_utf8(&self.0[..len]).unwrap()
+    }
+
+    pub fn to_seed(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.0.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    // ah, doesn't have to be that random
+    pub fn to_rn(&self) -> f32 {
+        (self.to_seed() as f64 / u64::MAX as f64) as f32
     }
 }
 
@@ -669,4 +745,8 @@ impl FixedPointVec2 {
     pub fn nudge(&self, x: i64, y: i64) -> Self {
         Self::new_from_fixed_point(self.x.nudge(x), self.y.nudge(y))
     }
+}
+
+pub fn approx_eq_eps(x: f32, y: f32, eps: f32) -> bool {
+    (x - y).abs() <= eps
 }

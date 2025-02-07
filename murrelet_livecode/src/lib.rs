@@ -2,6 +2,7 @@ pub mod app_src;
 pub mod boop;
 pub mod expr;
 pub mod lazy;
+pub mod lerpable;
 pub mod livecode;
 pub mod nestedit;
 pub mod state;

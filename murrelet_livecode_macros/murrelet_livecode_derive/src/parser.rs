@@ -2,6 +2,8 @@ use darling::{ast, FromDeriveInput, FromField, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
+const DEBUG_THIS: bool = false;
+
 pub(crate) fn prefix_ident(prefix: &str, name: syn::Ident) -> syn::Ident {
     let lc_name = format!("{}{}", prefix, name);
     syn::Ident::new(&lc_name, name.span())
@@ -51,6 +53,11 @@ where
 
     fn make_struct(s: &LivecodeReceiver) -> TokenStream2 {
         let name = s.ident.clone();
+
+        if DEBUG_THIS {
+            println!("{}::make_struct {}", Self::classname(), name.to_string());
+        }
+
         let lc_ident = Self::new_ident(name.clone());
 
         // shouldn't be calling this with something that's not a struct..
@@ -65,23 +72,45 @@ where
 
                 match field.how_to_control_this() {
                     // leave this field alone (useful for String and HashMaps)
-                    HowToControlThis::WithNone(_) => Self::from_noop_struct(idents),
+                    HowToControlThis::WithNone(_) => {
+                        if DEBUG_THIS {
+                            println!("-> from_noop_struct");
+                        }
+                        Self::from_noop_struct(idents)
+                    }
                     // creating with a set type
-                    HowToControlThis::WithType(_, _) => Self::from_type_struct(idents),
+                    HowToControlThis::WithType(_, _) => {
+                        if DEBUG_THIS {
+                            println!("-> from_type_struct");
+                        }
+                        Self::from_type_struct(idents)
+                    }
                     // creating a Vec<Something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_vec");
+                        }
                         Self::from_recurse_struct_vec(idents)
                     }
                     // creating a : Something in livecode
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_struct");
+                        }
                         Self::from_recurse_struct_struct(idents)
                     }
                     HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_lazy");
+                        }
                         Self::from_recurse_struct_lazy(idents)
                     }
 
                     // dealing with UnitCell<something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::UnitCell) => {
+                        if DEBUG_THIS {
+                            println!("-> from_recurse_struct_unitcell");
+                        }
                         Self::from_recurse_struct_unitcell(idents)
                     }
                 }
@@ -101,6 +130,10 @@ where
 
     fn make_enum(e: &LivecodeReceiver) -> TokenStream2 {
         let name = e.ident.clone();
+
+        if DEBUG_THIS {
+            println!("{}::make_enum {}", Self::classname(), name.to_string());
+        }
 
         let new_enum_ident = Self::new_ident(e.ident.clone());
 
@@ -134,8 +167,21 @@ where
         Self::make_enum_final(idents, variants)
     }
 
+    fn classname() -> String {
+        std::any::type_name::<Self>()
+            .split("::")
+            .last()
+            .unwrap_or("")
+            .to_owned()
+    }
+
     fn make_newtype(s: &LivecodeReceiver) -> TokenStream2 {
         let name = s.ident.clone();
+
+        if DEBUG_THIS {
+            println!("{}::make_newtype {}", Self::classname(), name.to_string());
+        }
+
         let lc_ident = Self::new_ident(name.clone());
 
         // shouldn't be calling this with something that's not a struct..
@@ -153,10 +199,16 @@ where
                     // HowToControlThis::WithNone(_) => Self::from_noop_struct(idents),
                     // creating with a set type
                     HowToControlThis::WithType(_, _) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_struct");
+                        }
                         Self::from_newtype_struct(idents, name.clone())
                     }
                     // creating a Vec<Something>
                     HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_recurse_struct_vec");
+                        }
                         Self::from_newtype_recurse_struct_vec(idents)
                     }
                     // creating a : Something in livecode
@@ -432,12 +484,27 @@ impl StructIdents {
         self.data.how_to_control_this()
     }
 
+    pub(crate) fn how_to_control_this_is_none(&self) -> bool {
+        match self.how_to_control_this() {
+            HowToControlThis::WithNone(_) => true,
+            _ => false,
+        }
+    }
+
     pub(crate) fn control_type(&self) -> ControlType {
         self.how_to_control_this().get_control_type()
     }
 
     pub(crate) fn back_to_quote(&self) -> TokenStream2 {
         self.data.back_to_quote_for_lazy()
+    }
+
+    pub(crate) fn is_serde_flatten(&self) -> bool {
+        if let Some(x) = &self.data.serde_opts {
+            x == "flatten"
+        } else {
+            false
+        }
     }
 }
 

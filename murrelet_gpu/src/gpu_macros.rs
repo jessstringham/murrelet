@@ -7,7 +7,11 @@ use serde::Serialize;
 
 use crate::{
     device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf},
-    graphics_ref::{BasicUniform, Graphics, GraphicsCreator, GraphicsRef},
+    gpu_livecode::ControlGraphicsRef,
+    graphics_ref::{
+        BasicUniform, Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlFn,
+        DEFAULT_LOADED_TEXTURE_FORMAT,
+    },
     shader_str::*,
 };
 
@@ -17,12 +21,13 @@ use wgpu_for_nannou as wgpu;
 #[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
-const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+// const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Uint;
+
 const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 /// For example
 /// Examples:
-///    
+///
 ///    build_shader!{
 ///     raw r###"
 ///     fn shape(in: vec3<f32>) -> f32 {
@@ -100,9 +105,11 @@ macro_rules! build_shader {
     };
 }
 
+// i think i originally added this so i could use it?
 pub enum ShaderStr {
     Binding1Tex,
     Binding2Tex,
+    Binding3d,
     Includes,
     Prefix,
     Suffix,
@@ -115,6 +122,7 @@ impl ShaderStr {
             ShaderStr::Includes => INCLUDES,
             ShaderStr::Prefix => PREFIX,
             ShaderStr::Suffix => SUFFIX,
+            ShaderStr::Binding3d => BINDING_3D,
         }
     }
 }
@@ -127,6 +135,20 @@ macro_rules! build_shader_2tex {
             format!(
                 "{}\n{}\n{}",
                 ShaderStr::Binding2Tex.to_str(),
+                ShaderStr::Includes.to_str(),
+                build_shader!(@parse ($($raw)*)),
+            )
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! build_shader_3d {
+    ($($raw:tt)*) => {
+        {
+            format!(
+                "{}\n{}\n{}",
+                ShaderStr::Binding3d.to_str(),
                 ShaderStr::Includes.to_str(),
                 build_shader!(@parse ($($raw)*)),
             )
@@ -232,6 +254,45 @@ impl RenderTrait for TwoSourcesRender {
                 dest: self.dest.name(),
             },
         ]
+    }
+
+    fn dest(&self) -> Option<GraphicsRef> {
+        Some(self.dest.clone())
+    }
+}
+
+// holds a gpu pipeline :O
+pub struct PipelineRender<GraphicsConf> {
+    pub source: GraphicsRef,
+    pub pipeline: GPUPipelineRef<GraphicsConf>,
+    pub dest: GraphicsRef,
+}
+
+impl<GraphicsConf> PipelineRender<GraphicsConf> {
+    pub fn new_box(
+        source: GraphicsRef,
+        pipeline: GPUPipelineRef<GraphicsConf>,
+        dest: GraphicsRef,
+    ) -> Box<Self> {
+        Box::new(Self {
+            source,
+            pipeline,
+            dest,
+        })
+    }
+}
+impl<GraphicsConf> RenderTrait for PipelineRender<GraphicsConf> {
+    fn render(&self, device_state_for_render: &DeviceStateForRender) {
+        // write source to pipeline source
+        self.source.render(
+            device_state_for_render.device_state(),
+            &self.pipeline.source(),
+        );
+        self.pipeline.render(device_state_for_render);
+    }
+
+    fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        self.pipeline.debug_print()
     }
 
     fn dest(&self) -> Option<GraphicsRef> {
@@ -390,19 +451,43 @@ impl RenderTrait for DisplayRender {
     }
 }
 
-pub struct GPUPipeline {
+pub struct GPUPipeline<GraphicConf> {
     pub dag: Vec<Box<dyn RenderTrait>>,
     choices: Vec<usize>,
-    names: HashMap<String, GraphicsRef>,
+    names: HashMap<String, GraphicsRef>, // todo, do i need this with ctrl?
+    ctrl: Vec<GraphicsRefWithControlFn<GraphicConf>>,
+    source: Option<String>,
 }
 
-impl GPUPipeline {
-    pub fn new() -> GPUPipeline {
+impl<GraphicConf> GPUPipeline<GraphicConf> {
+    pub fn new() -> GPUPipeline<GraphicConf> {
         GPUPipeline {
             dag: Vec::new(),
             choices: Vec::new(),
             names: HashMap::new(),
+            ctrl: Vec::new(),
+            source: None,
         }
+    }
+
+    pub fn add_control_graphics(
+        &mut self,
+        _label: &str,
+        control_graphics_fn: GraphicsRefWithControlFn<GraphicConf>,
+    ) {
+        self.ctrl.push(control_graphics_fn)
+    }
+
+    pub fn control_graphics(&self, t: &GraphicConf) -> Vec<ControlGraphicsRef> {
+        let mut v = vec![];
+        for c in &self.ctrl {
+            v.extend(c.control_graphics(t).into_iter());
+        }
+        v
+    }
+
+    pub fn set_source(&mut self, src: &str) {
+        self.source = Some(src.to_string());
     }
 
     pub fn add_step(&mut self, d: Box<dyn RenderTrait>) {
@@ -443,11 +528,50 @@ impl GPUPipeline {
     pub fn debug_print(&self) -> Vec<RenderDebugPrint> {
         self.dag.iter().flat_map(|x| x.debug_print()).collect()
     }
+
+    fn source(&self) -> GraphicsRef {
+        // hm this should happen on start
+        let name = self
+            .source
+            .as_ref()
+            .expect("should have set a source if you're gonna get it source");
+        self.get_graphic(&name)
+            .expect(&format!("gave a source {} that doesn't exist", name))
+    }
 }
 
-impl Default for GPUPipeline {
+impl<GraphicsConf> Default for GPUPipeline<GraphicsConf> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Clone)]
+pub struct GPUPipelineRef<GraphicsConf>(Rc<RefCell<GPUPipeline<GraphicsConf>>>);
+
+impl<GraphicsConf> GPUPipelineRef<GraphicsConf> {
+    pub fn new(pipeline: GPUPipeline<GraphicsConf>) -> Self {
+        GPUPipelineRef(Rc::new(RefCell::new(pipeline)))
+    }
+
+    pub fn render(&self, device: &DeviceStateForRender) {
+        self.0.borrow().render(device)
+    }
+
+    pub fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        self.0.borrow().debug_print()
+    }
+
+    pub fn source(&self) -> GraphicsRef {
+        self.0.borrow().source()
+    }
+
+    pub fn get_graphic(&self, name: &str) -> Option<GraphicsRef> {
+        self.0.borrow().get_graphic(name)
+    }
+
+    pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef> {
+        self.0.borrow().control_graphics(conf)
     }
 }
 
@@ -484,10 +608,25 @@ impl RenderTrait for SingleTextureRender {
     }
 }
 
+// makes it easier to ad control grpahics
+#[macro_export]
+macro_rules! with_control_graphics {
+    ($name:ident = $instance:expr, |$param:ident: $ttype:ident| $body:expr) => {
+        let $name = $instance.with_control_graphics(
+            stringify!($name),
+            Arc::new(|$param: &$ttype| Box::new($body) as Box<dyn ControlGraphics>),
+        );
+    };
+}
+
+// this is basically ran for every node, so can add label and such
 #[macro_export]
 macro_rules! pipeline_add_label {
     ($pipeline:ident, $val:ident) => {{
-        $pipeline.add_label(stringify!($val), $val.clone());
+        $pipeline.add_label(stringify!($val), $val.graphics());
+        if let Some(ctrl) = $val.control_graphics_fn() {
+            $pipeline.add_control_graphics(stringify!($val), ctrl);
+        }
     }};
 }
 
@@ -502,7 +641,7 @@ macro_rules! build_shader_pipeline {
             println!("add display");
             $pipeline.add_step(
                 DisplayRender::new_box(
-                    $source.clone(),
+                    $source.graphics(),
                 )
             );
             pipeline_add_label!($pipeline, $source);
@@ -517,8 +656,8 @@ macro_rules! build_shader_pipeline {
             println!("add display");
             $pipeline.add_step(
                 TextureRender::new_box(
-                    $source.clone(),
-                    $dest.clone(),
+                    $source.graphics(),
+                    $dest.graphics(),
                 )
             );
             // pipeline_add_label!($pipeline, $source);
@@ -535,7 +674,7 @@ macro_rules! build_shader_pipeline {
             $pipeline.add_step(
                 SingleTextureRender::new_box(
                     $source.clone(),
-                    $dest.clone(),
+                    $dest.graphics(),
                 )
             );
             pipeline_add_label!($pipeline, $dest);
@@ -551,8 +690,8 @@ macro_rules! build_shader_pipeline {
             $pipeline.add_step(
                 PingPongRender::new_box(
                     $count,
-                    $ping.clone(),
-                    $pong.clone())
+                    $ping.graphics(),
+                    $pong.graphics())
             );
             pipeline_add_label!($pipeline, $ping);
             pipeline_add_label!($pipeline, $pong);
@@ -569,10 +708,10 @@ macro_rules! build_shader_pipeline {
                 ChoiceRender::new_box(
                     // todo, allow for more than two
                     vec![
-                        $source.clone(),
-                        $($source_rest.clone(), )*
+                        $source.graphics(),
+                        $($source_rest.graphics(), )*
                     ],
-                    $dest.clone()
+                    $dest.graphics()
                 )
             );
             pipeline_add_label!($pipeline, $source);
@@ -590,9 +729,9 @@ macro_rules! build_shader_pipeline {
 
             $pipeline.add_step(
                 TwoSourcesRender::new_box(
-                    $source1.clone(),
-                    $source2.clone(),
-                    $dest.clone())
+                    $source1.graphics(),
+                    $source2.graphics(),
+                    $dest.graphics())
             );
             pipeline_add_label!($pipeline, $source1);
             pipeline_add_label!($pipeline, $source2);
@@ -602,14 +741,33 @@ macro_rules! build_shader_pipeline {
         }
     };
 
-    // two sources to output: a -> t
+    // one source to create one graphicsref: a -> T => t;
+    (@parse $pipeline:ident ($source:ident -> $subpipe:ident => $dest:ident;$($tail:tt)*)) => {
+        {
+            println!("add pipeline");
+            let $dest = $subpipe.out().clone();
+            $pipeline.add_step(
+                PipelineRender::new_box(
+                    $source.graphics(),
+                    $subpipe.gpu_pipeline(),
+                    $dest.graphics()
+                )
+            );
+            pipeline_add_label!($pipeline, $source);
+            pipeline_add_label!($pipeline, $dest);
+
+            build_shader_pipeline!(@parse $pipeline ($($tail)*));
+        }
+    };
+
+    // one source to output: a -> t
     (@parse $pipeline:ident ($source:ident -> $dest:ident;$($tail:tt)*)) => {
         {
             println!("add simple");
             $pipeline.add_step(
                 SimpleRender::new_box(
-                    $source.clone(),
-                    $dest.clone()
+                    $source.graphics(),
+                    $dest.graphics()
                 )
             );
             pipeline_add_label!($pipeline, $source);
@@ -627,7 +785,7 @@ macro_rules! build_shader_pipeline {
         }
     };
 
-    // capture the initial one
+    // capture the initial one and prefix it with @parse
     ($($raw:tt)*) => {
         {
             println!("new pipeline!");
@@ -913,7 +1071,6 @@ impl ImageTexture {
                 let target_coords_txl = target_coords_txl1 * window_to_entire_ratio + windowed_source_offset_txl;
 
                 let result: vec4<f32> = textureSample(tex, tex_sampler, target_coords_txl);
-
                 "###;
             )
         };

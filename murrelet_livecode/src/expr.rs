@@ -128,6 +128,12 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = smoothstep(t, edge0, edge1);
             Ok(Value::Float(f))
         }),
+        "step" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (src, val) = (tuple[0].as_number()?, tuple[1].as_number()?);
+            let f = if src > val { 1.0 } else { 0.0 };
+            Ok(Value::Float(f as f64))
+        }),
         "pulse" => Function::new(|argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
             let (pct, t, size) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
@@ -166,6 +172,55 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
 
             let len = vec2(x as f32, y as f32).length();
             Ok(Value::Float(len as f64))
+        }),
+
+        "pow" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (x, y) = (tuple[0].as_number()?, tuple[1].as_number()?);
+
+            let p = x.powf(y);
+            Ok(Value::Float(p))
+        }),
+        "sin" => Function::new(move |argument| {
+            let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
+                Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?),
+                Err(_) => {
+                    match argument.as_fixed_len_tuple(2) {
+                        Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, 0.0),
+                        Err(_) => {
+                            (argument.as_float()?, 1.0, 0.0)
+                        },
+                    }
+                }
+            };
+            let f = (PI * 2.0 * (w * t + phase)).sin();
+            Ok(Value::Float(f as f64))
+        }),
+        "cos" => Function::new(move |argument| {
+            let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
+                Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?),
+                Err(_) => {
+                    match argument.as_fixed_len_tuple(2) {
+                        Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, 0.0),
+                        Err(_) => {
+                            (argument.as_float()?, 1.0, 0.0)
+                        },
+                    }
+                }
+            };
+            let f = (PI * 2.0 * (w * t + phase)).cos();
+            Ok(Value::Float(f as f64))
+        }),
+        "res" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(9)?;
+            let (x, y, aa, bb, m, n, a, b) = (
+                tuple[0].as_number()?, tuple[1].as_number()?,
+                tuple[2].as_number()?, tuple[3].as_number()?,
+                tuple[4].as_number()?, tuple[5].as_number()?,
+                tuple[6].as_number()?, tuple[7].as_number()?,
+            );
+            let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos() * (m * PI * y / b).cos();
+            Ok(Value::Float(f as f64))
         })
     }.map_err(|err| {LivecodeError::EvalExpr(format!("error in init_evalexpr_func_ctx!"), err)})
 }
@@ -312,6 +367,13 @@ impl MixedEvalDefs {
         }
     }
 
+    pub fn new_from_expr(vals: ExprWorldContextValues) -> Self {
+        Self {
+            vals,
+            nodes: Vec::new(),
+        }
+    }
+
     pub fn set_vals(&mut self, vals: ExprWorldContextValues) {
         self.vals = self.vals.combine(vals);
     }
@@ -342,6 +404,12 @@ impl MixedEvalDefs {
             .for_each(|node| c.nodes.push(node.clone()));
         c.set_vals(more_defs.vals.clone());
 
+        c
+    }
+
+    pub fn new_simple(name: &str, val: LivecodeValue) -> Self {
+        let mut c = Self::new();
+        c.set_val(name, val);
         c
     }
 }

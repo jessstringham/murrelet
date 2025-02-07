@@ -1,13 +1,13 @@
 use glam::*;
-use murrelet_common::{Angle, AnglePi, Circle, IsAngle, IsLength};
+use murrelet_common::{Angle, AnglePi, Circle, IsAngle, IsLength, IsPolyline, Polyline};
 use murrelet_livecode_derive::*;
 
 use crate::livecodetypes::anglepi::*;
 
 #[derive(Debug, Clone, Livecode)]
 pub struct CurveDrawer {
-    segments: Vec<CurveSegment>,
-    closed: bool, // this is mostly used for algorithms that use curve drawers. you'll need to use a style that's closed
+    pub segments: Vec<CurveSegment>,
+    pub closed: bool, // this is mostly used for algorithms that use curve drawers. you'll need to use a style that's closed
 }
 
 impl CurveDrawer {
@@ -58,6 +58,10 @@ impl CurveDrawer {
 
     pub fn new_simple_points(vs: Vec<Vec2>, closed: bool) -> Self {
         CurveDrawer::new(vec![CurveSegment::new_simple_points(vs)], closed)
+    }
+
+    pub fn new_simple_polyline(vs: Polyline, closed: bool) -> Self {
+        CurveDrawer::new(vec![CurveSegment::new_simple_points(vs.into_vec())], closed)
     }
 
     pub fn as_closed(&self) -> Self {

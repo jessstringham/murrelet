@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use std::path::PathBuf;
 
 use image::GenericImageView;
@@ -11,6 +12,10 @@ use wgpu_for_latest as wgpu;
 use wgpu::util::DeviceExt;
 
 use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
+
+// use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
+// const LOADED_TEXTURE_FORMAT = Rgba16Float;
+// pub const LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 // wrappers around ways of interacting with device/queue
 
@@ -99,7 +104,7 @@ impl OwnedDeviceState {
 }
 
 // borrowing from bevy
-fn align_byte_size(value: u32) -> u32 {
+pub fn align_byte_size(value: u32) -> u32 {
     value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
 }
 

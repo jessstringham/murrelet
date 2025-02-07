@@ -4,7 +4,11 @@
 use glam::{vec2, vec3, Mat2, Mat3, Mat4, Vec2, Vec3};
 use itertools::Itertools;
 
-use crate::polyline::{IsPolyline, Polyline};
+use crate::{
+    lerp,
+    polyline::{IsPolyline, Polyline},
+    vec_lerp, AnglePi, IsAngle,
+};
 
 pub trait TransformVec2 {
     fn transform_vec2(&self, v: Vec2) -> Vec2;
@@ -78,15 +82,112 @@ impl FromTranslate for Mat4 {
 }
 
 // experimental way to do a transform with a function
-pub trait Vec2TransformFunction: Fn(Vec2) -> Vec2 {
+pub trait Vec2TransformFunction: Fn(Vec2) -> Vec2 + Send + Sync {
     fn clone_box(&self) -> Box<dyn Vec2TransformFunction>;
 }
 
 impl<T> Vec2TransformFunction for T
 where
-    T: 'static + Fn(Vec2) -> Vec2 + Clone,
+    T: 'static + Fn(Vec2) -> Vec2 + Clone + Send + Sync,
 {
     fn clone_box(&self) -> Box<dyn Vec2TransformFunction> {
         Box::new(self.clone())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum SimpleTransform2dStep {
+    Translate(Vec2),
+    Rotate(Vec2, AnglePi),
+    Scale(Vec2),
+    Skew(Vec2, Vec2),
+}
+impl SimpleTransform2dStep {
+    pub fn translate(v: Vec2) -> Self {
+        Self::Translate(v)
+    }
+
+    pub fn scale_both(v: f32) -> Self {
+        Self::Scale(Vec2::ONE * v)
+    }
+
+    pub fn transform(&self) -> Mat3 {
+        match self {
+            Self::Translate(v) => Mat3::from_translation(*v),
+            Self::Rotate(center, amount_pi) => {
+                let move_to_origin = Mat3::from_translation(*center);
+                let move_from_origin = Mat3::from_translation(-*center);
+                let rotate = Mat3::from_angle(amount_pi.angle());
+                move_from_origin * rotate * move_to_origin
+            }
+            Self::Scale(v) => Mat3::from_scale(*v),
+            Self::Skew(v0, v1) => Mat3::from_mat2(Mat2::from_cols(*v0, *v1)),
+        }
+    }
+
+    pub fn experimental_lerp(&self, other: &SimpleTransform2dStep, pct: f32) -> Self {
+        match (self, other) {
+            (SimpleTransform2dStep::Translate(v0), SimpleTransform2dStep::Translate(v1)) => {
+                SimpleTransform2dStep::Translate(vec_lerp(v0, v1, pct))
+            }
+            (SimpleTransform2dStep::Rotate(v0, a0), SimpleTransform2dStep::Rotate(v1, a1)) => {
+                SimpleTransform2dStep::Rotate(
+                    vec_lerp(v0, v1, pct),
+                    AnglePi::new(lerp(a0.angle_pi(), a1.angle_pi(), pct)),
+                )
+            }
+            (SimpleTransform2dStep::Scale(v0), SimpleTransform2dStep::Scale(v1)) => {
+                SimpleTransform2dStep::Scale(vec_lerp(v0, v1, pct))
+            }
+            _ => {
+                if pct > 0.5 {
+                    other.clone()
+                } else {
+                    self.clone()
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SimpleTransform2d(Vec<SimpleTransform2dStep>);
+impl SimpleTransform2d {
+    pub fn new(v: Vec<SimpleTransform2dStep>) -> Self {
+        Self(v)
+    }
+
+    pub fn steps(&self) -> &Vec<SimpleTransform2dStep> {
+        &self.0
+    }
+
+    pub fn add_after(&self, transform_vertex: &SimpleTransform2d) -> SimpleTransform2d {
+        // just append
+        let v = self
+            .0
+            .iter()
+            .chain(transform_vertex.0.iter())
+            .cloned()
+            .collect();
+
+        SimpleTransform2d(v)
+    }
+
+    pub fn ident() -> SimpleTransform2d {
+        SimpleTransform2d(vec![])
+    }
+
+    pub fn translate(v: Vec2) -> Self {
+        Self(vec![SimpleTransform2dStep::Translate(v)])
+    }
+}
+
+impl TransformVec2 for SimpleTransform2d {
+    fn transform_vec2(&self, v: Vec2) -> Vec2 {
+        let mut v = v;
+        for step in &self.0 {
+            v = step.transform().transform_vec2(v);
+        }
+        v
     }
 }

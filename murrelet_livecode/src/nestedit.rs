@@ -8,7 +8,7 @@ use glam::{vec2, vec3, Vec2, Vec3};
 use murrelet_common::MurreletColor;
 
 use crate::lazy::LazyNodeF32;
-use crate::types::AdditionalContextNode;
+use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
 
 #[derive(Debug, Clone)]
 pub struct NestedMod<'a> {
@@ -66,11 +66,32 @@ where
     Self: Sized,
 {
     fn nest_update(&self, mods: NestedMod) -> Self;
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String>;
+
+    fn nest_getter(&self, getter: &str) -> LivecodeResult<String> {
+        let getter_parts: Vec<&str> = getter.split('.').collect();
+        self.nest_get(&getter_parts)
+    }
+}
+
+fn nest_default(getter: &[&str], self_as_str: String) -> LivecodeResult<String> {
+    match getter {
+        [] => Ok(self_as_str),
+        extra => Err(LivecodeError::NestGetExtra(format!(
+            "at a number, but received {}",
+            extra.join(".")
+        ))),
+    }
 }
 
 impl NestEditable for f32 {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().unwrap_or(*self)
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self))
     }
 }
 
@@ -78,11 +99,19 @@ impl NestEditable for u64 {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().map(|x| x as u64).unwrap_or(*self)
     }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self))
+    }
 }
 
 impl NestEditable for u8 {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().map(|x| x as u8).unwrap_or(*self)
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self))
     }
 }
 
@@ -90,11 +119,19 @@ impl NestEditable for usize {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().map(|x| x as usize).unwrap_or(*self)
     }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self))
+    }
 }
 
 impl NestEditable for i32 {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().map(|x| x as i32).unwrap_or(*self)
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self))
     }
 }
 
@@ -105,6 +142,18 @@ impl NestEditable for Vec2 {
 
         vec2(x, y)
     }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [] => Ok(format!("{}", self)),
+            ["x"] => Ok(format!("{}", self.x)),
+            ["y"] => Ok(format!("{}", self.y)),
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a vec2, but got {}",
+                extra.join(".")
+            ))),
+        }
+    }
 }
 
 impl NestEditable for Vec3 {
@@ -114,6 +163,19 @@ impl NestEditable for Vec3 {
         let z = mods.get_subfield_as_f32("z").unwrap_or(self.z);
 
         vec3(x, y, z)
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [] => Ok(format!("{}", self)),
+            ["x"] => Ok(format!("{}", self.x)),
+            ["y"] => Ok(format!("{}", self.y)),
+            ["z"] => Ok(format!("{}", self.z)),
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a vec3 but got {}",
+                extra.join(".")
+            ))),
+        }
     }
 }
 
@@ -130,6 +192,18 @@ impl NestEditable for MurreletColor {
             self.clone()
         }
     }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        let [h, s, v, a] = self.into_hsva_components();
+        match getter {
+            [] => Ok(format!("{:?}", self)),
+            ["h"] => Ok(format!("{}", h)),
+            ["s"] => Ok(format!("{}", s)),
+            ["v"] => Ok(format!("{}", v)),
+            ["a"] => Ok(format!("{}", a)),
+            extra => Err(LivecodeError::NestGetExtra(extra.join("."))),
+        }
+    }
 }
 
 impl NestEditable for bool {
@@ -144,11 +218,31 @@ impl NestEditable for bool {
             *self
         }
     }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [] => Ok(format!("{:?}", self)),
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a bool, but got {}",
+                extra.join(".")
+            ))),
+        }
+    }
 }
 
 impl NestEditable for String {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr().unwrap_or(self.clone())
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [] => Ok(format!("{:?}", self)),
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a string, but got {}",
+                extra.join(".")
+            ))),
+        }
     }
 }
 
@@ -156,11 +250,21 @@ impl NestEditable for AdditionalContextNode {
     fn nest_update(&self, _mods: NestedMod) -> Self {
         self.clone() // noop
     }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra(
+            "AdditionalContextNode".to_owned(),
+        )) // maybe in the future!
+    }
 }
 
 impl NestEditable for Node {
     fn nest_update(&self, _mods: NestedMod) -> Self {
         self.clone() // noop
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("Node".to_owned())) // maybe in the future!
     }
 }
 
@@ -168,10 +272,28 @@ impl NestEditable for LazyNodeF32 {
     fn nest_update(&self, _mods: NestedMod) -> Self {
         self.clone() // noop
     }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("LazyNodeF32".to_owned())) // maybe in the future!
+    }
+}
+
+impl<T: NestEditable + Clone> NestEditable for Vec<T> {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone() // noop
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("Vec<T>".to_owned())) // maybe in the future!
+    }
 }
 
 impl<K: Clone, V: Clone> NestEditable for HashMap<K, V> {
     fn nest_update(&self, _mods: NestedMod) -> Self {
         self.clone() // noop
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("HashMap".to_owned())) // maybe in the future!
     }
 }

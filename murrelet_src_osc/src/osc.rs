@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use murrelet_common::{print_expect, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue};
 use rosc::{OscPacket, OscType};
+use std::collections::HashMap;
 use std::net::UdpSocket;
 use std::net::{SocketAddrV4, ToSocketAddrs};
 use std::str::FromStr;
@@ -34,15 +35,23 @@ pub struct OscMng {
 
 #[derive(Debug)]
 pub struct OscValues {
-    pub msg: Option<OSCMessage>,
+    last_values: HashMap<String, LivecodeValue>,
+    smooth_values: HashMap<String, LivecodeValue>,
+    // pub msg: Option<OSCMessage>,
 }
 
 impl OscValues {
     fn to_livecode_vals(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
-        self.msg
-            .as_ref()
-            .map(|x| x.to_livecode_vals())
-            .unwrap_or(vec![])
+        let last_values: Vec<(String, murrelet_common::LivecodeValue)> =
+            self.last_values.clone().into_iter().collect();
+        let smooth_values: Vec<(String, murrelet_common::LivecodeValue)> = self
+            .smooth_values
+            .clone()
+            .into_iter()
+            .map(|(key, val)| (format!("{}_smooth", key), val))
+            .collect();
+
+        [last_values, smooth_values].concat()
     }
 }
 
@@ -59,7 +68,10 @@ impl OscMng {
         let cxn = OscCxn::new(&addr);
         Self {
             cxn,
-            values: OscValues { msg: None },
+            values: OscValues {
+                last_values: HashMap::new(),
+                smooth_values: HashMap::new(),
+            },
         }
     }
 }
@@ -72,7 +84,25 @@ pub struct OscCxn {
 impl OscCxn {
     pub fn check_and_maybe_update(&self, r: &mut OscValues) -> Result<(), mpsc::TryRecvError> {
         self.osc_rx.try_recv().map(|x| {
-            r.msg = Some(x);
+            // r.msg = Some(x);
+
+            for (name, new_val) in x.to_livecode_vals().into_iter() {
+                if let Some(old_val) = r.smooth_values.get(&name) {
+                    let actual_new_val = match (old_val, new_val) {
+                        (LivecodeValue::Float(old), LivecodeValue::Float(new)) => {
+                            LivecodeValue::Float(*old * 0.9 + new * 0.1)
+                        }
+                        _ => new_val,
+                    };
+
+                    r.smooth_values.insert(name.clone(), actual_new_val);
+                } else {
+                    println!("first time seeing name {} with value {:?}", name, new_val);
+                    r.smooth_values.insert(name.clone(), new_val);
+                }
+
+                r.last_values.insert(name.clone(), new_val); // todo, probably good to get timestamp
+            }
         })
     }
 
@@ -144,10 +174,26 @@ impl LivecodeOSC {
 fn handle_packet(packet: &OscPacket) -> Option<OSCMessage> {
     match packet {
         OscPacket::Message(msg) => {
-            println!("not used to OscMessage! Can you send as a bundle?");
-            println!("OSC address: {}", msg.addr);
-            println!("OSC arguments: {:?}", msg.args);
-            None
+            if let Some(osc_name) = msg.addr.as_str().strip_prefix(OSC_PREFIX) {
+                let mut values = vec![];
+                match msg.args[..] {
+                    [OscType::Float(value)] => {
+                        values.push(LivecodeOSC::new_f32(osc_name.to_owned(), value));
+                    }
+                    _ => {
+                        println!("OSC data values funny: {:?}", msg.args);
+                    }
+                }
+
+                Some(OSCMessage::new(values))
+            } else {
+                println!("unexpected name, not with {}", OSC_PREFIX);
+
+                println!("OSC address: {}", msg.addr);
+                println!("OSC arguments: {:?}", msg.args);
+
+                None
+            }
         }
         OscPacket::Bundle(bundle) => {
             let mut values = vec![];
@@ -161,7 +207,7 @@ fn handle_packet(packet: &OscPacket) -> Option<OSCMessage> {
                                 values.push(LivecodeOSC::new_f32(osc_name.to_owned(), value));
                             }
                             _ => {
-                                println!("OSC address content funny: {}", msg.addr);
+                                println!("OSC address content funny: {:?}", msg.args);
                             }
                         }
                     } else {

@@ -1,37 +1,41 @@
 #![allow(dead_code)]
 use glam::{vec3, Mat4, Vec2};
+use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
-use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
 use murrelet_livecode::lazy::ControlLazyNodeF32;
+use murrelet_livecode::lerpable::Lerpable;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{
     AdditionalContextNode, ControlVecElement, LivecodeError, LivecodeResult,
 };
-use std::{env, fs};
+use std::collections::HashMap;
+use std::fs;
 
 use murrelet_common::run_id;
 use std::path::{Path, PathBuf};
 
-use murrelet_livecode::boop::{BoopConf, BoopFromWorld};
 use murrelet_livecode::livecode::LivecodeFromWorld;
 use murrelet_livecode::livecode::*;
 use murrelet_livecode_derive::Livecode;
 
+use crate::asset_loader::*;
+use crate::cli::BaseConfigArgs;
 use crate::reload::*;
+use clap::Parser;
 
 pub trait CommonTrait: std::fmt::Debug + Clone {}
 
 // requirements for the control conf
-pub trait LiveCodeCommon<T>: LivecodeFromWorld<T> + LiveCoderLoader + CommonTrait {}
-
-// requirements for the conf
-pub trait ConfCommon<T: BoopFromWorld<Self>>: CommonTrait {
-    fn config_app_loc(&self) -> &AppConfig;
+pub trait LiveCodeCommon<T>:
+    GetLivecodeIdentifiers + LivecodeFromWorld<T> + LiveCoderLoader + CommonTrait
+{
 }
 
-// requirements for the boop
-pub trait BoopConfCommon<T>: BoopFromWorld<T> + CommonTrait {}
+// requirements for the conf
+pub trait ConfCommon: CommonTrait {
+    fn config_app_loc(&self) -> &AppConfig;
+}
 
 #[derive(Clone, Debug)]
 pub struct SvgDrawConfig {
@@ -253,39 +257,6 @@ fn _default_dyn_reset() -> ControlBool {
     ControlBool::Raw(true)
 }
 
-// this stuff adjusts how things update
-#[derive(Debug, Clone, Livecode)]
-pub struct AppConfigBoopODEConf {
-    pub f: f32, // freq
-    pub z: f32, // something
-    pub r: f32, // reaction
-}
-impl AppConfigBoopODEConf {
-    fn to_livecode(&self) -> BoopODEConf {
-        BoopODEConf::new(self.f, self.z, self.r)
-    }
-}
-
-#[derive(Debug, Clone, Livecode)]
-pub enum AppConfigBoopConfInner {
-    ODE(AppConfigBoopODEConf),
-    Noop,
-}
-impl AppConfigBoopConfInner {
-    fn to_livecode(&self) -> BoopConfInner {
-        match self {
-            AppConfigBoopConfInner::ODE(o) => BoopConfInner::ODE(o.to_livecode()),
-            AppConfigBoopConfInner::Noop => BoopConfInner::Noop,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Livecode)]
-pub struct AppConfigFieldEntry {
-    name: String,
-    conf: AppConfigBoopConfInner,
-}
-
 fn _reset_b() -> ControlBool {
     ControlBool::force_from_str("kBf")
 }
@@ -293,52 +264,6 @@ fn _reset_b() -> ControlBool {
 fn _reset_b_lazy() -> ControlLazyNodeF32 {
     // ControlLazyNodeF32::from_control_bool(false)
     unimplemented!("no lazy bools yet??")
-}
-
-fn _base_noop_boop_conf() -> ControlAppConfigBoopConfInner {
-    ControlAppConfigBoopConfInner::Noop
-}
-
-fn _base_noop_boop_conf_lazy() -> ControlLazyAppConfigBoopConfInner {
-    ControlLazyAppConfigBoopConfInner::Noop
-}
-
-#[derive(Debug, Clone, Livecode)]
-pub struct AppConfigBoopConf {
-    #[livecode(serde_default = "_reset_b")]
-    pub reset: bool, // if true, change immediately
-    #[livecode(serde_default = "_base_noop_boop_conf")]
-    base: AppConfigBoopConfInner,
-    overrides: Vec<AppConfigFieldEntry>,
-}
-impl AppConfigBoopConf {
-    fn to_livecode(&self) -> BoopConf {
-        let fields = self
-            .overrides
-            .iter()
-            .map(|x| (x.name.to_owned(), x.conf.to_livecode()))
-            .collect();
-        BoopConf::new(self.reset, self.base.to_livecode(), fields)
-    }
-}
-impl Default for ControlAppConfigBoopConf {
-    fn default() -> Self {
-        ControlAppConfigBoopConf {
-            reset: ControlBool::Raw(true),
-            base: ControlAppConfigBoopConfInner::Noop,
-            overrides: vec![],
-        }
-    }
-}
-
-impl Default for ControlLazyAppConfigBoopConf {
-    fn default() -> Self {
-        ControlLazyAppConfigBoopConf {
-            reset: ControlLazyNodeF32::Bool(true),
-            base: ControlLazyAppConfigBoopConfInner::Noop,
-            overrides: vec![],
-        }
-    }
 }
 
 #[allow(dead_code)]
@@ -483,13 +408,15 @@ pub struct AppConfig {
     pub svg: SvgConfig,
     #[livecode(serde_default = "default")]
     pub gpu: GpuConfig,
-    #[livecode(serde_default = "default")]
-    pub boop: AppConfigBoopConf,
     // only reload on bar. this can be an easy way to sync visuals (e.g. only do big
     // changes when the bar hits), but can also slow down config changes if the bpm is low :o
     // so I usually disable this
     #[livecode(serde_default = "false")]
     pub reload_on_bar: bool,
+    #[livecode(serde_default = "_empty_filenames")]
+    pub assets: AssetFilenames, // for svg files!
+    #[livecode(serde_default = "0")] // if 0, it won't run at all
+    pub lerp_rate: f32,
 }
 impl AppConfig {
     pub fn should_clear_bg(&self) -> bool {
@@ -519,93 +446,9 @@ impl AppConfig {
     fn reload_on_bar(&self) -> bool {
         self.reload_on_bar
     }
-}
 
-#[derive(Debug)]
-struct BoopHolder<ConfType, BoopConfType>
-where
-    ConfType: ConfCommon<BoopConfType>,
-    BoopConfType: BoopFromWorld<ConfType> + Clone,
-{
-    boop: BoopConfType,  // holds the state
-    target: ConfType,    // holds the most recent target
-    processed: ConfType, // holds the current locations
-}
-
-impl<ConfType, BoopConfType> BoopHolder<ConfType, BoopConfType>
-where
-    ConfType: ConfCommon<BoopConfType>,
-    BoopConfType: BoopFromWorld<ConfType> + Clone,
-{
-    fn new(conf: &BoopConf, target: ConfType) -> Self {
-        Self {
-            boop: BoopConfType::boop_init(conf, &target),
-            target: target.clone(),
-            processed: target,
-        }
-    }
-
-    fn update(&self, conf: &BoopConf, t: f32, target: ConfType) -> Self {
-        let mut boop = self.boop.clone();
-        let processed = boop.boop(conf, t, &target);
-        Self {
-            boop,
-            target: target.clone(),
-            processed,
-        }
-    }
-}
-
-#[derive(Debug)]
-enum BoopMng<ConfType, BoopConfType>
-where
-    ConfType: ConfCommon<BoopConfType>,
-    BoopConfType: BoopConfCommon<ConfType>,
-{
-    Uninitialized,
-    NoBoop(ConfType),
-    Boop(BoopHolder<ConfType, BoopConfType>),
-}
-
-impl<ConfType, BoopConfType> BoopMng<ConfType, BoopConfType>
-where
-    ConfType: ConfCommon<BoopConfType>,
-    BoopConfType: BoopConfCommon<ConfType>,
-{
-    fn any_weird_states(&self) -> bool {
-        match self {
-            BoopMng::Uninitialized => false,
-            BoopMng::NoBoop(_) => false,
-            BoopMng::Boop(b) => b.boop.any_weird_states(),
-        }
-    }
-
-    fn config(&self) -> &ConfType {
-        match self {
-            BoopMng::Uninitialized => unreachable!(),
-            BoopMng::NoBoop(c) => c,
-            BoopMng::Boop(c) => &c.processed,
-        }
-    }
-
-    fn _reset(&self, target: ConfType) -> Self {
-        // means we should set ourself to no-boop
-        BoopMng::NoBoop(target)
-    }
-
-    fn _normal_update(&self, boop_conf: &BoopConf, t: f32, target: ConfType) -> Self {
-        match self {
-            BoopMng::Boop(b) => BoopMng::Boop(b.update(boop_conf, t, target)),
-            _ => BoopMng::Boop(BoopHolder::new(boop_conf, target)),
-        }
-    }
-
-    fn update(&self, boop_conf: &BoopConf, t: f32, target: ConfType) -> Self {
-        if !boop_conf.reset() {
-            self._normal_update(boop_conf, t, target)
-        } else {
-            self._reset(target)
-        }
+    fn should_lerp(&self) -> bool {
+        self.lerp_rate > 0.0
     }
 }
 
@@ -656,45 +499,63 @@ fn capture_folder(save_path: &Path, run_id: u64) -> PathBuf {
     save_path.join(format!("{}", run_id))
 }
 
-pub struct LiveCoder<ConfType, ControlConfType, BoopConfType>
+pub struct LiveCoder<ConfType, ControlConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
-    BoopConfType: BoopConfCommon<ConfType>,
+    ConfType: ConfCommon + Send + Sync,
     ControlConfType: LiveCodeCommon<ConfType>,
 {
     run_id: u64,
-    controlconfig: ControlConfType,
+    pub controlconfig: ControlConfType,            // latest one
+    queued_configcontrol: Option<ControlConfType>, // if a new one comes in before we're done, queue it!
     util: LiveCodeUtil,
-    livecode_src: LivecodeSrc,
+    livecode_src: LivecodeSrc, // get info from outside world
     save_path: Option<PathBuf>,
-    prev_controlconfig: ControlConfType,
-    boop_mng: BoopMng<ConfType, BoopConfType>,
-    // sorry, the cache is mixed between boom_mng, but sometimes we need this
+    pub prev_controlconfig: ControlConfType, // last one
+    curr_conf: Option<ConfType>,
+    // sorry, the cache is mixed between curr_conf, but sometimes we need this
     cached_timeless_app_config: Option<AppConfigTiming>,
     cached_world: Option<LivecodeWorldState>,
+    assets: AssetsRef,
+    maybe_args: Option<BaseConfigArgs>, // should redesign this...
+    lerp_pct: f32,                      // moving between things
 }
-impl<ConfType, ControlConfType, BoopConfType> LiveCoder<ConfType, ControlConfType, BoopConfType>
+impl<ConfType, ControlConfType> LiveCoder<ConfType, ControlConfType>
 where
-    ConfType: ConfCommon<BoopConfType>,
-    BoopConfType: BoopConfCommon<ConfType>,
+    ConfType: ConfCommon + Send + Sync + Lerpable,
     ControlConfType: LiveCodeCommon<ConfType>,
 {
     pub fn new_web(
         conf: String,
         livecode_src: LivecodeSrc,
-    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
-        let controlconfig = ControlConfType::parse(&conf)
-            .map_err(|err| LivecodeError::Raw(format!("error parsing {}", err)))?;
-        Self::new_full(controlconfig, None, livecode_src)
+        load_funcs: &[Box<dyn AssetLoader>],
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
+        let controlconfig = ControlConfType::parse(&conf).map_err(|err| {
+            if let Some(error) = err.location() {
+                LivecodeError::SerdeLoc(error, err.to_string())
+            } else {
+                LivecodeError::Raw(err.to_string())
+            }
+        })?;
+        Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }
 
     // this one panics if something goes wrong
     pub fn new(
         save_path: PathBuf,
         livecode_src: LivecodeSrc,
-    ) -> LiveCoder<ConfType, ControlConfType, BoopConfType> {
+        load_funcs: &[Box<dyn AssetLoader>],
+    ) -> LiveCoder<ConfType, ControlConfType> {
         let controlconfig = ControlConfType::fs_load();
-        let result = Self::new_full(controlconfig, Some(save_path), livecode_src);
+
+        let args = BaseConfigArgs::parse();
+
+        let result = Self::new_full(
+            controlconfig,
+            Some(save_path),
+            livecode_src,
+            load_funcs,
+            Some(args),
+        );
         result.expect("error loading!")
     }
 
@@ -702,7 +563,9 @@ where
         controlconfig: ControlConfType,
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
-    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType, BoopConfType>> {
+        load_funcs: &[Box<dyn AssetLoader>],
+        maybe_args: Option<BaseConfigArgs>,
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
         let run_id = run_id();
 
         let util = LiveCodeUtil::new()?;
@@ -710,14 +573,28 @@ where
         let mut s = LiveCoder {
             run_id,
             controlconfig: controlconfig.clone(),
+            queued_configcontrol: None,
             livecode_src,
             util,
             save_path,
             prev_controlconfig: controlconfig,
-            boop_mng: BoopMng::Uninitialized,
+            curr_conf: None,
             cached_timeless_app_config: None, // uninitialized
             cached_world: None,
+            assets: Assets::empty_ref(),
+            maybe_args,
+            lerp_pct: 1.0, // start in the done state!
         };
+
+        // hrm, before doing most things, load the assets (but we'll do this line again...)
+
+        s.cached_timeless_app_config = Some(s._timing_config().o(&s._timeless_world()?)?);
+        s._update_world()?;
+
+        let w = s.world();
+        let app_conf = s.controlconfig._app_config().o(w)?;
+        let assets = app_conf.assets.load(load_funcs);
+        s.assets = assets.to_ref();
 
         // use the object to create a world and generate the configs
         s.set_processed_config()?;
@@ -748,17 +625,36 @@ where
 
         let w = self.world();
 
-        let target = self.controlconfig.o(&w)?;
+        let mut target = self.controlconfig.o(&w)?;
+        let mut lerp_change = 0.0;
 
-        let t = w.time().bar();
+        // todo, make this optional
+        if target.config_app_loc().should_lerp() {
+            if self.lerp_pct < 1.0 {
+                let old_target = self.prev_controlconfig.o(&w)?;
+                target = old_target.lerpify(&target, self.lerp_pct);
+            }
 
-        let boop_conf = target.config_app_loc().boop.to_livecode();
+            // prepare this for next time
+            lerp_change = self.time_delta() * target.config_app_loc().lerp_rate;
+        };
 
-        self.boop_mng = self.boop_mng.update(&boop_conf, t, target);
-        if self.boop_mng.any_weird_states() {
-            // todo, should this be an error too?
-            println!("some nans");
+        let _t = w.time().bar();
+
+        // set the current config
+        self.curr_conf = Some(target);
+
+        self.lerp_pct += lerp_change;
+
+        if self.lerp_pct >= 1.0 {
+            if let Some(new_target) = &self.queued_configcontrol {
+                self.prev_controlconfig = self.controlconfig.clone();
+                self.controlconfig = new_target.clone();
+                self.lerp_pct = 0.0;
+                self.queued_configcontrol = None;
+            }
         }
+
         Ok(())
     }
 
@@ -786,10 +682,16 @@ where
     fn reload_config(&mut self) {
         let result = ControlConfType::fs_load_if_needed_and_update_info(&mut self.util);
         if let Ok(Some(d)) = result {
-            self.prev_controlconfig = self.controlconfig.clone();
-            self.controlconfig = d;
+            // if we're in the middle of something, put this in the queue
+            if self.lerp_pct < 1.0 && self.lerp_pct > 0.0 {
+                self.queued_configcontrol = Some(d);
+            } else {
+                self.prev_controlconfig = self.controlconfig.clone();
+                self.controlconfig = d;
+                self.lerp_pct = 0.0; // reloaded, so time to reload it!
+            }
         } else if let Err(e) = result {
-            eprintln!("e {:?}", e);
+            eprintln!("Error {}", e);
         }
     }
 
@@ -799,6 +701,8 @@ where
             Ok(d) => {
                 self.prev_controlconfig = self.controlconfig.clone();
                 self.controlconfig = d;
+                self.queued_configcontrol = None;
+                self.lerp_pct = 0.0;
                 Ok(())
             }
             Err(e) => Err(e),
@@ -824,6 +728,26 @@ where
         );
 
         self.livecode_src.update(&update_input);
+
+        if app.elapsed_frames() % 20 == 0 {
+            let variables = self
+                .controlconfig
+                .variable_identifiers()
+                .into_iter()
+                .map(|x| {
+                    (
+                        x.name.clone(),
+                        LivecodeUsage {
+                            name: x.name.clone(),
+                            is_used: true,
+                            value: None, // todo
+                        },
+                    )
+                })
+                .collect::<HashMap<_, _>>();
+
+            self.livecode_src.feedback(&variables);
+        }
 
         // needs to happen before checking is on bar
         self.util.update_with_frame(app.elapsed_frames());
@@ -861,7 +785,9 @@ where
 
         let ctx = &self.controlconfig._app_config().ctx;
 
-        let world = self.util.world(&self.livecode_src, &timing_conf, ctx)?;
+        let world = self
+            .util
+            .world(&self.livecode_src, &timing_conf, ctx, self.assets.clone())?;
 
         self.cached_world = Some(world);
         Ok(())
@@ -885,24 +811,8 @@ where
     }
 
     pub fn config(&self) -> &ConfType {
-        self.boop_mng.config()
+        self.curr_conf.as_ref().unwrap() // should be set
     }
-
-    // pub fn midi(&self) -> &MidiValues {
-    //     &self.midi.values
-    // }
-
-    // pub fn audio(&self) -> &AudioValues {
-    //     &self.audio.values
-    // }
-
-    // pub fn app_input_values(&self) -> &AppInputValues {
-    //     &self.app_input.values
-    // }
-
-    // pub fn capture_folder(&self) -> PathBuf {
-    //     capture_folder(self.save_path(), self.run_id)
-    // }
 
     pub fn capture_frame_name(&self, frame: u64, prefix: &str) -> Option<PathBuf> {
         if let Some(save_path) = &self.save_path {
@@ -930,7 +840,12 @@ where
                 let img_name = capture_frame_name.with_extension("txt");
                 fs::write(img_name, format!("{:?}", self.config())).expect("Unable to write file");
                 let img_name = capture_frame_name.with_extension("yaml");
-                fs::copy(env::args().collect::<Vec<String>>()[1].clone(), img_name).unwrap();
+
+                if let Some(env) = &self.maybe_args {
+                    fs::copy(env.config_path.clone(), img_name).unwrap();
+                } else {
+                    println!("Hm, didn't have a base config args, but trying to save...");
+                }
             }
         }
         Ok(())
@@ -942,8 +857,17 @@ where
     {
         let w = self.world();
 
+        let should_capture = self
+            .maybe_args
+            .as_ref()
+            .map(|env| env.capture)
+            .unwrap_or(false);
+
         let frame = w.actual_frame_u64();
-        if (self.app_config().capture && frame != 0) || self.app_config().should_capture() {
+        if (self.app_config().capture && frame != 0)
+            || self.app_config().should_capture()
+            || should_capture
+        {
             let frame_freq = 1;
             if frame % frame_freq == 0 {
                 self.capture(capture_frame_fn)?;
@@ -998,5 +922,13 @@ where
     // seconds since last render
     pub fn time_delta(&self) -> f32 {
         self.world().time().seconds_between_render_times()
+    }
+
+    pub fn sketch_args(&self) -> Vec<String> {
+        if let Some(args) = &self.maybe_args {
+            args.sketch_args.clone()
+        } else {
+            vec![]
+        }
     }
 }
