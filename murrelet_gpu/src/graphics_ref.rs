@@ -1377,11 +1377,11 @@ impl Graphics {
                             store: true,
                         }),
                         stencil_ops: None,
-                        #[cfg(not(feature = "nannou"))]
-                        occlusion_query_set: Default::default(),
-                        #[cfg(not(feature = "nannou"))]
-                        timestamp_writes: Default::default(),
                     }),
+                    #[cfg(not(feature = "nannou"))]
+                    occlusion_query_set: Default::default(),
+                    #[cfg(not(feature = "nannou"))]
+                    timestamp_writes: Default::default(),
                 });
                 shadow_pass.set_pipeline(shadow_pipeline);
                 shadow_pass.set_bind_group(0, &shadow_bind_group, &[]);
