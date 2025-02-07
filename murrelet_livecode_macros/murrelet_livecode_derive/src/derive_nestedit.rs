@@ -20,25 +20,10 @@ impl GenFinal for FieldTokensNestEdit {
         let name = idents.name;
         let name_str = name.to_string();
 
-        // let for_nestedit = variants.iter().map(|x| x.for_nestedit().clone());
-
-        // println!("name_str {:?}", name_str);
-        // for i in &variants {
-        //     println!("i.kind {:?}", i.kind);
-        // }
-
-        // println!("variants.len() {:?}", variants.len());
-
         let for_nestedit_get_newtype = variants
             .iter()
             .map(|x| x.for_nestedit_get_newtype.as_ref().clone().unwrap())
             .next();
-
-        // println!("for_nestedit_get_newtype.is_none() {:?}", for_nestedit_get_newtype.is_none());
-
-        // let first_for_nestedit_get = for_nestedit_get.next().unwrap();
-
-        // dbg!(&first_for_nestedit_get);
 
         quote! {
             impl murrelet_livecode::nestedit::NestEditable for #name {
@@ -49,8 +34,6 @@ impl GenFinal for FieldTokensNestEdit {
                 }
 
                 fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
-                    // #name{#(#for_nestedit,)*}
-                    // self.0.nest_get(getter)
                     match getter {
                         #for_nestedit_get_newtype,
                         _ => {
@@ -209,7 +192,6 @@ impl GenFinal for FieldTokensNestEdit {
 
         let for_nestedit_get = quote! {
             #name::#variant_ident(e) => e.nest_get(getter)
-            // next_getter.nest_get(first_part, &remaining)
         };
 
         FieldTokensNestEdit {
@@ -232,8 +214,6 @@ impl GenFinal for FieldTokensNestEdit {
             quote! { (Some(x), _) if x == #variant_ident_str => #name::#variant_ident };
 
         let for_nestedit_get = quote! {
-            //#variant_ident_str => #name::#variant_ident
-            // next_getter.nest_get(first_part, &remaining)
             #name::#variant_ident => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("unitcell enum")))
         };
 
@@ -471,14 +451,12 @@ impl GenFinal for FieldTokensNestEdit {
         };
 
         let for_nestedit_get = quote! {
-            // next_getter.nest_get(first_part, &remaining)
             [#yaml_name, ..] => {
                 Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("lazy not implemented yet: {}", getter.join(","))))
             }
         };
 
         let for_nestedit_get_newtype = quote! {
-            // next_getter.nest_get(first_part, &remaining)
             _ => {
                 Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("lazy not implemented yet: {}", getter.join(","))))
             }

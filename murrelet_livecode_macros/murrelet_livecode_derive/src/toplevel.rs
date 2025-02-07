@@ -8,7 +8,6 @@ use crate::derive_livecode::update_to_control_ident;
 pub(crate) fn top_level_livecode(ident: syn::Ident) -> TokenStream2 {
     let conf_ident = ident.clone();
     let control_ident = update_to_control_ident(ident.clone());
-    // let boop_ident = update_to_boop_ident(ident);
 
     quote! {
         type LiveCode = LiveCoder<#conf_ident, #control_ident>;
@@ -26,8 +25,6 @@ pub(crate) fn top_level_livecode(ident: syn::Ident) -> TokenStream2 {
         }
 
         impl murrelet_perform::perform::CommonTrait for #conf_ident {}
-        // impl murrelet_perform::perform::CommonTrait for #boop_ident {}
-        // impl murrelet_perform::perform::BoopConfCommon<#conf_ident> for #boop_ident {}
         impl murrelet_perform::perform::CommonTrait for #control_ident {}
         impl murrelet_perform::perform::LiveCodeCommon<#conf_ident> for #control_ident {}
 
@@ -39,14 +36,12 @@ pub(crate) fn top_level_livecode(ident: syn::Ident) -> TokenStream2 {
 pub(crate) fn impl_all_the_traits(ident: syn::Ident) -> TokenStream2 {
     let conf_ident = ident.clone();
     let control_ident = update_to_control_ident(ident.clone());
-    // let boop_ident = update_to_boop_ident(ident);
 
     quote! {
         impl murrelet_perform::perform::CommonTrait for #conf_ident {}
         impl murrelet_perform::perform::ConfCommon for #conf_ident {
             fn config_app_loc(&self) -> &murrelet_perform::perform::AppConfig { &self.app }
         }
-        // impl murrelet_perform::perform::CommonTrait for #boop_ident {}
         impl murrelet_perform::perform::CommonTrait for #control_ident {}
         impl murrelet_perform::perform::LiveCodeCommon<#conf_ident> for #control_ident {}
     }

@@ -7,7 +7,6 @@ use syn::DeriveInput;
 #[darling(attributes(graphics))]
 pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ident: Option<syn::Ident>,
-    // pub(crate) ty: syn::Type,
     pub(crate) kind: Option<String>,
     pub(crate) ctrl: Option<String>,
     pub(crate) texture: Option<String>,
@@ -17,16 +16,12 @@ pub(crate) struct LivecodeFieldReceiver {
 // for enums
 #[derive(Debug, FromVariant, Clone)]
 #[darling(attributes(graphics))]
-pub(crate) struct LivecodeVariantReceiver {
-    // pub(crate) ident: syn::Ident,
-    // pub(crate) fields: ast::Fields<LivecodeFieldReceiver>,
-}
+pub(crate) struct LivecodeVariantReceiver {}
 
 #[derive(Debug, Clone, FromDeriveInput)]
 #[darling(attributes(graphics), supports(struct_named))]
 pub(crate) struct LivecodeReceiver {
     ident: syn::Ident,
-    // vis: syn::Visibility,
     data: ast::Data<LivecodeVariantReceiver, LivecodeFieldReceiver>,
     ctrl: Option<String>, // this one should be the struct name...
 }
@@ -141,8 +136,6 @@ fn parse_graphics(
                     }
                 }
                 GraphicKind::Ref => {
-                    // let name = ident.to_string();
-
                     if let Some(ctrl_) = &f.ctrl {
                         let ctrl_ident = syn::Ident::new(ctrl_, name.span());
                         let ident_str = ident.to_string();
@@ -184,6 +177,7 @@ fn parse_graphics(
             }
         }
 
+        // hrm, i don't remember why this was commented out
         impl GraphicsRenderer for #name {
             fn render(&self, device: &DeviceStateForRender) {
                 // for pipeline in self.gpu_pipelines(&GraphicsRenderIn::new(true)) {

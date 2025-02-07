@@ -21,7 +21,6 @@ use wgpu_for_nannou as wgpu;
 #[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
-// const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 // const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Uint;
 
 const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;

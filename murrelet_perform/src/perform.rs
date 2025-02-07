@@ -3,7 +3,6 @@ use glam::{vec3, Mat4, Vec2};
 use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
-// use murrelet_livecode::boop::{BoopConfInner, BoopODEConf};
 use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::lerpable::Lerpable;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
@@ -16,7 +15,6 @@ use std::fs;
 use murrelet_common::run_id;
 use std::path::{Path, PathBuf};
 
-// use murrelet_livecode::boop::{BoopConf, BoopFromWorld};
 use murrelet_livecode::livecode::LivecodeFromWorld;
 use murrelet_livecode::livecode::*;
 use murrelet_livecode_derive::Livecode;
@@ -35,13 +33,9 @@ pub trait LiveCodeCommon<T>:
 }
 
 // requirements for the conf
-// pub trait ConfCommon<T: BoopFromWorld<Self>>: CommonTrait {
 pub trait ConfCommon: CommonTrait {
     fn config_app_loc(&self) -> &AppConfig;
 }
-
-// requirements for the boop
-// pub trait BoopConfCommon<T>: BoopFromWorld<T> + CommonTrait {}
 
 #[derive(Clone, Debug)]
 pub struct SvgDrawConfig {
@@ -263,39 +257,6 @@ fn _default_dyn_reset() -> ControlBool {
     ControlBool::Raw(true)
 }
 
-// this stuff adjusts how things update
-// #[derive(Debug, Clone, Livecode)]
-// pub struct AppConfigBoopODEConf {
-//     pub f: f32, // freq
-//     pub z: f32, // something
-//     pub r: f32, // reaction
-// }
-// impl AppConfigBoopODEConf {
-//     fn to_livecode(&self) -> BoopODEConf {
-//         BoopODEConf::new(self.f, self.z, self.r)
-//     }
-// }
-
-// #[derive(Debug, Clone, Livecode)]
-// pub enum AppConfigBoopConfInner {
-//     ODE(AppConfigBoopODEConf),
-//     Noop,
-// }
-// impl AppConfigBoopConfInner {
-//     fn to_livecode(&self) -> BoopConfInner {
-//         match self {
-//             AppConfigBoopConfInner::ODE(o) => BoopConfInner::ODE(o.to_livecode()),
-//             AppConfigBoopConfInner::Noop => BoopConfInner::Noop,
-//         }
-//     }
-// }
-
-// #[derive(Debug, Clone, Livecode)]
-// pub struct AppConfigFieldEntry {
-//     name: String,
-//     conf: AppConfigBoopConfInner,
-// }
-
 fn _reset_b() -> ControlBool {
     ControlBool::force_from_str("kBf")
 }
@@ -304,52 +265,6 @@ fn _reset_b_lazy() -> ControlLazyNodeF32 {
     // ControlLazyNodeF32::from_control_bool(false)
     unimplemented!("no lazy bools yet??")
 }
-
-// fn _base_noop_boop_conf() -> ControlAppConfigBoopConfInner {
-//     ControlAppConfigBoopConfInner::Noop
-// }
-
-// fn _base_noop_boop_conf_lazy() -> ControlLazyAppConfigBoopConfInner {
-//     ControlLazyAppConfigBoopConfInner::Noop
-// }
-
-// #[derive(Debug, Clone, Livecode)]
-// pub struct AppConfigBoopConf {
-//     #[livecode(serde_default = "_reset_b")]
-//     pub reset: bool, // if true, change immediately
-//     #[livecode(serde_default = "_base_noop_boop_conf")]
-//     base: AppConfigBoopConfInner,
-//     overrides: Vec<AppConfigFieldEntry>,
-// }
-// impl AppConfigBoopConf {
-//     fn to_livecode(&self) -> BoopConf {
-//         let fields = self
-//             .overrides
-//             .iter()
-//             .map(|x| (x.name.to_owned(), x.conf.to_livecode()))
-//             .collect();
-//         BoopConf::new(self.reset, self.base.to_livecode(), fields)
-//     }
-// }
-// impl Default for ControlAppConfigBoopConf {
-//     fn default() -> Self {
-//         ControlAppConfigBoopConf {
-//             reset: ControlBool::Raw(true),
-//             base: ControlAppConfigBoopConfInner::Noop,
-//             overrides: vec![],
-//         }
-//     }
-// }
-
-// impl Default for ControlLazyAppConfigBoopConf {
-//     fn default() -> Self {
-//         ControlLazyAppConfigBoopConf {
-//             reset: ControlLazyNodeF32::Bool(true),
-//             base: ControlLazyAppConfigBoopConfInner::Noop,
-//             overrides: vec![],
-//         }
-//     }
-// }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode)]
@@ -493,8 +408,6 @@ pub struct AppConfig {
     pub svg: SvgConfig,
     #[livecode(serde_default = "default")]
     pub gpu: GpuConfig,
-    // #[livecode(serde_default = "default")]
-    // pub boop: AppConfigBoopConf,
     // only reload on bar. this can be an easy way to sync visuals (e.g. only do big
     // changes when the bar hits), but can also slow down config changes if the bpm is low :o
     // so I usually disable this
@@ -538,94 +451,6 @@ impl AppConfig {
         self.lerp_rate > 0.0
     }
 }
-
-// #[derive(Debug)]
-// struct BoopHolder<ConfType, BoopConfType>
-// where
-//     ConfType: ConfCommon<BoopConfType> + Sync + Send,
-//     BoopConfType: BoopFromWorld<ConfType> + Clone,
-// {
-//     boop: BoopConfType,  // holds the state
-//     target: ConfType,    // holds the most recent target
-//     processed: ConfType, // holds the current locations
-// }
-
-// impl<ConfType, BoopConfType> BoopHolder<ConfType, BoopConfType>
-// where
-//     ConfType: ConfCommon<BoopConfType> + Sync + Send,
-//     BoopConfType: BoopFromWorld<ConfType> + Clone,
-// {
-//     fn new(conf: &BoopConf, target: ConfType) -> Self {
-//         Self {
-//             boop: BoopConfType::boop_init(conf, &target),
-//             target: target.clone(),
-//             processed: target,
-//         }
-//     }
-
-//     fn update(&self, conf: &BoopConf, t: f32, target: ConfType) -> Self {
-//         let mut boop = self.boop.clone();
-//         let processed = boop.boop(conf, t, &target);
-//         Self {
-//             boop,
-//             target: target.clone(),
-//             processed,
-//         }
-//     }
-// }
-
-// #[derive(Debug)]
-// enum BoopMng<ConfType, BoopConfType>
-// where
-//     ConfType: ConfCommon<BoopConfType> + Sync + Send,
-//     BoopConfType: BoopConfCommon<ConfType>,
-// {
-//     Uninitialized,
-//     NoBoop(ConfType),
-//     Boop(BoopHolder<ConfType, BoopConfType>),
-// }
-
-// impl<ConfType, BoopConfType> BoopMng<ConfType, BoopConfType>
-// where
-//     ConfType: ConfCommon<BoopConfType> + Sync + Send,
-//     BoopConfType: BoopConfCommon<ConfType>,
-// {
-//     fn any_weird_states(&self) -> bool {
-//         match self {
-//             BoopMng::Uninitialized => false,
-//             BoopMng::NoBoop(_) => false,
-//             BoopMng::Boop(b) => b.boop.any_weird_states(),
-//         }
-//     }
-
-//     fn config(&self) -> &ConfType {
-//         match self {
-//             BoopMng::Uninitialized => unreachable!(),
-//             BoopMng::NoBoop(c) => c,
-//             BoopMng::Boop(c) => &c.processed,
-//         }
-//     }
-
-//     fn _reset(&self, target: ConfType) -> Self {
-//         // means we should set ourself to no-boop
-//         BoopMng::NoBoop(target)
-//     }
-
-//     fn _normal_update(&self, boop_conf: &BoopConf, t: f32, target: ConfType) -> Self {
-//         match self {
-//             BoopMng::Boop(b) => BoopMng::Boop(b.update(boop_conf, t, target)),
-//             _ => BoopMng::Boop(BoopHolder::new(boop_conf, target)),
-//         }
-//     }
-
-//     fn update(&self, boop_conf: &BoopConf, t: f32, target: ConfType) -> Self {
-//         if !boop_conf.reset() {
-//             self._normal_update(boop_conf, t, target)
-//         } else {
-//             self._reset(target)
-//         }
-//     }
-// }
 
 // todo, this is all a little weird (svg save path), i should revisit it..
 pub struct LilLiveConfig<'a> {
@@ -677,7 +502,6 @@ fn capture_folder(save_path: &Path, run_id: u64) -> PathBuf {
 pub struct LiveCoder<ConfType, ControlConfType>
 where
     ConfType: ConfCommon + Send + Sync,
-    // BoopConfType: BoopConfCommon<ConfType>,
     ControlConfType: LiveCodeCommon<ConfType>,
 {
     run_id: u64,
@@ -687,9 +511,8 @@ where
     livecode_src: LivecodeSrc, // get info from outside world
     save_path: Option<PathBuf>,
     pub prev_controlconfig: ControlConfType, // last one
-    // boop_mng: BoopMng<ConfType, BoopConfType>,
     curr_conf: Option<ConfType>,
-    // sorry, the cache is mixed between boom_mng, but sometimes we need this
+    // sorry, the cache is mixed between curr_conf, but sometimes we need this
     cached_timeless_app_config: Option<AppConfigTiming>,
     cached_world: Option<LivecodeWorldState>,
     assets: AssetsRef,
@@ -699,7 +522,6 @@ where
 impl<ConfType, ControlConfType> LiveCoder<ConfType, ControlConfType>
 where
     ConfType: ConfCommon + Send + Sync + Lerpable,
-    // BoopConfType: BoopConfCommon<ConfType>,
     ControlConfType: LiveCodeCommon<ConfType>,
 {
     pub fn new_web(
@@ -756,7 +578,6 @@ where
             util,
             save_path,
             prev_controlconfig: controlconfig,
-            // boop_mng: BoopMng::Uninitialized,
             curr_conf: None,
             cached_timeless_app_config: None, // uninitialized
             cached_world: None,
@@ -816,24 +637,14 @@ where
 
             // prepare this for next time
             lerp_change = self.time_delta() * target.config_app_loc().lerp_rate;
-            // println!("lerp_change {:?}", lerp_change);
         };
 
         let _t = w.time().bar();
 
-        // let boop_conf = target.config_app_loc().boop.to_livecode();
-
-        // self.boop_mng = self.boop_mng.update(&boop_conf, t, target);
-        // if self.boop_mng.any_weird_states() {
-        //     // todo, should this be an error too?
-        //     println!("some nans");
-        // }
         // set the current config
         self.curr_conf = Some(target);
 
         self.lerp_pct += lerp_change;
-
-        // println!("lerp {} {}", self.queued_configcontrol.is_some(), self.lerp_pct);
 
         if self.lerp_pct >= 1.0 {
             if let Some(new_target) = &self.queued_configcontrol {
@@ -1000,25 +811,8 @@ where
     }
 
     pub fn config(&self) -> &ConfType {
-        // self.boop_mng.config()
         self.curr_conf.as_ref().unwrap() // should be set
     }
-
-    // pub fn midi(&self) -> &MidiValues {
-    //     &self.midi.values
-    // }
-
-    // pub fn audio(&self) -> &AudioValues {
-    //     &self.audio.values
-    // }
-
-    // pub fn app_input_values(&self) -> &AppInputValues {
-    //     &self.app_input.values
-    // }
-
-    // pub fn capture_folder(&self) -> PathBuf {
-    //     capture_folder(self.save_path(), self.run_id)
-    // }
 
     pub fn capture_frame_name(&self, frame: u64, prefix: &str) -> Option<PathBuf> {
         if let Some(save_path) = &self.save_path {

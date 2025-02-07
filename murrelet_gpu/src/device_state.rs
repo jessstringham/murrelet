@@ -141,18 +141,8 @@ fn write_png_to_texture(
     // just get the name to name the texture
     let p = path.file_name().map(|x| x.to_str()).flatten().unwrap_or("");
 
-    // let img_data_f16: Vec<F16> = img_rgba
-    //     .pixels()
-    //     .flat_map(|p| {
-    //         p.0.iter().map(|&c| F16(f16::from_f32(c as f32 / 255.0)))
-    //     })
-    //     .collect();
-
-    // let padded_img = convert_u8_to_f16u16_buffer(&img_rgba, img_width, img_height);
-
     // bah, uh, okay copy this to a buffer of the right length
     let mut padded_img = vec![0; (padded_row * buffer_rows).try_into().unwrap()];
-    // for (row_i, data) in img_rgba.chunks(bytes_per_row as usize).enumerate() {
     for (row_i, data) in img_rgba.chunks(bytes_per_row as usize).enumerate() {
         let start = row_i * padded_row as usize;
         let end = start + data.len();

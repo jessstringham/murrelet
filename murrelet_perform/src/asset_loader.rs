@@ -40,15 +40,6 @@ pub struct AssetFilenames {
 }
 
 impl AssetFilenames {
-    // pub fn new(files: Vec<String>) -> Self {
-    //     Self {
-    //         files: files
-    //             .into_iter()
-    //             .map(|x| PolylineLayerFile::new(x))
-    //             .collect_vec(),
-    //     }
-    // }
-
     pub fn empty() -> Self {
         Self { files: Vec::new() }
     }

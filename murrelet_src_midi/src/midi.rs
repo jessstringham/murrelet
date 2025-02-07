@@ -95,16 +95,6 @@ pub struct MidiMng {
 }
 
 impl MidiMng {
-    const FIGHTER: &[&'static str] = &[
-        "mf0", "mf1", "mf2", "mf3", "mf4", "mf5", "mf6", "mf7", "mf8", "mf10", "mf11", "mf12",
-        "mf13", "mf14", "mf15",
-    ];
-
-    const TWISTER: &[&'static str] = &[
-        "m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m10", "m11", "m12", "m13", "m14",
-        "m15",
-    ];
-
     pub fn new() -> MidiMng {
         let cxn = MidiCxn::new();
         let out = get_midi_out();

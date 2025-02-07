@@ -942,7 +942,6 @@ impl UnitCellDetailsWallpaper {
         // adjust the shape (symmetry, rotation), translate the center
         let offset = self.offset();
         let new_center = SimpleTransform2d::translate(offset);
-        // let new_center = Mat4::from_vec2_translate(self.offset());
         self.adjust_shape.add_after(&new_center)
     }
 

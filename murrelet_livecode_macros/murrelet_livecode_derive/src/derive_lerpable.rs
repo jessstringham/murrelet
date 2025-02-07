@@ -88,8 +88,6 @@ impl GenFinal for FieldTokensLerpable {
         let variant_ident = idents.variant_ident();
         let name = idents.enum_ident();
 
-        // let unnamed = idents.data.fields.fields;
-
         // if they're the same, lerp the struct inside. otherwise, will default to the step!
         let for_lerpable = quote! {
             (#name::#variant_ident(self_s), #name::#variant_ident(other_s)) => #name::#variant_ident(self_s.lerpify(&other_s, pct))
