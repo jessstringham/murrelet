@@ -20,7 +20,7 @@ quote = "1.0.18"
 proc-macro2 = "1.0.37"
 darling = "0.20.3"
 serde = { version = "1.0.104", features = ["derive"] }
-murrelet_livecode = { version = "0.1.0", path = "../../murrelet_livecode", default_features = false}
+murrelet_livecode = { version = "0.1.0", path = "../../murrelet_livecode", default-features = false}
 
 # just for examples...
 murrelet_common = { version = "0.1.0", path = "../../murrelet_common"}
