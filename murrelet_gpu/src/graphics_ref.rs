@@ -110,9 +110,6 @@ impl VertexUniforms {
     }
 
     fn as_bytes(&self) -> &[u8] {
-        // println!("bytemuck::cast_slice(&self.view_proj) {:?}", bytemuck::cast_slice::<[[f32; 4]; 4], &[u8]>(&self.view_proj));
-        // bytemuck::bytes_of(self)
-        // let x = bytemuck::cast_slice(&self.view_proj);
         bytemuck::bytes_of(self)
     }
 
@@ -132,20 +129,6 @@ impl VertexUniforms {
             mapped_at_creation: false,
         })
     }
-
-    // fn copy_to_buffer(
-    //     &self,
-    //     dest: &wgpu::Buffer,
-    //     device: &wgpu::Device,
-    //     encoder: &mut wgpu::CommandEncoder,
-    // ) {
-    //     encoder.copy_buffer_to_buffer(
-    //         &self.to_buffer(device),
-    //          0,
-    //          dest,
-    //          0,
-    //          self.uniforms_size());
-    // }
 }
 
 pub struct Scene {
@@ -193,8 +176,6 @@ impl Triangulate {
         } else {
             self.order.extend([v0, v1, v2, v1, v3, v2])
         }
-
-        // [0, 1, 2, 1, 3, 2]
     }
 
     fn order(&self) -> &[u16] {
@@ -396,11 +377,6 @@ impl GraphicsCreator {
         });
         self
     }
-
-    // pub fn with_custom_input_vertex(mut self, v: InputVertexConf) -> Self {
-    //     self.input_vertex = v;
-    //     self
-    // }
 
     pub fn with_custom_triangle(mut self, t: &Triangulate) -> Self {
         self.input_vertex = InputVertexConf::from_triangulate(t);
@@ -709,16 +685,6 @@ impl<GraphicsConf> GraphicsRefWithControlFn<GraphicsConf> {
         let ctrl_graphics = (self.control_graphic_fn)(conf);
 
         ControlGraphicsRef::new(self.label, ctrl_graphics, Some(self.graphics.clone()))
-
-        // if let Some(control_graphic_fn) = self.control_graphic_fn {
-        //     let ctrl_graphics = (*control_graphic_fn)(c, conf);
-        //     // ControlGraphicsRef::new(
-        //     //     ctrl_graphics,
-        //     //     Some(self.graphics.clone())
-        //     // )
-        // } else {
-        //     vec![]
-        // }
     }
 
     pub fn graphics(&self) -> GraphicsRef {
@@ -989,11 +955,6 @@ impl Graphics {
 
             // this should be set too, can make this nicer
             if let Some(v) = &views_for_3d {
-                // entries.push(wgpu::BindGroupEntry {
-                //     binding: 4,
-                //     resource: wgpu::BindingResource::TextureView(&v.depth_view),
-                // });
-
                 entries.push(wgpu::BindGroupEntry {
                     binding: 4,
                     resource: wgpu::BindingResource::TextureView(&v.shadow_view),
@@ -1023,8 +984,6 @@ impl Graphics {
         dst_format: wgpu::TextureFormat,
     ) -> wgpu::RenderPipeline {
         let pipeline_layout = Graphics::_pipeline_layout(device, bind_group_layout);
-
-        // let vertex_buffer_layouts_attributes = ;
 
         let vertex_buffer_layouts = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
@@ -1139,7 +1098,6 @@ impl Graphics {
         // todo, figure out msaa samples
         // let msaa_samples = 1;
 
-        // let vs_mod = shader_from_path(device, VERTEX_SHADER);
         let fs_mod = shader_from_path(device, fs_shader_data);
 
         // make a bind group layout

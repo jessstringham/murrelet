@@ -1102,8 +1102,6 @@ impl ImageTexture {
             ],
         );
 
-        println!("IMG TEXTURE {:?}", graphics.input_texture_descriptor());
-
         Self {
             name: name.to_owned(),
             graphics,

@@ -100,15 +100,12 @@ fn make_grid(
 
                 center *= 100.0;
 
-                let transform = SimpleTransform2d::new(
-                    vec![
-                        SimpleTransform2dStep::translate(center),
-                        SimpleTransform2dStep::scale_both(cell_size.x / 100.0)
-                    ]
-                );
+                let transform = SimpleTransform2d::new(vec![
+                    SimpleTransform2dStep::translate(center),
+                    SimpleTransform2dStep::scale_both(cell_size.x / 100.0),
+                ]);
 
-                Mat3::from_translation(center)
-                    * Mat3::from_scale(cell_size.x / 100.0 * Vec2::ONE);
+                Mat3::from_translation(center) * Mat3::from_scale(cell_size.x / 100.0 * Vec2::ONE);
                 UnitCellContext::new(ctx, transform)
             })
         })

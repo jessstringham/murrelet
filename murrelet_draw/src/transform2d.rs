@@ -200,17 +200,6 @@ impl Transform2d {
                 }),
                 Transform2dStep::Skew(_v22) => {
                     todo!();
-
-                    // claud says
-
-                    // let det = mat2.x.x * mat2.y.y - mat2.x.y * mat2.y.x;
-                    // let inv_det = 1.0 / det;
-
-                    // let inverse = Mat2::new(
-                    //     Vec2::new(mat2.y.y * inv_det, -mat2.x.y * inv_det),
-                    //     Vec2::new(-mat2.y.x * inv_det, mat2.x.x * inv_det)
-                    // );
-                    // Transform2dStep::Skew(inverse)
                 }
             };
             vs.push(v);
