@@ -1334,7 +1334,7 @@ impl Graphics {
                     #[cfg(feature = "nannou")]
                     store: true,
                     #[cfg(not(feature = "nannou"))]
-                    store: wgpu::StoreOp::Store
+                    store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             })
