@@ -50,9 +50,10 @@ impl std::error::Error for LivecodeError {}
 
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
-#[derive(Debug, Deserialize, Clone, schemars::JsonSchema)]
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(transparent)]
-pub struct AdditionalContextNode(#[schemars(with = "String")] Node);
+pub struct AdditionalContextNode(#[cfg_attr(feature = "schemars", schemars(with = "String"))] Node);
 
 impl Default for AdditionalContextNode {
     fn default() -> Self {
@@ -68,7 +69,8 @@ impl AdditionalContextNode {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlVecElementRepeatMethod {
     Single(usize),
@@ -103,7 +105,8 @@ impl ControlVecElementRepeatMethod {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlVecElementRepeat<Source> {
     repeat: ControlVecElementRepeatMethod,
     // #[serde(default)]
@@ -168,7 +171,8 @@ impl<Source> ControlVecElementRepeat<Source> {
     }
 }
 
-#[derive(Debug, Clone, schemars::JsonSchema)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum ControlVecElement<Source> {
     Single(Source),
     Repeat(ControlVecElementRepeat<Source>),

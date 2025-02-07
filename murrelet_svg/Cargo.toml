@@ -7,10 +7,13 @@ repository = "https://github.com/jessstringham/murrelet.git"
 description = "turns murrelet things into svgs for export or the web"
 license = "AGPL-3.0-or-later"
 
+[features]
+schemars = ["murrelet_perform/schemars", "murrelet_draw/schemars"]
+
 [dependencies]
 murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
-murrelet_perform = { version = "0.1.0", path = "../murrelet_perform/" }
-murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/" }
+murrelet_perform = { version = "0.1.0", path = "../murrelet_perform/", default_features = false}
+murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/", default_features = false}
 glam = "0.28.0"
 itertools = "0.10.5"
 svg = "0.10.0"

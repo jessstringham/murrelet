@@ -7,11 +7,16 @@ repository = "https://github.com/jessstringham/murrelet.git"
 description = "drawing functions for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
+[features]
+schemars = ["dep:schemars", "murrelet_livecode/schemars", "murrelet_livecode_macros/schemars", "murrelet_livecode_derive/schemars"]
+
 [dependencies]
-murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/" }
 murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
-murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros/" }
-murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
+
+murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/", default-features = false }
+murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros/", default_features = false }
+murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/", default_features = false }
+
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 evalexpr = "11.1.0"
@@ -24,4 +29,4 @@ anyhow = "1.0.86"
 md-5 = "0.10.6"
 hex = "0.4.3"
 
-schemars = "0.8.21"
+schemars = { version = "0.8.21", optional = true }

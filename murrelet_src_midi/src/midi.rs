@@ -1,4 +1,4 @@
-//#![allow(dead_code)]
+#![allow(dead_code)]
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use murrelet_common::{print_expect, IsLivecodeSrc, LivecodeValue, MurreletTime};
 use std::collections::HashMap;

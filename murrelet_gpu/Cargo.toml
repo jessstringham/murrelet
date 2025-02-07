@@ -11,17 +11,23 @@ license = "AGPL-3.0-or-later"
 default = ["no_nannou"]
 nannou = ["wgpu_for_nannou"]
 no_nannou = ["wgpu_for_latest"]
+schemars = [
+    "dep:schemars",
+    "murrelet_draw/schemars",
+    "murrelet_livecode/schemars",
+    "murrelet_perform/schemars",
+]
 
 [dependencies]
 wgpu_for_latest = { package = "wgpu", version = "0.20.1", optional = true }
 wgpu_for_nannou = { package = "wgpu", version = "0.17.1", optional = true }
 
 murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
-murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/" }
-murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/" }
+murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/", default-features = false }
+murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/", default-features = false }
 murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros/" }
 murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
-murrelet_perform = { version = "0.1.0", path = "../murrelet_perform/" }
+murrelet_perform = { version = "0.1.0", path = "../murrelet_perform/", default-features = false }
 
 glam = "0.28.0"
 palette = "0.7.6"
@@ -37,6 +43,6 @@ half = "2.4.1"
 
 image = "0.25.2"
 
-bytemuck={version="1.16.1", features = ["derive"] }
+bytemuck = { version = "1.16.1", features = ["derive"] }
 
-schemars = "0.8.21"
+schemars = { version = "0.8.21", optional = true }

@@ -1,9 +1,6 @@
 //! Some geometry-related types and helpers
 
 use std::{f32::consts::PI, ops::Add};
-// use std::ops::Add;
-
-// const PI: f32 = 4.0;
 
 use glam::{vec2, Mat3, Mat4, Vec2};
 

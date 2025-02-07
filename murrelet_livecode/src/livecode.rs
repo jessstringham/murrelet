@@ -428,13 +428,14 @@ pub fn _auto_default_bool_true() -> ControlBool {
     ControlBool::Raw(true)
 }
 
-#[derive(Debug, Deserialize, Clone, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlF32 {
     Int(i32),
     Bool(bool),
     Float(f32),
-    #[schemars(with = "String")]
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     Expr(Node),
 }
 
@@ -485,13 +486,14 @@ impl Default for ControlBool {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlBool {
     Raw(bool),
     Int(i32),
     Float(f32),
-    #[schemars(with = "String")]
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     Expr(Node),
 }
 impl ControlBool {

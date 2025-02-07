@@ -7,4 +7,3 @@ authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 [dependencies]
 glam = "0.28.0"
 palette = "0.7.6"
-schemars = "0.8.21"

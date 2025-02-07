@@ -103,6 +103,14 @@ pub enum SimpleTransform2dStep {
     Skew(Vec2, Vec2),
 }
 impl SimpleTransform2dStep {
+    pub fn translate(v: Vec2) -> Self {
+        Self::Translate(v)
+    }
+
+    pub fn scale_both(v: f32) -> Self {
+        Self::Scale(Vec2::ONE * v)
+    }
+
     pub fn transform(&self) -> Mat3 {
         match self {
             Self::Translate(v) => Mat3::from_translation(*v),
@@ -117,7 +125,7 @@ impl SimpleTransform2dStep {
         }
     }
 
-    fn experimental_lerp(&self, other: &SimpleTransform2dStep, pct: f32) -> Self {
+    pub fn experimental_lerp(&self, other: &SimpleTransform2dStep, pct: f32) -> Self {
         match (self, other) {
             (SimpleTransform2dStep::Translate(v0), SimpleTransform2dStep::Translate(v1)) => {
                 SimpleTransform2dStep::Translate(vec_lerp(v0, v1, pct))
@@ -149,6 +157,10 @@ impl SimpleTransform2d {
         Self(v)
     }
 
+    pub fn steps(&self) -> &Vec<SimpleTransform2dStep> {
+        &self.0
+    }
+
     pub fn add_after(&self, transform_vertex: &SimpleTransform2d) -> SimpleTransform2d {
         // just append
         let v = self
@@ -167,19 +179,6 @@ impl SimpleTransform2d {
 
     pub fn translate(v: Vec2) -> Self {
         Self(vec![SimpleTransform2dStep::Translate(v)])
-    }
-
-    pub fn experimental_lerp(&self, other: &SimpleTransform2d, pct: f32) -> SimpleTransform2d {
-        let mut v = vec![];
-        // tood
-        for (i, x) in other.0.iter().enumerate() {
-            if i >= self.0.len() {
-                break;
-            }
-            v.push(self.0[i].experimental_lerp(x, pct))
-        }
-
-        SimpleTransform2d(v)
     }
 }
 

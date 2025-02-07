@@ -442,6 +442,8 @@ impl LivecodeValue {
     }
 }
 
+// I use this to send data back to LiveCodeSrc's, e.g. make a MIDI controller
+// LED glow when it's used in the config.
 #[derive(Debug, Clone)]
 pub struct LivecodeUsage {
     pub name: String,
@@ -462,7 +464,9 @@ impl LivecodeUsage {
 pub trait IsLivecodeSrc {
     fn update(&mut self, input: &LivecodeSrcUpdateInput);
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
-    fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>) {
+    // this is a way to give usage feedback to the livecode src, e.g. tell a MIDI controller
+    // we're using a parameter, or what value to set indicator lights to.
+    fn feedback(&mut self, _variables: &HashMap<String, LivecodeUsage>) {
         // default don't do anything
     }
 }
@@ -604,6 +608,7 @@ impl StrId {
         hasher.finish()
     }
 
+    // ah, doesn't have to be that random
     pub fn to_rn(&self) -> f32 {
         (self.to_seed() as f64 / u64::MAX as f64) as f32
     }

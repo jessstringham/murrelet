@@ -999,12 +999,8 @@ impl UnitCellDetailsWallpaper {
 
     fn experimental_lerp(&self, other: &UnitCellDetailsWallpaper, pct: f32) -> UnitCellDetails {
         UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper {
-            transform_vertex: self
-                .transform_vertex
-                .experimental_lerp(&other.transform_vertex, pct),
-            adjust_shape: self
-                .adjust_shape
-                .experimental_lerp(&other.adjust_shape, pct),
+            transform_vertex: self.transform_vertex.lerpify(&other.transform_vertex, pct),
+            adjust_shape: self.adjust_shape.lerpify(&other.adjust_shape, pct),
             is_base: self.is_base || other.is_base,
         })
     }

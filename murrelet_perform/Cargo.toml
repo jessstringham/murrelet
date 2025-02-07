@@ -9,11 +9,12 @@ license = "AGPL-3.0-or-later"
 
 [features]
 for_the_web = []
+schemars = ["dep:schemars", "murrelet_livecode/schemars", "murrelet_draw/schemars"]
 
 [dependencies]
-murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
-murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/" }
-murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/" }
+murrelet_common = { version = "0.1.0", path = "../murrelet_common/"}
+murrelet_livecode = { version = "0.1.0", path = "../murrelet_livecode/", default_features = false }
+murrelet_draw = { version = "0.1.0", path = "../murrelet_draw/", default_features = false }
 murrelet_livecode_macros = { version = "0.1.0", path = "../murrelet_livecode_macros/" }
 murrelet_livecode_derive = { version = "0.1.0", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
 serde = { version = "1.0.104", features = ["derive"] }
@@ -26,5 +27,6 @@ glam = "0.28.0"
 palette = "0.7.6"
 anyhow = "1.0.86"
 
-schemars = "0.8.21"
+schemars = { version = "0.8.21", optional = true }
+
 clap = {version = "4.5.23", features = ["derive"]}
