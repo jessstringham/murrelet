@@ -9,7 +9,6 @@ use wgpu_for_nannou as wgpu;
 #[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
-use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
 use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;

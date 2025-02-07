@@ -1236,6 +1236,8 @@ impl Graphics {
                     module: &conf.input_vertex.shadow_vs_mod(device),
                     entry_point: "main",
                     buffers: &[vertex_buffer_layouts],
+                    #[cfg(not(feature = "nannou"))]
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: None,
                 primitive: wgpu::PrimitiveState {
@@ -1369,13 +1371,16 @@ impl Graphics {
                         view: &shadow_view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
+                            #[cfg(not(feature = "nannou"))]
+                            store: wgpu::StoreOp::Store,
+                            #[cfg(feature = "nannou")]
                             store: true,
                         }),
                         stencil_ops: None,
-                        #[cfg(not(feature = "nannou"))]
-                        occlusion_query_set: Default::default(),
-                        #[cfg(not(feature = "nannou"))]
-                        timestamp_writes: Default::default(),
+                        // #[cfg(not(feature = "nannou"))]
+                        // occlusion_query_set: Default::default(),
+                        // #[cfg(not(feature = "nannou"))]
+                        // timestamp_writes: Default::default(),
                     }),
                 });
                 shadow_pass.set_pipeline(shadow_pipeline);
