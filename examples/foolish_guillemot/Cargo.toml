@@ -1,6 +1,6 @@
 [package]
 name = "foolish_guillemot"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Jessica Stringham"]
 
@@ -23,15 +23,15 @@ itertools = "0.10.5"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 
-murrelet = { version = "0.1.0", path = "../../murrelet/" }
-murrelet_common = { version = "0.1.0", path = "../../murrelet_common/" }
-murrelet_livecode = { version = "0.1.0", path = "../../murrelet_livecode/" }
-murrelet_livecode_macros = { version = "0.1.0", path = "../../murrelet_livecode_macros/" }
-murrelet_livecode_derive = { version = "0.1.0", path = "../../murrelet_livecode_macros/murrelet_livecode_derive/" }
-murrelet_perform = { version = "0.1.0", path = "../../murrelet_perform/", features = ["for_the_web"] }
-murrelet_draw = { version = "0.1.0", path = "../../murrelet_draw/" }
-murrelet_svg = { version = "0.1.0", path = "../../murrelet_svg/" }
-murrelet_gpu = { version = "0.1.0", path = "../../murrelet_gpu/", features = ["no_nannou"] }
+murrelet = { version = "0.1.1", path = "../../murrelet/" }
+murrelet_common = { version = "0.1.1", path = "../../murrelet_common/" }
+murrelet_livecode = { version = "0.1.1", path = "../../murrelet_livecode/" }
+murrelet_livecode_macros = { version = "0.1.1", path = "../../murrelet_livecode_macros/" }
+murrelet_livecode_derive = { version = "0.1.1", path = "../../murrelet_livecode_macros/murrelet_livecode_derive/" }
+murrelet_perform = { version = "0.1.1", path = "../../murrelet_perform/", features = ["for_the_web"] }
+murrelet_draw = { version = "0.1.1", path = "../../murrelet_draw/" }
+murrelet_svg = { version = "0.1.1", path = "../../murrelet_svg/" }
+murrelet_gpu = { version = "0.1.1", path = "../../murrelet_gpu/", features = ["no_nannou"] }
 
 
 wgpu = { version = "0.20.1", features = ["webgpu", "webgl"] }

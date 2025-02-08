@@ -1,6 +1,6 @@
 [package]
 name = "murrelet_livecode_derive"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
@@ -20,10 +20,10 @@ quote = "1.0.18"
 proc-macro2 = "1.0.37"
 darling = "0.20.3"
 serde = { version = "1.0.104", features = ["derive"] }
-murrelet_livecode = { version = "0.1.0", path = "../../murrelet_livecode", default-features = false}
+murrelet_livecode = { version = "0.1.1", path = "../../murrelet_livecode", default-features = false}
 
 # just for examples...
-murrelet_common = { version = "0.1.0", path = "../../murrelet_common"}
+murrelet_common = { version = "0.1.1", path = "../../murrelet_common"}
 glam = "0.28.0"
 palette = "0.7.6"
 

@@ -1,6 +1,6 @@
 [package]
 name = "murrelet_livecode"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
@@ -11,7 +11,7 @@ license = "AGPL-3.0-or-later"
 schemars = ["dep:schemars"]
 
 [dependencies]
-murrelet_common = { version = "0.1.0", path = "../murrelet_common/" }
+murrelet_common = { version = "0.1.1", path = "../murrelet_common/" }
 itertools = "0.10.5"
 regex = "1.7.3"
 uuid = "1.8.0"
