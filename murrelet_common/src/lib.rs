@@ -2,7 +2,7 @@
 use glam::{vec2, Vec2};
 use glam::{vec3, Vec3};
 use itertools::Itertools;
-use lerpable::{step, IsLerpingMethod, Lerpable};
+use lerpable::{IsLerpingMethod, Lerpable};
 use num_traits::NumCast;
 use std::collections::HashMap;
 use std::hash::DefaultHasher;
@@ -790,7 +790,6 @@ macro_rules! newtype_wrapper {
 
 newtype_wrapper!(MVec2, Vec2);
 newtype_wrapper!(MVec3, Vec3);
-newtype_wrapper!(MNode, Vec3);
 
 impl Lerpable for MVec2 {
     fn lerpify<T: IsLerpingMethod>(&self, other: &Self, method: &T) -> Self {
@@ -851,10 +850,4 @@ pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
     let lerped = this_vec.lerpify(&other_vec, pct);
 
     lerped.into_iter().map(|v| v.into()).collect_vec()
-}
-
-impl Lerpable for MNode {
-    fn lerpify<T: IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
-        step(self, other, pct)
-    }
 }

@@ -29,7 +29,7 @@ murrelet_livecode_macros = { version = "0.1.1", path = "../murrelet_livecode_mac
 murrelet_livecode_derive = { version = "0.1.1", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
 murrelet_perform = { version = "0.1.1", path = "../murrelet_perform/", default-features = false }
 
-lerpable = { version = "0.0.1", path = "../../../../lerpable/lerpable" }
+lerpable = "0.0.1"
 
 glam = "0.28.0"
 palette = "0.7.6"

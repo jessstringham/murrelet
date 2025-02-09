@@ -5,7 +5,7 @@ use glam::*;
 
 use lerpable::Lerpable;
 use murrelet::prelude::*;
-use murrelet_common::{mat4_from_mat3_transform, lerpify_vec2};
+use murrelet_common::{lerpify_vec2, mat4_from_mat3_transform};
 use murrelet_draw::{
     compass::*,
     draw::*,
