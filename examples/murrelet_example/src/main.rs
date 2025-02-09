@@ -1,3 +1,4 @@
+use lerpable::Lerpable;
 use murrelet::prelude::*;
 use murrelet_draw::{compass::*, sequencers::*, style::MurreletPath};
 use murrelet_livecode::types::*;
@@ -6,7 +7,7 @@ use murrelet_src_audio::audio_src::AudioMng;
 use murrelet_src_midi::midi::MidiMng;
 use murrelet_svg::svg::ToSvgData;
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 struct SimpleTile {
     val: f32,
     curve: MurreletCompass,
@@ -23,7 +24,7 @@ impl SimpleTile {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 struct DrawingConfig {
     #[livecode(serde_default = "false")]
     debug: bool,
@@ -41,7 +42,7 @@ impl DrawingConfig {
 }
 
 // set up livecoder
-#[derive(Debug, Clone, Livecode, TopLevelLiveCode)]
+#[derive(Debug, Clone, Livecode, Lerpable, TopLevelLiveCode)]
 struct LiveCodeConf {
     // global things
     app: AppConfig,

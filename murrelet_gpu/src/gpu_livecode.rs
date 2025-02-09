@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use glam::*;
-use murrelet_common::MurreletColor;
+use lerpable::Lerpable;
+use murrelet_common::*;
 use murrelet_draw::newtypes::*;
 use murrelet_livecode_derive::Livecode;
 
@@ -43,13 +44,15 @@ impl ControlGraphicsRef {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct GPUNoise {
     #[livecode(serde_default = "zeros")]
+    #[lerpable(func = "lerpify_vec2")]
     offset: glam::Vec2,
     scale: f32,
     #[livecode(serde_default = "1")]
     alpha: f32,
+    #[lerpable(func = "lerpify_vec2")]
     range: glam::Vec2,
 }
 
@@ -120,7 +123,7 @@ impl ControlGraphics for f32 {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct GPURGBAGradient {
     start: RGBandANewtype,
     end: RGBandANewtype,

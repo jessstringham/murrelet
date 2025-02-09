@@ -55,7 +55,7 @@ where
         let name = s.ident.clone();
 
         if DEBUG_THIS {
-            println!("{}::make_struct {}", Self::classname(), name.to_string());
+            println!("{}::make_struct {}", Self::classname(), name);
         }
 
         let lc_ident = Self::new_ident(name.clone());
@@ -132,7 +132,7 @@ where
         let name = e.ident.clone();
 
         if DEBUG_THIS {
-            println!("{}::make_enum {}", Self::classname(), name.to_string());
+            println!("{}::make_enum {}", Self::classname(), name);
         }
 
         let new_enum_ident = Self::new_ident(e.ident.clone());
@@ -179,7 +179,7 @@ where
         let name = s.ident.clone();
 
         if DEBUG_THIS {
-            println!("{}::make_newtype {}", Self::classname(), name.to_string());
+            println!("{}::make_newtype {}", Self::classname(), name);
         }
 
         let lc_ident = Self::new_ident(name.clone());
@@ -284,13 +284,11 @@ impl LivecodeFieldReceiver {
         .flatten()
         .collect::<Vec<_>>();
 
-        let a = if r.len() > 0 {
+        if !r.is_empty() {
             quote! { #[livecode(#(#r,)*)] }
         } else {
             quote! {}
-        };
-
-        a
+        }
 
         // let b = if let Some(serde_default) = &self.serde_default {
         //     quote! {#[serde(default = #serde_default)] #a}
@@ -435,13 +433,11 @@ impl LivecodeReceiver {
         .flatten()
         .collect::<Vec<_>>();
 
-        let a = if r.len() > 0 {
+        if !r.is_empty() {
             quote! { #[livecode(#(#r,)*)] }
         } else {
             quote! {}
-        };
-
-        a
+        }
     }
 }
 
@@ -729,7 +725,7 @@ pub(crate) struct DataFromType {
 }
 impl DataFromType {
     fn new_from_list(types: Vec<syn::Ident>) -> DataFromType {
-        assert!(types.len() > 0); // should be by how it's programmed but...
+        assert!(!types.is_empty()); // should be by how it's programmed but...
 
         let main_type = types[0].clone();
         let second_type = types.get(1).cloned();

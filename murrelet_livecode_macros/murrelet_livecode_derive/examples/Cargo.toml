@@ -7,3 +7,5 @@ authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 [dependencies]
 glam = "0.28.0"
 palette = "0.7.6"
+
+lerpable = { version = "0.0.1", path = "../../../../../lerpable/lerpable" }

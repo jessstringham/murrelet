@@ -14,9 +14,9 @@ const MAX_MIDI_CHECKS_PER_UPDATE: usize = 100;
 // right now this is just set as the max number of buttons and we add them all..
 const MIDI_COUNT: usize = 16;
 
-const MIDI_FIGHTER_TWISTER_NAME: &'static str = "Midi Fighter Twister";
-const MIDI_FIGHTER_SPECTRA_NAME: &'static str = "Midi Fighter Spectra";
-const NANO_KONTROL_NAME: &'static str = "nanoKONTROL2 SLIDER/KNOB";
+const MIDI_FIGHTER_TWISTER_NAME: &str = "Midi Fighter Twister";
+const MIDI_FIGHTER_SPECTRA_NAME: &str = "Midi Fighter Spectra";
+const NANO_KONTROL_NAME: &str = "nanoKONTROL2 SLIDER/KNOB";
 
 // const MIDI_MNG_REGEX = Regex::new(r"^\d+$").unwrap();
 
@@ -92,6 +92,12 @@ pub struct MidiMng {
     cxn: MidiCxn,
     pub values: MidiValues,
     out: HashMap<MidiDevice, MidiOutputConnection>,
+}
+
+impl Default for MidiMng {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MidiMng {
@@ -343,7 +349,7 @@ fn connect_midi(event_tx: Sender<MidiMessage>) -> Vec<MidiConn> {
     // set up one just to get the port list
     let maybe_midi_in = MidiInput::new("midir-to-list-ports");
 
-    if let Some(mut midi_in) = maybe_midi_in.ok() {
+    if let Ok(mut midi_in) = maybe_midi_in {
         midi_in.ignore(Ignore::None);
 
         let in_ports = midi_in.ports();
@@ -367,7 +373,7 @@ fn connect_midi(event_tx: Sender<MidiMessage>) -> Vec<MidiConn> {
 fn get_midi_out() -> HashMap<MidiDevice, MidiOutputConnection> {
     let mut hm = HashMap::new();
     let maybe_midi_out = MidiOutput::new("midir-to-list-ports");
-    if let Some(midi_out) = maybe_midi_out.ok() {
+    if let Ok(midi_out) = maybe_midi_out {
         let out_ports = midi_out.ports();
 
         for out_port in &out_ports {

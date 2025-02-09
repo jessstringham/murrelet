@@ -189,7 +189,7 @@ impl NestEditable for MurreletColor {
         if let (Some(h), Some(s), Some(v), Some(a)) = (maybe_h, maybe_s, maybe_v, maybe_a) {
             MurreletColor::hsva(h, s, v, a)
         } else {
-            self.clone()
+            *self
         }
     }
 

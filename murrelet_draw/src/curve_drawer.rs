@@ -1,10 +1,11 @@
 use glam::*;
-use murrelet_common::{Angle, AnglePi, Circle, IsAngle, IsLength, IsPolyline, Polyline};
+use lerpable::Lerpable;
+use murrelet_common::*;
 use murrelet_livecode_derive::*;
 
 use crate::livecodetypes::anglepi::*;
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveDrawer {
     pub segments: Vec<CurveSegment>,
     pub closed: bool, // this is mostly used for algorithms that use curve drawers. you'll need to use a style that's closed
@@ -75,7 +76,7 @@ impl CurveDrawer {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub enum CurveSegment {
     Arc(CurveArc),
     Points(CurvePoints),
@@ -134,9 +135,10 @@ impl CurveSegment {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveArc {
     #[livecode(serde_default = "zeros")]
+    #[lerpable(func = "lerpify_vec2")]
     pub loc: Vec2, // center of circle
     pub radius: f32,
     pub start_pi: LivecodeAnglePi,
@@ -219,8 +221,9 @@ impl CurveArc {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurvePoints {
+    #[lerpable(func = "lerpify_vec_vec2")]
     pub points: Vec<Vec2>,
 }
 impl CurvePoints {

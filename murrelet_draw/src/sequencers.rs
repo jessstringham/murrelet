@@ -1,5 +1,6 @@
 use glam::*;
 use itertools::Itertools;
+use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode::unitcells::{UnitCellContext, UnitCellCreator, UnitCellExprWorldContext};
 use murrelet_livecode_derive::*;
@@ -8,7 +9,7 @@ use crate::transform2d::{Transform2d, Transform2dStep};
 
 const REFERENCE_SIZE: f32 = 100.0;
 
-#[derive(Clone, Debug, Livecode)]
+#[derive(Clone, Debug, Livecode, Lerpable)]
 pub enum Sequencer {
     Square(SimpleSquareSequence),
     Rect(SimpleRectSequence),
@@ -24,7 +25,7 @@ impl UnitCellCreator for Sequencer {
     }
 }
 
-#[derive(Clone, Debug, Default, Livecode)]
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
 pub struct SimpleHexSequence {
     rows: usize,
     cols: usize,
@@ -36,7 +37,7 @@ impl UnitCellCreator for SimpleHexSequence {
     }
 }
 
-#[derive(Clone, Debug, Default, Livecode)]
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
 pub struct SimpleSquareSequence {
     rows: usize,
     cols: usize,
@@ -48,10 +49,11 @@ impl UnitCellCreator for SimpleSquareSequence {
     }
 }
 
-#[derive(Clone, Debug, Default, Livecode)]
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
 pub struct SimpleRectSequence {
     rows: usize,
     cols: usize,
+    #[lerpable(func = "lerpify_vec2")]
     size: Vec2,
 }
 

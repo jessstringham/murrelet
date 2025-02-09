@@ -5,12 +5,14 @@ use murrelet_common::*;
 use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
 use murrelet_livecode_derive::Livecode;
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypes {
     a_number: f32,
     b_color: MurreletColor,
+    #[lerpable(func = "lerpify_vec2")]
     c_vec2: Vec2,
     something: Vec<f32>,
+    #[lerpable(func = "lerpify_vec_vec2")]
     list_of_vec2: Vec<Vec2>,
 }
 
@@ -22,7 +24,7 @@ fn empty_string_lazy() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypesWithDefaults {
     #[livecode(serde_default = "zeros")]
     a_number: f32,
@@ -37,12 +39,12 @@ pub struct BasicTypesWithDefaults {
     b: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 struct TestLazy {
     lazy: LazyBasicTypes,
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 enum EnumTest {
     #[default]
     A,
@@ -50,10 +52,10 @@ enum EnumTest {
     C(LazyTestLazy),
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 struct TestNewType(Vec<EnumTest>);
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 struct SequencerTest {
     sequencer: SimpleSquareSequence,
     ctx: AdditionalContextNode,
@@ -112,7 +114,7 @@ fn make_grid(
         .collect::<Vec<_>>()
 }
 
-#[derive(Clone, Debug, Default, Livecode)]
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
 pub struct SimpleSquareSequence {
     rows: usize,
     cols: usize,

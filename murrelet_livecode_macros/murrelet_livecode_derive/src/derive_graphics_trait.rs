@@ -49,7 +49,7 @@ impl GraphicKind {
 pub fn impl_graphics_trait(ast: DeriveInput) -> TokenStream2 {
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
 
-    let parsed = match &ast_receiver.data {
+    match &ast_receiver.data {
         ast::Data::Enum(_) => unreachable!("hm, graphics should be a struct"),
         ast::Data::Struct(fields) => {
             let ctrl = syn::Ident::new(
@@ -58,9 +58,7 @@ pub fn impl_graphics_trait(ast: DeriveInput) -> TokenStream2 {
             );
             parse_graphics(&ast_receiver.ident, &ctrl, &fields.fields)
         }
-    };
-
-    parsed
+    }
 }
 
 fn parse_graphics(
@@ -76,13 +74,13 @@ fn parse_graphics(
 
     for f in fields {
         if let (Some(kind), Some(ident)) = (&f.kind, &f.ident) {
-            let kind = GraphicKind::parse(&kind);
+            let kind = GraphicKind::parse(kind);
             let ident = ident.clone();
             match kind {
                 GraphicKind::Drawer => drawers.push(quote! {v.push(&self.#ident)}),
                 GraphicKind::Pipeline => {
                     let result = if let Some(should_run) = &f.run {
-                        let should_run_fn = syn::parse_str::<syn::Path>(&should_run)
+                        let should_run_fn = syn::parse_str::<syn::Path>(should_run)
                             .expect("that's not a function!");
 
                         quote! {
@@ -111,7 +109,7 @@ fn parse_graphics(
                 }
                 GraphicKind::DrawSrc => {
                     let result = if let Some(should_run) = &f.run {
-                        let should_run_fn = syn::parse_str::<syn::Path>(&should_run)
+                        let should_run_fn = syn::parse_str::<syn::Path>(should_run)
                             .expect("that's not a function!");
 
                         quote! {

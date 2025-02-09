@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 use glam::{vec3, Mat4, Vec2};
+use lerpable::Lerpable;
 use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_livecode::lazy::ControlLazyNodeF32;
-use murrelet_livecode::lerpable::Lerpable;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{
     AdditionalContextNode, ControlVecElement, LivecodeError, LivecodeResult,
@@ -219,7 +219,7 @@ fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
 
 // this stuff adjusts how time works, so needs to be split off pretty early
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct AppConfigTiming {
     #[livecode(serde_default = "_default_bpm")]
     pub bpm: f32,
@@ -267,7 +267,7 @@ fn _reset_b_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct SvgConfig {
     #[livecode(serde_default = "_default_svg_size")]
     pub size: f32,
@@ -330,7 +330,7 @@ fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct GpuConfig {
     #[livecode(serde_default = "_default_gpu_debug_next")]
     debug_next: bool,
@@ -375,7 +375,7 @@ fn _default_should_reset_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct AppConfig {
     #[livecode(serde_default = "_default_should_reset")]
     pub should_reset: bool, // should reset audio and time,
@@ -632,7 +632,7 @@ where
         if target.config_app_loc().should_lerp() {
             if self.lerp_pct < 1.0 {
                 let old_target = self.prev_controlconfig.o(&w)?;
-                target = old_target.lerpify(&target, self.lerp_pct);
+                target = old_target.lerpify(&target, &self.lerp_pct);
             }
 
             // prepare this for next time

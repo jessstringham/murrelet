@@ -7,7 +7,6 @@ repository = "https://github.com/jessstringham/murrelet.git"
 license = "AGPL-3.0-or-later"
 description = "macros for murrelet, a live coding framework"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 proc-macro = true
 

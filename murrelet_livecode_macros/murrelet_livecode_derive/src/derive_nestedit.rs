@@ -22,7 +22,7 @@ impl GenFinal for FieldTokensNestEdit {
 
         let for_nestedit_get_newtype = variants
             .iter()
-            .map(|x| x.for_nestedit_get_newtype.as_ref().clone().unwrap())
+            .map(|x| x.for_nestedit_get_newtype.as_ref().unwrap())
             .next();
 
         quote! {
@@ -60,8 +60,7 @@ impl GenFinal for FieldTokensNestEdit {
         // for serde flatten ones
         let flattened_nestedit_get = variants
             .iter()
-            .map(|a| a.for_nestedit_get_flatten.clone())
-            .flatten();
+            .filter_map(|a| a.for_nestedit_get_flatten.clone());
 
         let flatten_if_statement = if flattened_nestedit_get.clone().count() > 0 {
             quote! {

@@ -3,13 +3,15 @@ use std::f32::consts::PI;
 
 use glam::*;
 use itertools::Itertools;
+use lerpable::Lerpable;
+use murrelet_common::lerpify_vec2;
 use murrelet_common::{
     a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
     SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2,
 };
 use murrelet_livecode_derive::Livecode;
 
-#[derive(Clone, Debug, Livecode, Default)]
+#[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct Transform2d(Vec<Transform2dStep>);
 impl Transform2d {
     pub fn new(actions: Vec<Transform2dStep>) -> Self {
@@ -224,8 +226,9 @@ impl Default for ControlLazyTransform2d {
     }
 }
 
-#[derive(Clone, Debug, Livecode, Default)]
+#[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct V2 {
+    #[lerpable(func = "lerpify_vec2")]
     v: Vec2,
 }
 
@@ -235,9 +238,11 @@ impl V2 {
     }
 }
 
-#[derive(Clone, Debug, Livecode, Default)]
+#[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct V22 {
+    #[lerpable(func = "lerpify_vec2")]
     v0: Vec2,
+    #[lerpable(func = "lerpify_vec2")]
     v1: Vec2,
 }
 
@@ -247,9 +252,10 @@ impl V22 {
     }
 }
 
-#[derive(Clone, Debug, Livecode, Default)]
+#[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct Rotate2 {
     #[livecode(serde_default = "zeros")]
+    #[lerpable(func = "lerpify_vec2")]
     center: Vec2,
     angle_pi: f32,
 }
@@ -273,11 +279,6 @@ pub enum Transform2dStep {
     Rotate(Rotate2),
     Scale(V2),
     Skew(V22),
-}
-impl Default for Transform2dStep {
-    fn default() -> Self {
-        Transform2dStep::Translate(V2::new(Vec2::ZERO))
-    }
 }
 
 impl Transform2dStep {
@@ -324,5 +325,29 @@ impl Transform2dStep {
             Transform2dStep::Scale(v2) => SimpleTransform2dStep::Scale(v2.v),
             Transform2dStep::Skew(v22) => SimpleTransform2dStep::Skew(v22.v0, v22.v1),
         }
+    }
+
+    fn from_simple(s: SimpleTransform2dStep) -> Transform2dStep {
+        match s {
+            SimpleTransform2dStep::Translate(v) => Transform2dStep::Translate(V2 { v }),
+            SimpleTransform2dStep::Rotate(center, angle_pi) => Transform2dStep::Rotate(Rotate2 {
+                center,
+                angle_pi: angle_pi.angle_pi(),
+            }),
+            SimpleTransform2dStep::Scale(v) => Transform2dStep::Scale(V2 { v }),
+            SimpleTransform2dStep::Skew(v0, v1) => Transform2dStep::Skew(V22 { v0, v1 }),
+        }
+    }
+}
+
+impl Default for Transform2dStep {
+    fn default() -> Self {
+        Transform2dStep::Translate(V2::new(Vec2::ZERO))
+    }
+}
+
+impl Lerpable for Transform2dStep {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        Self::from_simple(self.to_simple().lerpify(&other.to_simple(), pct))
     }
 }

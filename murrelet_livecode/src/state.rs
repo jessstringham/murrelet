@@ -119,7 +119,7 @@ impl LivecodeWorldState {
     }
 
     pub fn update_with_defs(&mut self, more_defs: &MixedEvalDefs) -> LivecodeResult<()> {
-        more_defs.update_ctx(&mut self.ctx_mut())
+        more_defs.update_ctx(self.ctx_mut())
     }
 
     pub fn clone_with_vals(
@@ -129,7 +129,7 @@ impl LivecodeWorldState {
     ) -> LivecodeResult<LivecodeWorldState> {
         let mut lazy = self.clone_to_lazy(); // eh just need to clone
 
-        expr.with_prefix(prefix).update_ctx(&mut lazy.ctx_mut())?;
+        expr.with_prefix(prefix).update_ctx(lazy.ctx_mut())?;
 
         Ok(lazy)
     }
@@ -168,7 +168,7 @@ impl LivecodeWorldState {
     }
 
     pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<Vec<Polyline>> {
-        self.assets.asset_layer(key, layer_idx).map(|x| x.clone())
+        self.assets.asset_layer(key, layer_idx).cloned()
     }
 
     pub fn asset_layers_in_key(&self, key: &str) -> &[String] {
