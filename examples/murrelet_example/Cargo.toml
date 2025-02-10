@@ -23,5 +23,5 @@ murrelet_svg = { version = "0.1.1", path = "../../murrelet_svg/" }
 murrelet_src_audio = { version = "0.1.1", path = "../../murrelet_src_audio/" }
 murrelet_src_midi = { version = "0.1.1", path = "../../murrelet_src_midi/" }
 
-lerpable = "0.0.1"
+lerpable = "0.0.2"
 schemars = "0.8.21"

@@ -37,7 +37,7 @@ murrelet_gpu = { version = "0.1.1", path = "../../murrelet_gpu/", features = [
   "no_nannou",
 ] }
 
-lerpable = "0.0.1"
+lerpable = "0.0.2"
 
 wgpu = { version = "0.20.1", features = ["webgpu", "webgl"] }
 anyhow = "1.0.86"

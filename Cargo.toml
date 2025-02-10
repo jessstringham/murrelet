@@ -2,7 +2,7 @@
 members = [
     "murrelet",
     "murrelet_common",
-    "murrelet_draw", 
+    "murrelet_draw",
     "murrelet_gpu",
     "murrelet_livecode",
     "murrelet_livecode_macros",
@@ -10,7 +10,7 @@ members = [
     "murrelet_src_audio",
     "murrelet_src_midi",
     "murrelet_src_osc",
-    "murrelet_svg", 
+    "murrelet_svg",
     "examples/murrelet_example",
     "examples/foolish_guillemot",
     "tinylivecode"

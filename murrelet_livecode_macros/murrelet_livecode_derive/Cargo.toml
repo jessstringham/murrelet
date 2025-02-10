@@ -22,9 +22,12 @@ serde = { version = "1.0.104", features = ["derive"] }
 murrelet_livecode = { version = "0.1.1", path = "../../murrelet_livecode", default-features = false}
 
 # just for examples...
+[dev-dependencies]
 murrelet_common = { version = "0.1.1", path = "../../murrelet_common"}
 glam = "0.28.0"
 palette = "0.7.6"
+lerpable = "0.0.2"
+schemars = "0.8.21"
 
 [[example]]
 name = "tests"
