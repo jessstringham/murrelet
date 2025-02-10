@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use itertools::Itertools;
+use lerpable::Lerpable;
 use murrelet_common::{Asset, Assets};
 use murrelet_livecode_derive::Livecode;
 
@@ -9,7 +10,7 @@ pub trait AssetLoader {
     fn load(&self, layers: &[&str], filename: &Path) -> Asset;
 }
 
-#[derive(Livecode, Clone, Debug)]
+#[derive(Livecode, Lerpable, Clone, Debug)]
 pub struct PolylineLayerFile {
     #[livecode(kind = "none")]
     name: String,
@@ -33,7 +34,7 @@ pub fn _empty_filenames_lazy() -> ControlLazyAssetFilenames {
     ControlLazyAssetFilenames { files: vec![] }
 }
 
-#[derive(Livecode, Clone, Debug)]
+#[derive(Livecode, Lerpable, Clone, Debug)]
 pub struct AssetFilenames {
     // hmm, the parsers are all in a different part of the code
     files: Vec<PolylineLayerFile>,

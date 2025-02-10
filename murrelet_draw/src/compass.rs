@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use glam::Vec2;
+use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode_derive::Livecode;
 
@@ -8,8 +9,9 @@ use crate::{
     livecodetypes::anglepi::*,
 };
 
-#[derive(Debug, Clone, Copy, Livecode)]
+#[derive(Debug, Clone, Copy, Livecode, Lerpable)]
 pub struct CurveStart {
+    #[lerpable(func = "lerpify_vec2")]
     loc: Vec2,
     angle_pi: LivecodeAnglePi,
 }
@@ -27,7 +29,7 @@ fn empty_string() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CompassDir {
     angle_pi: LivecodeAnglePi,
     #[livecode(serde_default = "false")]
@@ -46,7 +48,7 @@ impl CompassDir {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CompassArc {
     radius: f32,
     arc_length: LivecodeAnglePi,
@@ -60,20 +62,20 @@ pub struct CompassArc {
 //     pub fn new(radius: f32, arc_length: f32, is_absolute: bool) -> Self { Self { radius, arc_length, is_absolute } }
 // }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CompassLine {
     length: f32, // how far should we head in the current direction
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
     label: String,
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CompassRepeat {
     times: usize,
     what: Vec<CompassAction>,
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub enum CompassAction {
     Angle(CompassDir), // abs
     Arc(CompassArc),
@@ -289,7 +291,7 @@ impl InteractiveCompassBuilder {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct MurreletCompass {
     start: CurveStart,
     dirs: Vec<CompassAction>,

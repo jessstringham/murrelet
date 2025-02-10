@@ -17,6 +17,8 @@ murrelet_livecode = { version = "0.1.1", path = "../murrelet_livecode/", default
 murrelet_livecode_macros = { version = "0.1.1", path = "../murrelet_livecode_macros/", default-features = false }
 murrelet_livecode_derive = { version = "0.1.1", path = "../murrelet_livecode_macros/murrelet_livecode_derive/", default-features = false }
 
+lerpable = "0.0.2"
+
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 evalexpr = "11.1.0"

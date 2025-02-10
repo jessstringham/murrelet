@@ -2,10 +2,11 @@
 // and just give more livecode defaults to work with instead of always
 // needing to create a new type.
 use glam::{Vec2, Vec3};
-use murrelet_common::MurreletColor;
+use lerpable::Lerpable;
+use murrelet_common::*;
 use murrelet_livecode_derive::Livecode;
 
-#[derive(Copy, Clone, Debug, Livecode, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
 pub struct F32Newtype {
     v: f32,
 }
@@ -16,8 +17,9 @@ impl F32Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
 pub struct Vec2Newtype {
+    #[lerpable(func = "lerpify_vec2")]
     v: Vec2,
 }
 
@@ -31,8 +33,9 @@ impl Vec2Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
 pub struct Vec3Newtype {
+    #[lerpable(func = "lerpify_vec3")]
     v: Vec3,
 }
 
@@ -46,8 +49,9 @@ impl Vec3Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
 pub struct RGBandANewtype {
+    #[lerpable(func = "lerpify_vec3")]
     rgb: Vec3,
     a: f32,
 }

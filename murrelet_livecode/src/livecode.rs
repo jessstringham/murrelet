@@ -181,7 +181,7 @@ impl GetLivecodeIdentifiers for ControlF32 {
             ControlF32::Expr(node) => node
                 .iter_variable_identifiers()
                 .dedup()
-                .map(|x| LivecodeVariable::from_str(x))
+                .map(LivecodeVariable::from_str)
                 .collect_vec(),
         }
     }
@@ -194,7 +194,7 @@ impl GetLivecodeIdentifiers for ControlF32 {
             ControlF32::Expr(node) => node
                 .iter_variable_identifiers()
                 .dedup()
-                .map(|x| LivecodeFunction::from_str(x))
+                .map(LivecodeFunction::from_str)
                 .collect_vec(),
         }
     }
@@ -323,7 +323,7 @@ impl GetLivecodeIdentifiers for ControlBool {
             ControlBool::Expr(node) => node
                 .iter_variable_identifiers()
                 .dedup()
-                .map(|x| LivecodeVariable::from_str(x))
+                .map(LivecodeVariable::from_str)
                 .collect_vec(),
         }
     }
@@ -336,7 +336,7 @@ impl GetLivecodeIdentifiers for ControlBool {
             ControlBool::Expr(node) => node
                 .iter_variable_identifiers()
                 .dedup()
-                .map(|x| LivecodeFunction::from_str(x))
+                .map(LivecodeFunction::from_str)
                 .collect_vec(),
         }
     }
@@ -472,7 +472,7 @@ impl ControlF32 {
                 Err(_) => {
                     let b = e
                         .eval_boolean_with_context(w.ctx())
-                        .map_err(|err| LivecodeError::EvalExpr(format!("evalexpr err"), err));
+                        .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err));
                     Ok(if b? { 1.0 } else { -1.0 })
                 }
             },
@@ -527,7 +527,7 @@ impl ControlBool {
                 Ok(r) => Ok(r),
                 Err(_) => {
                     let b = e.eval_float_with_context(w.ctx()).map_err(|err| {
-                        LivecodeError::EvalExpr(format!("error evaluing bool"), err)
+                        LivecodeError::EvalExpr("error evaluing bool".to_string(), err)
                     });
                     b.map(|x| x > 0.0)
                 }

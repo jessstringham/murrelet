@@ -1,5 +1,6 @@
 use evalexpr::{HashMapContext, IterateVariablesContext, Node};
 use itertools::Itertools;
+use lerpable::{step, Lerpable};
 use murrelet_common::{IdxInRange, MurreletColor};
 use serde::Deserialize;
 
@@ -49,7 +50,7 @@ impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
                 .iter_variable_identifiers()
                 .sorted()
                 .dedup()
-                .map(|x| LivecodeVariable::from_str(x))
+                .map(LivecodeVariable::from_str)
                 .collect_vec(),
             _ => vec![],
         }
@@ -61,7 +62,7 @@ impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
                 .iter_function_identifiers()
                 .sorted()
                 .dedup()
-                .map(|x| LivecodeFunction::from_str(x))
+                .map(LivecodeFunction::from_str)
                 .collect_vec(),
             _ => vec![],
         }
@@ -112,22 +113,17 @@ impl LazyNodeF32Inner {
             .eval_float_with_context(&ctx)
             .or_else(|_| self.n.eval_int_with_context(&ctx).map(|x| x as f64))
             .map(|x| x as f32)
-            .map_err(|err| LivecodeError::EvalExpr(format!("error evaluating lazy"), err))
+            .map_err(|err| LivecodeError::EvalExpr("error evaluating lazy".to_string(), err))
     }
 }
 
 // // expr that we can add things
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum LazyNodeF32 {
+    #[default]
     Uninitialized,
     Node(LazyNodeF32Inner),
     NoCtxNode(ControlLazyNodeF32), // this hasn't been evaluated with .o()? yet
-}
-
-impl Default for LazyNodeF32 {
-    fn default() -> Self {
-        LazyNodeF32::Uninitialized
-    }
 }
 
 impl LazyNodeF32 {
@@ -206,6 +202,12 @@ impl LazyNodeF32 {
     }
 }
 
+impl Lerpable for LazyNodeF32 {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        step(self, other, pct)
+    }
+}
+
 pub trait IsLazy
 where
     Self: Sized,
@@ -240,26 +242,23 @@ where
 
 pub fn eval_lazy_color(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<MurreletColor> {
     Ok(murrelet_common::MurreletColor::hsva(
-        v[0].eval_lazy(ctx)? as f32,
-        v[1].eval_lazy(ctx)? as f32,
-        v[2].eval_lazy(ctx)? as f32,
-        v[3].eval_lazy(ctx)? as f32,
+        v[0].eval_lazy(ctx)?,
+        v[1].eval_lazy(ctx)?,
+        v[2].eval_lazy(ctx)?,
+        v[3].eval_lazy(ctx)?,
     ))
 }
 
 pub fn eval_lazy_vec3(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec3> {
     Ok(glam::vec3(
-        v[0].eval_lazy(ctx)? as f32,
-        v[1].eval_lazy(ctx)? as f32,
-        v[2].eval_lazy(ctx)? as f32,
+        v[0].eval_lazy(ctx)?,
+        v[1].eval_lazy(ctx)?,
+        v[2].eval_lazy(ctx)?,
     ))
 }
 
 pub fn eval_lazy_vec2(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec2> {
-    Ok(glam::vec2(
-        v[0].eval_lazy(ctx)? as f32,
-        v[1].eval_lazy(ctx)? as f32,
-    ))
+    Ok(glam::vec2(v[0].eval_lazy(ctx)?, v[1].eval_lazy(ctx)?))
 }
 
 pub fn eval_lazy_f32(

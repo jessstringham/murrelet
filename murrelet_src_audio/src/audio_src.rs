@@ -439,6 +439,12 @@ pub struct AudioMng {
     cxn: Option<AudioCxn>,
     pub values: AudioValues,
 }
+impl Default for AudioMng {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioMng {
     pub fn new() -> AudioMng {
         let cxn = AudioCxn::new().ok();

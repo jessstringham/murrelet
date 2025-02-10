@@ -3,8 +3,9 @@ pub mod draw;
 use draw::{WebSDrawCtx, WebSDrawCtxUnitCell};
 use glam::*;
 
+use lerpable::Lerpable;
 use murrelet::prelude::*;
-use murrelet_common::mat4_from_mat3_transform;
+use murrelet_common::{lerpify_vec2, mat4_from_mat3_transform};
 use murrelet_draw::{
     compass::*,
     draw::*,
@@ -24,7 +25,7 @@ use wasm_bindgen::prelude::*;
 //     }
 // }
 
-#[derive(Debug, Clone, Default, Livecode)]
+#[derive(Debug, Clone, Default, Livecode, Lerpable)]
 struct StyledShape {
     shape: MurreletCompass,
     style: StyleConf,
@@ -42,7 +43,7 @@ impl StyledShape {
     }
 }
 
-#[derive(Debug, Clone, Default, Livecode)]
+#[derive(Debug, Clone, Default, Livecode, Lerpable)]
 struct SimpleTile(Vec<StyledShape>);
 impl SimpleTile {
     fn draw(&self, draw_ctx: &WebSDrawCtxUnitCell) {
@@ -52,7 +53,7 @@ impl SimpleTile {
     }
 }
 
-#[derive(Debug, Clone, Livecode)]
+#[derive(Debug, Clone, Livecode, Lerpable)]
 struct DrawingConfig {
     #[livecode(serde_default = "false")]
     debug: bool,
@@ -60,6 +61,7 @@ struct DrawingConfig {
     ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]
     node: UnitCells<SimpleTile>,
+    #[lerpable(func = "lerpify_vec2")]
     offset: Vec2,
     scale: f32,
 }
@@ -78,7 +80,7 @@ impl DrawingConfig {
 }
 
 // set up livecoder
-#[derive(Debug, Clone, Livecode, TopLevelLiveCode)]
+#[derive(Debug, Clone, Livecode, Lerpable, TopLevelLiveCode)]
 struct LiveCodeConf {
     app: AppConfig,
     drawing: DrawingConfig,

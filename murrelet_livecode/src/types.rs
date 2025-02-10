@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
+use lerpable::{step, Lerpable};
 use murrelet_common::IdxInRange2d;
 use serde::{Deserialize, Deserializer};
 use serde_yaml::Location;
@@ -69,6 +70,12 @@ impl AdditionalContextNode {
     }
 }
 
+impl Lerpable for AdditionalContextNode {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        step(self, other, pct)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
@@ -121,8 +128,7 @@ impl<T: GetLivecodeIdentifiers> GetLivecodeIdentifiers for ControlVecElement<T> 
             ControlVecElement::Repeat(c) => c
                 .what
                 .iter()
-                .map(|x| x.variable_identifiers())
-                .flatten()
+                .flat_map(|x| x.variable_identifiers())
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect_vec(),
@@ -135,8 +141,7 @@ impl<T: GetLivecodeIdentifiers> GetLivecodeIdentifiers for ControlVecElement<T> 
             ControlVecElement::Repeat(c) => c
                 .what
                 .iter()
-                .map(|x| x.function_identifiers())
-                .flatten()
+                .flat_map(|x| x.function_identifiers())
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect_vec(),

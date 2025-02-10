@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 use glam::{vec2, Vec2};
+use glam::{vec3, Vec3};
 use itertools::Itertools;
+use lerpable::{IsLerpingMethod, Lerpable};
 use num_traits::NumCast;
 use std::collections::HashMap;
 use std::hash::DefaultHasher;
@@ -548,7 +550,7 @@ impl<'a> LivecodeSrcUpdateInput<'a> {
     }
 
     pub fn app(&self) -> &MurreletAppInput {
-        &self.app
+        self.app
     }
 
     pub fn should_reset(&self) -> bool {
@@ -749,4 +751,103 @@ impl FixedPointVec2 {
 
 pub fn approx_eq_eps(x: f32, y: f32, eps: f32) -> bool {
     (x - y).abs() <= eps
+}
+
+// hrmm, wrapper types for glam and evalexpr and such
+
+#[macro_export]
+macro_rules! newtype_wrapper {
+    ($wrapper:ident, $wrapped:ty) => {
+        #[derive(Copy, Clone, Debug, Default)]
+        pub struct $wrapper(pub $wrapped);
+
+        impl std::ops::Deref for $wrapper {
+            type Target = $wrapped;
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl std::ops::DerefMut for $wrapper {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+
+        impl From<$wrapped> for $wrapper {
+            fn from(value: $wrapped) -> Self {
+                $wrapper(value)
+            }
+        }
+
+        impl From<$wrapper> for $wrapped {
+            fn from(wrapper: $wrapper) -> Self {
+                wrapper.0
+            }
+        }
+    };
+}
+
+newtype_wrapper!(MVec2, Vec2);
+newtype_wrapper!(MVec3, Vec3);
+
+impl Lerpable for MVec2 {
+    fn lerpify<T: IsLerpingMethod>(&self, other: &Self, method: &T) -> Self {
+        vec2(
+            self.x.lerpify(&other.x, method),
+            self.y.lerpify(&other.y, method),
+        )
+        .into()
+    }
+}
+
+pub fn lerpify_vec2<T: lerpable::IsLerpingMethod>(this: &Vec2, other: &Vec2, pct: &T) -> Vec2 {
+    let this: MVec2 = (*this).into();
+    let other: MVec2 = (*other).into();
+
+    this.lerpify(&other, pct).into()
+}
+
+pub fn lerpify_vec_vec2<T: lerpable::IsLerpingMethod>(
+    this: &[Vec2],
+    other: &[Vec2],
+    pct: &T,
+) -> Vec<Vec2> {
+    let this_vec: Vec<MVec2> = this.iter().map(|x| (*x).into()).collect_vec();
+    let other_vec: Vec<MVec2> = other.iter().map(|x| (*x).into()).collect_vec();
+
+    let lerped = this_vec.lerpify(&other_vec, pct);
+
+    lerped.into_iter().map(|v| v.into()).collect_vec()
+}
+
+impl Lerpable for MVec3 {
+    fn lerpify<T: IsLerpingMethod>(&self, other: &Self, method: &T) -> Self {
+        vec3(
+            self.x.lerpify(&other.x, method),
+            self.y.lerpify(&other.y, method),
+            self.z.lerpify(&other.z, method),
+        )
+        .into()
+    }
+}
+
+pub fn lerpify_vec3<T: lerpable::IsLerpingMethod>(this: &Vec3, other: &Vec3, pct: &T) -> Vec3 {
+    let this: MVec3 = (*this).into();
+    let other: MVec3 = (*other).into();
+
+    this.lerpify(&other, pct).into()
+}
+
+pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
+    this: &[Vec3],
+    other: &[Vec3],
+    pct: &T,
+) -> Vec<Vec3> {
+    let this_vec: Vec<MVec3> = this.iter().map(|x| (*x).into()).collect_vec();
+    let other_vec: Vec<MVec3> = other.iter().map(|x| (*x).into()).collect_vec();
+
+    let lerped = this_vec.lerpify(&other_vec, pct);
+
+    lerped.into_iter().map(|v| v.into()).collect_vec()
 }

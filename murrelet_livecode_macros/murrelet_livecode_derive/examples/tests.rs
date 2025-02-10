@@ -1,16 +1,19 @@
 use std::collections::HashMap;
 
 use glam::*;
+use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
 use murrelet_livecode_derive::Livecode;
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypes {
     a_number: f32,
     b_color: MurreletColor,
+    #[lerpable(func = "lerpify_vec2")]
     c_vec2: Vec2,
     something: Vec<f32>,
+    #[lerpable(func = "lerpify_vec_vec2")]
     list_of_vec2: Vec<Vec2>,
 }
 
@@ -22,44 +25,49 @@ fn empty_string_lazy() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypesWithDefaults {
     #[livecode(serde_default = "zeros")]
     a_number: f32,
     b_color: MurreletColor,
     #[livecode(serde_default = "0")]
+    #[lerpable(func = "lerpify_vec2")]
     c_vec2: Vec2,
     something: Vec<f32>,
+    #[lerpable(func = "lerpify_vec_vec2")]
     list_of_vec2: Vec<Vec2>,
     #[livecode(kind = "none", serde_default = "empty_string")]
     label: String,
     #[livecode(kind = "none")]
+    #[lerpable(method = "skip")]
     b: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 struct TestLazy {
+    #[lerpable(method = "skip")]
     lazy: LazyBasicTypes,
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 enum EnumTest {
     #[default]
     A,
     B(TestLazy),
-    C(LazyTestLazy),
+    C(#[lerpable(method = "skip")] LazyTestLazy),
 }
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 struct TestNewType(Vec<EnumTest>);
 
-#[derive(Debug, Clone, Livecode, Default)]
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
 struct SequencerTest {
     sequencer: SimpleSquareSequence,
     ctx: AdditionalContextNode,
     #[livecode(src = "sequencer", ctx = "ctx")]
     node: UnitCells<TestNewType>,
     #[livecode(src = "sequencer", ctx = "ctx")]
+    #[lerpable(method = "skip")]
     node_two: UnitCells<LazyBasicTypes>,
 }
 
@@ -105,14 +113,13 @@ fn make_grid(
                     SimpleTransform2dStep::scale_both(cell_size.x / 100.0),
                 ]);
 
-                Mat3::from_translation(center) * Mat3::from_scale(cell_size.x / 100.0 * Vec2::ONE);
                 UnitCellContext::new(ctx, transform)
             })
         })
         .collect::<Vec<_>>()
 }
 
-#[derive(Clone, Debug, Default, Livecode)]
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
 pub struct SimpleSquareSequence {
     rows: usize,
     cols: usize,

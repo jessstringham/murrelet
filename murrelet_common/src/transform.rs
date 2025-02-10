@@ -3,6 +3,7 @@
 //! do that.
 use glam::{vec2, vec3, Mat2, Mat3, Mat4, Vec2, Vec3};
 use itertools::Itertools;
+use lerpable::Lerpable;
 
 use crate::{
     lerp,
@@ -150,6 +151,12 @@ impl SimpleTransform2dStep {
     }
 }
 
+impl Lerpable for SimpleTransform2dStep {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        self.experimental_lerp(other, pct.lerp_pct() as f32)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SimpleTransform2d(Vec<SimpleTransform2dStep>);
 impl SimpleTransform2d {
@@ -189,5 +196,11 @@ impl TransformVec2 for SimpleTransform2d {
             v = step.transform().transform_vec2(v);
         }
         v
+    }
+}
+
+impl Lerpable for SimpleTransform2d {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        Self::new(self.0.lerpify(&other.0, pct))
     }
 }

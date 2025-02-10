@@ -39,12 +39,11 @@ impl<T: Copy> Stack<T> {
 
         // this will never be empty, i promise
         self.stack_top -= 1;
-        let result = self.stack[self.stack_top].take();
 
-        result
+        self.stack[self.stack_top].take()
     }
 
-    fn iter<'a>(&'a self) -> StackIter<'a, T> {
+    fn iter(&self) -> StackIter<'_, T> {
         StackIter {
             curr_loc: 0,
             end_loc: self.stack_top,
@@ -100,116 +99,74 @@ impl TinyExpr {
     pub fn eval(&self, x: f32, y: f32, t: f32) -> ParseResult<f32> {
         let mut eval_stack = Stack::new();
 
-        let mut stack_iterator = self.stack.iter();
+        let stack_iterator = self.stack.iter();
 
-        while let Some(curr_val) = stack_iterator.next() {
+        for curr_val in stack_iterator {
             // println!("curr_val {:?}", curr_val);
             // println!("eval_stack {:?}", eval_stack.stack);
             match curr_val {
                 ExprNode::Lerp => {
-                    let z: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let y: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let z: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push((1.0 - z) * x + z * y)?;
                 }
                 // binary
                 ExprNode::Add => {
-                    let y: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
 
                     eval_stack.push(x + y)?;
                 }
                 ExprNode::Mul => {
-                    let y: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x * y)?;
                 }
                 ExprNode::Div => {
-                    let y: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x / y)?;
                 }
                 ExprNode::Sub => {
-                    let y: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x - y)?;
                 }
                 ExprNode::Pow => {
-                    let y: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.powf(y))?;
                 }
                 ExprNode::Atan2 => {
-                    let y: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
-                    let x: f32 = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let x: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.atan2(y))?;
                 }
 
                 // unary
                 ExprNode::Sin => {
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.sin())?;
                 }
                 ExprNode::Cos => {
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.cos())?;
                 }
                 ExprNode::Fract => {
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.fract())?;
                 }
                 ExprNode::Sqrt => {
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.fract())?;
                 }
                 ExprNode::Floor => {
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.floor())?;
                 }
                 ExprNode::Abs => {
-                    let x = eval_stack
-                        .pop()
-                        .ok_or_else(|| ParseError::NoValuesInStack)?;
+                    let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push(x.abs())?;
                 }
                 // no variable
@@ -320,14 +277,6 @@ mod tests {
     }
 
     fn evaluate(s: &str, x: f32, y: f32, t: f32) -> TestEvalResult {
-        let e = match TinyExpr::from_str(s) {
-            Ok(r) => match r.eval(x, y, t) {
-                Ok(a) => TestEvalResult::Ok(a),
-                Err(err) => TestEvalResult::ErrEval(err),
-            },
-            Err(err) => TestEvalResult::ErrFromStr(err),
-        };
-
         // can be useful to debug if you introduce std again
         // match &e {
         //     TestEvalResult::Ok(e) => println!("Ok, {}", e),
@@ -335,7 +284,13 @@ mod tests {
         //     TestEvalResult::ErrEval(parse_error) => println!("{}", "err from eval"),
         // };
 
-        e
+        match TinyExpr::from_str(s) {
+            Ok(r) => match r.eval(x, y, t) {
+                Ok(a) => TestEvalResult::Ok(a),
+                Err(err) => TestEvalResult::ErrEval(err),
+            },
+            Err(err) => TestEvalResult::ErrFromStr(err),
+        }
     }
 
     #[test]

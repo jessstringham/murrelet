@@ -41,7 +41,7 @@ impl Asset {
         let mut hm = HashMap::new();
         for (k, v) in &x {
             let p = v
-                .into_iter()
+                .iter()
                 .map(|x| Polyline::new(x.clone_to_vec()))
                 .collect_vec();
             hm.insert(k.clone(), p);

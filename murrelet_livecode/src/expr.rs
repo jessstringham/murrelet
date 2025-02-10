@@ -13,7 +13,7 @@ use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{
         // constants
-        "PI" => Value::Float(PI.into()),
+        "PI" => Value::Float(PI),
         "ROOT2" => Value::Float(2.0_f64.sqrt()),
         "ROOT3" => Value::Float(3.0_f64.sqrt()),
 
@@ -101,7 +101,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                     (tuple[0].as_number()?, tuple[1].as_number()?, 0.0)
                 }
             };
-            let f = ((src * mult + offset) * PI as f64 * 2.0).sin() * 0.5 + 0.5;
+            let f = ((src * mult + offset) * PI * 2.0).sin() * 0.5 + 0.5;
             Ok(Value::Float(f))
         }),
         "saw" => Function::new(|argument| {
@@ -132,7 +132,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let tuple = argument.as_fixed_len_tuple(2)?;
             let (src, val) = (tuple[0].as_number()?, tuple[1].as_number()?);
             let f = if src > val { 1.0 } else { 0.0 };
-            Ok(Value::Float(f as f64))
+            Ok(Value::Float(f))
         }),
         "pulse" => Function::new(|argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
@@ -194,7 +194,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                 }
             };
             let f = (PI * 2.0 * (w * t + phase)).sin();
-            Ok(Value::Float(f as f64))
+            Ok(Value::Float(f))
         }),
         "cos" => Function::new(move |argument| {
             let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
@@ -209,7 +209,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                 }
             };
             let f = (PI * 2.0 * (w * t + phase)).cos();
-            Ok(Value::Float(f as f64))
+            Ok(Value::Float(f))
         }),
         "res" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(9)?;
@@ -220,9 +220,9 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                 tuple[6].as_number()?, tuple[7].as_number()?,
             );
             let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos() * (m * PI * y / b).cos();
-            Ok(Value::Float(f as f64))
+            Ok(Value::Float(f))
         })
-    }.map_err(|err| {LivecodeError::EvalExpr(format!("error in init_evalexpr_func_ctx!"), err)})
+    }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err)})
 }
 
 fn lc_val_to_expr(v: &LivecodeValue) -> Value {
@@ -258,18 +258,21 @@ impl ExprWorldContextValues {
 
     pub fn new_from_idx(idx: IdxInRange) -> Self {
         Self::new(vec![
-            (format!("i"), LivecodeValue::Int(idx.i() as i64)),
-            (format!("if"), LivecodeValue::Float(idx.i() as f64)),
-            (format!("pct"), LivecodeValue::Float(idx.pct() as f64)),
-            (format!("total"), LivecodeValue::Int(idx.total() as i64)),
-            (format!("totalf"), LivecodeValue::Float(idx.total() as f64)),
+            ("i".to_string(), LivecodeValue::Int(idx.i() as i64)),
+            ("if".to_string(), LivecodeValue::Float(idx.i() as f64)),
+            ("pct".to_string(), LivecodeValue::Float(idx.pct() as f64)),
+            ("total".to_string(), LivecodeValue::Int(idx.total() as i64)),
+            (
+                "totalf".to_string(),
+                LivecodeValue::Float(idx.total() as f64),
+            ),
         ])
     }
 
     pub fn new_from_totaless_idx(idx: usize) -> Self {
         Self::new(vec![
-            (format!("i"), LivecodeValue::Int(idx as i64)),
-            (format!("if"), LivecodeValue::Float(idx as f64)),
+            ("i".to_string(), LivecodeValue::Int(idx as i64)),
+            ("if".to_string(), LivecodeValue::Float(idx as f64)),
         ])
     }
 
@@ -359,6 +362,12 @@ pub struct MixedEvalDefs {
     vals: ExprWorldContextValues,
     nodes: Vec<AdditionalContextNode>, // these need to stack
 }
+impl Default for MixedEvalDefs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MixedEvalDefs {
     pub fn new() -> Self {
         Self {

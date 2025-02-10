@@ -1,5 +1,6 @@
 use glam::*;
 use itertools::Itertools;
+use lerpable::{step, Lerpable};
 use murrelet_common::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -8,7 +9,6 @@ use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
 use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
-use crate::lerpable::Lerpable;
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
@@ -48,11 +48,11 @@ fn create_unit_cell<'a>(
 
     let mut world_state = world_ctx.clone_to_unitcell(unit_cell_ctx, prefix)?;
 
-    let mut unit_cell_world_ctx = world_state.ctx_mut();
+    let unit_cell_world_ctx = world_state.ctx_mut();
 
     // now update the unit_cell context to have the node
     if let Some(node) = maybe_node {
-        node.eval_raw(&mut unit_cell_world_ctx)?;
+        node.eval_raw(unit_cell_world_ctx)?;
     }
 
     // great, now we have it built. return it!
@@ -114,7 +114,7 @@ where
     }
 
     pub fn o(&self, ctx: &LivecodeWorldState) -> LivecodeResult<UnitCells<Target>> {
-        Ok(UnitCells::new(self.eval_with_ctx(&ctx, &self.ctx)))
+        Ok(UnitCells::new(self.eval_with_ctx(ctx, &self.ctx)))
     }
 }
 
@@ -128,18 +128,6 @@ pub trait UnitCellCreator {
 pub struct UnitCell<Target> {
     pub node: Box<Target>,
     pub detail: UnitCellContext,
-}
-
-impl<Target: Default> Default for UnitCell<Target> {
-    fn default() -> Self {
-        Self {
-            node: Default::default(),
-            detail: UnitCellContext::new(
-                UnitCellExprWorldContext::from_idx1d(IdxInRange::new(0, 1)),
-                SimpleTransform2d::ident(),
-            ),
-        }
-    }
 }
 
 impl<Target> UnitCell<Target> {
@@ -188,6 +176,27 @@ impl<Target> UnitCell<Target> {
 
     pub fn is_alternate(&self) -> bool {
         self.idx().is_alternate()
+    }
+}
+impl<Target: Default> Default for UnitCell<Target> {
+    fn default() -> Self {
+        Self {
+            node: Default::default(),
+            detail: UnitCellContext::new(
+                UnitCellExprWorldContext::from_idx1d(IdxInRange::new(0, 1)),
+                SimpleTransform2d::ident(),
+            ),
+        }
+    }
+}
+
+impl<N: Lerpable> Lerpable for UnitCell<N> {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        let node = self.node.lerpify(&other.node, pct);
+
+        let detail = self.detail.lerpify(&other.detail, pct);
+
+        UnitCell::new(node, detail)
     }
 }
 
@@ -261,6 +270,12 @@ impl<Target: std::fmt::Debug + Clone + Default> FromIterator<UnitCell<Target>>
     fn from_iter<I: IntoIterator<Item = UnitCell<Target>>>(iter: I) -> Self {
         let vec: Vec<_> = iter.into_iter().collect();
         UnitCells { items: vec }
+    }
+}
+
+impl<N: Clone + Debug + Default + Lerpable> Lerpable for UnitCells<N> {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        Self::new(self.items.lerpify(&other.items, pct))
     }
 }
 
@@ -603,6 +618,19 @@ impl IntoExprWorldContext for UnitCellContext {
     }
 }
 
+impl Lerpable for UnitCellContext {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        let ctx = self
+            .ctx()
+            .experimental_lerp(&other.ctx(), pct.lerp_pct() as f32);
+        let detail = self
+            .detail
+            .experimental_lerp(&other.detail, pct.lerp_pct() as f32);
+        let tile_info = step(&self.tile_info, &other.tile_info, pct);
+        UnitCellContext::new_with_option_info(ctx, detail, tile_info)
+    }
+}
+
 // world state for unit cell
 #[derive(Copy, Clone, Debug)]
 pub struct UnitCellExprWorldContext {
@@ -622,17 +650,17 @@ impl UnitCellExprWorldContext {
     // this just needs to be interesting.... not correct
     pub fn experimental_lerp(&self, other: &Self, pct: f32) -> Self {
         UnitCellExprWorldContext {
-            x: self.x.lerpify(&other.x, pct),
-            y: self.y.lerpify(&other.y, pct),
-            z: self.z.lerpify(&other.z, pct),
-            x_i: self.x_i.lerpify(&other.x_i, pct),
-            y_i: self.y_i.lerpify(&other.y_i, pct),
-            z_i: self.z_i.lerpify(&other.z_i, pct),
-            total_x: self.total_x.lerpify(&other.total_x, pct),
-            total_y: self.total_y.lerpify(&other.total_y, pct),
-            total_z: self.total_z.lerpify(&other.total_z, pct),
-            seed: self.seed.lerpify(&other.seed, pct),
-            h_ratio: self.h_ratio.lerpify(&other.h_ratio, pct),
+            x: self.x.lerpify(&other.x, &pct),
+            y: self.y.lerpify(&other.y, &pct),
+            z: self.z.lerpify(&other.z, &pct),
+            x_i: self.x_i.lerpify(&other.x_i, &pct),
+            y_i: self.y_i.lerpify(&other.y_i, &pct),
+            z_i: self.z_i.lerpify(&other.z_i, &pct),
+            total_x: self.total_x.lerpify(&other.total_x, &pct),
+            total_y: self.total_y.lerpify(&other.total_y, &pct),
+            total_z: self.total_z.lerpify(&other.total_z, &pct),
+            seed: self.seed.lerpify(&other.seed, &pct),
+            h_ratio: self.h_ratio.lerpify(&other.h_ratio, &pct),
         }
     }
 
@@ -855,7 +883,7 @@ impl UnitCellDetails {
     }
 
     pub fn transform_no_skew_one_point(&self, v: Vec2) -> Vec2 {
-        self.transform_no_skew(&vec![v.clone()]).clone_to_vec()[0]
+        self.transform_no_skew(&vec![v]).clone_to_vec()[0]
     }
 
     pub fn transform_no_skew<F: IsPolyline>(&self, v: &F) -> Polyline {
@@ -998,8 +1026,8 @@ impl UnitCellDetailsWallpaper {
 
     fn experimental_lerp(&self, other: &UnitCellDetailsWallpaper, pct: f32) -> UnitCellDetails {
         UnitCellDetails::Wallpaper(UnitCellDetailsWallpaper {
-            transform_vertex: self.transform_vertex.lerpify(&other.transform_vertex, pct),
-            adjust_shape: self.adjust_shape.lerpify(&other.adjust_shape, pct),
+            transform_vertex: self.transform_vertex.lerpify(&other.transform_vertex, &pct),
+            adjust_shape: self.adjust_shape.lerpify(&other.adjust_shape, &pct),
             is_base: self.is_base || other.is_base,
         })
     }

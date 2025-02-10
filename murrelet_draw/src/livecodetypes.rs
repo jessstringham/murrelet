@@ -1,10 +1,11 @@
 // place to put newtypes for livecode
 
 pub mod anglepi {
+    use lerpable::Lerpable;
     use murrelet_common::{Angle, AnglePi, IsAngle};
     use murrelet_livecode_derive::Livecode;
 
-    #[derive(Clone, Copy, Debug, Livecode, Default)]
+    #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default)]
     pub struct LivecodeAnglePi(f32);
     impl LivecodeAnglePi {
         pub const ZERO: Self = LivecodeAnglePi(0.0);

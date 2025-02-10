@@ -1,5 +1,6 @@
 use std::fmt;
 
+use lerpable::{IsLerpingMethod, Lerpable};
 use palette::{
     rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, RgbHue, Srgb, Srgba, WithAlpha,
 };
@@ -115,7 +116,7 @@ impl MurreletColor {
     }
 
     pub fn to_linsrgba(&self) -> LinSrgba {
-        self.0.clone()
+        self.0
     }
 
     pub fn with_alpha(&self, alpha: f32) -> MurreletColor {
@@ -159,5 +160,18 @@ impl MurreletIntoLinSrgba for Srgb {
 impl MurreletIntoLinSrgba for Hsva {
     fn into_murrelet_color(&self) -> MurreletColor {
         MurreletColor::from_hsva(*self)
+    }
+}
+
+impl Lerpable for MurreletColor {
+    fn lerpify<T: IsLerpingMethod>(&self, other: &Self, method: &T) -> Self {
+        let [h, s, v, a] = self.into_hsva_components();
+        let [h2, s2, v2, a2] = other.into_hsva_components();
+        MurreletColor::hsva(
+            h.lerpify(&h2, method),
+            s.lerpify(&s2, method),
+            v.lerpify(&v2, method),
+            a.lerpify(&a2, method),
+        )
     }
 }
