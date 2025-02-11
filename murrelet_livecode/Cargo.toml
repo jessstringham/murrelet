@@ -11,7 +11,7 @@ license = "AGPL-3.0-or-later"
 schemars = ["dep:schemars"]
 
 [dependencies]
-murrelet_common = { version = "0.1.1", path = "../murrelet_common/" }
+murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
 
 lerpable = "0.0.2"
 

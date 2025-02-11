@@ -12,5 +12,5 @@ schemars = ["murrelet_livecode/schemars", "murrelet_livecode_derive/schemars"]
 
 
 [dependencies]
-murrelet_livecode_derive = { version = "0.1.1", path = "murrelet_livecode_derive", default-features = false }
-murrelet_livecode = { version = "0.1.1", path = "../murrelet_livecode", default-features = false }
+murrelet_livecode_derive = { version = "0.1.2", path = "murrelet_livecode_derive", default-features = false }
+murrelet_livecode = { version = "0.1.2", path = "../murrelet_livecode", default-features = false }

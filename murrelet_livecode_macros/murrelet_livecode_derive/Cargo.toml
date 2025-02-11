@@ -19,11 +19,11 @@ quote = "1.0.18"
 proc-macro2 = "1.0.37"
 darling = "0.20.3"
 serde = { version = "1.0.104", features = ["derive"] }
-murrelet_livecode = { version = "0.1.1", path = "../../murrelet_livecode", default-features = false}
+murrelet_livecode = { version = "0.1.2", path = "../../murrelet_livecode", default-features = false}
 
 # just for examples...
 [dev-dependencies]
-murrelet_common = { version = "0.1.1", path = "../../murrelet_common"}
+murrelet_common = { version = "0.1.2", path = "../../murrelet_common"}
 glam = "0.28.0"
 palette = "0.7.6"
 lerpable = "0.0.2"

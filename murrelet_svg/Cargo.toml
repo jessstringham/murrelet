@@ -11,9 +11,9 @@ license = "AGPL-3.0-or-later"
 schemars = ["murrelet_perform/schemars", "murrelet_draw/schemars"]
 
 [dependencies]
-murrelet_common = { version = "0.1.1", path = "../murrelet_common/" }
-murrelet_perform = { version = "0.1.1", path = "../murrelet_perform/", default-features = false}
-murrelet_draw = { version = "0.1.1", path = "../murrelet_draw/", default-features = false}
+murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
+murrelet_perform = { version = "0.1.2", path = "../murrelet_perform/", default-features = false}
+murrelet_draw = { version = "0.1.2", path = "../murrelet_draw/", default-features = false}
 glam = "0.28.0"
 itertools = "0.10.5"
 svg = "0.10.0"
