@@ -9,7 +9,7 @@ license = "AGPL-3.0-or-later"
 
 
 [dependencies]
-murrelet_common = { version = "0.1.1", path = "../murrelet_common/" }
+murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
 
 uuid = "1.8.0"
 rosc = "~0.10"
