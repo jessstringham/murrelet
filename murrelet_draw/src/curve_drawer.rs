@@ -74,6 +74,16 @@ impl CurveDrawer {
     pub fn noop() -> Self {
         Self::new(vec![], false)
     }
+
+    pub fn first_point(&self) -> Vec2 {
+        let first_command = self.segments().first().unwrap();
+        first_command.first_point()
+    }
+
+    pub fn last_point(&self) -> Vec2 {
+        let last_command = self.segments().last().unwrap();
+        last_command.last_point()
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]

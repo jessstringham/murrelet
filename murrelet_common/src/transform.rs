@@ -187,6 +187,16 @@ impl SimpleTransform2d {
     pub fn translate(v: Vec2) -> Self {
         Self(vec![SimpleTransform2dStep::Translate(v)])
     }
+
+    pub fn to_mat3(&self) -> Mat3 {
+        self.0
+            .iter()
+            .fold(Mat3::IDENTITY, |acc, el| el.transform() * acc)
+    }
+
+    pub fn to_mat4(&self) -> Mat4 {
+        mat4_from_mat3_transform(self.to_mat3())
+    }
 }
 
 impl TransformVec2 for SimpleTransform2d {
