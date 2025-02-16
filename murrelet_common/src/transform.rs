@@ -108,6 +108,10 @@ impl SimpleTransform2dStep {
         Self::Translate(v)
     }
 
+    pub fn rotate_pi<A: IsAngle>(angle_pi: A) -> Self {
+        Self::Rotate(Vec2::ZERO, angle_pi.as_angle_pi())
+    }
+
     pub fn scale_both(v: f32) -> Self {
         Self::Scale(Vec2::ONE * v)
     }

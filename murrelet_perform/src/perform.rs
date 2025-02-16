@@ -44,6 +44,7 @@ pub struct SvgDrawConfig {
     frame: u64,
     target_size: f32, // in mm
     margin_size: f32,
+    should_resize: bool, // sorry, something to force it not to resize my shapes on the web!
 }
 impl SvgDrawConfig {
     pub fn new(
@@ -58,7 +59,14 @@ impl SvgDrawConfig {
             target_size,
             margin_size: 10.0,
             frame,
+            should_resize: true,
         }
+    }
+
+    pub fn with_no_resize(&self) -> Self {
+        let mut c = self.clone();
+        c.should_resize = false;
+        c
     }
 
     pub fn full_target_width(&self) -> f32 {
@@ -77,17 +85,21 @@ impl SvgDrawConfig {
     }
 
     pub fn transform_for_size(&self) -> Mat4 {
-        // okay so we take the width, since that's what looked okay on the screen
-        let size = self.size();
-        let full_target_width = self.full_target_width() * 1.0;
+        if self.should_resize {
+            // okay so we take the width, since that's what looked okay on the screen
+            let size = self.size();
+            let full_target_width = self.full_target_width() * 1.0;
 
-        let translation_to_final = vec3(full_target_width, full_target_width, 0.0);
-        let s = self.target_size / size;
-        let scale = vec3(s, s, 1.0);
+            let translation_to_final = vec3(full_target_width, full_target_width, 0.0);
+            let s = self.target_size / size;
+            let scale = vec3(s, s, 1.0);
 
-        // aiming for 100mm by 100mm, going from 0 to 10
-        // operations go right to left!
-        Mat4::from_translation(translation_to_final) * Mat4::from_scale(scale)
+            // aiming for 100mm by 100mm, going from 0 to 10
+            // operations go right to left!
+            Mat4::from_translation(translation_to_final) * Mat4::from_scale(scale)
+        } else {
+            Mat4::IDENTITY
+        }
     }
 
     pub fn frame(&self) -> u64 {

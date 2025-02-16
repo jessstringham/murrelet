@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{curve_drawer::CurveDrawer, draw::*, transform2d::*};
+use crate::{curve_drawer::CurveDrawer, draw::*, svg::TransformedSvgShape, transform2d::*};
 use glam::*;
 use lerpable::Lerpable;
 use md5::{Digest, Md5};
@@ -463,6 +463,7 @@ impl MurreletCurve {
 pub enum MurreletPath {
     Polyline(Polyline),
     Curve(MurreletCurve),
+    Svg(TransformedSvgShape)
 }
 impl MurreletPath {
     pub fn polyline<F: IsPolyline>(path: F) -> Self {
@@ -480,13 +481,15 @@ impl MurreletPath {
                 t: Mat4::IDENTITY,
             },
             MurreletPath::Curve(c) => c.clone(),
+            MurreletPath::Svg(_) => todo!(),
         }
     }
 
     pub fn transform_with<T: TransformVec2>(&self, t: &T) -> Self {
         match self {
             MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
-            MurreletPath::Curve(_) => todo!(), // i'm not sure how i want to handle this yet
+            MurreletPath::Curve(_) => todo!(),
+            MurreletPath::Svg(_) => todo!(), // i'm not sure how i want to handle this yet
         }
     }
 
@@ -494,6 +497,7 @@ impl MurreletPath {
         match self {
             MurreletPath::Polyline(_) => self.transform_with(&t),
             MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_after(t)),
+            MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_with_mat4_after(t)),
         }
     }
 
@@ -501,6 +505,7 @@ impl MurreletPath {
         match self {
             MurreletPath::Polyline(_) => self.transform_with(&t),
             MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_before(t)),
+            MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_with_mat4_before(t)),
         }
     }
 
@@ -508,6 +513,7 @@ impl MurreletPath {
         match self {
             MurreletPath::Polyline(_) => None,
             MurreletPath::Curve(c) => Some(c.t),
+            MurreletPath::Svg(c) => Some(c.t),
         }
     }
 }

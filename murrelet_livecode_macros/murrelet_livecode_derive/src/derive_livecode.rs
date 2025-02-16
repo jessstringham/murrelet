@@ -724,6 +724,7 @@ impl GenFinal for FieldTokensLivecode {
             .unwrap_or(quote! {""});
 
         let for_world = {
+            // todo, these look like the same
             if how_to_control_internal.is_lazy() {
                 quote! {#name: {
                     murrelet_livecode::unitcells::TmpUnitCells::new(
