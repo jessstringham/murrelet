@@ -248,4 +248,8 @@ impl IdxInRange2d {
         let y = self.j.to_range(range.x, range.y);
         vec2(x, y)
     }
+
+    pub fn width(&self) -> f32 {
+        self.i.total as f32
+    }
 }

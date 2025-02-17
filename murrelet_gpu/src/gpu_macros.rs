@@ -1144,3 +1144,7 @@ impl ImageTexture {
             .update_uniforms(c, [offset.x, offset.y, size.x, size.y]);
     }
 }
+
+
+
+

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Debug, marker::PhantomData};
+use std::{collections::HashSet, fmt::Debug};
 
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
@@ -9,10 +9,9 @@ use serde_yaml::Location;
 
 use crate::{
     expr::IntoExprWorldContext,
-    lazy::IsLazy,
     livecode::{GetLivecodeIdentifiers, LivecodeFromWorld},
     state::LivecodeWorldState,
-    unitcells::{TmpUnitCells, UnitCellCreator, UnitCellExprWorldContext, UnitCells},
+    unitcells::UnitCellExprWorldContext,
 };
 
 #[derive(Debug)]

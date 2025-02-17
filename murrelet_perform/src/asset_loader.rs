@@ -2,12 +2,31 @@ use std::{collections::HashMap, path::Path};
 
 use itertools::Itertools;
 use lerpable::Lerpable;
-use murrelet_common::{Asset, Assets};
+use murrelet_common::{
+    Assets, RasterAsset, RasterAssetLookup, VectorAsset, VectorLayersAssetLookup,
+};
 use murrelet_livecode_derive::Livecode;
 
-pub trait AssetLoader {
+pub trait VectorAssetLoader {
     fn is_match(&self, file_extension: &str) -> bool;
-    fn load(&self, layers: &[&str], filename: &Path) -> Asset;
+    fn load(&self, layers: &[&str], filename: &Path) -> VectorAsset;
+}
+
+pub trait RasterAssetLoader {
+    fn is_match(&self, file_extension: &str) -> bool;
+    fn load(&self, filename: &Path) -> RasterAsset;
+}
+
+#[derive(Livecode, Lerpable, Clone, Debug)]
+pub struct RasterFile {
+    #[livecode(kind = "none")]
+    name: String,
+    // probably will want to add something to normalize the nums coming in...
+}
+impl RasterFile {
+    pub fn path(&self) -> &Path {
+        Path::new(&self.name)
+    }
 }
 
 #[derive(Livecode, Lerpable, Clone, Debug)]
@@ -27,35 +46,56 @@ impl PolylineLayerFile {
 }
 
 pub fn _empty_filenames() -> ControlAssetFilenames {
-    ControlAssetFilenames { files: vec![] }
+    ControlAssetFilenames {
+        vector_files: vec![],
+        raster_files: vec![],
+    }
 }
 
 pub fn _empty_filenames_lazy() -> ControlLazyAssetFilenames {
-    ControlLazyAssetFilenames { files: vec![] }
+    ControlLazyAssetFilenames {
+        vector_files: vec![],
+        raster_files: vec![],
+    }
+}
+
+pub struct AssetLoaders {
+    vector: Vec<Box<dyn VectorAssetLoader>>,
+    raster: Vec<Box<dyn RasterAssetLoader>>,
+}
+
+impl AssetLoaders {
+    pub fn new(vector: Vec<Box<dyn VectorAssetLoader>>, raster: Vec<Box<dyn RasterAssetLoader>>) -> Self {
+        Self { vector, raster }
+    }
 }
 
 #[derive(Livecode, Lerpable, Clone, Debug)]
 pub struct AssetFilenames {
     // hmm, the parsers are all in a different part of the code
-    files: Vec<PolylineLayerFile>,
+    vector_files: Vec<PolylineLayerFile>,
+    raster_files: Vec<RasterFile>,
 }
 
 impl AssetFilenames {
     pub fn empty() -> Self {
-        Self { files: Vec::new() }
+        Self {
+            vector_files: Vec::new(),
+            raster_files: Vec::new(),
+        }
     }
 
-    pub fn load(&self, load_funcs: &[Box<dyn AssetLoader>]) -> Assets {
+    pub fn load_polylines(&self, load_funcs: &AssetLoaders) -> Assets {
         let mut m = HashMap::new();
-        for filename in &self.files {
+        for filename in &self.vector_files {
             let path = filename.path();
 
-            println!("loading file {:?}", filename.path());
+            println!("loading vector file {:?}", filename.path());
             // depending on the filetype...
 
             if let Some(ext) = path.extension() {
                 let ext_str = ext.to_str();
-                for func in load_funcs {
+                for func in &load_funcs.vector {
                     if func.is_match(ext_str.unwrap()) {
                         let filename_stem = path
                             .file_stem()
@@ -69,6 +109,28 @@ impl AssetFilenames {
             }
         }
 
-        Assets::new(m)
+        let polylines = VectorLayersAssetLookup::new(m);
+
+        let mut raster = RasterAssetLookup::empty();
+        for filename in &self.raster_files {
+            let path = filename.path();
+            println!("loading raster file {:?}", filename.path());
+
+            if let Some(ext) = path.extension() {
+                let ext_str = ext.to_str();
+                for func in &load_funcs.raster {
+                    if func.is_match(ext_str.unwrap()) {
+                        let filename_stem = path
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned();
+                        raster.insert(filename_stem, func.load(path));
+                    }
+                }
+            }
+        }
+
+        Assets::new(polylines, raster)
     }
 }

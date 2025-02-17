@@ -13,11 +13,11 @@ use crate::{IsPolyline, Polyline};
 
 // eeh, this is not very good, svg assumptions are all mixed in
 #[derive(Debug, Clone)]
-pub struct Asset {
+pub struct VectorAsset {
     layers: Vec<String>, // to support indexing
     map: HashMap<String, Vec<Polyline>>,
 }
-impl Asset {
+impl VectorAsset {
     pub fn get_layer(&self, layer: &str) -> Option<&Vec<Polyline>> {
         self.map.get(layer)
     }
@@ -50,12 +50,14 @@ impl Asset {
     }
 }
 
+
+
 #[derive(Debug, Clone)]
-pub struct Assets {
-    filename_to_polyline_layers: HashMap<String, Asset>,
+pub struct VectorLayersAssetLookup {
+    filename_to_polyline_layers: HashMap<String, VectorAsset>,
 }
-impl Assets {
-    pub fn new(filename_to_polyline_layers: HashMap<String, Asset>) -> Self {
+impl VectorLayersAssetLookup {
+    pub fn new(filename_to_polyline_layers: HashMap<String, VectorAsset>) -> Self {
         Self {
             filename_to_polyline_layers,
         }
@@ -67,25 +69,77 @@ impl Assets {
         }
     }
 
-    pub fn new_ref(filename_to_polyline_layers: HashMap<String, Asset>) -> AssetsRef {
-        Arc::new(Self::new(filename_to_polyline_layers))
+    pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<&Vec<Polyline>> {
+        let asset = &self.filename_to_polyline_layers[key];
+        asset.get_layer_idx(layer_idx)
+    }
+
+    pub fn layer_for_key(&self, key: &str) -> &[String] {
+        &self.filename_to_polyline_layers[key].layers
+    }
+}
+
+
+pub trait IsColorType {}
+
+#[derive(Debug, Clone, Copy)]
+struct BlackWhite(bool);
+impl IsColorType for BlackWhite {}
+
+// struct RGBAu8([u8; 4]),;
+// struct RGBAf32([f32; 4]);
+
+
+#[derive(Debug, Clone)]
+pub enum RasterAsset {
+    RasterBW(Vec<Vec<BlackWhite>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct RasterAssetLookup(HashMap<String, RasterAsset>);
+impl RasterAssetLookup {
+    pub fn empty() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn insert(&mut self, filename: String, img: RasterAsset) {
+        self.0.insert(filename, img);
+    }
+}
+
+
+#[derive(Debug, Clone)]
+
+pub struct Assets {
+    vectors: VectorLayersAssetLookup,
+    rasters: RasterAssetLookup,
+}
+impl Assets {
+    pub fn new(vectors: VectorLayersAssetLookup, rasters: RasterAssetLookup) -> Self {
+        Self { vectors, rasters }
     }
 
     pub fn empty_ref() -> AssetsRef {
         Arc::new(Self::empty())
     }
 
-    pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<&Vec<Polyline>> {
-        let asset = &self.filename_to_polyline_layers[key];
-        asset.get_layer_idx(layer_idx)
+    pub fn empty() -> Assets {
+        Self {
+            vectors: VectorLayersAssetLookup::empty(),
+            rasters: RasterAssetLookup::empty(),
+        }
     }
 
     pub fn to_ref(self) -> AssetsRef {
         Arc::new(self)
     }
 
+    pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<&Vec<Polyline>> {
+        self.vectors.asset_layer(key, layer_idx)
+    }
+
     pub fn layer_for_key(&self, key: &str) -> &[String] {
-        &self.filename_to_polyline_layers[key].layers
+        self.vectors.layer_for_key(key)
     }
 }
 

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 #[allow(dead_code)]
 use std::path::PathBuf;
 
@@ -105,7 +106,13 @@ impl OwnedDeviceState {
 
 // borrowing from bevy
 pub fn align_byte_size(value: u32) -> u32 {
-    value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
+
+    if value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT != 0 {
+        value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
+    } else {
+        value
+    }
+
 }
 
 pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std::error::Error>> {
@@ -123,7 +130,11 @@ fn write_png_to_texture(
     texture: &wgpu::Texture,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load the image
+    println!("loading file {:?}", path);
     let img = image::open(path)?;
+
+    println!("img.color() {:?}", img.color());
+
     let img_rgba = img.to_rgba8();
     let (img_width, img_height) = img.dimensions();
 
@@ -135,6 +146,7 @@ fn write_png_to_texture(
 
     println!("img_width {:?}", img_width);
     println!("img_height {:?}", img_height);
+    println!("padded_row {:?}", padded_row);
     println!("buffer_rows {:?}", buffer_rows);
 
     // just get the name to name the texture
@@ -148,6 +160,14 @@ fn write_png_to_texture(
 
         padded_img[start..end].copy_from_slice(data);
     }
+
+
+    let mut hist = HashMap::new();
+    for value in &padded_img {
+        *hist.entry(value).or_insert(0) += 1;
+    }
+
+    println!("hist {:?}", hist);
 
     // buffer for loading the png
     let buffer = device_state

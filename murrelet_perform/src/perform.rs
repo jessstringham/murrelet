@@ -20,7 +20,7 @@ use murrelet_livecode::livecode::*;
 use murrelet_livecode_derive::Livecode;
 
 use crate::asset_loader::*;
-use crate::cli::BaseConfigArgs;
+use crate::cli::{BaseConfigArgs, TextureDimensions};
 use crate::reload::*;
 use clap::Parser;
 
@@ -39,7 +39,8 @@ pub trait ConfCommon: CommonTrait {
 
 #[derive(Clone, Debug)]
 pub struct SvgDrawConfig {
-    size: f32,
+    size: f32, // todo, what's the difference between this and texture sizes?
+    pub resolution: TextureDimensions,
     capture_path: Option<PathBuf>, // if it's missing, we don't save (e.g. web browser)
     frame: u64,
     target_size: f32, // in mm
@@ -49,6 +50,7 @@ pub struct SvgDrawConfig {
 impl SvgDrawConfig {
     pub fn new(
         size: f32,
+        resolution: TextureDimensions,
         capture_path: Option<PathBuf>,
         target_size: f32,
         frame: u64,
@@ -60,6 +62,7 @@ impl SvgDrawConfig {
             margin_size: 10.0,
             frame,
             should_resize: true,
+            resolution,
         }
     }
 
@@ -466,6 +469,7 @@ impl AppConfig {
 
 // todo, this is all a little weird (svg save path), i should revisit it..
 pub struct LilLiveConfig<'a> {
+    resolution: TextureDimensions,
     save_path: Option<&'a PathBuf>,
     run_id: u64,
     w: &'a LivecodeWorldState,
@@ -490,6 +494,7 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
 
     SvgDrawConfig::new(
         lil_liveconfig.app_config.width,
+        lil_liveconfig.resolution,
         capture_path,
         lil_liveconfig.app_config.svg.size,
         lil_liveconfig.w.actual_frame_u64(),
@@ -539,7 +544,7 @@ where
     pub fn new_web(
         conf: String,
         livecode_src: LivecodeSrc,
-        load_funcs: &[Box<dyn AssetLoader>],
+        load_funcs: &AssetLoaders,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
         let controlconfig = ControlConfType::parse(&conf).map_err(|err| {
             if let Some(error) = err.location() {
@@ -555,7 +560,7 @@ where
     pub fn new(
         save_path: PathBuf,
         livecode_src: LivecodeSrc,
-        load_funcs: &[Box<dyn AssetLoader>],
+        load_funcs: &AssetLoaders,
     ) -> LiveCoder<ConfType, ControlConfType> {
         let controlconfig = ControlConfType::fs_load();
 
@@ -575,7 +580,7 @@ where
         controlconfig: ControlConfType,
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
-        load_funcs: &[Box<dyn AssetLoader>],
+        load_funcs: &AssetLoaders,
         maybe_args: Option<BaseConfigArgs>,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
         let run_id = run_id();
@@ -605,7 +610,7 @@ where
 
         let w = s.world();
         let app_conf = s.controlconfig._app_config().o(w)?;
-        let assets = app_conf.assets.load(load_funcs);
+        let assets = app_conf.assets.load_polylines(load_funcs);
         s.assets = assets.to_ref();
 
         // use the object to create a world and generate the configs
@@ -680,6 +685,7 @@ where
             run_id: self.run_id,
             w: self.world(),
             app_config: self.app_config(),
+            resolution: self.maybe_args.as_ref().unwrap().resolution,
         })
     }
 
@@ -934,6 +940,10 @@ where
     // seconds since last render
     pub fn time_delta(&self) -> f32 {
         self.world().time().seconds_between_render_times()
+    }
+
+    pub fn args(&self) -> Option<BaseConfigArgs> {
+        self.maybe_args.clone()
     }
 
     pub fn sketch_args(&self) -> Vec<String> {
