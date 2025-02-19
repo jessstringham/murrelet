@@ -21,7 +21,6 @@ pub struct SvgRect {
 
 
 
-
 #[derive(Clone, Debug, Livecode, Lerpable)]
 pub enum SvgShape {
     Rect(SvgRect)

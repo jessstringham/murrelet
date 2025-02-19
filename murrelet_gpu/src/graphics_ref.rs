@@ -1111,10 +1111,8 @@ impl Graphics {
 
         let input_texture_view = input_texture.create_view(&Default::default());
 
-        println!("input {:?}", input_texture_view);
         let (input_texture_view_other, other_texture_and_desc) = if has_second_texture {
             let other_texture = Graphics::texture(c.dims(), device, second_format.unwrap());
-            println!("other texture view {:?}", &other_texture.texture);
             (
                 Some(other_texture.texture.create_view(&Default::default())),
                 Some(other_texture),
@@ -1122,7 +1120,6 @@ impl Graphics {
         } else {
             (None, None)
         };
-        println!("other input {:?}", input_texture_view_other);
 
         let sampler = Graphics::_sampler(device, details);
         let bind_group_layout = Graphics::_bind_group_layout(

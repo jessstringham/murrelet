@@ -76,6 +76,7 @@ fn parse_graphics(
         if let (Some(kind), Some(ident)) = (&f.kind, &f.ident) {
             let kind = GraphicKind::parse(kind);
             let ident = ident.clone();
+
             match kind {
                 GraphicKind::Drawer => drawers.push(quote! {v.push(&self.#ident)}),
                 GraphicKind::Pipeline => {
@@ -84,7 +85,7 @@ fn parse_graphics(
                             .expect("that's not a function!");
 
                         quote! {
-                            if !#should_run_fn(render_in) {
+                            if #should_run_fn(render_in) {
                                 v.push(&self.#ident as &dyn GraphicsRenderer);
                             }
                         }
