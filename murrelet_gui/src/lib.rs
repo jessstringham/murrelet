@@ -1,6 +1,4 @@
 pub use murrelet_gui_derive::MurreletGUI;
-use murrelet_livecode::livecode::ControlF32;
-use thiserror::Error;
 
 // #[derive(Debug, Error)]
 // pub enum MurreletGUIErr {
@@ -37,6 +35,10 @@ impl MurreletGUISchema {
         Self::NewType(Box::new(m))
     }
 
+    pub fn list(m: MurreletGUISchema) -> Self {
+        Self::List(Box::new(m))
+    }
+
     pub fn as_enum(&self) -> Option<&Vec<MurreletEnumValGUI>> {
         if let Self::Enum(v) = self {
             Some(v)
@@ -57,21 +59,34 @@ impl MurreletGUISchema {
 // this should be on the Control version
 pub trait CanMakeGUI: Sized {
     fn make_gui() -> MurreletGUISchema;
-
-    // fn gui_to_livecode(&self, gui_val: MurreletGUIResponse) -> MurreletGUIResult<Self>;
 }
 
-
-impl CanMakeGUI for f32 {
-    fn make_gui() -> MurreletGUISchema {
-        MurreletGUISchema::Val(ValueGUI::Num)
-    }
+macro_rules! impl_can_make_gui_for_num {
+    ($ty:ty) => {
+        impl CanMakeGUI for $ty {
+            fn make_gui() -> MurreletGUISchema {
+                MurreletGUISchema::Val(ValueGUI::Num)
+            }
+        }
+    };
 }
+
+impl_can_make_gui_for_num!(f32);
+impl_can_make_gui_for_num!(f64);
+impl_can_make_gui_for_num!(u32);
+impl_can_make_gui_for_num!(u64);
+impl_can_make_gui_for_num!(i32);
+impl_can_make_gui_for_num!(i64);
+impl_can_make_gui_for_num!(usize);
 
 impl<T: CanMakeGUI> CanMakeGUI for Vec<T> {
     fn make_gui() -> MurreletGUISchema {
-
-        // blargh
         MurreletGUISchema::List(Box::new(T::make_gui()))
+    }
+}
+
+impl CanMakeGUI for String {
+    fn make_gui() -> MurreletGUISchema {
+        MurreletGUISchema::Skip
     }
 }

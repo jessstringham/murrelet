@@ -17,6 +17,7 @@ where
     fn from_noop_struct(idents: StructIdents) -> Self;
     fn from_name(idents: StructIdents) -> Self;
     fn from_type_struct(idents: StructIdents) -> Self;
+    // fn from_recurse_struct_vec(idents: StructIdents) -> Self;
 
     fn from_ast(ast_receiver: LivecodeReceiver) -> TokenStream2 {
         match ast_receiver.data {
@@ -136,7 +137,7 @@ where
                         #[cfg(feature = "debug_logging")]
                         log::info!("-> from_name");
                         Self::from_name(idents)
-                    },
+                    }
                 }
             })
             .collect::<Vec<_>>();
@@ -148,7 +149,7 @@ where
 }
 
 #[derive(Debug, FromField, Clone)]
-#[darling(attributes(lerpable))]
+#[darling(attributes(murrelet_gui))]
 pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
@@ -165,6 +166,8 @@ impl LivecodeFieldReceiver {
             } else {
                 panic!("unexpected kind")
             }
+        } else if let Some(_) = &self.reference {
+            HowToControlThis::Name
         } else {
             HowToControlThis::GUIType
         }
@@ -173,14 +176,14 @@ impl LivecodeFieldReceiver {
 
 // for enums
 #[derive(Debug, FromVariant, Clone)]
-#[darling(attributes(lerpable))]
+#[darling(attributes(murrelet_gui))]
 pub(crate) struct LivecodeVariantReceiver {
     pub(crate) ident: syn::Ident,
     pub(crate) fields: ast::Fields<LivecodeFieldReceiver>,
 }
 
 #[derive(Debug, Clone, FromDeriveInput)]
-#[darling(attributes(lerpable), supports(any))]
+#[darling(attributes(murrelet_gui), supports(any))]
 pub(crate) struct LivecodeReceiver {
     ident: syn::Ident,
     data: ast::Data<LivecodeVariantReceiver, LivecodeFieldReceiver>,
@@ -205,5 +208,6 @@ impl StructIdents {}
 pub(crate) enum HowToControlThis {
     Skip,    // just do the default values
     GUIType, // build a gui for this type
-    Name,    // a referenced thing,
+    // GUIVec, // GUI for a list
+    Name, // a referenced thing,
 }

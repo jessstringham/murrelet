@@ -21,7 +21,7 @@ impl GenFinal for FieldTokensGUI {
         quote! {
             impl murrelet_gui::CanMakeGUI for #name {
                 fn make_gui() -> murrelet_gui::MurreletGUISchema {
-                    murrelet_gui::MurreletGUISchema::NewType(#(#for_make_gui,)*)
+                    murrelet_gui::MurreletGUISchema::new_type(#(#for_make_gui,)*)
                 }
 
                 // fn gui_to_livecode(&self, gui_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self>  {
@@ -84,9 +84,11 @@ impl GenFinal for FieldTokensGUI {
         }
     }
 
-    fn from_newtype_struct(_idents: StructIdents, _parent_ident: syn::Ident) -> FieldTokensGUI {
+    fn from_newtype_struct(idents: StructIdents, _parent_ident: syn::Ident) -> FieldTokensGUI {
+        let ty = convert_vec_type(&idents.data.ty);
+
         let for_make_gui = quote! {
-            self.0.make_gui()
+            #ty::make_gui()
         };
         // let for_gui_to_livecode = quote! {
         //     self.0.gui_to_livecode(v)
@@ -102,10 +104,10 @@ impl GenFinal for FieldTokensGUI {
     // e.g. TileAxisLocs::V(TileAxisVs)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensGUI {
         let variant_ident = idents.data.ident;
-        let name = idents.enum_name;
+        let ty = convert_vec_type(&idents.data.fields.fields.first().unwrap().ty);
         let variant_ident_str = variant_ident.to_string();
 
-        let for_make_gui = quote! { (#name::#variant_ident(enum_val) => murrelet_gui::MurreletEnumValGUI::Unnamed(#variant_ident_str.to_string(), enum_val.make_gui())) };
+        let for_make_gui = quote! { (murrelet_gui::MurreletEnumValGUI::Unnamed(#variant_ident_str.to_string(), #ty::make_gui())) };
         // let for_gui_to_livecode = quote! { murrelet_gui::MurreletEnumValGUI::Unnamed(#variant_ident_str, enum_val) => #name::#variant_ident(enum_val.gui_to_livecode()) };
 
         FieldTokensGUI {
@@ -118,10 +120,9 @@ impl GenFinal for FieldTokensGUI {
     // e.g. TileAxis::Diag
     fn from_unit_enum(idents: EnumIdents) -> FieldTokensGUI {
         let variant_ident = idents.data.ident;
-        let name = idents.enum_name;
         let variant_ident_str = variant_ident.to_string();
 
-        let for_make_gui = quote! { (#name::#variant_ident => murrelet_gui::MurreletEnumValGUI::Unit(#variant_ident_str.to_owned())) };
+        let for_make_gui = quote! { murrelet_gui::MurreletEnumValGUI::Unit(#variant_ident_str.to_owned()) };
         // let for_gui_to_livecode =
         //     quote! { murrelet_gui::Unit(#variant_ident_str) => #name::#variant_ident };
 
@@ -134,12 +135,14 @@ impl GenFinal for FieldTokensGUI {
 
     // s: String with reference
     fn from_name(idents: StructIdents) -> FieldTokensGUI {
+        let field_name = idents.data.ident.unwrap().to_string();
+
         let name_reference = idents
             .data
             .reference
             .expect("from name called without a reference!");
 
-        let for_make_gui = quote! { murrelet_gui::ValueGUI::Name(#name_reference) };
+        let for_make_gui = quote! { (#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Name(#name_reference.to_owned()))) };
 
         // let for_assign_vars
         // let for_gui_to_livecode = quote! { murrelet_gui::ValueGUIResponse::Name(name) => name };
@@ -155,7 +158,7 @@ impl GenFinal for FieldTokensGUI {
     fn from_noop_struct(idents: StructIdents) -> FieldTokensGUI {
         let field_name = idents.data.ident.unwrap().to_string();
 
-        let for_make_gui = quote! { (#field_name.to_owned(), murrelet_gui::Skip) };
+        let for_make_gui = quote! { (#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Skip) };
         // let for_gui_to_livecode =
         //     quote! { murrelet_gui::Unit(#variant_ident_str) => #name::#variant_ident };
 
@@ -169,10 +172,29 @@ impl GenFinal for FieldTokensGUI {
     fn from_type_struct(idents: StructIdents) -> FieldTokensGUI {
         let field_name = idents.data.ident.unwrap();
         let field_name_str = field_name.to_string();
-        let kind = idents.data.ty;
+        // to call a static function, we need to
+        let kind = convert_vec_type(&idents.data.ty);
 
         let for_make_gui = quote! { (#field_name_str.to_owned(), #kind::make_gui()) };
 
         FieldTokensGUI { for_make_gui }
     }
+}
+
+// we need to use turbofish to call an associated function
+fn convert_vec_type(ty: &syn::Type) -> TokenStream2 {
+    if let syn::Type::Path(type_path) = ty {
+        if let Some(last_segment) = type_path.path.segments.last() {
+            if last_segment.ident == "Vec" {
+                if let syn::PathArguments::AngleBracketed(angle_bracketed) = &last_segment.arguments
+                {
+                    if let Some(inner_arg) = angle_bracketed.args.first() {
+                        return quote! { Vec:: < #inner_arg > };
+                    }
+                }
+            }
+        }
+    }
+
+    quote! { #ty }
 }

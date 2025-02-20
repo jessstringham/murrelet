@@ -1,72 +1,36 @@
-use murrelet_gui::{CanMakeGUI, MurreletGUI, MurreletGUISchema};
+use std::collections::HashMap;
+
+use murrelet_gui::{CanMakeGUI, MurreletEnumValGUI, MurreletGUI, MurreletGUISchema, ValueGUI};
 
 #[derive(MurreletGUI)]
 pub struct BasicTypes {
     a_number: f32,
-    b_number: f32,
+    b_number: usize,
+    c_number: u64,
+    d_number: i32,
     something: Vec<f32>,
-    // s: String,
+    s: String,
+    #[murrelet_gui(reference = "test")]
+    referenced_string: String,
 }
 
-// #[derive(Clone)]
-// struct CustomMethod {
-//     pct: f64,
-// }
-// impl IsLerpingMethod for CustomMethod {
-//     fn has_lerp_stepped(&self) -> bool {
-//         false
-//     }
+#[derive(MurreletGUI)]
+pub struct OverridesAndRecursive {
+    a_number: f32,
+    something: Vec<BasicTypes>,
+    label: String,
+    #[murrelet_gui(kind = "skip")]
+    b: HashMap<String, String>,
+}
 
-//     fn partial_lerp_pct(&self, _i: usize, _total: usize) -> f64 {
-//         0.0
-//     }
+#[derive(MurreletGUI)]
+enum EnumTest {
+    A,
+    B(OverridesAndRecursive),
+}
 
-//     fn lerp_pct(&self) -> f64 {
-//         0.0
-//     }
-
-//     fn with_lerp_pct(&self, pct: f64) -> Self {
-//         let mut c = self.clone();
-//         c.pct = pct;
-//         c
-//     }
-// }
-
-// fn custom_method() -> CustomMethod {
-//     CustomMethod { pct: 0.0 }
-// }
-
-// fn custom_func<T: IsLerpingMethod>(this: &f32, other: &f32, _pct: &T) -> f32 {
-//     *this - *other
-// }
-
-// #[derive(Debug, Clone, MurreletUX)]
-// pub struct BasicTypesWithOverrides {
-//     a_number: f32,
-//     something: Vec<f32>,
-//     label: String,
-//     b: HashMap<String, String>,
-// }
-
-// #[derive(Debug, Clone)]
-// struct MurreletUXType();
-
-// #[derive(Debug, Clone, MurreletUX)]
-// enum EnumTest {
-//     A,
-//     B(BasicTypesWithOverrides),
-// }
-
-// #[derive(Debug, Clone)]
-// struct SimpleNewtype(f32);
-// impl MurreletUX for SimpleNewtype {
-//     fn lerpify<T: IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
-//         if pct.lerp_pct() > 0.25 {
-//             self.clone()
-//         } else {
-//             other.clone()
-//         }
-//     }
+#[derive(MurreletGUI)]
+struct SimpleNewtype(f32);
 
 //     fn lerp_partial<T: IsLerpingMethod>(&self, pct: T) -> Self {
 //         SimpleNewtype(pct.lerp_pct() as f32)
@@ -82,5 +46,44 @@ fn main() {
     // };
     let test_val = BasicTypes::make_gui();
 
-    assert_eq!(test_val, MurreletGUISchema::Skip)
+    let basic_types_schema = MurreletGUISchema::Struct(vec![
+        ("a_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+        ("b_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+        ("c_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+        ("d_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+        (
+            "something".to_owned(),
+            MurreletGUISchema::list(MurreletGUISchema::Val(ValueGUI::Num)),
+        ),
+        ("s".to_owned(), MurreletGUISchema::Skip),
+        (
+            "referenced_string".to_owned(),
+            MurreletGUISchema::Val(ValueGUI::Name("test".to_owned())),
+        ),
+    ]);
+
+    assert_eq!(test_val, basic_types_schema);
+
+    let test_val = OverridesAndRecursive::make_gui();
+
+    let overrides_and_recursive_schema = MurreletGUISchema::Struct(vec![
+        ("a_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+        (
+            "something".to_owned(),
+            MurreletGUISchema::list(basic_types_schema),
+        ),
+        ("label".to_owned(), MurreletGUISchema::Skip),
+        ("b".to_owned(), MurreletGUISchema::Skip),
+    ]);
+    assert_eq!(test_val, overrides_and_recursive_schema);
+
+    let test_val = EnumTest::make_gui();
+
+    assert_eq!(
+        test_val,
+        MurreletGUISchema::Enum(vec![
+            (MurreletEnumValGUI::Unit("A".to_owned())),
+            (MurreletEnumValGUI::Unnamed("B".to_owned(), overrides_and_recursive_schema)),
+        ])
+    );
 }
