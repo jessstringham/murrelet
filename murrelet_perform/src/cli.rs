@@ -58,6 +58,9 @@ pub struct BaseConfigArgs {
     #[arg(long, default_value_t = 2, value_parser = clap::value_parser!(u32).range(1..=8))]
     pub texture_multiplier: u32, // controls number of pixels the shaders work on
 
+    #[arg(long)]
+    pub earlystop: Option<u64>,
+
     #[arg(trailing_var_arg = true)]
     pub sketch_args: Vec<String>,
 }

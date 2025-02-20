@@ -421,4 +421,8 @@ impl MixedEvalDefs {
         c.set_val(name, val);
         c
     }
+
+    pub fn from_idx(idx: IdxInRange) -> Self {
+        Self::new_from_expr(ExprWorldContextValues::new_from_idx(idx))
+    }
 }
