@@ -1,0 +1,20 @@
+[package]
+name = "murrelet_gui"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+schemars = [
+    "murrelet_livecode/schemars",
+]
+
+[dependencies]
+murrelet_livecode = { path = "../murrelet_livecode/", default-features = false }
+murrelet_gui_derive = { path = "../murrelet_gui_derive/" }
+
+thiserror = "2.0.11"
+
+
+[[example]]
+name = "tests"
+path = "examples/tests.rs"

@@ -1,0 +1,178 @@
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
+
+use crate::parser::*;
+
+pub(crate) struct FieldTokensGUI {
+    pub(crate) for_make_gui: TokenStream2,
+    // pub(crate) for_gui_to_livecode: TokenStream2,
+}
+impl GenFinal for FieldTokensGUI {
+    // Something(f32)
+    fn make_newtype_struct_final(
+        idents: ParsedFieldIdent,
+        variants: Vec<FieldTokensGUI>,
+    ) -> TokenStream2 {
+        let name = idents.name;
+
+        let for_make_gui = variants.iter().map(|x| x.for_make_gui.clone());
+        // let for_gui_to_livecode = variants.iter().map(|x| x.for_gui_to_livecode.clone());
+
+        quote! {
+            impl murrelet_gui::CanMakeGUI for #name {
+                fn make_gui() -> murrelet_gui::MurreletGUISchema {
+                    murrelet_gui::MurreletGUISchema::NewType(#(#for_make_gui,)*)
+                }
+
+                // fn gui_to_livecode(&self, gui_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self>  {
+                //     if let Some(s) = gui_val.as_new_type() {
+                //         Ok(#name(#(#for_gui_to_livecode,)*))
+                //     } else {
+                //         Err(murrelet_gui::MurreletGUISchemaErr::GUIToLivecode("newtype not in newtype"))
+                //     }
+
+                // }
+            }
+        }
+    }
+
+    fn make_struct_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensGUI>) -> TokenStream2 {
+        let name = idents.name;
+
+        let for_make_gui = variants.iter().map(|x| x.for_make_gui.clone());
+
+        // let for_assign_vars = variants.iter().map(|x| x.for_assign_vars.clone());
+        // let for_gui_to_livecode = variants.iter().map(|x| x.for_gui_to_livecode.clone());
+
+        quote! {
+            impl murrelet_gui::CanMakeGUI for #name {
+                fn make_gui() -> murrelet_gui::MurreletGUISchema {
+                    murrelet_gui::MurreletGUISchema::Struct(vec![#(#for_make_gui,)*])
+                }
+
+                // fn gui_to_livecode(&self, ux_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self> {
+
+                //     #(#for_assign_vars,)*
+
+                //     Ok(#name(#(#for_gui_to_livecode,)*))
+                // }
+            }
+        }
+    }
+
+    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensGUI>) -> TokenStream2 {
+        let name = idents.name;
+
+        let for_make_gui = variants.iter().map(|x| x.for_make_gui.clone());
+        // let for_gui_to_livecode = variants.iter().map(|x| x.for_gui_to_livecode.clone());
+
+        quote! {
+            impl murrelet_gui::CanMakeGUI for #name {
+                fn make_gui() -> murrelet_gui::MurreletGUISchema {
+                    murrelet_gui::MurreletGUISchema::Enum(vec![#(#for_make_gui,)*])
+                }
+
+                // fn gui_to_livecode(&self, gui_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self>  {
+                //     if let Some(enum_name_and_val) = gui_val.as_enum() {
+                //         let (enum_name, enum_val) = enum_name_and_val;
+                //         match gui_val {
+                //             #(#for_gui_to_livecode,)*
+                //         }
+                //     }
+                // }
+            }
+        }
+    }
+
+    fn from_newtype_struct(_idents: StructIdents, _parent_ident: syn::Ident) -> FieldTokensGUI {
+        let for_make_gui = quote! {
+            self.0.make_gui()
+        };
+        // let for_gui_to_livecode = quote! {
+        //     self.0.gui_to_livecode(v)
+        // };
+
+        FieldTokensGUI {
+            for_make_gui,
+            // for_gui_to_livecode,
+            // for_assign_vars: quote!(),
+        }
+    }
+
+    // e.g. TileAxisLocs::V(TileAxisVs)
+    fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensGUI {
+        let variant_ident = idents.data.ident;
+        let name = idents.enum_name;
+        let variant_ident_str = variant_ident.to_string();
+
+        let for_make_gui = quote! { (#name::#variant_ident(enum_val) => murrelet_gui::MurreletEnumValGUI::Unnamed(#variant_ident_str.to_string(), enum_val.make_gui())) };
+        // let for_gui_to_livecode = quote! { murrelet_gui::MurreletEnumValGUI::Unnamed(#variant_ident_str, enum_val) => #name::#variant_ident(enum_val.gui_to_livecode()) };
+
+        FieldTokensGUI {
+            for_make_gui,
+            // for_gui_to_livecode,
+            // for_assign_vars: quote!(),
+        }
+    }
+
+    // e.g. TileAxis::Diag
+    fn from_unit_enum(idents: EnumIdents) -> FieldTokensGUI {
+        let variant_ident = idents.data.ident;
+        let name = idents.enum_name;
+        let variant_ident_str = variant_ident.to_string();
+
+        let for_make_gui = quote! { (#name::#variant_ident => murrelet_gui::MurreletEnumValGUI::Unit(#variant_ident_str.to_owned())) };
+        // let for_gui_to_livecode =
+        //     quote! { murrelet_gui::Unit(#variant_ident_str) => #name::#variant_ident };
+
+        FieldTokensGUI {
+            for_make_gui,
+            // for_gui_to_livecode,
+            // for_assign_vars: quote!(),
+        }
+    }
+
+    // s: String with reference
+    fn from_name(idents: StructIdents) -> FieldTokensGUI {
+        let name_reference = idents
+            .data
+            .reference
+            .expect("from name called without a reference!");
+
+        let for_make_gui = quote! { murrelet_gui::ValueGUI::Name(#name_reference) };
+
+        // let for_assign_vars
+        // let for_gui_to_livecode = quote! { murrelet_gui::ValueGUIResponse::Name(name) => name };
+
+        FieldTokensGUI {
+            for_make_gui,
+            // for_gui_to_livecode,
+            // for_assign_vars: ,
+        }
+    }
+
+    // skip
+    fn from_noop_struct(idents: StructIdents) -> FieldTokensGUI {
+        let field_name = idents.data.ident.unwrap().to_string();
+
+        let for_make_gui = quote! { (#field_name.to_owned(), murrelet_gui::Skip) };
+        // let for_gui_to_livecode =
+        //     quote! { murrelet_gui::Unit(#variant_ident_str) => #name::#variant_ident };
+
+        FieldTokensGUI {
+            for_make_gui,
+            // for_gui_to_livecode,
+        }
+    }
+
+    // f32, Vec2, etc
+    fn from_type_struct(idents: StructIdents) -> FieldTokensGUI {
+        let field_name = idents.data.ident.unwrap();
+        let field_name_str = field_name.to_string();
+        let kind = idents.data.ty;
+
+        let for_make_gui = quote! { (#field_name_str.to_owned(), #kind::make_gui()) };
+
+        FieldTokensGUI { for_make_gui }
+    }
+}
