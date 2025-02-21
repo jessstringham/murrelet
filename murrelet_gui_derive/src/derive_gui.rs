@@ -84,6 +84,18 @@ impl GenFinal for FieldTokensGUI {
         }
     }
 
+    fn from_override_enum(func: &str) -> FieldTokensGUI {
+        let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
+
+        let for_make_gui = quote! {
+            #method()
+        };
+
+        FieldTokensGUI {
+            for_make_gui,
+        }
+    }
+
     fn from_newtype_struct(idents: StructIdents, _parent_ident: syn::Ident) -> FieldTokensGUI {
         let ty = convert_vec_type(&idents.data.ty);
 
@@ -122,7 +134,8 @@ impl GenFinal for FieldTokensGUI {
         let variant_ident = idents.data.ident;
         let variant_ident_str = variant_ident.to_string();
 
-        let for_make_gui = quote! { murrelet_gui::MurreletEnumValGUI::Unit(#variant_ident_str.to_owned()) };
+        let for_make_gui =
+            quote! { murrelet_gui::MurreletEnumValGUI::Unit(#variant_ident_str.to_owned()) };
         // let for_gui_to_livecode =
         //     quote! { murrelet_gui::Unit(#variant_ident_str) => #name::#variant_ident };
 
@@ -158,7 +171,8 @@ impl GenFinal for FieldTokensGUI {
     fn from_noop_struct(idents: StructIdents) -> FieldTokensGUI {
         let field_name = idents.data.ident.unwrap().to_string();
 
-        let for_make_gui = quote! { (#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Skip) };
+        let for_make_gui =
+            quote! { (#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Skip) };
         // let for_gui_to_livecode =
         //     quote! { murrelet_gui::Unit(#variant_ident_str) => #name::#variant_ident };
 
@@ -178,6 +192,19 @@ impl GenFinal for FieldTokensGUI {
         let for_make_gui = quote! { (#field_name_str.to_owned(), #kind::make_gui()) };
 
         FieldTokensGUI { for_make_gui }
+    }
+
+    fn from_override_struct(idents: StructIdents, func: &str) -> FieldTokensGUI {
+        let field_name = idents.data.ident.unwrap();
+        let field_name_str = field_name.to_string();
+
+        let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
+
+        let for_make_gui = quote! { (#field_name_str.to_owned(), #method()) };
+
+        FieldTokensGUI {
+            for_make_gui,
+        }
     }
 }
 

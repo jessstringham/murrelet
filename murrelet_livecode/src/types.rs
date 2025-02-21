@@ -4,6 +4,7 @@ use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
 use murrelet_common::IdxInRange2d;
+use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use serde_yaml::Location;
 
@@ -67,6 +68,12 @@ impl AdditionalContextNode {
         self.0
             .eval_empty_with_context_mut(ctx)
             .map_err(|err| LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err))
+    }
+}
+
+impl CanMakeGUI for AdditionalContextNode {
+    fn make_gui() -> murrelet_gui::MurreletGUISchema {
+        murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Defs)
     }
 }
 

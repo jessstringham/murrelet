@@ -8,16 +8,22 @@ pub struct BasicTypes {
     b_number: usize,
     c_number: u64,
     d_number: i32,
+    bool: bool,
     something: Vec<f32>,
     s: String,
     #[murrelet_gui(reference = "test")]
     referenced_string: String,
 }
 
+fn custom_func() -> MurreletGUISchema {
+    MurreletGUISchema::Val(ValueGUI::Num)
+}
+
 #[derive(MurreletGUI)]
 pub struct OverridesAndRecursive {
     a_number: f32,
     something: Vec<BasicTypes>,
+    #[murrelet_gui(func = "custom_func")]
     label: String,
     #[murrelet_gui(kind = "skip")]
     b: HashMap<String, String>,
@@ -51,6 +57,7 @@ fn main() {
         ("b_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
         ("c_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
         ("d_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+        ("bool".to_owned(), MurreletGUISchema::Val(ValueGUI::Bool)),
         (
             "something".to_owned(),
             MurreletGUISchema::list(MurreletGUISchema::Val(ValueGUI::Num)),
@@ -72,7 +79,7 @@ fn main() {
             "something".to_owned(),
             MurreletGUISchema::list(basic_types_schema),
         ),
-        ("label".to_owned(), MurreletGUISchema::Skip),
+        ("label".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)), // make sure it calls the override
         ("b".to_owned(), MurreletGUISchema::Skip),
     ]);
     assert_eq!(test_val, overrides_and_recursive_schema);

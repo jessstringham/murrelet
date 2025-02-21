@@ -12,6 +12,7 @@ schemars = ["dep:schemars"]
 
 [dependencies]
 murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
+murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/" }
 
 lerpable = "0.0.2"
 

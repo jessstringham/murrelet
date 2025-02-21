@@ -17,6 +17,13 @@ schemars = [
     "murrelet_livecode_derive/schemars",
     "murrelet_perform/schemars",
 ]
+# murrelet_gui = [
+#     "murrelet_draw/murrelet_gui",
+#     "murrelet_livecode/murrelet_gui",
+#     "murrelet_livecode_macros/murrelet_gui",
+#     "murrelet_livecode_derive/murrelet_gui",
+#     "murrelet_perform/murrelet_gui",
+# ]
 
 [dependencies]
 glam = "0.28.0"

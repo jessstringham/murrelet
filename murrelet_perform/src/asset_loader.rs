@@ -5,6 +5,7 @@ use lerpable::Lerpable;
 use murrelet_common::{
     Assets, RasterAsset, RasterAssetLookup, VectorAsset, VectorLayersAssetLookup,
 };
+use murrelet_gui::CanMakeGUI;
 use murrelet_livecode_derive::Livecode;
 
 pub trait VectorAssetLoader {
@@ -65,8 +66,18 @@ pub struct AssetLoaders {
 }
 
 impl AssetLoaders {
-    pub fn new(vector: Vec<Box<dyn VectorAssetLoader>>, raster: Vec<Box<dyn RasterAssetLoader>>) -> Self {
+    pub fn new(
+        vector: Vec<Box<dyn VectorAssetLoader>>,
+        raster: Vec<Box<dyn RasterAssetLoader>>,
+    ) -> Self {
         Self { vector, raster }
+    }
+
+    pub fn empty() -> AssetLoaders {
+        Self {
+            vector: vec![],
+            raster: vec![],
+        }
     }
 }
 
@@ -132,5 +143,11 @@ impl AssetFilenames {
         }
 
         Assets::new(polylines, raster)
+    }
+}
+
+impl CanMakeGUI for AssetFilenames {
+    fn make_gui() -> murrelet_gui::MurreletGUISchema {
+        murrelet_gui::MurreletGUISchema::Skip
     }
 }

@@ -1,6 +1,7 @@
 use std::fmt;
 
 use lerpable::{IsLerpingMethod, Lerpable};
+use murrelet_gui::CanMakeGUI;
 use palette::{
     rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, RgbHue, Srgb, Srgba, WithAlpha,
 };
@@ -132,6 +133,12 @@ impl MurreletColor {
             (b * 255.0) as i32,
             a
         )
+    }
+}
+
+impl CanMakeGUI for MurreletColor {
+    fn make_gui() -> murrelet_gui::MurreletGUISchema {
+        murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Color)
     }
 }
 

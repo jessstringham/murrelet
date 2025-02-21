@@ -10,9 +10,13 @@ pub use murrelet_gui_derive::MurreletGUI;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueGUI {
-    Bool,
-    Num,
-    Name(String),
+    Bool,         // should be a ControlBool
+    Num,          // should be a ControlF32
+    Name(String), // clue for the front-end to sink the strings iwth the same name
+    Color,        // expected to give h s v a
+    Defs,         // make a ctx node
+    Vec2,
+    Vec3,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,5 +92,11 @@ impl<T: CanMakeGUI> CanMakeGUI for Vec<T> {
 impl CanMakeGUI for String {
     fn make_gui() -> MurreletGUISchema {
         MurreletGUISchema::Skip
+    }
+}
+
+impl CanMakeGUI for bool {
+    fn make_gui() -> MurreletGUISchema {
+        MurreletGUISchema::Val(ValueGUI::Bool)
     }
 }

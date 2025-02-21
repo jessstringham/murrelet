@@ -851,3 +851,11 @@ pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
 
     lerped.into_iter().map(|v| v.into()).collect_vec()
 }
+
+pub fn make_gui_vec2() -> murrelet_gui::MurreletGUISchema {
+    murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Vec2)
+}
+
+pub fn make_gui_vec3() -> murrelet_gui::MurreletGUISchema {
+    murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Vec3)
+}

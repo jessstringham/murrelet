@@ -16,6 +16,13 @@ schemars = [
     "murrelet_livecode_macros/schemars",
     "murrelet_livecode_derive/schemars",
 ]
+# murrelet_gui = [
+#     "dep:murrelet_gui",
+#     "murrelet_livecode/murrelet_gui",
+#     "murrelet_draw/murrelet_gui",
+#     "murrelet_livecode_macros/murrelet_gui",
+#     "murrelet_livecode_derive/murrelet_gui",
+# ]
 
 [dependencies]
 murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
@@ -35,5 +42,7 @@ palette = "0.7.6"
 anyhow = "1.0.86"
 
 schemars = { version = "0.8.21", optional = true }
+# murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/", optional = true }
+murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/" }
 
 clap = { version = "4.5.23", features = ["derive"] }

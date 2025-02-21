@@ -9,6 +9,7 @@ license = "AGPL-3.0-or-later"
 
 [features]
 schemars = ["dep:schemars", "murrelet_livecode/schemars", "murrelet_livecode_macros/schemars", "murrelet_livecode_derive/schemars"]
+# murrelet_gui = ["dep:murrelet_gui", "murrelet_livecode/murrelet_gui", "murrelet_livecode_macros/murrelet_gui", "murrelet_livecode_derive/murrelet_gui"]
 
 [dependencies]
 murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
@@ -32,3 +33,4 @@ md-5 = "0.10.6"
 hex = "0.4.3"
 
 schemars = { version = "0.8.21", optional = true }
+murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/" } #, optional = true }

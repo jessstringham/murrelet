@@ -1,6 +1,8 @@
 use darling::{ast, FromDeriveInput, FromField, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
 
+use crate::FieldTokensGUI;
+
 #[derive(Debug)]
 pub(crate) struct ParsedFieldIdent {
     pub(crate) name: syn::Ident,
@@ -29,6 +31,8 @@ where
             ast::Data::Struct(_) => Self::make_struct(&ast_receiver),
         }
     }
+    fn from_override_struct(idents: StructIdents, func: &str) -> Self;
+    fn from_override_enum(func: &str) -> Self;
 
     fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<Self>) -> TokenStream2;
     fn make_struct_final(idents: ParsedFieldIdent, variants: Vec<Self>) -> TokenStream2;
@@ -61,12 +65,12 @@ where
                         log::info!("-> from_name");
                         Self::from_name(idents)
                     }
-
                     HowToControlThis::GUIType => {
                         #[cfg(feature = "debug_logging")]
                         log::info!("-> from_type_struct");
                         Self::from_type_struct(idents)
                     }
+                    HowToControlThis::Override(func) => Self::from_override_struct(idents, &func),
                 }
             })
             .collect::<Vec<_>>();
@@ -138,6 +142,7 @@ where
                         log::info!("-> from_name");
                         Self::from_name(idents)
                     }
+                    HowToControlThis::Override(func) => Self::from_override_enum(&func),
                 }
             })
             .collect::<Vec<_>>();
@@ -155,6 +160,7 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ty: syn::Type,
     pub(crate) kind: Option<String>,
     pub(crate) reference: Option<String>,
+    pub(crate) func: Option<String>,
 }
 impl LivecodeFieldReceiver {
     fn how_to_control_this(&self) -> HowToControlThis {
@@ -168,6 +174,8 @@ impl LivecodeFieldReceiver {
             }
         } else if let Some(_) = &self.reference {
             HowToControlThis::Name
+        } else if let Some(func) = &self.func {
+            HowToControlThis::Override(func.to_owned())
         } else {
             HowToControlThis::GUIType
         }
@@ -210,4 +218,5 @@ pub(crate) enum HowToControlThis {
     GUIType, // build a gui for this type
     // GUIVec, // GUI for a list
     Name, // a referenced thing,
+    Override(String),
 }

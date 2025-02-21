@@ -4,6 +4,7 @@ use lerpable::Lerpable;
 use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
+use murrelet_gui::MurreletGUI;
 use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{
@@ -234,7 +235,7 @@ fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
 
 // this stuff adjusts how time works, so needs to be split off pretty early
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct AppConfigTiming {
     #[livecode(serde_default = "_default_bpm")]
     pub bpm: f32,
@@ -282,7 +283,7 @@ fn _reset_b_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct SvgConfig {
     #[livecode(serde_default = "_default_svg_size")]
     pub size: f32,
@@ -345,7 +346,7 @@ fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct GpuConfig {
     #[livecode(serde_default = "_default_gpu_debug_next")]
     debug_next: bool,
@@ -390,7 +391,7 @@ fn _default_should_reset_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct AppConfig {
     #[livecode(serde_default = "_default_should_reset")]
     pub should_reset: bool, // should reset audio and time,

@@ -12,6 +12,7 @@ proc-macro = true
 
 [features]
 schemars = ["murrelet_livecode/schemars"]
+# murrelet_gui = ["murrelet_livecode/murrelet_gui"]
 
 [dependencies]
 syn = "2.0.15"
@@ -28,6 +29,7 @@ glam = "0.28.0"
 palette = "0.7.6"
 lerpable = "0.0.2"
 schemars = "0.8.21"
+murrelet_gui = { version = "0.1.2", path = "../../murrelet_gui"}
 
 [[example]]
 name = "tests"

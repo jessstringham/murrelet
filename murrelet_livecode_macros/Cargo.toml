@@ -9,6 +9,7 @@ license = "AGPL-3.0-or-later"
 
 [features]
 schemars = ["murrelet_livecode/schemars", "murrelet_livecode_derive/schemars"]
+# murrelet_gui = ["murrelet_livecode/murrelet_gui", "murrelet_livecode_derive/murrelet_gui"]
 
 
 [dependencies]
