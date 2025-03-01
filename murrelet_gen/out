@@ -1,0 +1,36 @@
+#![feature(prelude_import)]
+#[prelude_import]
+use std::prelude::rust_2021::*;
+#[macro_use]
+extern crate std;
+use murrelet_gen::{CanSampleFromDist, MurreletGen};
+pub struct BasicTypes {
+    #[murrelet_gen(method_f32(uniform(start = -10.0, end = 1.0)))]
+    a_number: f32,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for BasicTypes {
+    #[inline]
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field1_finish(
+            f,
+            "BasicTypes",
+            "a_number",
+            &&self.a_number,
+        )
+    }
+}
+impl murrelet_gen::CanSampleFromDist for BasicTypes {
+    fn sample_dist<R: rand::Rng>(rng: &mut R) -> Self {
+        Self {
+            a_number: rng.gen::<f32>() * (1.0 - -10.0) + -10.0,
+        }
+    }
+}
+fn main() {
+    let seed = 42;
+    let test_val = BasicTypes::gen_from_seed(seed);
+    {
+        ::core::panicking::panic_fmt(format_args!("{0:?}", test_val));
+    }
+}

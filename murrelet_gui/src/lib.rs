@@ -1,4 +1,5 @@
 pub use murrelet_gui_derive::MurreletGUI;
+use serde::Serialize;
 
 // #[derive(Debug, Error)]
 // pub enum MurreletGUIErr {
@@ -8,35 +9,38 @@ pub use murrelet_gui_derive::MurreletGUI;
 
 // pub type MurreletGUIResult<T> = Result<T, MurreletGUIErr>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum ValueGUI {
-    Bool,         // should be a ControlBool
-    Num,          // should be a ControlF32
-    Name(String), // clue for the front-end to sink the strings iwth the same name
-    Color,        // expected to give h s v a
-    Defs,         // make a ctx node
-    Vec2,
-    Vec3,
+    Bool,               // should be a ControlBool
+    Num,                // should be a ControlF32
+    Name(String, bool), // clue for the front-end to sync the strings, bool is if it's def
+    Color,              // expected to give h s v a
+    Defs,               // make a ctx node
+    Vec2,               // arbitrary vec2, also see Coords
+    Vec3,               // arbitrary vec3
+    Style,              // murrelet style
+    Angle,              // angle pi
+    Coords,             // global coords, so the user can click things
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum MurreletEnumValGUI {
     Unnamed(String, MurreletGUISchema),
     Unit(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum MurreletGUISchema {
-    Val(ValueGUI),
-    NewType(Box<MurreletGUISchema>),
-    Struct(Vec<(String, MurreletGUISchema)>), // field val
+    NewType(String, Box<MurreletGUISchema>),
+    Struct(String, Vec<(String, MurreletGUISchema)>), // field val
+    Enum(String, Vec<MurreletEnumValGUI>),            // type, val
     List(Box<MurreletGUISchema>),
-    Enum(Vec<MurreletEnumValGUI>), // type, val
+    Val(ValueGUI),
     Skip,
 }
 impl MurreletGUISchema {
-    pub fn new_type(m: MurreletGUISchema) -> Self {
-        Self::NewType(Box::new(m))
+    pub fn new_type(name: String, m: MurreletGUISchema) -> Self {
+        Self::NewType(name, Box::new(m))
     }
 
     pub fn list(m: MurreletGUISchema) -> Self {
@@ -44,7 +48,7 @@ impl MurreletGUISchema {
     }
 
     pub fn as_enum(&self) -> Option<&Vec<MurreletEnumValGUI>> {
-        if let Self::Enum(v) = self {
+        if let Self::Enum(_, v) = self {
             Some(v)
         } else {
             None
@@ -52,10 +56,17 @@ impl MurreletGUISchema {
     }
 
     pub fn as_new_type(&self) -> Option<&Box<MurreletGUISchema>> {
-        if let Self::NewType(v) = self {
+        if let Self::NewType(_, v) = self {
             Some(v)
         } else {
             None
+        }
+    }
+
+    pub fn unwrap_to_struct_fields(self) -> Vec<(String, MurreletGUISchema)> {
+        match self {
+            MurreletGUISchema::Struct(_, items) => items,
+            _ => unreachable!("tried to flatten a struct that wasn't a struct"),
         }
     }
 }
@@ -98,5 +109,19 @@ impl CanMakeGUI for String {
 impl CanMakeGUI for bool {
     fn make_gui() -> MurreletGUISchema {
         MurreletGUISchema::Val(ValueGUI::Bool)
+    }
+}
+
+#[cfg(feature = "glam")]
+impl CanMakeGUI for glam::Vec2 {
+    fn make_gui() -> MurreletGUISchema {
+        MurreletGUISchema::Val(ValueGUI::Vec2)
+    }
+}
+
+#[cfg(feature = "glam")]
+impl CanMakeGUI for glam::Vec3 {
+    fn make_gui() -> MurreletGUISchema {
+        MurreletGUISchema::Val(ValueGUI::Vec3)
     }
 }

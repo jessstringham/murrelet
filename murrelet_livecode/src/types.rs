@@ -6,7 +6,7 @@ use lerpable::{step, Lerpable};
 use murrelet_common::IdxInRange2d;
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
-use serde_yaml::Location;
+use thiserror::Error;
 
 use crate::{
     expr::IntoExprWorldContext,
@@ -15,40 +15,49 @@ use crate::{
     unitcells::UnitCellExprWorldContext,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum LivecodeError {
+    #[error("{0}")]
     Raw(String), // my custom errors
+    #[error("{0}: {1}")]
     EvalExpr(String, EvalexprError),
+    #[error("{0}: {1}")]
     Io(String, std::io::Error),
+    #[error("nest get requested for odd thing...: {0}")]
     NestGetExtra(String),
+    #[error("nest get requested for odd thing...: {0}")]
     NestGetInvalid(String),
-    SerdeLoc(Location, String),
+    #[error("parse_error :: loc: {0}, err: {1}")]
+    SerdeLoc(String, String),
+    #[error("shader parse error: {0}")]
     WGPU(String),
+    #[error("parse: {0}")]
+    JsonParse(String),
 }
 impl LivecodeError {}
-impl std::fmt::Display for LivecodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LivecodeError::Raw(msg) => write!(f, "{}", msg),
-            LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
-            LivecodeError::Io(msg, err) => write!(f, "{}: {}", msg, err),
-            LivecodeError::NestGetExtra(err) => {
-                write!(f, "nest get has unusable tokens...: {}", err)
-            }
-            LivecodeError::NestGetInvalid(err) => {
-                write!(f, "nest get requested for odd thing...: {}", err)
-            }
-            LivecodeError::SerdeLoc(location, err) => {
-                // if it's err, hrm, remove the controlvec ones
-                let loc = format!("{},{}", location.line(), location.column());
-                write!(f, "parse_error :: loc: {}, err: {}", loc, err)
-            }
-            LivecodeError::WGPU(err) => write!(f, "shader parse error: {}", err),
-        }
-    }
-}
+// impl std::fmt::Display for LivecodeError {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             LivecodeError::Raw(msg) => write!(f, "{}", msg),
+//             LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
+//             LivecodeError::Io(msg, err) => write!(f, "{}: {}", msg, err),
+//             LivecodeError::NestGetExtra(err) => {
+//                 write!(f, "nest get has unusable tokens...: {}", err)
+//             }
+//             LivecodeError::NestGetInvalid(err) => {
+//                 write!(f, "nest get requested for odd thing...: {}", err)
+//             }
+//             LivecodeError::SerdeLoc(location, err) => {
+//                 // if it's err, hrm, remove the controlvec ones
+//                 let loc = format!("{},{}", location.line(), location.column());
+//                 write!(f, "parse_error :: loc: {},{}, err: {}", loc, err)
+//             }
+//             LivecodeError::WGPU(err) => write!(f, "shader parse error: {}", err),
+//         }
+//     }
+// }
 
-impl std::error::Error for LivecodeError {}
+// impl std::error::Error for LivecodeError {}
 
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 

@@ -112,6 +112,7 @@ impl LazyNodeF32Inner {
         self.n
             .eval_float_with_context(&ctx)
             .or_else(|_| self.n.eval_int_with_context(&ctx).map(|x| x as f64))
+            .or_else(|_| self.n.eval_boolean_with_context(&ctx).map(|x| if x { 1.0 } else { -1.0 }))
             .map(|x| x as f32)
             .map_err(|err| LivecodeError::EvalExpr("error evaluating lazy".to_string(), err))
     }

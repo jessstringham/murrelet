@@ -2,10 +2,10 @@
 
 use glam::Mat4;
 use lerpable::Lerpable;
+use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
 
-
-#[derive(Clone, Debug, Livecode, Lerpable)]
+#[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]
 pub struct SvgRect {
     #[livecode(serde_default = "0")]
     pub x: f32,
@@ -19,13 +19,21 @@ pub struct SvgRect {
     pub height: f32,
 }
 
-
-
-#[derive(Clone, Debug, Livecode, Lerpable)]
-pub enum SvgShape {
-    Rect(SvgRect)
+#[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]
+pub struct SvgCircle {
+    #[livecode(serde_default = "0")]
+    pub x: f32,
+    #[livecode(serde_default = "0")]
+    pub y: f32,
+    #[livecode(serde_default = "1")]
+    pub r: f32,
 }
 
+#[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]
+pub enum SvgShape {
+    Rect(SvgRect),
+    Circle(SvgCircle),
+}
 
 #[derive(Clone, Debug)]
 pub struct TransformedSvgShape {

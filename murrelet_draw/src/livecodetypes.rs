@@ -3,6 +3,7 @@
 pub mod anglepi {
     use lerpable::Lerpable;
     use murrelet_common::{Angle, AnglePi, IsAngle};
+    use murrelet_gui::CanMakeGUI;
     use murrelet_livecode_derive::Livecode;
 
     #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default)]
@@ -26,6 +27,19 @@ pub mod anglepi {
     impl From<LivecodeAnglePi> for Angle {
         fn from(value: LivecodeAnglePi) -> Self {
             value._to_angle_pi().as_angle()
+        }
+    }
+
+    impl From<LivecodeAnglePi> for AnglePi {
+        fn from(value: LivecodeAnglePi) -> Self {
+            value._to_angle_pi()
+        }
+    }
+
+
+    impl CanMakeGUI for LivecodeAnglePi {
+        fn make_gui() -> murrelet_gui::MurreletGUISchema {
+            murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Angle)
         }
     }
 }

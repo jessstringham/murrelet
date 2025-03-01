@@ -83,7 +83,7 @@ impl VectorLayersAssetLookup {
 pub trait IsColorType {}
 
 #[derive(Debug, Clone, Copy)]
-struct BlackWhite(bool);
+pub struct BlackWhite(bool);
 impl IsColorType for BlackWhite {}
 
 // struct RGBAu8([u8; 4]),;

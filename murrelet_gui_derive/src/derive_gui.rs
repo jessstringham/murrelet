@@ -14,6 +14,7 @@ impl GenFinal for FieldTokensGUI {
         variants: Vec<FieldTokensGUI>,
     ) -> TokenStream2 {
         let name = idents.name;
+        let name_str = name.to_string();
 
         let for_make_gui = variants.iter().map(|x| x.for_make_gui.clone());
         // let for_gui_to_livecode = variants.iter().map(|x| x.for_gui_to_livecode.clone());
@@ -21,7 +22,7 @@ impl GenFinal for FieldTokensGUI {
         quote! {
             impl murrelet_gui::CanMakeGUI for #name {
                 fn make_gui() -> murrelet_gui::MurreletGUISchema {
-                    murrelet_gui::MurreletGUISchema::new_type(#(#for_make_gui,)*)
+                    murrelet_gui::MurreletGUISchema::new_type(#name_str.to_owned(), #(#for_make_gui,)*)
                 }
 
                 // fn gui_to_livecode(&self, gui_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self>  {
@@ -38,6 +39,7 @@ impl GenFinal for FieldTokensGUI {
 
     fn make_struct_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensGUI>) -> TokenStream2 {
         let name = idents.name;
+        let name_str = name.to_string();
 
         let for_make_gui = variants.iter().map(|x| x.for_make_gui.clone());
 
@@ -47,7 +49,11 @@ impl GenFinal for FieldTokensGUI {
         quote! {
             impl murrelet_gui::CanMakeGUI for #name {
                 fn make_gui() -> murrelet_gui::MurreletGUISchema {
-                    murrelet_gui::MurreletGUISchema::Struct(vec![#(#for_make_gui,)*])
+
+                    let mut v = vec![];
+                    #(#for_make_gui;)*
+
+                    murrelet_gui::MurreletGUISchema::Struct(#name_str.to_owned(), v)
                 }
 
                 // fn gui_to_livecode(&self, ux_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self> {
@@ -62,6 +68,7 @@ impl GenFinal for FieldTokensGUI {
 
     fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensGUI>) -> TokenStream2 {
         let name = idents.name;
+        let name_str = name.to_string();
 
         let for_make_gui = variants.iter().map(|x| x.for_make_gui.clone());
         // let for_gui_to_livecode = variants.iter().map(|x| x.for_gui_to_livecode.clone());
@@ -69,7 +76,7 @@ impl GenFinal for FieldTokensGUI {
         quote! {
             impl murrelet_gui::CanMakeGUI for #name {
                 fn make_gui() -> murrelet_gui::MurreletGUISchema {
-                    murrelet_gui::MurreletGUISchema::Enum(vec![#(#for_make_gui,)*])
+                    murrelet_gui::MurreletGUISchema::Enum(#name_str.to_owned(), vec![#(#for_make_gui,)*])
                 }
 
                 // fn gui_to_livecode(&self, gui_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self>  {
@@ -91,9 +98,7 @@ impl GenFinal for FieldTokensGUI {
             #method()
         };
 
-        FieldTokensGUI {
-            for_make_gui,
-        }
+        FieldTokensGUI { for_make_gui }
     }
 
     fn from_newtype_struct(idents: StructIdents, _parent_ident: syn::Ident) -> FieldTokensGUI {
@@ -155,7 +160,9 @@ impl GenFinal for FieldTokensGUI {
             .reference
             .expect("from name called without a reference!");
 
-        let for_make_gui = quote! { (#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Name(#name_reference.to_owned()))) };
+        let is_main = idents.data.is_ref_def.unwrap_or(false);
+
+        let for_make_gui = quote! { v.push((#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Name(#name_reference.to_owned(), #is_main)))) };
 
         // let for_assign_vars
         // let for_gui_to_livecode = quote! { murrelet_gui::ValueGUIResponse::Name(name) => name };
@@ -172,7 +179,7 @@ impl GenFinal for FieldTokensGUI {
         let field_name = idents.data.ident.unwrap().to_string();
 
         let for_make_gui =
-            quote! { (#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Skip) };
+            quote! { v.push((#field_name.to_owned(), murrelet_gui::MurreletGUISchema::Skip)) };
         // let for_gui_to_livecode =
         //     quote! { murrelet_gui::Unit(#variant_ident_str) => #name::#variant_ident };
 
@@ -189,7 +196,13 @@ impl GenFinal for FieldTokensGUI {
         // to call a static function, we need to
         let kind = convert_vec_type(&idents.data.ty);
 
-        let for_make_gui = quote! { (#field_name_str.to_owned(), #kind::make_gui()) };
+        let is_flat = idents.data.flatten.unwrap_or(false);
+
+        let for_make_gui = if is_flat {
+            quote! { v.extend(#kind::make_gui().unwrap_to_struct_fields().into_iter()) }
+        } else {
+            quote! { v.push((#field_name_str.to_owned(), #kind::make_gui())) }
+        };
 
         FieldTokensGUI { for_make_gui }
     }
@@ -200,11 +213,9 @@ impl GenFinal for FieldTokensGUI {
 
         let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
 
-        let for_make_gui = quote! { (#field_name_str.to_owned(), #method()) };
+        let for_make_gui = quote! { v.push((#field_name_str.to_owned(), #method())) };
 
-        FieldTokensGUI {
-            for_make_gui,
-        }
+        FieldTokensGUI { for_make_gui }
     }
 }
 

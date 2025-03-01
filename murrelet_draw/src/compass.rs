@@ -12,6 +12,8 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
 pub struct CurveStart {
+    #[lerpable(func = "lerpify_vec2")]
+    #[murrelet_gui(func = "make_gui_vec2")]
     loc: Vec2,
     angle_pi: LivecodeAnglePi,
 }
@@ -33,8 +35,10 @@ fn empty_string() -> String {
 pub struct CompassDir {
     angle_pi: LivecodeAnglePi,
     #[livecode(serde_default = "false")]
+    #[murrelet_gui(kind="skip")]
     is_absolute: bool,
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
+    #[murrelet_gui(kind="skip")]
     label: String,
 }
 
@@ -53,8 +57,10 @@ pub struct CompassArc {
     radius: f32,
     arc_length: LivecodeAnglePi,
     #[livecode(serde_default = "false")]
+    #[murrelet_gui(kind="skip")]
     is_absolute: bool,
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
+    #[murrelet_gui(kind="skip")]
     label: String,
 }
 
@@ -66,6 +72,7 @@ pub struct CompassArc {
 pub struct CompassLine {
     length: f32, // how far should we head in the current direction
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
+    #[murrelet_gui(kind="skip")]
     label: String,
 }
 
@@ -80,7 +87,7 @@ pub enum CompassAction {
     Angle(CompassDir), // abs
     Arc(CompassArc),
     Line(CompassLine),
-    Repeat(CompassRepeat),
+    // Repeat(CompassRepeat), // now this is in the control vec!
 }
 
 impl CompassAction {
@@ -122,9 +129,9 @@ impl CompassAction {
         CompassAction::Line(CompassLine { length, label })
     }
 
-    pub fn repeat(times: usize, what: Vec<CompassAction>) -> CompassAction {
-        CompassAction::Repeat(CompassRepeat { times, what })
-    }
+    // pub fn repeat(times: usize, what: Vec<CompassAction>) -> CompassAction {
+    //     CompassAction::Repeat(CompassRepeat { times, what })
+    // }
 }
 impl Default for CompassAction {
     fn default() -> Self {
@@ -175,15 +182,15 @@ impl InteractiveCompassBuilder {
             CompassAction::Arc(x) => {
                 vec![self.add_arc(x)]
             }
-            CompassAction::Repeat(x) => {
-                let mut n = Vec::new();
-                for _ in 0..x.times {
-                    for w in &x.what {
-                        n.extend(self.new_segments(w))
-                    }
-                }
-                n
-            }
+            // CompassAction::Repeat(x) => {
+            //     let mut n = Vec::new();
+            //     for _ in 0..x.times {
+            //         for w in &x.what {
+            //             n.extend(self.new_segments(w))
+            //         }
+            //     }
+            //     n
+            // }
         }
     }
 

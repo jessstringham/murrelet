@@ -42,7 +42,6 @@ palette = "0.7.6"
 anyhow = "1.0.86"
 
 schemars = { version = "0.8.21", optional = true }
-# murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/", optional = true }
-murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/" }
+murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/", features = ["glam"] }
 
 clap = { version = "4.5.23", features = ["derive"] }

@@ -71,4 +71,12 @@ impl BaseConfigArgs {
             height: self.resolution.height * self.texture_multiplier,
         }
     }
+
+    pub(crate) fn config_path(&self) -> PathBuf {
+        self.config_path.clone()
+    }
+
+    pub(crate) fn should_capture(&self) -> bool {
+        self.capture
+    }
 }

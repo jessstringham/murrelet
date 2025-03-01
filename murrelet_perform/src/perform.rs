@@ -8,7 +8,7 @@ use murrelet_gui::MurreletGUI;
 use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{
-    AdditionalContextNode, ControlVecElement, LivecodeError, LivecodeResult,
+    AdditionalContextNode, ControlVecElement, LivecodeResult,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -41,7 +41,7 @@ pub trait ConfCommon: CommonTrait {
 #[derive(Clone, Debug)]
 pub struct SvgDrawConfig {
     size: f32, // todo, what's the difference between this and texture sizes?
-    pub resolution: TextureDimensions,
+    pub resolution: Option<TextureDimensions>,
     capture_path: Option<PathBuf>, // if it's missing, we don't save (e.g. web browser)
     frame: u64,
     target_size: f32, // in mm
@@ -51,7 +51,7 @@ pub struct SvgDrawConfig {
 impl SvgDrawConfig {
     pub fn new(
         size: f32,
-        resolution: TextureDimensions,
+        resolution: Option<TextureDimensions>,
         capture_path: Option<PathBuf>,
         target_size: f32,
         frame: u64,
@@ -470,7 +470,7 @@ impl AppConfig {
 
 // todo, this is all a little weird (svg save path), i should revisit it..
 pub struct LilLiveConfig<'a> {
-    resolution: TextureDimensions,
+    resolution: Option<TextureDimensions>,
     save_path: Option<&'a PathBuf>,
     run_id: u64,
     w: &'a LivecodeWorldState,
@@ -547,13 +547,14 @@ where
         livecode_src: LivecodeSrc,
         load_funcs: &AssetLoaders,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
-        let controlconfig = ControlConfType::parse(&conf).map_err(|err| {
-            if let Some(error) = err.location() {
-                LivecodeError::SerdeLoc(error, err.to_string())
-            } else {
-                LivecodeError::Raw(err.to_string())
-            }
-        })?;
+        let controlconfig = ControlConfType::parse(&conf)?;
+        // .map_err(|err| {
+            // if let Some(error) = err.location() {
+            //     LivecodeError::SerdeLoc(error, err.to_string())
+            // } else {
+            //     LivecodeError::Raw(err.to_string())
+            // }
+        // })?;
         Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }
 
@@ -686,7 +687,7 @@ where
             run_id: self.run_id,
             w: self.world(),
             app_config: self.app_config(),
-            resolution: self.maybe_args.as_ref().unwrap().resolution,
+            resolution: self.maybe_args.as_ref().map(|x| x.resolution),
         })
     }
 
@@ -943,8 +944,8 @@ where
         self.world().time().seconds_between_render_times()
     }
 
-    pub fn args(&self) -> Option<BaseConfigArgs> {
-        self.maybe_args.clone()
+    pub fn args(&self) -> BaseConfigArgs {
+        self.maybe_args.clone().unwrap()
     }
 
     pub fn sketch_args(&self) -> Vec<String> {

@@ -4,8 +4,10 @@ use glam::*;
 use lerpable::Lerpable;
 use md5::{Digest, Md5};
 use murrelet_common::*;
+use murrelet_gui::{CanMakeGUI, MurreletGUI};
 use murrelet_livecode::{lazy::ControlLazyNodeF32, livecode::ControlF32, types::ControlVecElement};
 use murrelet_livecode_derive::Livecode;
+use styleconf::StyleConf;
 
 fn _black() -> [ControlF32; 4] {
     [
@@ -34,6 +36,10 @@ pub struct MurreletStyleFilled {
     pub stroke_color: MurreletColor,
 }
 impl MurreletStyleFilled {
+    pub fn new(color: MurreletColor, stroke_weight: f32, stroke_color: MurreletColor) -> Self {
+        Self { color, stroke_weight, stroke_color }
+    }
+
     fn to_style(&self) -> MurreletStyle {
         MurreletStyle {
             closed: true,
@@ -328,7 +334,7 @@ impl MurreletStyleRGBAPoints {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
+#[derive(Copy, Clone, Debug, Livecode, MurreletGUI, Lerpable, Default)]
 pub struct MurreletStyleLined {
     pub color: MurreletColor, // fill color
     #[livecode(serde_default = "zeros")]
@@ -360,8 +366,8 @@ pub mod styleconf {
         Texture(MurreletStyleFilledSvg),
         Fill(MurreletStyleFilled),
         Outline(MurreletStyleOutlined),
-        Points(MurreletStylePoints),
         Line(MurreletStyleLined),
+        Points(MurreletStylePoints),
         ThickLine,
         RGBAFill(MurreletStyleRGBAFill),
         RGBALine(MurreletStyleRGBALine),
@@ -419,6 +425,12 @@ pub mod styleconf {
     }
 }
 
+impl CanMakeGUI for StyleConf {
+    fn make_gui() -> murrelet_gui::MurreletGUISchema {
+        murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Style)
+    }
+}
+
 // this one attaches a transform to the curve.
 // you can _try_ to apply it using to_curve_maker, but this
 // will act funny for non-affine
@@ -463,7 +475,7 @@ impl MurreletCurve {
 pub enum MurreletPath {
     Polyline(Polyline),
     Curve(MurreletCurve),
-    Svg(TransformedSvgShape)
+    Svg(TransformedSvgShape),
 }
 impl MurreletPath {
     pub fn polyline<F: IsPolyline>(path: F) -> Self {

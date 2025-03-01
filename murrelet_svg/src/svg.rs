@@ -113,6 +113,16 @@ impl ToStyledGroup for TransformedSvgShape {
 
                 Some(g)
             }
+            SvgShape::Circle(s) => {
+                let mut circ = svg::node::element::Circle::new()
+                    .set("cx", s.x)
+                    .set("cy", s.y)
+                    .set("r", s.r);
+
+                circ = style.add_svg_attributes(circ);
+                g.append(circ);
+                Some(g)
+            }
         }
     }
 }
@@ -396,9 +406,14 @@ impl SvgDocCreator {
             for p in patterns {
                 defs.push(p.to_string());
             }
+
+            // TODO REMOVE THISS
+            defs.push(name.clone());
         }
 
+
         (doc, defs.into_iter().join("\n"))
+
     }
 
     // this one's meant for svgs for pen plotters, so it drops fill styles

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::{Add, Mul}};
 
 use lerpable::{IsLerpingMethod, Lerpable};
 use murrelet_gui::CanMakeGUI;
@@ -179,6 +179,31 @@ impl Lerpable for MurreletColor {
             s.lerpify(&s2, method),
             v.lerpify(&v2, method),
             a.lerpify(&a2, method),
+        )
+    }
+}
+
+impl Add for MurreletColor {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output {
+        let [h, s, v, a] = self.into_hsva_components();
+        let [h2, s2, v2, a2] = other.into_hsva_components();
+        MurreletColor::hsva(h + h2, s + s2, v + v2, a + a2)
+    }
+}
+
+impl Mul<f32> for MurreletColor {
+    type Output = Self;
+
+    fn mul(self, scalar: f32) -> Self::Output {
+        let [h, s, v, a] = self.into_hsva_components();
+
+        MurreletColor::hsva(
+            h * scalar,
+            s * scalar,
+            v * scalar,
+            a * scalar,
         )
     }
 }

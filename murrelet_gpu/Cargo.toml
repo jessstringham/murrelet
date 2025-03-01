@@ -54,4 +54,4 @@ image = "0.25.2"
 bytemuck = { version = "1.16.1", features = ["derive"] }
 
 schemars = { version = "0.8.21", optional = true }
-murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/" } #, optional = true }
+murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/", features = ["glam"] }
