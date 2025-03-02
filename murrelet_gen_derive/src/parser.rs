@@ -1,5 +1,6 @@
 use darling::{ast, FromDeriveInput, FromField, FromMeta, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
 
 #[derive(Debug)]
 pub(crate) struct ParsedFieldIdent {
@@ -15,9 +16,11 @@ where
     fn from_unnamed_enum(idents: EnumIdents) -> Self;
     fn from_unit_enum(idents: EnumIdents) -> Self;
     fn from_noop_struct(idents: StructIdents) -> Self;
-    fn from_type_struct(
+    fn from_type_struct(idents: StructIdents, how_to_control_this_type: &RandMethod) -> Self;
+    fn from_type_recurse(
         idents: StructIdents,
-        how_to_control_this_type: &HowToControlThisType,
+        how_to_control_outer_type: &RandMethod,
+        how_to_control_inner_type: &Option<RandMethod>,
     ) -> Self;
 
     fn from_ast(ast_receiver: LivecodeReceiver) -> TokenStream2 {
@@ -61,11 +64,14 @@ where
                     HowToControlThis::Override(func, count) => {
                         Self::from_override_struct(idents, &func, count)
                     }
-                    HowToControlThis::Normal => panic!("should have an annotation"), //.,
+                    HowToControlThis::Normal => panic!("should have an annotation"),
                     HowToControlThis::Type(how_to_control_this_type) => {
                         Self::from_type_struct(idents, &how_to_control_this_type)
                     }
                     HowToControlThis::Default => todo!(),
+                    HowToControlThis::Recurse(outer, inner) => {
+                        Self::from_type_recurse(idents, &outer, &inner)
+                    }
                 }
             })
             .collect::<Vec<_>>();
@@ -133,6 +139,7 @@ where
                         Self::from_noop_struct(idents)
                     }
                     HowToControlThis::Type(_) => panic!("hm, hsouldn't have a type here"),
+                    HowToControlThis::Recurse(_, _) => panic!("hm, hsouldn't have a type here"),
                     HowToControlThis::Override(func, count) => {
                         Self::from_override_enum(&func, count)
                     }
@@ -159,101 +166,146 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ty: syn::Type,
     #[darling(default, rename = "override")]
     pub(crate) override_fn: Option<OverrideFn>,
+    pub(crate) method: RandMethod,
     #[darling(default)]
-    pub(crate) method_bool: Option<RandMethodBool>,
-    #[darling(default)]
-    pub(crate) method_f32: Option<RandMethodF32>,
-    #[darling(default)]
-    pub(crate) method_vec2: Option<RandMethodVec2>,
-    #[darling(default)]
-    pub(crate) method_vec: Option<RandMethodVec>,
-    #[darling(default)]
-    pub(crate) method_color: Option<RandMethodColor>,
+    pub(crate) method_inner: Option<RandMethod>,
 }
 impl LivecodeFieldReceiver {
     fn how_to_control_this(&self) -> HowToControlThis {
-        let mut method_counts = 0;
-        if self.override_fn.is_some() {
-            method_counts += 1
-        };
-        if self.method_bool.is_some() {
-            method_counts += 1
-        };
-        if self.method_f32.is_some() {
-            method_counts += 1
-        };
-        if self.method_vec2.is_some() {
-            method_counts += 1
-        };
-        if self.method_vec.is_some() {
-            method_counts += 1
-        };
-        if self.method_color.is_some() {
-            method_counts += 1
-        };
-
-        // only one should be
-        if method_counts > 1 {
-            panic!("more than one method or override specified!");
-        }
-
         if let Some(OverrideFn { func, count }) = &self.override_fn {
             match func.as_str() {
                 "default" => HowToControlThis::Default,
                 _ => HowToControlThis::Override(func.clone(), *count),
             }
-        } else if let Some(r) = self.method_bool {
-            HowToControlThis::Type(HowToControlThisType::Bool(r))
-        } else if let Some(r) = &self.method_f32 {
-            HowToControlThis::Type(HowToControlThisType::F32(r.clone()))
-        } else if let Some(r) = &self.method_vec2 {
-            HowToControlThis::Type(HowToControlThisType::Vec2(r.clone()))
-        } else if let Some(r) = self.method_vec {
-            HowToControlThis::Type(HowToControlThisType::Vec(r))
-        } else if let Some(r) = self.method_color {
-            HowToControlThis::Type(HowToControlThisType::Color(r))
+        } else if let Some(r) = &self.method_inner {
+            HowToControlThis::Recurse(self.method.clone(), Some(r.clone()))
+        } else if matches!(self.method, RandMethod::VecLength { .. }) {
+            HowToControlThis::Recurse(self.method.clone(), None)
         } else {
-            HowToControlThis::Normal
+            HowToControlThis::Type(self.method.clone())
         }
     }
 }
 
-#[derive(Debug, Copy, Clone, FromMeta)]
-pub enum RandMethodBool {
-    Binomial {
+#[derive(Debug, Clone, FromMeta)]
+pub enum RandMethod {
+    BoolBinomial {
         pct: f32, // true
     },
-}
-
-#[derive(Debug, Clone, FromMeta)]
-pub enum RandMethodF32 {
-    Uniform { start: syn::Expr, end: syn::Expr },
-}
-
-#[derive(Debug, Clone, FromMeta)]
-pub enum RandMethodVec2 {
-    UniformGrid {
+    F32Uniform {
+        start: syn::Expr,
+        end: syn::Expr,
+    },
+    Vec2UniformGrid {
         x: syn::Expr,
         y: syn::Expr,
         width: f32,
         height: f32,
     },
-    Circle {
+    Vec2Circle {
         x: syn::Expr,
         y: syn::Expr,
         radius: f32,
     },
+    VecLength {
+        min: usize,
+        max: usize,
+    },
+    ColorNormal,
+    ColorTransparency,
 }
+impl RandMethod {
+    pub(crate) fn to_methods(&self, ty: Option<syn::Type>) -> (TokenStream2, TokenStream2) {
+        let maybe_as = if let Some(typ) = ty {
+            quote! { as #typ }
+        } else {
+            quote! {}
+        };
 
-#[derive(Debug, Copy, Clone, FromMeta)]
-pub enum RandMethodVec {
-    Length { min: usize, max: usize, inside_fn: String },
-}
+        match self {
+            RandMethod::BoolBinomial { pct } => {
+                let for_rn_count = quote! { 1 };
+                let for_make_gen = quote! { {
+                    let result = rn[rn_start_idx] > #pct;
+                    rn_start_idx += #for_rn_count;
+                    result
+                } };
 
-#[derive(Debug, Copy, Clone, FromMeta)]
-pub enum RandMethodColor {
-    Normal,
-    Transparency,
+                (for_rn_count, for_make_gen)
+            }
+
+            RandMethod::F32Uniform { start, end } => {
+                let for_rn_count = quote! { 1 };
+                let for_make_gen = quote! { {
+                    let result = rn[rn_start_idx] * (#end - #start) + #start;
+                    rn_start_idx += #for_rn_count;
+                    result #maybe_as
+                } };
+
+                (for_rn_count, for_make_gen)
+            }
+            RandMethod::Vec2UniformGrid {
+                x,
+                y,
+                width,
+                height,
+            } => {
+                let for_rn_count = quote! { 2 };
+                let for_make_gen = quote! {{
+                    let width = rn[rn_start_idx] * #width;
+                    let height = rn[rn_start_idx + 1] * #height;
+
+                    rn_start_idx += #for_rn_count;
+
+                    glam::vec2(#x, #y) - 0.5 * glam::vec2(#width, #height) + glam::vec2(width, height)
+                }};
+
+                (for_rn_count, for_make_gen)
+            }
+            RandMethod::Vec2Circle { x, y, radius } => {
+                let for_rn_count = quote! { 2 };
+
+                let for_make_gen = quote! {{
+                    let angle = rn[rn_start_idx] * 2.0 * std::f32::consts::PI;
+                    let dist = rn[rn_start_idx + 1]; // sqrt it to even out the sampling
+                    rn_start_idx += #for_rn_count;
+                    glam::vec2(#x, #y) + glam::vec2(angle.cos(), angle.sin()) * #radius * dist.sqrt()
+                }};
+
+                (for_rn_count, for_make_gen)
+            }
+            RandMethod::ColorNormal => {
+                let for_rn_count = quote! { 3 };
+
+                let for_make_gen = quote! {{
+                    let h = rn[rn_start_idx];
+                    let s = rn[rn_start_idx + 1];
+                    let v = rn[rn_start_idx + 2];
+                    rn_start_idx += #for_rn_count;
+                    murrelet_common::MurreletColor::hsva(h, s, v, 1.0)
+                }};
+
+                (for_rn_count, for_make_gen)
+            }
+            RandMethod::ColorTransparency => {
+                let for_rn_count = quote! { 4 };
+
+                let for_make_gen = quote! {{
+                    let h = rn[rn_start_idx];
+                    let s = rn[rn_start_idx + 1];
+                    let v = rn[rn_start_idx + 2];
+                    let a = rn[rn_start_idx + 3];
+                    rn_start_idx += #for_rn_count;
+                    murrelet_common::MurreletColor::hsva(h, s, v, a)
+                }};
+
+                (for_rn_count, for_make_gen)
+            }
+            RandMethod::VecLength { .. } => {
+                unreachable!("hm, this should be in teh recurse func, are you missing an inner?")
+            }
+        }
+    }
 }
 
 // for enums
@@ -287,16 +339,8 @@ pub struct StructIdents {
 #[derive(Clone, Debug)]
 pub(crate) enum HowToControlThis {
     Normal,
-    Type(HowToControlThisType),
-    Default, // just do the default values
+    Type(RandMethod),
+    Recurse(RandMethod, Option<RandMethod>), // one level... defaults to calling its func
+    Default,                                 // just do the default values
     Override(String, usize),
-}
-
-#[derive(Clone, Debug)]
-pub(crate) enum HowToControlThisType {
-    Bool(RandMethodBool),
-    F32(RandMethodF32),
-    Vec2(RandMethodVec2),
-    Vec(RandMethodVec),
-    Color(RandMethodColor),
 }

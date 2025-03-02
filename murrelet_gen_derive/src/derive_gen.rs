@@ -224,144 +224,82 @@ impl GenFinal for FieldTokensGen {
     }
 
     // f32, Vec2, etc
-    fn from_type_struct(idents: StructIdents, htctt: &HowToControlThisType) -> FieldTokensGen {
+    fn from_type_struct(idents: StructIdents, method: &RandMethod) -> FieldTokensGen {
         let field_name = idents.data.ident.unwrap();
         let ty = idents.data.ty;
 
-        let (for_rn_count, for_make_gen) = match htctt {
-            HowToControlThisType::Bool(rand_method_bool) => match rand_method_bool {
-                RandMethodBool::Binomial { pct } => {
-                    let for_rn_count = quote! { 1 };
-                    let for_make_gen = quote! { {
-                        let result = rn[rn_start_idx] > #pct;
-                        rn_start_idx += #for_rn_count;
-                        result
-                    } };
-
-                    (for_rn_count, for_make_gen)
-                }
-            },
-            HowToControlThisType::F32(rand_method_f32) => match rand_method_f32 {
-                RandMethodF32::Uniform { start, end } => {
-                    let for_rn_count = quote! { 1 };
-                    let for_make_gen = quote! { {
-                        let result = rn[rn_start_idx] * (#end - #start) + #start;
-                        rn_start_idx += #for_rn_count;
-                        result as #ty
-                    } };
-
-                    (for_rn_count, for_make_gen)
-                }
-            },
-            HowToControlThisType::Vec2(rand_method_vec2) => {
-                match rand_method_vec2 {
-                    RandMethodVec2::UniformGrid {
-                        x,
-                        y,
-                        width,
-                        height,
-                    } => {
-                        let for_rn_count = quote! { 2 };
-                        let for_make_gen = quote! {{
-                            let width = rn[rn_start_idx] * #width;
-                            let height = rn[rn_start_idx + 1] * #height;
-
-                            rn_start_idx += #for_rn_count;
-
-                            glam::vec2(#x, #y) - 0.5 * glam::vec2(#width, #height) + glam::vec2(width, height)
-                        }};
-
-                        (for_rn_count, for_make_gen)
-                    }
-                    RandMethodVec2::Circle { x, y, radius } => {
-                        let for_rn_count = quote! { 2 };
-
-                        let for_make_gen = quote! {{
-                            let angle = rn[rn_start_idx] * 2.0 * std::f32::consts::PI;
-                            let dist = rn[rn_start_idx + 1]; // sqrt it to even out the sampling
-                            rn_start_idx += #for_rn_count;
-                            glam::vec2(#x, #y) + glam::vec2(angle.cos(), angle.sin()) * #radius * dist.sqrt()
-                        }};
-
-                        (for_rn_count, for_make_gen)
-                    }
-                }
-            }
-            HowToControlThisType::Vec(rand_method_vec) => match rand_method_vec {
-                RandMethodVec::Length { min, max } => {
-                    let inside_type = nested_ident(&ty);
-
-                    let i = inside_type[1].clone();
-
-                    let for_rn_count = quote! {
-                        #i::rn_count() * #max + 1
-                    };
-                    // // in this case, we _don't_ want one-hot, because it actually does make
-                    // // sense to interpolate between say, 3 and 6.
-                    // // i want to add extra indicators for everything between min and max
-                    // // but i'm not sure how to do that! because i'm just generating,
-                    // // not making the input data for something else...
-                    // let for_make_gen = quote! {{
-                    //     let how_many = rn[rn_start_idx] * (#max - #min) + #min as usize;
-
-                    //     rn_start_idx += 1;
-
-                    //     let mut v = vec![];
-                    //     for _ in 0..how_many {
-                    //         v.push(#i::sample_dist(rn))
-                    //         rn_start_idx += #i::rn_count();
-                    //     }
-
-                    //     v
-                    // }};
-
-//                     let for_rn_count = quote! {
-// 1
-//                     };
-
-                    let for_make_gen = quote! {
-                        vec![1.0]
-                    };
-
-
-
-                    (for_rn_count, for_make_gen)
-                }
-            },
-            HowToControlThisType::Color(rand_method_color) => match rand_method_color {
-                RandMethodColor::Normal => {
-                    let for_rn_count = quote! { 3 };
-
-                    let for_make_gen = quote! {{
-                        let h = rn[rn_start_idx];
-                        let s = rn[rn_start_idx + 1];
-                        let v = rn[rn_start_idx + 2];
-                        rn_start_idx += #for_rn_count;
-                        murrelet_common::MurreletColor::hsva(h, s, v, 1.0)
-                    }};
-
-                    (for_rn_count, for_make_gen)
-                }
-                RandMethodColor::Transparency => {
-                    let for_rn_count = quote! { 4 };
-
-                    let for_make_gen = quote! {{
-                        let h = rn[rn_start_idx];
-                        let s = rn[rn_start_idx + 1];
-                        let v = rn[rn_start_idx + 2];
-                        let a = rn[rn_start_idx + 3];
-                        rn_start_idx += #for_rn_count;
-                        murrelet_common::MurreletColor::hsva(h, s, v, a)
-                    }};
-
-                    (for_rn_count, for_make_gen)
-                }
-            },
-        };
+        let (for_rn_count, for_make_gen) = method.to_methods(Some(ty));
 
         FieldTokensGen {
             for_make_gen: quote! { #field_name: #for_make_gen },
             for_rn_count,
+        }
+    }
+
+    fn from_type_recurse(
+        idents: StructIdents,
+        outer: &RandMethod,
+        inner: &Option<RandMethod>,
+    ) -> Self {
+        let field_name = idents.data.ident.unwrap();
+        let ty = idents.data.ty;
+
+        let (for_rn_count, for_make_gen) = match outer {
+            RandMethod::VecLength { min, max } => {
+                let inside_type = nested_ident(&ty);
+
+                let i = inside_type[1].clone();
+
+                // (for_rn_count, for_make_gen)
+                let (for_rn_count_per_item, for_make_gen_per_item) =
+                    if let Some(inner_method) = inner {
+                        inner_method.to_methods(None)
+                    } else {
+                        (
+                            quote! {
+                                #i::rn_count()
+                            },
+                            quote! {
+                                v.push(#i::sample_dist(rn));
+                                rn_start_idx += #i::rn_count();
+                            },
+                        )
+                    };
+
+                let for_rn_count = quote! {
+                    #for_rn_count_per_item * #max + 1
+                };
+
+                // in this case, we _don't_ want one-hot, because it actually does make
+                // sense to interpolate between say, 3 and 6.
+                // i want to add extra indicators for everything between min and max
+                // but i'm not sure how to do that! because i'm just generating,
+                // not making the input data for something else...
+                let for_make_gen = quote! {{
+                    let range = (#max - #min) as f32;
+                    let how_many = (rn[rn_start_idx] * range) as usize + #min;
+                    rn_start_idx += 1;
+                    let mut v = vec![];
+                    for _ in 0..how_many {
+                        v.push(#for_make_gen_per_item);
+                    }
+                    v
+                }};
+
+                println!("done");
+
+                // let for_make_gen = quote! {
+                //     vec![1.0]
+                // };
+
+                (for_rn_count, for_make_gen)
+            }
+            _ => unreachable!("not expecting an inner without a recursive outer"),
+        };
+
+        Self {
+            for_rn_count,
+            for_make_gen: quote! { #field_name: #for_make_gen },
         }
     }
 
