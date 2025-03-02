@@ -21,9 +21,7 @@ impl GenFinal for FieldTokensGen {
         quote! {
             impl murrelet_gen::CanSampleFromDist for #name {
                 fn rn_count() -> usize {
-                    vec![
-                        #(#for_rn_count,)*
-                    ].iter().sum()
+                    #(#for_rn_count+)*
                 }
 
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
@@ -89,17 +87,18 @@ impl GenFinal for FieldTokensGen {
         // }
 
         let mut weights = vec![];
-        let mut comps = vec![];
-        for (i, (variant, receiver)) in variants.iter().zip(variant_receiver.iter()).enumerate() {
+
+        for (variant, receiver) in variants.iter().zip(variant_receiver.iter()) {
             let create_variant = &variant.for_make_gen;
             let rn_gen = &variant.for_rn_count;
 
             let weight = receiver.weight;
-            weights.push(quote! {#weight * rn[rn_start_idx + #i]});
-
-            // hm, if this turns out slow, look into closures
-            comps.push(quote! {
-                (#rn_gen, #create_variant)
+            // we need the closures so we offset it right... hrm, shadowign the variable, mgiht regret that
+            weights.push(quote! {
+                let weight = #weight * rn[rn_start_idx];
+                rn_start_idx += 1;
+                weighted_rns.push((weight, #create_variant));
+                rn_start_idx += #rn_gen;
             });
         }
 
@@ -112,34 +111,21 @@ impl GenFinal for FieldTokensGen {
                 fn rn_count() -> usize {
                     vec![
                         #(#for_rn_count,)*
-                    ].iter().sum() + #number_of_choices
+                    ].iter().sum::<usize>() + #number_of_choices
                 }
 
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
                     let mut rn_start_idx = start_idx;
 
-                    let weighted_rns = vec![#(#weights,)*];
+                    let mut weighted_rns: Vec<(f32, _)> = vec![];
+                    #(#weights;)*
 
                     // first choose which enum
-                    if let Some((max_idx, max_val)) = weighted_rns.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()) {
-                        println!("Max value {} is at index {}", max_val, max_idx);
-                    } else {
-                        unimplemented!("hrmrm, empty enum?")
-                    }
+                    let (_, comp) = weighted_rns.into_iter()
+                        .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
+                        .expect("no enum values?");
 
-                    rn_start_idx += #number_of_choices;
-
-                    for (i, (rn_offset, comp)) in vec![#(#comps,)*].into_iter().enumerate() {
-                        if i == max_idx {
-                            return comp
-                        } else {
-                            rn_start_idx += rn_offset;
-                        }
-                    }
-
-                    // match enum_rn {
-                    //     #(#q,)*
-                    // }
+                    comp
                 }
             }
         }
@@ -166,7 +152,7 @@ impl GenFinal for FieldTokensGen {
         let for_rn_count = quote! { #ty::rn_count() };
 
         let for_make_gen = quote! {
-            self.0.sample_dist(rng)
+            self.0.sample_dist(rn, rn_start_idx)
         };
 
         FieldTokensGen {
@@ -183,8 +169,14 @@ impl GenFinal for FieldTokensGen {
 
         let for_rn_count = quote! { #ty::rn_count() };
 
+        // hm, i'm not sure that the method in the enum is actually used
         let for_make_gen = quote! {
-            quote! { #name::#variant_ident(s.sample_dist()) };
+             {
+                let result = #name::#variant_ident(#ty::sample_dist(rn, rn_start_idx));
+                rn_start_idx += #for_rn_count;
+                result
+
+            }
         };
 
         FieldTokensGen {
@@ -228,7 +220,7 @@ impl GenFinal for FieldTokensGen {
         let field_name = idents.data.ident.unwrap();
         let ty = idents.data.ty;
 
-        let (for_rn_count, for_make_gen) = method.to_methods(Some(ty));
+        let (for_rn_count, for_make_gen) = method.to_methods(ty, true);
 
         FieldTokensGen {
             for_make_gen: quote! { #field_name: #for_make_gen },
@@ -236,11 +228,7 @@ impl GenFinal for FieldTokensGen {
         }
     }
 
-    fn from_type_recurse(
-        idents: StructIdents,
-        outer: &RandMethod,
-        inner: &Option<RandMethod>,
-    ) -> Self {
+    fn from_type_recurse(idents: StructIdents, outer: &RandMethod, inner: &RandMethod) -> Self {
         let field_name = idents.data.ident.unwrap();
         let ty = idents.data.ty;
 
@@ -249,22 +237,11 @@ impl GenFinal for FieldTokensGen {
                 let inside_type = nested_ident(&ty);
 
                 let i = inside_type[1].clone();
+                let inside_type_val: syn::Type = syn::parse_quote! { #i };
 
                 // (for_rn_count, for_make_gen)
                 let (for_rn_count_per_item, for_make_gen_per_item) =
-                    if let Some(inner_method) = inner {
-                        inner_method.to_methods(None)
-                    } else {
-                        (
-                            quote! {
-                                #i::rn_count()
-                            },
-                            quote! {
-                                v.push(#i::sample_dist(rn));
-                                rn_start_idx += #i::rn_count();
-                            },
-                        )
-                    };
+                    inner.to_methods(inside_type_val, false);
 
                 let for_rn_count = quote! {
                     #for_rn_count_per_item * #max + 1
@@ -285,12 +262,6 @@ impl GenFinal for FieldTokensGen {
                     }
                     v
                 }};
-
-                println!("done");
-
-                // let for_make_gen = quote! {
-                //     vec![1.0]
-                // };
 
                 (for_rn_count, for_make_gen)
             }

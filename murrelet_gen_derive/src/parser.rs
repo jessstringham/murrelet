@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use darling::{ast, FromDeriveInput, FromField, FromMeta, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
@@ -20,7 +22,7 @@ where
     fn from_type_recurse(
         idents: StructIdents,
         how_to_control_outer_type: &RandMethod,
-        how_to_control_inner_type: &Option<RandMethod>,
+        how_to_control_inner_type: &RandMethod,
     ) -> Self;
 
     fn from_ast(ast_receiver: LivecodeReceiver) -> TokenStream2 {
@@ -178,9 +180,10 @@ impl LivecodeFieldReceiver {
                 _ => HowToControlThis::Override(func.clone(), *count),
             }
         } else if let Some(r) = &self.method_inner {
-            HowToControlThis::Recurse(self.method.clone(), Some(r.clone()))
+            HowToControlThis::Recurse(self.method.clone(), r.clone())
         } else if matches!(self.method, RandMethod::VecLength { .. }) {
-            HowToControlThis::Recurse(self.method.clone(), None)
+            panic!("vec missing inner")
+            // HowToControlThis::Recurse(self.method.clone(), None)
         } else {
             HowToControlThis::Type(self.method.clone())
         }
@@ -189,6 +192,7 @@ impl LivecodeFieldReceiver {
 
 #[derive(Debug, Clone, FromMeta)]
 pub enum RandMethod {
+    Recurse,
     BoolBinomial {
         pct: f32, // true
     },
@@ -213,16 +217,29 @@ pub enum RandMethod {
     },
     ColorNormal,
     ColorTransparency,
+    StringChoice {
+        choices: HashMap<String, f32>,
+    },
 }
 impl RandMethod {
-    pub(crate) fn to_methods(&self, ty: Option<syn::Type>) -> (TokenStream2, TokenStream2) {
-        let maybe_as = if let Some(typ) = ty {
-            quote! { as #typ }
+    pub(crate) fn to_methods(&self, ty: syn::Type, convert: bool) -> (TokenStream2, TokenStream2) {
+        let maybe_as = if convert {
+            quote! { as #ty }
         } else {
             quote! {}
         };
 
         match self {
+            RandMethod::Recurse => {
+                let for_rn_count = quote! { #ty::rn_count() };
+                let for_make_gen = quote! {{
+                    let r = #ty::sample_dist(rn, rn_start_idx);
+                    rn_start_idx += #for_rn_count;
+                    r
+                }};
+
+                (for_rn_count, for_make_gen)
+            }
             RandMethod::BoolBinomial { pct } => {
                 let for_rn_count = quote! { 1 };
                 let for_make_gen = quote! { {
@@ -233,7 +250,6 @@ impl RandMethod {
 
                 (for_rn_count, for_make_gen)
             }
-
             RandMethod::F32Uniform { start, end } => {
                 let for_rn_count = quote! { 1 };
                 let for_make_gen = quote! { {
@@ -304,6 +320,26 @@ impl RandMethod {
             RandMethod::VecLength { .. } => {
                 unreachable!("hm, this should be in teh recurse func, are you missing an inner?")
             }
+            RandMethod::StringChoice { choices } => {
+                let one_hot = choices.len();
+                let for_rn_count = quote! { #one_hot };
+
+                let weighted_rns = choices
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (key, weight))| {
+                        quote! { (#key.clone(), #weight * rn[rn_start_idx + #i]) }
+                    })
+                    .collect::<Vec<_>>();
+
+                let for_make_gen = quote! { {
+                    let result = vec![#(#weighted_rns,)*].into_iter().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).expect("empty string choices??");
+                    rn_start_idx += #for_rn_count;
+                    result.0.to_string()
+                } };
+
+                (for_rn_count, for_make_gen)
+            }
         }
     }
 }
@@ -340,7 +376,7 @@ pub struct StructIdents {
 pub(crate) enum HowToControlThis {
     Normal,
     Type(RandMethod),
-    Recurse(RandMethod, Option<RandMethod>), // one level... defaults to calling its func
-    Default,                                 // just do the default values
+    Recurse(RandMethod, RandMethod), // one level... defaults to calling its func
+    Default,                         // just do the default values
     Override(String, usize),
 }
