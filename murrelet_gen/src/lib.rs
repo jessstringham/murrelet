@@ -5,11 +5,22 @@ use rand::Rng;
 use rand::SeedableRng;
 
 pub trait CanSampleFromDist: Sized {
-    fn sample_dist<R: Rng>(rng: &mut R) -> Self;
+    // returns the right number of rn needed to generate this.
+    fn rn_count() -> usize;
 
+    // given rn_count, it'll generate!
+    fn sample_dist(rn: &[f32], start_idx: usize) -> Self;
+
+    // usually you'll call this one
     fn gen_from_seed(seed: u64) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);
-        Self::sample_dist(&mut rng)
+
+        let rns: Vec<f32> = (0..Self::rn_count())
+            .into_iter()
+            .map(|_| rng.gen())
+            .collect();
+
+        Self::sample_dist(&rns, 0)
     }
 }
 

@@ -30,8 +30,8 @@ where
             ast::Data::Struct(_) => Self::make_struct(&ast_receiver),
         }
     }
-    fn from_override_struct(idents: StructIdents, func: &str) -> Self;
-    fn from_override_enum(func: &str) -> Self;
+    fn from_override_struct(idents: StructIdents, func: &str, rn_count: usize) -> Self;
+    fn from_override_enum(func: &str, rn_count: usize) -> Self;
 
     fn make_enum_final(
         idents: ParsedFieldIdent,
@@ -58,7 +58,9 @@ where
                 };
 
                 match field.how_to_control_this() {
-                    HowToControlThis::Override(func) => Self::from_override_struct(idents, &func),
+                    HowToControlThis::Override(func, count) => {
+                        Self::from_override_struct(idents, &func, count)
+                    }
                     HowToControlThis::Normal => panic!("should have an annotation"), //.,
                     HowToControlThis::Type(how_to_control_this_type) => {
                         Self::from_type_struct(idents, &how_to_control_this_type)
@@ -130,8 +132,10 @@ where
                         log::info!("-> from_noop_struct");
                         Self::from_noop_struct(idents)
                     }
-                    HowToControlThis::Override(func) => Self::from_override_enum(&func),
                     HowToControlThis::Type(_) => panic!("hm, hsouldn't have a type here"),
+                    HowToControlThis::Override(func, count) => {
+                        Self::from_override_enum(&func, count)
+                    }
                 }
             })
             .collect::<Vec<_>>();
@@ -142,13 +146,19 @@ where
     }
 }
 
+#[derive(Debug, FromMeta, Clone)]
+pub struct OverrideFn {
+    func: String,
+    count: usize,
+}
+
 #[derive(Debug, FromField, Clone)]
 #[darling(attributes(murrelet_gen))]
 pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
     #[darling(default, rename = "override")]
-    pub(crate) override_fn: Option<String>,
+    pub(crate) override_fn: Option<OverrideFn>,
     #[darling(default)]
     pub(crate) method_bool: Option<RandMethodBool>,
     #[darling(default)]
@@ -157,6 +167,8 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) method_vec2: Option<RandMethodVec2>,
     #[darling(default)]
     pub(crate) method_vec: Option<RandMethodVec>,
+    #[darling(default)]
+    pub(crate) method_color: Option<RandMethodColor>,
 }
 impl LivecodeFieldReceiver {
     fn how_to_control_this(&self) -> HowToControlThis {
@@ -176,16 +188,19 @@ impl LivecodeFieldReceiver {
         if self.method_vec.is_some() {
             method_counts += 1
         };
+        if self.method_color.is_some() {
+            method_counts += 1
+        };
 
         // only one should be
         if method_counts > 1 {
             panic!("more than one method or override specified!");
         }
 
-        if let Some(override_fn) = &self.override_fn {
-            match override_fn.as_str() {
+        if let Some(OverrideFn { func, count }) = &self.override_fn {
+            match func.as_str() {
                 "default" => HowToControlThis::Default,
-                _ => HowToControlThis::Override(override_fn.clone()),
+                _ => HowToControlThis::Override(func.clone(), *count),
             }
         } else if let Some(r) = self.method_bool {
             HowToControlThis::Type(HowToControlThisType::Bool(r))
@@ -195,6 +210,8 @@ impl LivecodeFieldReceiver {
             HowToControlThis::Type(HowToControlThisType::Vec2(r.clone()))
         } else if let Some(r) = self.method_vec {
             HowToControlThis::Type(HowToControlThisType::Vec(r))
+        } else if let Some(r) = self.method_color {
+            HowToControlThis::Type(HowToControlThisType::Color(r))
         } else {
             HowToControlThis::Normal
         }
@@ -230,7 +247,13 @@ pub enum RandMethodVec2 {
 
 #[derive(Debug, Copy, Clone, FromMeta)]
 pub enum RandMethodVec {
-    Length { min: usize, max: usize },
+    Length { min: usize, max: usize, inside_fn: String },
+}
+
+#[derive(Debug, Copy, Clone, FromMeta)]
+pub enum RandMethodColor {
+    Normal,
+    Transparency,
 }
 
 // for enums
@@ -266,7 +289,7 @@ pub(crate) enum HowToControlThis {
     Normal,
     Type(HowToControlThisType),
     Default, // just do the default values
-    Override(String),
+    Override(String, usize),
 }
 
 #[derive(Clone, Debug)]
@@ -275,4 +298,5 @@ pub(crate) enum HowToControlThisType {
     F32(RandMethodF32),
     Vec2(RandMethodVec2),
     Vec(RandMethodVec),
+    Color(RandMethodColor),
 }

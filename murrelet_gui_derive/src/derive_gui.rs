@@ -107,14 +107,9 @@ impl GenFinal for FieldTokensGUI {
         let for_make_gui = quote! {
             #ty::make_gui()
         };
-        // let for_gui_to_livecode = quote! {
-        //     self.0.gui_to_livecode(v)
-        // };
 
         FieldTokensGUI {
             for_make_gui,
-            // for_gui_to_livecode,
-            // for_assign_vars: quote!(),
         }
     }
 

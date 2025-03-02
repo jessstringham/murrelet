@@ -5,7 +5,7 @@ use std::prelude::rust_2021::*;
 extern crate std;
 use murrelet_gen::{CanSampleFromDist, MurreletGen};
 pub struct BasicTypes {
-    #[murrelet_gen(method_f32(uniform(start = -10.0, end = 1.0)))]
+    #[murrelet_gen(method_f32(uniform(start = 0.0, end = 1.0)))]
     a_number: f32,
 }
 #[automatically_derived]
@@ -21,9 +21,17 @@ impl ::core::fmt::Debug for BasicTypes {
     }
 }
 impl murrelet_gen::CanSampleFromDist for BasicTypes {
-    fn sample_dist<R: rand::Rng>(rng: &mut R) -> Self {
+    fn rn_count() -> usize {
+        <[_]>::into_vec(#[rustc_box] ::alloc::boxed::Box::new([1])).iter().sum()
+    }
+    fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
+        let mut rn_start_idx = start_idx;
         Self {
-            a_number: rng.gen::<f32>() * (1.0 - -10.0) + -10.0,
+            a_number: {
+                let result = rn[rn_start_idx] * (1.0 - 0.0) + 0.0;
+                rn_start_idx += 1;
+                result
+            },
         }
     }
 }
