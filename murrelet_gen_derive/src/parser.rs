@@ -140,10 +140,14 @@ where
                         log::info!("-> from_noop_struct");
                         Self::from_noop_struct(idents)
                     }
-                    HowToControlThis::Type(_) => panic!("hm, hsouldn't have a type here"),
-                    HowToControlThis::Recurse(_, _) => panic!("hm, hsouldn't have a type here"),
+                    HowToControlThis::Type(how_to_control_this_type) => {
+                        Self::from_type_struct(idents, &how_to_control_this_type)
+                    }
+                    HowToControlThis::Recurse(outer, inner) => {
+                        Self::from_type_recurse(idents, &outer, &inner)
+                    }
                     HowToControlThis::Override(func, count) => {
-                        Self::from_override_enum(&func, count)
+                        Self::from_override_struct(idents, &func, count)
                     }
                 }
             })
@@ -199,6 +203,9 @@ pub enum RandMethod {
     F32Uniform {
         start: syn::Expr,
         end: syn::Expr,
+    },
+    F32Fixed {
+        val: syn::Expr,
     },
     Vec2UniformGrid {
         x: syn::Expr,
@@ -340,6 +347,7 @@ impl RandMethod {
 
                 (for_rn_count, for_make_gen)
             }
+            RandMethod::F32Fixed { val } => (quote! { 0 }, quote! { #val }),
         }
     }
 }

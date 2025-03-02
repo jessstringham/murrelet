@@ -47,6 +47,7 @@ impl GenFinal for FieldTokensGen {
 
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
                     let mut rn_start_idx = start_idx;
+
                     Self {
                         #(#for_make_gen,)*
                     }
@@ -90,19 +91,18 @@ impl GenFinal for FieldTokensGen {
 
         for (variant, receiver) in variants.iter().zip(variant_receiver.iter()) {
             let create_variant = &variant.for_make_gen;
-            let rn_gen = &variant.for_rn_count;
 
             let weight = receiver.weight;
-            // we need the closures so we offset it right... hrm, shadowign the variable, mgiht regret that
+            // hrm, might want to use closures if it's expensive
+            // also the create_variant will modify rn_start_idx for us.
             weights.push(quote! {
                 let weight = #weight * rn[rn_start_idx];
                 rn_start_idx += 1;
                 weighted_rns.push((weight, #create_variant));
-                rn_start_idx += #rn_gen;
             });
         }
 
-        // one hot encoding
+        // one hot encoding, i might be off-by-one here for how many vars..
         let number_of_choices = variants.len();
 
         quote! {
@@ -243,7 +243,7 @@ impl GenFinal for FieldTokensGen {
                 let (for_rn_count_per_item, for_make_gen_per_item) =
                     inner.to_methods(inside_type_val, false);
 
-                let for_rn_count = quote! {
+                let for_rn_count: TokenStream2 = quote! {
                     #for_rn_count_per_item * #max + 1
                 };
 
@@ -253,12 +253,19 @@ impl GenFinal for FieldTokensGen {
                 // but i'm not sure how to do that! because i'm just generating,
                 // not making the input data for something else...
                 let for_make_gen = quote! {{
-                    let range = (#max - #min) as f32;
+                    let range = (#max - #min + 1) as f32;
                     let how_many = (rn[rn_start_idx] * range) as usize + #min;
                     rn_start_idx += 1;
                     let mut v = vec![];
-                    for _ in 0..how_many {
-                        v.push(#for_make_gen_per_item);
+                    // need to go through the fill list so we increment
+                    // through the rns right
+                    for i in 0..#max {
+                        if i < how_many {
+                            v.push(#for_make_gen_per_item);
+                        } else {
+                            // just run it
+                            #for_make_gen_per_item;
+                        }
                     }
                     v
                 }};

@@ -75,14 +75,14 @@ impl CurveDrawer {
         Self::new(vec![], false)
     }
 
-    pub fn first_point(&self) -> Vec2 {
-        let first_command = self.segments().first().unwrap();
-        first_command.first_point()
+    pub fn first_point(&self) -> Option<Vec2> {
+        let first_command = self.segments().first()?;
+        Some(first_command.first_point())
     }
 
-    pub fn last_point(&self) -> Vec2 {
-        let last_command = self.segments().last().unwrap();
-        last_command.last_point()
+    pub fn last_point(&self) -> Option<Vec2> {
+        let last_command = self.segments().last()?;
+        Some(last_command.last_point())
     }
 }
 
