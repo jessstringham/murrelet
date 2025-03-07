@@ -1,4 +1,7 @@
-use std::{fmt, ops::{Add, Mul}};
+use std::{
+    fmt,
+    ops::{Add, Mul},
+};
 
 use lerpable::{IsLerpingMethod, Lerpable};
 use murrelet_gui::CanMakeGUI;
@@ -199,11 +202,6 @@ impl Mul<f32> for MurreletColor {
     fn mul(self, scalar: f32) -> Self::Output {
         let [h, s, v, a] = self.into_hsva_components();
 
-        MurreletColor::hsva(
-            h * scalar,
-            s * scalar,
-            v * scalar,
-            a * scalar,
-        )
+        MurreletColor::hsva(h * scalar, s * scalar, v * scalar, a * scalar)
     }
 }

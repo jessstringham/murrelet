@@ -411,9 +411,7 @@ impl SvgDocCreator {
             defs.push(name.clone());
         }
 
-
         (doc, defs.into_iter().join("\n"))
-
     }
 
     // this one's meant for svgs for pen plotters, so it drops fill styles

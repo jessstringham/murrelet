@@ -204,6 +204,14 @@ pub enum RandMethod {
         start: syn::Expr,
         end: syn::Expr,
     },
+    F32UniformPosNeg {
+        start: f32,
+        end: f32,
+    },
+    F32Normal {
+        mu: syn::Expr,
+        sigma: syn::Expr,
+    },
     F32Fixed {
         val: syn::Expr,
     },
@@ -267,6 +275,35 @@ impl RandMethod {
 
                 (for_rn_count, for_make_gen)
             }
+            RandMethod::F32UniformPosNeg { start, end } => {
+                let for_rn_count = quote! { 2 };
+                let for_make_gen = quote! { {
+                    let sgn = if(rn[rn_start_idx] > 0.5) { 1.0 } else { -1.0 };
+                    let result = rn[rn_start_idx + 1] * (#end - #start) + #start;
+                    rn_start_idx += #for_rn_count;
+                    (sgn * result) #maybe_as
+                } };
+
+                (for_rn_count, for_make_gen)
+            }
+            RandMethod::F32Fixed { val } => (quote! { 0 }, quote! { #val  #maybe_as }),
+            // box muller copy-pasta
+            RandMethod::F32Normal { mu, sigma } => {
+                let for_rn_count = quote! { 2 };
+                let for_make_gen = quote! { {
+                    // avoid nans, make sure u1 is positive and non-zero
+                    let u1 = rn[rn_start_idx].clamp(std::f32::MIN_POSITIVE, 1.0);
+                    let u2 = rn[rn_start_idx + 1].clamp(0.0, 1.0);
+                    rn_start_idx += 2;
+
+                    let r = (-2.0 * u1.ln()).sqrt();
+                    let theta = 2.0 * std::f32::consts::PI * u2;
+
+                    #mu + #sigma * r * theta.cos() #maybe_as
+                } };
+                (for_rn_count, for_make_gen)
+            }
+
             RandMethod::Vec2UniformGrid {
                 x,
                 y,
@@ -347,7 +384,6 @@ impl RandMethod {
 
                 (for_rn_count, for_make_gen)
             }
-            RandMethod::F32Fixed { val } => (quote! { 0 }, quote! { #val }),
         }
     }
 }

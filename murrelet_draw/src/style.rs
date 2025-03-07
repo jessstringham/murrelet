@@ -37,7 +37,11 @@ pub struct MurreletStyleFilled {
 }
 impl MurreletStyleFilled {
     pub fn new(color: MurreletColor, stroke_weight: f32, stroke_color: MurreletColor) -> Self {
-        Self { color, stroke_weight, stroke_color }
+        Self {
+            color,
+            stroke_weight,
+            stroke_color,
+        }
     }
 
     fn to_style(&self) -> MurreletStyle {

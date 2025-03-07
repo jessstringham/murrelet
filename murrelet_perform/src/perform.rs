@@ -7,9 +7,7 @@ use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
-use murrelet_livecode::types::{
-    AdditionalContextNode, ControlVecElement, LivecodeResult,
-};
+use murrelet_livecode::types::{AdditionalContextNode, ControlVecElement, LivecodeResult};
 use std::collections::HashMap;
 use std::fs;
 
@@ -549,11 +547,11 @@ where
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
         let controlconfig = ControlConfType::parse(&conf)?;
         // .map_err(|err| {
-            // if let Some(error) = err.location() {
-            //     LivecodeError::SerdeLoc(error, err.to_string())
-            // } else {
-            //     LivecodeError::Raw(err.to_string())
-            // }
+        // if let Some(error) = err.location() {
+        //     LivecodeError::SerdeLoc(error, err.to_string())
+        // } else {
+        //     LivecodeError::Raw(err.to_string())
+        // }
         // })?;
         Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }

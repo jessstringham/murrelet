@@ -108,9 +108,7 @@ impl GenFinal for FieldTokensGUI {
             #ty::make_gui()
         };
 
-        FieldTokensGUI {
-            for_make_gui,
-        }
+        FieldTokensGUI { for_make_gui }
     }
 
     // e.g. TileAxisLocs::V(TileAxisVs)

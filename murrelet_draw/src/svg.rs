@@ -19,6 +19,19 @@ pub struct SvgRect {
     pub height: f32,
 }
 
+impl SvgRect {
+    pub fn new_centered(width: f32, height: f32) -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            rx: 0.0,
+            ry: 0.0,
+            width,
+            height,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]
 pub struct SvgCircle {
     #[livecode(serde_default = "0")]

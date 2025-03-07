@@ -50,8 +50,6 @@ impl VectorAsset {
     }
 }
 
-
-
 #[derive(Debug, Clone)]
 pub struct VectorLayersAssetLookup {
     filename_to_polyline_layers: HashMap<String, VectorAsset>,
@@ -79,7 +77,6 @@ impl VectorLayersAssetLookup {
     }
 }
 
-
 pub trait IsColorType {}
 
 #[derive(Debug, Clone, Copy)]
@@ -88,7 +85,6 @@ impl IsColorType for BlackWhite {}
 
 // struct RGBAu8([u8; 4]),;
 // struct RGBAf32([f32; 4]);
-
 
 #[derive(Debug, Clone)]
 pub enum RasterAsset {
@@ -106,7 +102,6 @@ impl RasterAssetLookup {
         self.0.insert(filename, img);
     }
 }
-
 
 #[derive(Debug, Clone)]
 

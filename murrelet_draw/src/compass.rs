@@ -35,10 +35,10 @@ fn empty_string() -> String {
 pub struct CompassDir {
     angle_pi: LivecodeAnglePi,
     #[livecode(serde_default = "false")]
-    #[murrelet_gui(kind="skip")]
+    #[murrelet_gui(kind = "skip")]
     is_absolute: bool,
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
-    #[murrelet_gui(kind="skip")]
+    #[murrelet_gui(kind = "skip")]
     label: String,
 }
 
@@ -57,10 +57,10 @@ pub struct CompassArc {
     radius: f32,
     arc_length: LivecodeAnglePi,
     #[livecode(serde_default = "false")]
-    #[murrelet_gui(kind="skip")]
+    #[murrelet_gui(kind = "skip")]
     is_absolute: bool,
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
-    #[murrelet_gui(kind="skip")]
+    #[murrelet_gui(kind = "skip")]
     label: String,
 }
 
@@ -72,7 +72,7 @@ pub struct CompassArc {
 pub struct CompassLine {
     length: f32, // how far should we head in the current direction
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
-    #[murrelet_gui(kind="skip")]
+    #[murrelet_gui(kind = "skip")]
     label: String,
 }
 
@@ -181,16 +181,15 @@ impl InteractiveCompassBuilder {
             }
             CompassAction::Arc(x) => {
                 vec![self.add_arc(x)]
-            }
-            // CompassAction::Repeat(x) => {
-            //     let mut n = Vec::new();
-            //     for _ in 0..x.times {
-            //         for w in &x.what {
-            //             n.extend(self.new_segments(w))
-            //         }
-            //     }
-            //     n
-            // }
+            } // CompassAction::Repeat(x) => {
+              //     let mut n = Vec::new();
+              //     for _ in 0..x.times {
+              //         for w in &x.what {
+              //             n.extend(self.new_segments(w))
+              //         }
+              //     }
+              //     n
+              // }
         }
     }
 

@@ -38,7 +38,6 @@ pub struct BasicTypes {
     s: String,
 }
 
-
 #[derive(Debug, MurreletGen)]
 pub struct Tiny {
     #[murrelet_gen(method(f32_uniform(start = 0.0, end = 1.0)))]
@@ -78,8 +77,10 @@ fn main() {
 
     assert_eq!(BasicTypes::rn_count(), 33);
 
-
-    println!("OverridesAndRecursive::gen_from_seed(42) {:?}", OverridesAndRecursive::gen_from_seed(42));
+    println!(
+        "OverridesAndRecursive::gen_from_seed(42) {:?}",
+        OverridesAndRecursive::gen_from_seed(42)
+    );
 
     assert_eq!(OverridesAndRecursive::rn_count(), 11);
     assert_eq!(EnumTest::rn_count(), 7);
@@ -109,5 +110,4 @@ fn main() {
         // println!("test_val2 {:?}", test_val2);
         // println!("test_val3 {:?}", test_val3);
     }
-
 }

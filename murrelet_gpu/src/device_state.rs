@@ -106,13 +106,11 @@ impl OwnedDeviceState {
 
 // borrowing from bevy
 pub fn align_byte_size(value: u32) -> u32 {
-
     if value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT != 0 {
         value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
     } else {
         value
     }
-
 }
 
 pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std::error::Error>> {
@@ -160,7 +158,6 @@ fn write_png_to_texture(
 
         padded_img[start..end].copy_from_slice(data);
     }
-
 
     let mut hist = HashMap::new();
     for value in &padded_img {

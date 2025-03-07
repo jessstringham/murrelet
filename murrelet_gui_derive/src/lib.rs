@@ -5,8 +5,8 @@ use derive_gui::FieldTokensGUI;
 use parser::{GenFinal, LivecodeReceiver};
 use proc_macro::TokenStream;
 
-mod parser;
 mod derive_gui;
+mod parser;
 
 #[proc_macro_derive(MurreletGUI, attributes(murrelet_gui))]
 pub fn murrelet_livecode_derive_murrelet_gui(input: TokenStream) -> TokenStream {

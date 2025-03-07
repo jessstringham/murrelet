@@ -36,7 +36,6 @@ pub mod anglepi {
         }
     }
 
-
     impl CanMakeGUI for LivecodeAnglePi {
         fn make_gui() -> murrelet_gui::MurreletGUISchema {
             murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Angle)
