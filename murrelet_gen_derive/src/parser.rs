@@ -196,6 +196,7 @@ impl LivecodeFieldReceiver {
 
 #[derive(Debug, Clone, FromMeta)]
 pub enum RandMethod {
+    Default,
     Recurse,
     BoolBinomial {
         pct: f32, // true
@@ -287,7 +288,6 @@ impl RandMethod {
                 (for_rn_count, for_make_gen)
             }
             RandMethod::F32Fixed { val } => (quote! { 0 }, quote! { #val  #maybe_as }),
-            // box muller copy-pasta
             RandMethod::F32Normal { mu, sigma } => {
                 let for_rn_count = quote! { 2 };
                 let for_make_gen = quote! { {
@@ -303,7 +303,6 @@ impl RandMethod {
                 } };
                 (for_rn_count, for_make_gen)
             }
-
             RandMethod::Vec2UniformGrid {
                 x,
                 y,
@@ -380,6 +379,15 @@ impl RandMethod {
                     let result = vec![#(#weighted_rns,)*].into_iter().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).expect("empty string choices??");
                     rn_start_idx += #for_rn_count;
                     result.0.to_string()
+                } };
+
+                (for_rn_count, for_make_gen)
+            }
+            RandMethod::Default => {
+                let for_rn_count = quote! { 0 };
+
+                let for_make_gen = quote! { {
+                    Default::default()
                 } };
 
                 (for_rn_count, for_make_gen)

@@ -229,6 +229,12 @@ impl CurveArc {
             self.start_angle().perp_to_right()
         }
     }
+
+    pub fn set_radius(&self, radius: f32) -> CurveArc {
+        let mut m = self.clone();
+        m.radius = radius;
+        m
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]

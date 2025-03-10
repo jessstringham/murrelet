@@ -169,7 +169,7 @@ impl Angle {
         Angle(self.angle() * s)
     }
 
-    pub fn hyp_given_opp(&self, opp: Length) -> Length {
+    pub fn hyp_given_opp<L: IsLength>(&self, opp: L) -> Length {
         Length(opp.len() / self.angle().sin())
     }
 
@@ -452,7 +452,7 @@ impl CornerAngleToAngle {
     }
 
     // dist is how far away from the current point. left is positive (inside of angle) (i think)
-    pub fn corner_at_point(&self, dist: Length) -> Vec2 {
+    pub fn corner_at_point<L: IsLength>(&self, dist: L) -> Vec2 {
         // mid-way between the two angles, and then go perpindicular at some point
 
         let p = if dist.len() < 0.0 {
@@ -544,11 +544,11 @@ pub struct LineFromVecAndLen {
     length: Length,
 }
 impl LineFromVecAndLen {
-    pub fn new(start: Vec2, angle: Angle, length: Length) -> Self {
+    pub fn new<L: IsLength>(start: Vec2, angle: Angle, length: L) -> Self {
         Self {
             start,
             angle,
-            length,
+            length: length.to_length(),
         }
     }
 

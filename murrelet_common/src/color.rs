@@ -5,14 +5,12 @@ use std::{
 
 use lerpable::{IsLerpingMethod, Lerpable};
 use murrelet_gui::CanMakeGUI;
-use palette::{
-    rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, RgbHue, Srgb, Srgba, WithAlpha,
-};
+use palette::{rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha};
 
 // hrm, color is confusing, so make a newtype around LinSrgba for all our color stuff
 // i need to double check i'm handling linear/not rgb right
 #[derive(Copy, Clone, Default)]
-pub struct MurreletColor(LinSrgba);
+pub struct MurreletColor([f32; 4]); // hsva
 
 impl fmt::Debug for MurreletColor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -22,30 +20,29 @@ impl fmt::Debug for MurreletColor {
 }
 
 impl MurreletColor {
+    // 0 to 1
+    pub fn alpha(&self) -> f32 {
+        let [_, _, _, a] = self.into_hsva_components();
+        a
+    }
+
     pub fn from_palette_linsrgba(c: LinSrgba) -> Self {
-        Self(c)
+        let srgba: Srgba = Srgba::from_linear(c.into_format::<f32, f32>());
+        Self::from_hsva(Hsva::from_color(srgba))
     }
 
-    pub fn black() -> Self {
-        Self::hsva(0.0, 0.0, 0.0, 1.0)
-    }
+    pub fn from_hsva(c: Hsva) -> Self {
+        // let c = Srgba::from_color(c).into_color();
 
-    pub fn white() -> Self {
-        Self::rgba(1.0, 1.0, 1.0, 1.0)
-    }
-
-    pub fn transparent() -> Self {
-        Self::hsva(0.0, 0.0, 0.0, 0.0)
-    }
-
-    // shorthand for a really bright color
-    pub fn hue(h: f32) -> MurreletColor {
-        Self::hsva(h, 1.0, 1.0, 1.0)
+        let (h, s, v, a) = c.into_components();
+        Self([h.into_degrees() / 360.0, s, v, a])
     }
 
     pub fn hsva(h: f32, s: f32, v: f32, a: f32) -> MurreletColor {
-        let c = Hsva::new(RgbHue::from_degrees(h * 360.0), s, v, a);
-        Self::from_hsva(c)
+        // let c = Hsva::new(RgbHue::from_degrees(h * 360.0), s, v, a);
+        // Self::from_hsva(c)
+
+        Self([h, s, v, a])
     }
 
     pub fn srgb(r: f32, g: f32, b: f32) -> Self {
@@ -68,7 +65,7 @@ impl MurreletColor {
         let b = b as f32 / 255.0;
         let c = LinSrgba::from_components((r, g, b, 1.0));
 
-        MurreletColor(c)
+        MurreletColor::from_palette_linsrgba(c)
     }
 
     pub fn rgb_u8_tuple(rgb: (u8, u8, u8)) -> Self {
@@ -80,51 +77,69 @@ impl MurreletColor {
 
     pub fn from_srgb(c: Srgb) -> Self {
         let c = LinSrgb::from_color(c).with_alpha(1.0);
-        MurreletColor(c)
-    }
-
-    pub fn from_srgb_u8(c: Srgb<u8>) -> Self {
-        Self::rgb_u8(c.red, c.green, c.blue)
+        MurreletColor::from_palette_linsrgba(c)
     }
 
     pub fn from_srgba(c: Srgba) -> Self {
         let c = LinSrgba::from_color(c);
-        MurreletColor(c)
+        MurreletColor::from_palette_linsrgba(c)
     }
 
     pub fn from_rgb_u8(c: Rgb<Srgb, u8>) -> Self {
         Self::rgb_u8(c.red, c.green, c.blue)
     }
 
-    pub fn from_hsva(c: Hsva) -> Self {
-        let c = Srgba::from_color(c).into_color();
-        MurreletColor(c)
+    pub fn from_srgb_u8(c: Srgb<u8>) -> Self {
+        Self::rgb_u8(c.red, c.green, c.blue)
     }
 
     // getting info out of it
 
     pub fn into_hsva_components(&self) -> [f32; 4] {
-        let srgba: Srgba = self.0.into_format().into_color();
-        let hsva: Hsva = Hsva::from_color(srgba);
-        [
-            hsva.hue.into_raw_degrees() / 360.0,
-            hsva.saturation,
-            hsva.value,
-            self.0.alpha,
-        ]
-    }
+        // let srgba: Srgba = self.0.into_format().into_color();
+        // println!("sRGBA before HSV conversion: {:?}", srgba);
 
-    pub fn into_rgba_components(&self) -> [f32; 4] {
-        let srgb: Srgba = self.0.into_format().into_color();
-        srgb.into_components().into()
-    }
-
-    pub fn to_linsrgba(&self) -> LinSrgba {
+        // let hsva: Hsva = Hsva::from_color(srgba);
         self.0
     }
 
+    pub fn to_srgba(&self) -> Srgba {
+        let [h, s, v, a] = self.into_hsva_components();
+        let hsva: Hsva = Hsva::from_components((h * 360.0, s, v, a));
+        Srgba::from_color(hsva)
+    }
+
+    pub fn into_rgba_components(&self) -> [f32; 4] {
+        self.to_srgba().into_components().into()
+    }
+
+    pub fn to_linsrgba(&self) -> LinSrgba {
+        self.to_srgba().into_color()
+    }
+
     pub fn with_alpha(&self, alpha: f32) -> MurreletColor {
-        Self(self.0.with_alpha(alpha))
+        let [h, s, v, _a] = self.into_hsva_components();
+        Self([h, s, v, alpha])
+    }
+}
+
+// getters and such that use the functions already
+impl MurreletColor {
+    pub fn black() -> Self {
+        Self::hsva(0.0, 0.0, 0.0, 1.0)
+    }
+
+    pub fn white() -> Self {
+        Self::rgba(1.0, 1.0, 1.0, 1.0)
+    }
+
+    pub fn transparent() -> Self {
+        Self::hsva(0.0, 0.0, 0.0, 0.0)
+    }
+
+    // shorthand for a really bright color
+    pub fn hue(h: f32) -> MurreletColor {
+        Self::hsva(h, 1.0, 1.0, 1.0)
     }
 
     pub fn to_svg_rgb(&self) -> String {
@@ -157,7 +172,7 @@ impl MurreletIntoLinSrgba for Rgb<Srgb, u8> {
 
 impl MurreletIntoLinSrgba for LinSrgba {
     fn into_murrelet_color(&self) -> MurreletColor {
-        MurreletColor(*self)
+        MurreletColor::from_palette_linsrgba(*self)
     }
 }
 

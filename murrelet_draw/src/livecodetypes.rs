@@ -1,6 +1,8 @@
 // place to put newtypes for livecode
 
 pub mod anglepi {
+    use std::ops::Sub;
+
     use lerpable::Lerpable;
     use murrelet_common::{Angle, AnglePi, IsAngle};
     use murrelet_gui::CanMakeGUI;
@@ -39,6 +41,15 @@ pub mod anglepi {
     impl CanMakeGUI for LivecodeAnglePi {
         fn make_gui() -> murrelet_gui::MurreletGUISchema {
             murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Angle)
+        }
+    }
+
+    impl Sub for LivecodeAnglePi {
+        type Output = Self;
+
+        fn sub(self, other: Self) -> Self::Output {
+            let new_angle = self.0 - other.0;
+            LivecodeAnglePi(new_angle)
         }
     }
 }
