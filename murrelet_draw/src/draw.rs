@@ -78,6 +78,10 @@ impl MurreletColorStyle {
             MurreletColorStyle::SvgFill(c) => MurreletColorStyle::SvgFill(c.with_alpha(alpha)),
         }
     }
+
+    fn hue(hue: f32) -> MurreletColorStyle {
+        MurreletColorStyle::Color(MurreletColor::hsva(hue, 1.0, 1.0, 1.0))
+    }
 }
 
 pub enum MurreletDrawPlan {
@@ -166,6 +170,22 @@ impl MurreletStyle {
             filled,
             color: MurreletColorStyle::white(),
             stroke_weight: 0.5,
+            ..Default::default()
+        }
+    }
+
+    pub fn white_font() -> Self {
+        MurreletStyle {
+            color: MurreletColorStyle::white(),
+            stroke_weight: 24.0,
+            ..Default::default()
+        }
+    }
+
+    pub fn red_font() -> Self {
+        MurreletStyle {
+            color: MurreletColorStyle::hue(0.0),
+            stroke_weight: 24.0,
             ..Default::default()
         }
     }
