@@ -1,10 +1,20 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-use crate::parser::*;
+use crate::{gen_methods::GenMethod, parser::*};
+
+fn str_to_tokens(s: &str) -> TokenStream2 {
+    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+    quote! { (#lit).to_string() }
+}
+
+fn strs_to_tokens(s: Vec<String>) -> Vec<TokenStream2> {
+    s.iter().map(|x| str_to_tokens(x)).collect()
+}
 
 pub(crate) struct FieldTokensGen {
     pub(crate) for_rn_count: TokenStream2,
+    pub(crate) for_rn_names: TokenStream2,
     pub(crate) for_make_gen: TokenStream2,
 }
 impl GenFinal for FieldTokensGen {
@@ -16,12 +26,17 @@ impl GenFinal for FieldTokensGen {
         let name = idents.name;
 
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
+        let for_rn_names = variants.iter().map(|x| x.for_rn_names.clone());
         let for_make_gen = variants.iter().map(|x| x.for_make_gen.clone());
 
         quote! {
             impl murrelet_gen::CanSampleFromDist for #name {
                 fn rn_count() -> usize {
                     #(#for_rn_count+)*
+                }
+
+                fn rn_names() -> Vec<String> {
+                    #(#for_rn_names+)*
                 }
 
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
@@ -35,6 +50,7 @@ impl GenFinal for FieldTokensGen {
         let name = idents.name;
 
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
+        let for_rn_names = variants.iter().map(|x| x.for_rn_names.clone());
         let for_make_gen = variants.iter().map(|x| x.for_make_gen.clone());
 
         quote! {
@@ -43,6 +59,12 @@ impl GenFinal for FieldTokensGen {
                     vec![
                         #(#for_rn_count,)*
                     ].iter().sum()
+                }
+
+                fn rn_names() -> Vec<String> {
+                    vec![
+                        #(#for_rn_names,)*
+                    ].concat()
                 }
 
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
@@ -63,34 +85,30 @@ impl GenFinal for FieldTokensGen {
     ) -> TokenStream2 {
         let name = idents.name;
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
-
-        // let mut cumulative_probabilities = vec![];
-
-        // let mut running_total = 0.0;
-        // for receiver in variant_receiver.iter() {
-        //     let weight = receiver.weight;
-        //     running_total += weight;
-        //     cumulative_probabilities.push(running_total);
-        // }
-
-        // // normalize
-        // for i in 0..cumulative_probabilities.len() {
-        //     cumulative_probabilities[i] /= running_total;
-        // }
-
-        // let mut q = vec![];
-        // for (i, variant) in variants.iter().enumerate() {
-        //     let create_variant = &variant.for_make_gen;
-        //     let prob_upper_bound = cumulative_probabilities[i];
-        //     q.push(quote! {
-        //         x if x < #prob_upper_bound => #create_variant
-        //     });
-        // }
+        let for_rn_names_all = variants.iter().map(|x| x.for_rn_names.clone());
 
         let mut weights = vec![];
+        let mut for_rn_names: Vec<TokenStream2> = vec![];
 
-        for (variant, receiver) in variants.iter().zip(variant_receiver.iter()) {
+        for ((variant, receiver), names) in variants
+            .iter()
+            .zip(variant_receiver.iter())
+            .zip(for_rn_names_all)
+        {
             let create_variant = &variant.for_make_gen;
+            let receiver_name = receiver.ident.to_string();
+
+            for_rn_names.push(quote! {
+                murrelet_gen::prefix_field_names(#receiver_name.to_string(), vec![vec!["[weight]".to_string()], #names].concat())
+            });
+
+            // for_rn_names.extend(
+            //     variant
+            //         .for_rn_names
+            //         .clone()
+            //         .into_iter()
+            //         .map(|x| quote!( murrelet_gen::prefix_field_names(#x, #receiver_name))),
+            // );
 
             let weight = receiver.weight;
             // hrm, might want to use closures if it's expensive
@@ -114,6 +132,12 @@ impl GenFinal for FieldTokensGen {
                     ].iter().sum::<usize>() + #number_of_choices
                 }
 
+                fn rn_names() -> Vec<String> {
+                    vec![
+                        #(#for_rn_names,)*
+                    ].concat()
+                }
+
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
                     let mut rn_start_idx = start_idx;
 
@@ -131,25 +155,12 @@ impl GenFinal for FieldTokensGen {
         }
     }
 
-    fn from_override_enum(func: &str, rn_count: usize) -> FieldTokensGen {
-        let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
-
-        let for_rn_count = quote! { #rn_count };
-
-        let for_make_gen = quote! {
-            #method()
-        };
-
-        FieldTokensGen {
-            for_rn_count,
-            for_make_gen,
-        }
-    }
-
     fn from_newtype_struct(idents: StructIdents, _parent_ident: syn::Ident) -> FieldTokensGen {
         let ty = convert_vec_type(&idents.data.ty);
 
         let for_rn_count = quote! { #ty::rn_count() };
+
+        let for_rn_names = quote! { #ty::rn_names() };
 
         let for_make_gen = quote! {
             self.0.sample_dist(rn, rn_start_idx)
@@ -157,6 +168,7 @@ impl GenFinal for FieldTokensGen {
 
         FieldTokensGen {
             for_rn_count,
+            for_rn_names,
             for_make_gen,
         }
     }
@@ -168,6 +180,8 @@ impl GenFinal for FieldTokensGen {
         let name = idents.enum_name;
 
         let for_rn_count = quote! { #ty::rn_count() };
+
+        let for_rn_names = quote! { #ty::rn_names() };
 
         // hm, i'm not sure that the method in the enum is actually used
         let for_make_gen = quote! {
@@ -181,6 +195,7 @@ impl GenFinal for FieldTokensGen {
 
         FieldTokensGen {
             for_rn_count,
+            for_rn_names,
             for_make_gen,
         }
     }
@@ -193,10 +208,13 @@ impl GenFinal for FieldTokensGen {
         // just the one-hot encoding
         let for_rn_count = quote! { 0 };
 
+        let for_rn_names = quote! { vec![] };
+
         let for_make_gen = quote! { #name::#variant_ident };
 
         FieldTokensGen {
             for_rn_count,
+            for_rn_names,
             for_make_gen,
         }
     }
@@ -207,44 +225,65 @@ impl GenFinal for FieldTokensGen {
         let ty = idents.data.ty;
 
         let for_rn_count = quote! { 0 };
+        let for_rn_names = quote! { vec![] };
+
         let for_make_gen = quote! { #field_name: #ty::default() };
 
         FieldTokensGen {
             for_rn_count,
             for_make_gen,
+            for_rn_names,
         }
     }
 
     // f32, Vec2, etc
-    fn from_type_struct(idents: StructIdents, method: &RandMethod) -> FieldTokensGen {
+    fn from_type_struct(idents: StructIdents, method: &GenMethod) -> FieldTokensGen {
         let field_name = idents.data.ident.unwrap();
+        let field_name_str = field_name.to_string();
         let ty = idents.data.ty;
 
-        let (for_rn_count, for_make_gen) = method.to_methods(ty, true);
+        let (for_rn_count, for_rn_names, for_make_gen) = method.to_methods(ty, true);
 
         FieldTokensGen {
             for_make_gen: quote! { #field_name: #for_make_gen },
+            for_rn_names: quote! { murrelet_gen::prefix_field_names(#field_name_str.to_string(), #for_rn_names)},
             for_rn_count,
         }
     }
 
-    fn from_type_recurse(idents: StructIdents, outer: &RandMethod, inner: &RandMethod) -> Self {
+    fn from_type_recurse(idents: StructIdents, outer: &GenMethod, inner: &GenMethod) -> Self {
         let field_name = idents.data.ident.unwrap();
         let ty = idents.data.ty;
 
-        let (for_rn_count, for_make_gen) = match outer {
-            RandMethod::VecLength { min, max } => {
+        let (for_rn_count, for_rn_names, for_make_gen) = match outer {
+            GenMethod::VecLength { min, max } => {
                 let inside_type = nested_ident(&ty);
 
                 let i = inside_type[1].clone();
                 let inside_type_val: syn::Type = syn::parse_quote! { #i };
 
-                // (for_rn_count, for_make_gen)
-                let (for_rn_count_per_item, for_make_gen_per_item) =
+                let (for_rn_count_per_item, for_rn_names_per_item, for_make_gen_per_item) =
                     inner.to_methods(inside_type_val, false);
 
                 let for_rn_count: TokenStream2 = quote! {
                     #for_rn_count_per_item * #max + 1
+                };
+
+                let for_rn_names_all = (0..*max).into_iter().map(|x| {
+                    let i_name = x.to_string();
+                    quote! { murrelet_gen::prefix_field_names(#i_name.to_string(), #for_rn_names_per_item) }
+                });
+
+                let field_name_str = field_name.to_string();
+
+                let for_rn_names = quote! {
+                    murrelet_gen::prefix_field_names(
+                        #field_name_str.to_string(),
+                        vec![
+                            vec!["[len]".to_string()],
+                           #(#for_rn_names_all,)*
+                        ].concat()
+                    )
                 };
 
                 // in this case, we _don't_ want one-hot, because it actually does make
@@ -270,21 +309,32 @@ impl GenFinal for FieldTokensGen {
                     v
                 }};
 
-                (for_rn_count, for_make_gen)
+                (for_rn_count, for_rn_names, for_make_gen)
             }
             _ => unreachable!("not expecting an inner without a recursive outer"),
         };
 
         Self {
             for_rn_count,
+            for_rn_names,
             for_make_gen: quote! { #field_name: #for_make_gen },
         }
     }
 
-    fn from_override_struct(idents: StructIdents, func: &str, rn_count: usize) -> FieldTokensGen {
+    fn from_override_struct(
+        idents: StructIdents,
+        func: &str,
+        rn_names: Vec<String>,
+        rn_count: usize,
+    ) -> FieldTokensGen {
         let field_name = idents.data.ident.unwrap();
 
         let for_rn_count = quote! { #rn_count };
+
+        let strs = strs_to_tokens(rn_names);
+        let for_rn_names = quote! {
+            #(#strs,)*
+        };
 
         let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
 
@@ -292,6 +342,7 @@ impl GenFinal for FieldTokensGen {
 
         FieldTokensGen {
             for_rn_count,
+            for_rn_names,
             for_make_gen,
         }
     }

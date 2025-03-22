@@ -2,6 +2,7 @@ use glam::Vec2;
 use murrelet_common::MurreletColor;
 use murrelet_gen::{CanSampleFromDist, MurreletGen};
 
+// #[derive(Debug, MurreletGen)]
 #[derive(Debug, MurreletGen)]
 pub struct BasicTypes {
     #[murrelet_gen(method(f32_uniform(start = 0.0, end = 1.0)))]
@@ -20,6 +21,10 @@ pub struct BasicTypes {
     c_number: u64,
     #[murrelet_gen(method(f32_uniform(start = 0.0, end = 30.0)))]
     d_number: i32,
+    #[murrelet_gen(method(f32_uniform_pos_neg(start = 10.0, end = 30.0)))]
+    uniform_pos_neg: f32,
+    #[murrelet_gen(method(f32_normal(mu = 10.0, sigma = 30.0)))]
+    normal: f32,
     #[murrelet_gen(method(bool_binomial(pct = 0.3)))]
     bool: bool,
     #[murrelet_gen(method(vec2_uniform_grid(x = 0.0, y = 0.0, width = 100.0, height = 100.0)))]
@@ -70,12 +75,31 @@ enum EnumTest {
 
 fn main() {
     println!("BasicTypes::rn_count() {:?}", BasicTypes::rn_count());
+
+    println!("BasicTypes::rn_names() {:?}", BasicTypes::rn_names());
+
     println!(
-        "OverridesAndRecursive::rn_count() {:?}",
-        OverridesAndRecursive::rn_count()
+        "OverridesAndRecursive::rn_names() {:?}",
+        OverridesAndRecursive::rn_names()
     );
 
-    assert_eq!(BasicTypes::rn_count(), 33);
+    println!("EnumTest::rn_names() {:?}", EnumTest::rn_names());
+
+    assert_eq!(BasicTypes::rn_count(), BasicTypes::rn_names().len());
+    assert_eq!(Tiny::rn_count(), Tiny::rn_names().len());
+    assert_eq!(
+        OverridesAndRecursive::rn_count(),
+        OverridesAndRecursive::rn_names().len()
+    );
+
+    assert_eq!(EnumTest::rn_count(), EnumTest::rn_names().len());
+
+    // println!(
+    //     "OverridesAndRecursive::rn_count() {:?}",
+    //     OverridesAndRecursive::rn_count()
+    // );
+
+    assert_eq!(BasicTypes::rn_count(), 37);
 
     println!(
         "OverridesAndRecursive::gen_from_seed(42) {:?}",

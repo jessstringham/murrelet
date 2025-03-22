@@ -504,7 +504,7 @@ impl MurreletPath {
     pub fn transform_with<T: TransformVec2>(&self, t: &T) -> Self {
         match self {
             MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
-            MurreletPath::Curve(_) => todo!(),
+            MurreletPath::Curve(mc) => todo!(),
             MurreletPath::Svg(_) => todo!(), // i'm not sure how i want to handle this yet
         }
     }

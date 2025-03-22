@@ -487,6 +487,30 @@ impl PrevCurrNextVec2 {
         let next_to_curr = self.next - self.curr;
         Angle::new(curr_to_prev.angle_to(next_to_curr))
     }
+
+    pub fn tri_contains(&self, other_v: &Vec2) -> bool {
+        // https://nils-olovsson.se/articles/ear_clipping_triangulation/
+        let v0 = self.next - self.prev;
+        let v1 = self.curr - self.prev;
+        let v2 = *other_v - self.prev;
+
+        let dot00 = v0.dot(v0);
+        let dot01 = v0.dot(v1);
+        let dot02 = v0.dot(v2);
+        let dot11 = v1.dot(v1);
+        let dot12 = v1.dot(v2);
+
+        let denom = dot00 * dot11 - dot01 * dot01;
+        if denom.abs() < 1e-10 {
+            return true;
+        }
+
+        let inv_denom = 1.0 / denom;
+        let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
+        let v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
+
+        (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]

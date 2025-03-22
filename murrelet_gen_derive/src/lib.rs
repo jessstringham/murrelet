@@ -6,7 +6,10 @@ use parser::{GenFinal, LivecodeReceiver};
 use proc_macro::TokenStream;
 
 mod derive_gen;
+mod gen_methods;
 mod parser;
+
+use gen_methods::GenMethod;
 
 #[proc_macro_derive(MurreletGen, attributes(murrelet_gen))]
 pub fn murrelet_livecode_derive_murrelet_gen(input: TokenStream) -> TokenStream {

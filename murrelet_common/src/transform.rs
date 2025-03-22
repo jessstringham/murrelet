@@ -168,6 +168,10 @@ impl SimpleTransform2d {
         Self(v)
     }
 
+    pub fn noop() -> Self {
+        Self(vec![])
+    }
+
     pub fn steps(&self) -> &Vec<SimpleTransform2dStep> {
         &self.0
     }

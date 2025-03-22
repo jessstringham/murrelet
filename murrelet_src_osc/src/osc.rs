@@ -56,7 +56,7 @@ impl OscValues {
 }
 
 impl OscMng {
-    pub fn new_from_str(ip_address: &str) -> Self {
+    pub fn new_from_str(ip_address: &str, smoothed: bool) -> Self {
         let addr = match SocketAddrV4::from_str(ip_address) {
             Ok(addr) => addr,
             Err(_) => panic!(
@@ -65,7 +65,7 @@ impl OscMng {
             ),
         };
 
-        let cxn = OscCxn::new(&addr);
+        let cxn = OscCxn::new(&addr, smoothed);
         Self {
             cxn,
             values: OscValues {
@@ -77,6 +77,7 @@ impl OscMng {
 }
 
 pub struct OscCxn {
+    smoothed: bool,
     _osc_cxn: JoinHandle<()>, // keep it alive!
     pub osc_rx: Receiver<OSCMessage>,
 }
@@ -86,11 +87,17 @@ impl OscCxn {
         self.osc_rx.try_recv().map(|x| {
             // r.msg = Some(x);
 
+            // println!("osc message {:?}", x);
+
             for (name, new_val) in x.to_livecode_vals().into_iter() {
                 if let Some(old_val) = r.smooth_values.get(&name) {
                     let actual_new_val = match (old_val, new_val) {
                         (LivecodeValue::Float(old), LivecodeValue::Float(new)) => {
-                            LivecodeValue::Float(*old * 0.9 + new * 0.1)
+                            if self.smoothed {
+                                LivecodeValue::Float(*old * 0.9 + new * 0.1)
+                            } else {
+                                LivecodeValue::Float(new)
+                            }
                         }
                         _ => new_val,
                     };
@@ -106,10 +113,13 @@ impl OscCxn {
         })
     }
 
-    pub fn new<A: ToSocketAddrs>(addr: &A) -> Self {
+    pub fn new<A: ToSocketAddrs>(addr: &A, smoothed: bool) -> Self {
         let (event_tx, event_rx) = mpsc::channel::<OSCMessage>();
 
         let sock = UdpSocket::bind(addr).unwrap();
+
+        println!("setting up osc");
+        println!("sock {:?}", sock);
 
         let handle = std::thread::spawn(move || {
             let mut buf = [0u8; rosc::decoder::MTU];
@@ -132,6 +142,7 @@ impl OscCxn {
         });
 
         OscCxn {
+            smoothed,
             _osc_cxn: handle,
             osc_rx: event_rx,
         }
@@ -172,6 +183,7 @@ impl LivecodeOSC {
 }
 
 fn handle_packet(packet: &OscPacket) -> Option<OSCMessage> {
+    // println!("packet {:?}", packet);
     match packet {
         OscPacket::Message(msg) => {
             if let Some(osc_name) = msg.addr.as_str().strip_prefix(OSC_PREFIX) {

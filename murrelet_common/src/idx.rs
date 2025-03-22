@@ -158,6 +158,11 @@ impl IdxInRange2d {
         IdxInRange2d { i, j }
     }
 
+    pub fn new_from_single_idx(i: IdxInRange) -> IdxInRange2d {
+        let j = IdxInRange::new(0, 1);
+        IdxInRange2d { i, j }
+    }
+
     pub fn pct(&self) -> Vec2 {
         vec2(self.i.pct(), self.j.pct())
     }

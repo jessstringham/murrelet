@@ -756,12 +756,14 @@ impl ToSvgData for Vec<Vec2> {
             return None;
         }
 
+        // whee, flip y's so we stop drawing everything upside down
+
         let mut curr_item: Vec2 = *self.first().unwrap();
 
-        let mut data = Data::new().move_to((curr_item.x, curr_item.y));
+        let mut data = Data::new().move_to((curr_item.x, -curr_item.y));
 
         for loc in self[1..].iter() {
-            data = data.line_by((loc.x - curr_item.x, loc.y - curr_item.y));
+            data = data.line_by((loc.x - curr_item.x, -(loc.y - curr_item.y)));
             curr_item = *loc;
         }
         Some(data)
