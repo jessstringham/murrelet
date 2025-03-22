@@ -113,7 +113,8 @@ impl GenMethod {
             }
             GenMethod::F32Normal { mu, sigma } => {
                 let for_rn_count = quote! { 2 };
-                let for_rn_names = quote! { vec![ "BoxMuller1".to_string(), "BoxMuller2".to_string()] };
+                let for_rn_names =
+                    quote! { vec![ "BoxMuller1".to_string(), "BoxMuller2".to_string()] };
                 let for_make_gen = quote! { {
                     // avoid nans, make sure u1 is positive and non-zero
                     let u1 = rn[rn_start_idx].clamp(std::f32::MIN_POSITIVE, 1.0);
@@ -162,7 +163,8 @@ impl GenMethod {
             GenMethod::ColorNormal => {
                 let for_rn_count = quote! { 3 };
 
-                let for_rn_names = quote! { vec![ "hue".to_string(), "sat".to_string(), "val".to_string()] };
+                let for_rn_names =
+                    quote! { vec![ "hue".to_string(), "sat".to_string(), "val".to_string()] };
 
                 let for_make_gen = quote! {{
                     let h = rn[rn_start_idx];

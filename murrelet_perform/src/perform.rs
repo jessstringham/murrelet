@@ -5,10 +5,11 @@ use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_gui::MurreletGUI;
+use murrelet_livecode::expr::MixedEvalDefs;
 use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{AdditionalContextNode, ControlVecElement, LivecodeResult};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use murrelet_common::run_id;
@@ -534,6 +535,7 @@ where
     assets: AssetsRef,
     maybe_args: Option<BaseConfigArgs>, // should redesign this...
     lerp_pct: f32,                      // moving between things
+    used_variable_names: HashSet<String>,
 }
 impl<ConfType, ControlConfType> LiveCoder<ConfType, ControlConfType>
 where
@@ -587,6 +589,12 @@ where
 
         let util = LiveCodeUtil::new()?;
 
+        let used_variable_names = controlconfig
+            .variable_identifiers()
+            .into_iter()
+            .map(|x| x.name)
+            .collect();
+
         let mut s = LiveCoder {
             run_id,
             controlconfig: controlconfig.clone(),
@@ -601,6 +609,7 @@ where
             assets: Assets::empty_ref(),
             maybe_args,
             lerp_pct: 1.0, // start in the done state!
+            used_variable_names,
         };
 
         // hrm, before doing most things, load the assets (but we'll do this line again...)
@@ -708,6 +717,22 @@ where
                 self.controlconfig = d;
                 self.lerp_pct = 0.0; // reloaded, so time to reload it!
             }
+
+            // set the current vars
+            let variables_iter = self
+                .controlconfig
+                .variable_identifiers()
+                .into_iter()
+                .chain(self.prev_controlconfig.variable_identifiers().into_iter());
+            let variables = if let Some(queued) = &self.queued_configcontrol {
+                variables_iter
+                    .chain(queued.variable_identifiers().into_iter())
+                    .map(|x| x.name)
+                    .collect::<HashSet<String>>()
+            } else {
+                variables_iter.map(|x| x.name).collect::<HashSet<String>>()
+            };
+            self.used_variable_names = variables;
         } else if let Err(e) = result {
             eprintln!("Error {}", e);
         }
@@ -803,9 +828,23 @@ where
 
         let ctx = &self.controlconfig._app_config().ctx;
 
-        let world = self
-            .util
-            .world(&self.livecode_src, &timing_conf, ctx, self.assets.clone())?;
+        let mut world =
+            self.util
+                .world(&self.livecode_src, &timing_conf, ctx, self.assets.clone())?;
+
+        let mut md = MixedEvalDefs::new();
+
+        for x in self.used_variable_names.difference(&world.vars()) {
+            // argh, so used_variable_names includes non-global things, but right now i'm global
+            // so just do the stuff I care about right now, osc things...
+            if x.starts_with("oo_") {
+                if world.actual_frame_u64() % 1000 == 0 {
+                    println!("adding default value for {:?}", x);
+                }
+                md.set_val(x, murrelet_common::LivecodeValue::Float(0.0));
+            }
+        }
+        world.update_with_defs(&md).unwrap(); // i'm setting this so it should be okay..
 
         self.cached_world = Some(world);
         Ok(())

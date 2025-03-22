@@ -1,4 +1,6 @@
-use evalexpr::HashMapContext;
+use std::collections::HashSet;
+
+use evalexpr::{HashMapContext, IterateVariablesContext};
 use murrelet_common::*;
 
 use crate::{
@@ -28,6 +30,10 @@ pub struct LivecodeWorldState {
     assets: AssetsRef,
 }
 impl LivecodeWorldState {
+    pub fn vars(&self) -> HashSet<String> {
+        self.context.iter_variable_names().collect()
+    }
+
     fn clone_ctx_and_add_world(
         evalexpr_func_ctx: &HashMapContext,
         livecode_src: &LivecodeSrc,

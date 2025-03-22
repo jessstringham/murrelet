@@ -294,9 +294,10 @@ impl GetLivecodeIdentifiers for String {
     }
 }
 
+//
 impl GetLivecodeIdentifiers for AdditionalContextNode {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
-        vec![]
+        self.vars()
     }
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {

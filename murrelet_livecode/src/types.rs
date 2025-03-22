@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::{
     expr::IntoExprWorldContext,
-    livecode::{GetLivecodeIdentifiers, LivecodeFromWorld},
+    livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeVariable},
     state::LivecodeWorldState,
     unitcells::UnitCellExprWorldContext,
 };
@@ -73,6 +73,15 @@ impl Default for AdditionalContextNode {
 }
 
 impl AdditionalContextNode {
+    pub fn vars(&self) -> Vec<LivecodeVariable> {
+        self.0
+            .iter_variable_identifiers()
+            .sorted()
+            .dedup()
+            .map(LivecodeVariable::from_str)
+            .collect_vec()
+    }
+
     pub fn eval_raw(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         self.0
             .eval_empty_with_context_mut(ctx)
