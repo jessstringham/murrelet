@@ -15,11 +15,17 @@ const OSC_PREFIX: &str = "/livecode/";
 impl IsLivecodeSrc for OscMng {
     fn update(&mut self, _: &LivecodeSrcUpdateInput) {
         // drain all the messages available
-        for _ in 0..10 {
+        let mut i = 0;
+        let count = 300;
+        for _ in 0..count {
             let r = self.cxn.check_and_maybe_update(&mut self.values);
             if r.is_err() {
                 break;
             } // leave early
+            i += 1
+        }
+        if i >= count - 1 {
+            println!("that's a lot of osc messages to go through!");
         }
     }
 
@@ -108,6 +114,7 @@ impl OscCxn {
                     r.smooth_values.insert(name.clone(), new_val);
                 }
 
+                // println!("{:?} {:?}", name, new_val);
                 r.last_values.insert(name.clone(), new_val); // todo, probably good to get timestamp
             }
         })
