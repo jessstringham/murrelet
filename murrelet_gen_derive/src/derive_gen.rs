@@ -1,5 +1,6 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use syn::Ident;
 
 use crate::{gen_methods::GenMethod, parser::*};
 
@@ -16,6 +17,7 @@ pub(crate) struct FieldTokensGen {
     pub(crate) for_rn_count: TokenStream2,
     pub(crate) for_rn_names: TokenStream2,
     pub(crate) for_make_gen: TokenStream2,
+    pub(crate) for_to_dist: TokenStream2,
 }
 impl GenFinal for FieldTokensGen {
     // Something(f32)
@@ -28,6 +30,7 @@ impl GenFinal for FieldTokensGen {
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
         let for_rn_names = variants.iter().map(|x| x.for_rn_names.clone());
         let for_make_gen = variants.iter().map(|x| x.for_make_gen.clone());
+        let for_to_dist = variants.iter().map(|x| x.for_to_dist.clone());
 
         quote! {
             impl murrelet_gen::CanSampleFromDist for #name {
@@ -42,6 +45,11 @@ impl GenFinal for FieldTokensGen {
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
                     Self(#(#for_make_gen,)*)
                 }
+
+                fn to_dist(&self) -> Vec<f32> {
+                    let val = self;
+                    vec![#(#for_to_dist,)*].concat()
+                }
             }
         }
     }
@@ -52,6 +60,7 @@ impl GenFinal for FieldTokensGen {
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
         let for_rn_names = variants.iter().map(|x| x.for_rn_names.clone());
         let for_make_gen = variants.iter().map(|x| x.for_make_gen.clone());
+        let for_to_dist = variants.iter().map(|x| x.for_to_dist.clone());
 
         quote! {
             impl murrelet_gen::CanSampleFromDist for #name {
@@ -74,6 +83,11 @@ impl GenFinal for FieldTokensGen {
                         #(#for_make_gen,)*
                     }
                 }
+
+                fn to_dist(&self) -> Vec<f32> {
+                    let val = self;
+                    vec![#(#for_to_dist,)*].concat()
+                }
             }
         }
     }
@@ -86,6 +100,7 @@ impl GenFinal for FieldTokensGen {
         let name = idents.name;
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
         let for_rn_names_all = variants.iter().map(|x| x.for_rn_names.clone());
+        let for_to_dist = variants.iter().map(|x| x.for_to_dist.clone());
 
         let mut weights = vec![];
         let mut for_rn_names: Vec<TokenStream2> = vec![];
@@ -151,6 +166,14 @@ impl GenFinal for FieldTokensGen {
 
                     comp
                 }
+
+                fn to_dist(&self) -> Vec<f32> {
+                    let val = self;
+                    let mut result: Vec<f32> = vec![];
+                    #(#for_to_dist;)*
+                    result
+                }
+
             }
         }
     }
@@ -166,10 +189,15 @@ impl GenFinal for FieldTokensGen {
             self.0.sample_dist(rn, rn_start_idx)
         };
 
+        let for_to_dist = quote! {
+            self.0.to_dist()
+        };
+
         FieldTokensGen {
             for_rn_count,
             for_rn_names,
             for_make_gen,
+            for_to_dist,
         }
     }
 
@@ -182,6 +210,16 @@ impl GenFinal for FieldTokensGen {
         let for_rn_count = quote! { #ty::rn_count() };
 
         let for_rn_names = quote! { #ty::rn_names() };
+
+        let for_to_dist = quote! {
+            if let #name::#variant_ident(x) = &self {
+                result.push(1.0);
+                result.extend(x.to_dist().into_iter())
+            } else {
+                result.push(0.0);
+                result.extend((0..#ty::rn_count()).map(|x| 0.5));
+            }
+        };
 
         // hm, i'm not sure that the method in the enum is actually used
         let for_make_gen = quote! {
@@ -197,6 +235,7 @@ impl GenFinal for FieldTokensGen {
             for_rn_count,
             for_rn_names,
             for_make_gen,
+            for_to_dist,
         }
     }
 
@@ -212,10 +251,19 @@ impl GenFinal for FieldTokensGen {
 
         let for_make_gen = quote! { #name::#variant_ident };
 
+        let for_to_dist = quote! {
+           if let #name::#variant_ident = &self {
+               result.push(1.0);
+           } else {
+               result.push(0.0);
+           }
+        };
+
         FieldTokensGen {
             for_rn_count,
             for_rn_names,
             for_make_gen,
+            for_to_dist,
         }
     }
 
@@ -226,13 +274,14 @@ impl GenFinal for FieldTokensGen {
 
         let for_rn_count = quote! { 0 };
         let for_rn_names = quote! { vec![] };
-
         let for_make_gen = quote! { #field_name: #ty::default() };
+        let for_to_dist = quote! { vec![] };
 
         FieldTokensGen {
             for_rn_count,
             for_make_gen,
             for_rn_names,
+            for_to_dist,
         }
     }
 
@@ -242,12 +291,14 @@ impl GenFinal for FieldTokensGen {
         let field_name_str = field_name.to_string();
         let ty = idents.data.ty;
 
-        let (for_rn_count, for_rn_names, for_make_gen) = method.to_methods(ty, true);
+        let (for_rn_count, for_rn_names, for_make_gen, for_to_dist) =
+            method.to_methods(ty, quote! {self.#field_name}, true);
 
         FieldTokensGen {
             for_make_gen: quote! { #field_name: #for_make_gen },
             for_rn_names: quote! { murrelet_gen::prefix_field_names(#field_name_str.to_string(), #for_rn_names)},
             for_rn_count,
+            for_to_dist,
         }
     }
 
@@ -255,15 +306,23 @@ impl GenFinal for FieldTokensGen {
         let field_name = idents.data.ident.unwrap();
         let ty = idents.data.ty;
 
-        let (for_rn_count, for_rn_names, for_make_gen) = match outer {
+        let (for_rn_count, for_rn_names, for_make_gen, for_to_dist) = match outer {
             GenMethod::VecLength { min, max } => {
                 let inside_type = nested_ident(&ty);
 
                 let i = inside_type[1].clone();
                 let inside_type_val: syn::Type = syn::parse_quote! { #i };
 
-                let (for_rn_count_per_item, for_rn_names_per_item, for_make_gen_per_item) =
-                    inner.to_methods(inside_type_val, false);
+                let mut idents_for_vec = vec![];
+                recursive_ident_from_path(&ty, &mut idents_for_vec);
+                let internal_type = idents_for_vec[1].clone();
+
+                let (
+                    for_rn_count_per_item,
+                    for_rn_names_per_item,
+                    for_make_gen_per_item,
+                    for_make_to_dist_per_item,
+                ) = inner.to_methods(inside_type_val, quote! {val.clone()}, false);
 
                 let for_rn_count: TokenStream2 = quote! {
                     #for_rn_count_per_item * #max + 1
@@ -309,7 +368,25 @@ impl GenFinal for FieldTokensGen {
                     v
                 }};
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! {{
+                    let mut result = vec![];
+                    let x = self.#field_name.len() as f32;
+                    let v = (x - #min as f32) / ((#max - #min) as f32);
+                    result.push(v);
+                    for val in self.#field_name.iter() {
+                        // always extend it
+                        let vv = #for_make_to_dist_per_item;
+                        result.extend(vv.into_iter());
+                    }
+
+                    for _ in self.#field_name.len()..#max {
+                        let vv: Vec<f32> = (0..#for_rn_count_per_item).into_iter().map(|_| 0.5f32).collect();
+                        result.extend(vv.into_iter());
+                    }
+                    result
+                }};
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             _ => unreachable!("not expecting an inner without a recursive outer"),
         };
@@ -318,34 +395,38 @@ impl GenFinal for FieldTokensGen {
             for_rn_count,
             for_rn_names,
             for_make_gen: quote! { #field_name: #for_make_gen },
+            for_to_dist,
         }
     }
 
-    fn from_override_struct(
-        idents: StructIdents,
-        func: &str,
-        rn_names: Vec<String>,
-        rn_count: usize,
-    ) -> FieldTokensGen {
-        let field_name = idents.data.ident.unwrap();
+    // fn from_override_struct(
+    //     idents: StructIdents,
+    //     func: &str,
+    //     rn_names: Vec<String>,
+    //     rn_count: usize,
+    // ) -> FieldTokensGen {
+    //     let field_name = idents.data.ident.unwrap();
 
-        let for_rn_count = quote! { #rn_count };
+    //     let for_rn_count = quote! { #rn_count };
 
-        let strs = strs_to_tokens(rn_names);
-        let for_rn_names = quote! {
-            #(#strs,)*
-        };
+    //     let strs = strs_to_tokens(rn_names);
+    //     let for_rn_names = quote! {
+    //         #(#strs,)*
+    //     };
 
-        let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
+    //     let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
 
-        let for_make_gen = quote! { #field_name: #method() };
+    //     let for_make_gen = quote! { #field_name: #method() };
 
-        FieldTokensGen {
-            for_rn_count,
-            for_rn_names,
-            for_make_gen,
-        }
-    }
+    //     let for_to_dist = quote! { #method_inv() }
+
+    //     FieldTokensGen {
+    //         for_rn_count,
+    //         for_rn_names,
+    //         for_make_gen,
+    //         for_to_dist
+    //     }
+    // }
 }
 
 fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {

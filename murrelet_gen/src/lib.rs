@@ -23,6 +23,9 @@ pub trait CanSampleFromDist: Sized {
 
         Self::sample_dist(&rns, 0)
     }
+
+    // creates an arbitrary floats that should turn back into the same values
+    fn to_dist(&self) -> Vec<f32>;
 }
 
 pub fn prefix_field_names(prefix: String, names: Vec<String>) -> Vec<String> {

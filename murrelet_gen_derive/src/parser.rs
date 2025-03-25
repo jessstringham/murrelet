@@ -35,12 +35,12 @@ where
             ast::Data::Struct(_) => Self::make_struct(&ast_receiver),
         }
     }
-    fn from_override_struct(
-        idents: StructIdents,
-        func: &str,
-        rn_names: Vec<String>,
-        rn_count: usize,
-    ) -> Self;
+    // fn from_override_struct(
+    //     idents: StructIdents,
+    //     func: &str,
+    //     rn_names: Vec<String>,
+    //     rn_count: usize,
+    // ) -> Self;
 
     fn make_enum_final(
         idents: ParsedFieldIdent,
@@ -67,9 +67,9 @@ where
                 };
 
                 match field.how_to_control_this() {
-                    HowToControlThis::Override(func, names, count) => {
-                        Self::from_override_struct(idents, &func, names, count)
-                    }
+                    // HowToControlThis::Override(func, names, count) => {
+                    //     Self::from_override_struct(idents, &func, names, count)
+                    // }
                     HowToControlThis::Type(how_to_control_this_type) => {
                         Self::from_type_struct(idents, &how_to_control_this_type)
                     }
@@ -146,9 +146,9 @@ where
                         // Self::from_type_recurse(idents, &outer, &inner)
                         Self::from_newtype_struct(idents, name.clone())
                     }
-                    HowToControlThis::Override(func, labels, count) => {
-                        Self::from_override_struct(idents, &func, labels, count)
-                    }
+                    // HowToControlThis::Override(func, labels, count) => {
+                    //     Self::from_override_struct(idents, &func, labels, count)
+                    // }
                 }
             })
             .collect::<Vec<_>>();
@@ -178,15 +178,16 @@ pub(crate) struct LivecodeFieldReceiver {
 }
 impl LivecodeFieldReceiver {
     fn how_to_control_this(&self) -> HowToControlThis {
-        if let Some(OverrideFn { func, labels }) = &self.override_fn {
-            match func.as_str() {
-                "default" => HowToControlThis::Default,
-                _ => {
-                    let label_str: Vec<String> = labels.iter().map(|lit| lit.value()).collect();
-                    HowToControlThis::Override(func.clone(), label_str, labels.len())
-                }
-            }
-        } else if let Some(r) = &self.method_inner {
+        // if let Some(OverrideFn { func, labels }) = &self.override_fn {
+        //     match func.as_str() {
+        //         "default" => HowToControlThis::Default,
+        //         _ => {
+        //             let label_str: Vec<String> = labels.iter().map(|lit| lit.value()).collect();
+        //             HowToControlThis::Override(func.clone(), label_str, labels.len())
+        //         }
+        //     }
+        // } else
+        if let Some(r) = &self.method_inner {
             HowToControlThis::Recurse(self.method.clone(), r.clone())
         } else if matches!(self.method, GenMethod::VecLength { .. }) {
             panic!("vec missing inner")
@@ -230,5 +231,31 @@ pub(crate) enum HowToControlThis {
     Type(GenMethod),
     Recurse(GenMethod, GenMethod), // one level... defaults to calling its func
     Default,                       // just do the default values
-    Override(String, Vec<String>, usize),
+    // Override(String, Vec<String>, usize),
+}
+
+
+
+pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
+    match t {
+        syn::Type::Path(syn::TypePath { path, .. }) => {
+            let s = path.segments.last().unwrap();
+            let main_type = s.ident.clone();
+
+            acc.push(main_type);
+
+            if let syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
+                args,
+                ..
+            }) = s.arguments.clone()
+            {
+                if let syn::GenericArgument::Type(other_ty) = args.first().unwrap() {
+                    recursive_ident_from_path(other_ty, acc);
+                } else {
+                    panic!("recursive ident not implemented yet {:?}", args);
+                }
+            }
+        }
+        x => panic!("no name for type {:?}", x),
+    }
 }

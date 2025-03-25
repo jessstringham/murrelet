@@ -54,8 +54,9 @@ impl GenMethod {
     pub(crate) fn to_methods(
         &self,
         ty: syn::Type,
+        name: TokenStream2,
         convert: bool,
-    ) -> (TokenStream2, TokenStream2, TokenStream2) {
+    ) -> (TokenStream2, TokenStream2, TokenStream2, TokenStream2) {
         let maybe_as = if convert {
             quote! { as #ty }
         } else {
@@ -71,8 +72,9 @@ impl GenMethod {
                     rn_start_idx += #for_rn_count;
                     r
                 }};
+                let for_to_dist = quote! { #name.to_dist() };
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::BoolBinomial { pct } => {
                 let for_rn_count = quote! { 1 };
@@ -82,8 +84,15 @@ impl GenMethod {
                     rn_start_idx += #for_rn_count;
                     result
                 } };
+                let for_to_dist = quote! {
+                    if #name {
+                        vec![1.0]
+                    } else {
+                        vec![0.0]
+                    }
+                };
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::F32Uniform { start, end } => {
                 let for_rn_count = quote! { 1 };
@@ -93,8 +102,9 @@ impl GenMethod {
                     rn_start_idx += #for_rn_count;
                     result #maybe_as
                 } };
+                let for_to_dist = quote! { vec![(#name as f32 - #start) / (#end - #start)] };
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::F32UniformPosNeg { start, end } => {
                 let for_rn_count = quote! { 2 };
@@ -106,11 +116,19 @@ impl GenMethod {
                     (sgn * result) #maybe_as
                 } };
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! { vec![
+                    if #name > 0.0 { 1.0 } else { 0.0 },
+                    (#name.abs() - #start) / (#end - #start)
+                ] };
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
-            GenMethod::F32Fixed { val } => {
-                (quote! { 0 }, quote! {vec![]}, quote! { #val #maybe_as })
-            }
+            GenMethod::F32Fixed { val } => (
+                quote! { 0 },
+                quote! {vec![]},
+                quote! { #val #maybe_as },
+                quote! {vec![]},
+            ),
             GenMethod::F32Normal { mu, sigma } => {
                 let for_rn_count = quote! { 2 };
                 let for_rn_names =
@@ -126,7 +144,8 @@ impl GenMethod {
 
                     #mu + #sigma * r * theta.cos() #maybe_as
                 } };
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! { todo!() };
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::Vec2UniformGrid {
                 x,
@@ -145,7 +164,12 @@ impl GenMethod {
                     glam::vec2(#x, #y) - 0.5 * glam::vec2(#width, #height) + glam::vec2(width, height)
                 }};
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! { {
+                    let c = (#name + 0.5 * glam::vec2(#width, #height));
+                    vec![c.x / #width, c.y / #height]
+                }};
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::Vec2Circle { x, y, radius } => {
                 let for_rn_count = quote! { 2 };
@@ -158,7 +182,18 @@ impl GenMethod {
                     glam::vec2(#x, #y) + glam::vec2(angle.cos(), angle.sin()) * #radius * dist.sqrt()
                 }};
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! { {
+                    let c = #name - glam::vec2(#x, #y);
+                    let dist = (c.length() / #radius).powi(2);
+                    let mut angle = c.to_angle();
+                    if angle <= 0.0 {
+                        angle += 2.0 * std::f32::consts::PI
+                    }
+                    angle /= (2.0 * std::f32::consts::PI);
+                    vec![angle, dist]
+                }};
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::ColorNormal => {
                 let for_rn_count = quote! { 3 };
@@ -174,23 +209,44 @@ impl GenMethod {
                     murrelet_common::MurreletColor::hsva(h, s, v, 1.0)
                 }};
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! {{
+                    let [h, s, v, _] = #name.into_hsva_components();
+                    vec![
+                        h % 1.0,
+                        s % 1.0,
+                        v % 1.0,
+                    ]
+                }};
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::ColorTransparency => {
                 let for_rn_count = quote! { 4 };
 
                 let for_rn_names = quote! { vec![ "hue".to_string(), "sat".to_string(), "val".to_string(), "alpha".to_string()] };
 
-                let for_make_gen = quote! {{
-                    let h = rn[rn_start_idx];
-                    let s = rn[rn_start_idx + 1];
-                    let v = rn[rn_start_idx + 2];
-                    let a = rn[rn_start_idx + 3];
-                    rn_start_idx += #for_rn_count;
-                    murrelet_common::MurreletColor::hsva(h, s, v, a)
-                }};
+                let for_make_gen = quote! {
+                    {
+                        let h = rn[rn_start_idx];
+                        let s = rn[rn_start_idx + 1];
+                        let v = rn[rn_start_idx + 2];
+                        let a = rn[rn_start_idx + 3];
+                        rn_start_idx += #for_rn_count;
+                        murrelet_common::MurreletColor::hsva(h, s, v, a)
+                    }
+                };
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! { {
+                    let [h, s, v, a] = #name.into_hsva_components();
+                    vec![
+                        h % 1.0,
+                        s % 1.0,
+                        v % 1.0,
+                        a % 1.0,
+                    ]
+                } };
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::VecLength { .. } => {
                 // this is handled in the vec parser
@@ -218,7 +274,20 @@ impl GenMethod {
                     result.0.to_string()
                 } };
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist_choices = choices
+                .iter()
+                .map(|(key, _)| {
+                    quote! { if #key.clone() == #name { result.push(1.0) } else { result.push(0.0) } }
+                })
+                .collect::<Vec<_>>();
+
+                let for_to_dist = quote! { {
+                    let mut result = vec![];
+                    #(#for_to_dist_choices;)*
+                    result
+                } };
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
             GenMethod::Default => {
                 let for_rn_count = quote! { 0 };
@@ -229,8 +298,25 @@ impl GenMethod {
                     Default::default()
                 } };
 
-                (for_rn_count, for_rn_names, for_make_gen)
+                let for_to_dist = quote! { vec![] };
+
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
         }
     }
+
+    // pub(crate) fn from_methods(&self) -> TokenStream2 {
+    //     match self {
+    //         GenMethod::Default => todo!(),
+    //         GenMethod::Recurse => todo!(),
+    //         GenMethod::BoolBinomial { pct } => {
+    //             // put at extremes
+
+    //         },
+    //         GenMethod::F32Uniform { start, end } => {
+
+    //         },
+
+    //     }
+    // }
 }

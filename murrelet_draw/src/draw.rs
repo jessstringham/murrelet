@@ -219,6 +219,13 @@ impl MurreletStyle {
         }
     }
 
+    pub fn with_stroke_color(&self, c: MurreletColor) -> MurreletStyle {
+        MurreletStyle {
+            stroke_color: MurreletColorStyle::Color(c),
+            ..*self
+        }
+    }
+
     pub fn with_fill(&self) -> MurreletStyle {
         MurreletStyle {
             filled: true,
@@ -269,6 +276,10 @@ pub trait Sdraw: Sized {
 
     fn with_stroke_weight(&self, w: f32) -> Self {
         self.with_svg_style(self.svg_style().with_stroke(w))
+    }
+
+    fn with_stroke_color(&self, line_color: MurreletColor) -> Self {
+        self.with_svg_style(self.svg_style().with_stroke_color(line_color))
     }
 
     fn with_close(&self, closed: bool) -> Self {

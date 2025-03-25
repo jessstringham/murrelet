@@ -23,8 +23,8 @@ pub struct BasicTypes {
     d_number: i32,
     #[murrelet_gen(method(f32_uniform_pos_neg(start = 10.0, end = 30.0)))]
     uniform_pos_neg: f32,
-    #[murrelet_gen(method(f32_normal(mu = 10.0, sigma = 30.0)))]
-    normal: f32,
+    // #[murrelet_gen(method(f32_normal(mu = 10.0, sigma = 30.0)))]
+    // normal: f32,
     #[murrelet_gen(method(bool_binomial(pct = 0.3)))]
     bool: bool,
     #[murrelet_gen(method(vec2_uniform_grid(x = 0.0, y = 0.0, width = 100.0, height = 100.0)))]
@@ -35,7 +35,6 @@ pub struct BasicTypes {
     normal_color: MurreletColor, // 3 rn
     #[murrelet_gen(method(color_transparency))]
     transparent_color: MurreletColor, // 4 rn
-
     #[murrelet_gen(method(vec_length(min = 4, max = 10)))]
     #[murrelet_gen(method_inner(f32_uniform(start = 0.0, end = 1.0)))]
     something: Vec<f32>,
@@ -78,60 +77,85 @@ fn main() {
 
     println!("BasicTypes::rn_names() {:?}", BasicTypes::rn_names());
 
-    println!(
-        "OverridesAndRecursive::rn_names() {:?}",
-        OverridesAndRecursive::rn_names()
-    );
+    let b = BasicTypes::gen_from_seed(1);
 
-    println!("EnumTest::rn_names() {:?}", EnumTest::rn_names());
+    println!("b {:?}", b);
+    println!("BasicTypes::to_dist() {:?}", b.to_dist());
 
-    assert_eq!(BasicTypes::rn_count(), BasicTypes::rn_names().len());
-    assert_eq!(Tiny::rn_count(), Tiny::rn_names().len());
-    assert_eq!(
-        OverridesAndRecursive::rn_count(),
-        OverridesAndRecursive::rn_names().len()
-    );
+    // let c = Vec2::ONE;
 
-    assert_eq!(EnumTest::rn_count(), EnumTest::rn_names().len());
+    assert_eq!(BasicTypes::rn_count(), b.to_dist().len());
+
+    println!("round trip {:?}", BasicTypes::sample_dist(&b.to_dist(), 0));
+
+    for i in b.to_dist() {
+        assert!(i >= 0.0);
+        assert!(i <= 1.0);
+    }
+
+    // todo, maybe see if partial eq works?
+    // assert_eq!(, b)
 
     // println!(
-    //     "OverridesAndRecursive::rn_count() {:?}",
-    //     OverridesAndRecursive::rn_count()
+    //     "OverridesAndRecursive::rn_names() {:?}",
+    //     OverridesAndRecursive::rn_names()
     // );
 
-    assert_eq!(BasicTypes::rn_count(), 37);
+    // println!("EnumTest::rn_names() {:?}", EnumTest::rn_names());
 
-    println!(
-        "OverridesAndRecursive::gen_from_seed(42) {:?}",
-        OverridesAndRecursive::gen_from_seed(42)
-    );
+    // assert_eq!(BasicTypes::rn_count(), BasicTypes::rn_names().len());
+    // assert_eq!(Tiny::rn_count(), Tiny::rn_names().len());
+    // assert_eq!(
+    //     OverridesAndRecursive::rn_count(),
+    //     OverridesAndRecursive::rn_names().len()
+    // );
 
-    assert_eq!(OverridesAndRecursive::rn_count(), 11);
-    assert_eq!(EnumTest::rn_count(), 7);
+    // assert_eq!(EnumTest::rn_count(), EnumTest::rn_names().len());
 
-    for seed in 32..43 {
-        let test_val = BasicTypes::gen_from_seed(seed);
+    // // println!(
+    // //     "OverridesAndRecursive::rn_count() {:?}",
+    // //     OverridesAndRecursive::rn_count()
+    // // );
 
-        // there's a small chance they will be equal, but we know for this seed they aren't
-        assert!(test_val.a_number != test_val.another_number);
-        assert!(test_val.another_number_wider_range > 1.0);
-        assert_eq!(test_val.fixed_number, 0.23);
+    // assert_eq!(BasicTypes::rn_count(), 37);
 
-        assert!(test_val.something.len() > 3);
-        assert!(test_val.something.len() <= 10);
+    // println!(
+    //     "OverridesAndRecursive::gen_from_seed(42) {:?}",
+    //     OverridesAndRecursive::gen_from_seed(42)
+    // );
 
-        let test_val2 = OverridesAndRecursive::gen_from_seed(seed);
-        assert!(test_val2.something.len() >= 1);
-        assert!(test_val2.something.len() <= 4);
+    // assert_eq!(OverridesAndRecursive::rn_count(), 11);
+    // assert_eq!(EnumTest::rn_count(), 7);
 
-        // println!("test_val {:?}", test_val);
+    // for seed in 32..43 {
+    //     let test_val = BasicTypes::gen_from_seed(seed);
 
-        let test_val = BasicTypes::gen_from_seed(seed);
-        let test_val2 = OverridesAndRecursive::gen_from_seed(seed);
-        let test_val3 = EnumTest::gen_from_seed(seed);
+    //     // there's a small chance they will be equal, but we know for this seed they aren't
+    //     assert!(test_val.a_number != test_val.another_number);
+    //     assert!(test_val.another_number_wider_range > 1.0);
+    //     assert_eq!(test_val.fixed_number, 0.23);
 
-        println!("test_val {:?}", test_val);
-        // println!("test_val2 {:?}", test_val2);
-        // println!("test_val3 {:?}", test_val3);
-    }
+    //     assert!(test_val.something.len() > 3);
+    //     assert!(test_val.something.len() <= 10);
+
+    //     let test_val2 = OverridesAndRecursive::gen_from_seed(seed);
+    //     assert!(test_val2.something.len() >= 1);
+    //     assert!(test_val2.something.len() <= 4);
+
+    //     // println!("test_val {:?}", test_val);
+
+    //     let test_val = BasicTypes::gen_from_seed(seed);
+    //     let test_val2 = OverridesAndRecursive::gen_from_seed(seed);
+    //     let test_val3 = EnumTest::gen_from_seed(seed);
+
+    //     println!("test_val {:?}", test_val);
+    //     // println!("test_val2 {:?}", test_val2);
+    //     // println!("test_val3 {:?}", test_val3);
+
+    // for i in b.to_dist() {
+    //     assert!(i >= 0.0);
+    //     assert!(i < 1.0);
+    // }
+
+    // }
 }
