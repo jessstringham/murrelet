@@ -66,7 +66,7 @@ impl GenFinal for FieldTokensGUI {
         }
     }
 
-    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensGUI>) -> TokenStream2 {
+    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensGUI>, is_untagged: bool) -> TokenStream2 {
         let name = idents.name;
         let name_str = name.to_string();
 
@@ -76,7 +76,7 @@ impl GenFinal for FieldTokensGUI {
         quote! {
             impl murrelet_gui::CanMakeGUI for #name {
                 fn make_gui() -> murrelet_gui::MurreletGUISchema {
-                    murrelet_gui::MurreletGUISchema::Enum(#name_str.to_owned(), vec![#(#for_make_gui,)*])
+                    murrelet_gui::MurreletGUISchema::Enum(#name_str.to_owned(), vec![#(#for_make_gui,)*], #is_untagged)
                 }
 
                 // fn gui_to_livecode(&self, gui_val: murrelet_gui::MurreletGUISchema) -> murrelet_gui::MurreletGUISchemaResult<Self>  {

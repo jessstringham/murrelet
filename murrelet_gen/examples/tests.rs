@@ -82,9 +82,12 @@ fn main() {
     println!("b {:?}", b);
     println!("BasicTypes::to_dist() {:?}", b.to_dist());
 
-    // let c = Vec2::ONE;
+    println!("BasicTypes::to_dist_mask() {:?}", b.to_dist_mask());
+
+    // // let c = Vec2::ONE;
 
     assert_eq!(BasicTypes::rn_count(), b.to_dist().len());
+    assert_eq!(BasicTypes::rn_count(), b.to_dist_mask().len());
 
     println!("round trip {:?}", BasicTypes::sample_dist(&b.to_dist(), 0));
 
@@ -93,24 +96,40 @@ fn main() {
         assert!(i <= 1.0);
     }
 
-    // todo, maybe see if partial eq works?
-    // assert_eq!(, b)
+    let c = OverridesAndRecursive::gen_from_seed(13);
 
-    // println!(
-    //     "OverridesAndRecursive::rn_names() {:?}",
-    //     OverridesAndRecursive::rn_names()
-    // );
+    println!("c {:?}", c);
+
+    println!(
+        "OverridesAndRecursive::rn_names() {:?}",
+        OverridesAndRecursive::rn_names()
+    );
+
+    println!("OverridesAndRecursive::to_dist() {:?}", c.to_dist());
+    println!(
+        "OverridesAndRecursive::to_dist_mask() {:?}",
+        c.to_dist_mask()
+    );
 
     // println!("EnumTest::rn_names() {:?}", EnumTest::rn_names());
 
-    // assert_eq!(BasicTypes::rn_count(), BasicTypes::rn_names().len());
-    // assert_eq!(Tiny::rn_count(), Tiny::rn_names().len());
-    // assert_eq!(
-    //     OverridesAndRecursive::rn_count(),
-    //     OverridesAndRecursive::rn_names().len()
-    // );
+    assert_eq!(BasicTypes::rn_count(), BasicTypes::rn_names().len());
+    assert_eq!(Tiny::rn_count(), Tiny::rn_names().len());
+    assert_eq!(
+        OverridesAndRecursive::rn_count(),
+        OverridesAndRecursive::rn_names().len()
+    );
 
-    // assert_eq!(EnumTest::rn_count(), EnumTest::rn_names().len());
+    let d = EnumTest::gen_from_seed(13);
+
+    assert_eq!(EnumTest::rn_count(), EnumTest::rn_names().len());
+
+    println!("d {:?}", d);
+
+    println!("EnumTest::rn_names() {:?}", EnumTest::rn_names());
+
+    println!("EnumTest::to_dist() {:?}", d.to_dist());
+    println!("EnumTest::to_dist_mask() {:?}", d.to_dist_mask());
 
     // // println!(
     // //     "OverridesAndRecursive::rn_count() {:?}",

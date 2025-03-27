@@ -26,6 +26,7 @@ pub trait CanSampleFromDist: Sized {
 
     // creates an arbitrary floats that should turn back into the same values
     fn to_dist(&self) -> Vec<f32>;
+    fn to_dist_mask(&self) -> Vec<bool>;
 }
 
 pub fn prefix_field_names(prefix: String, names: Vec<String>) -> Vec<String> {

@@ -242,6 +242,8 @@ impl AddSvgAttributes for MurreletStyle {
 
                 if self.stroke_weight > 0.0 {
                     p.assign("stroke-width", self.stroke_weight);
+                    p.assign("stroke-linejoin", "round");
+                    p.assign("stroke-linecap", "round");
                     p.assign("stroke", self.stroke_color.get_svg_attributes());
                 }
             }
@@ -250,6 +252,8 @@ impl AddSvgAttributes for MurreletStyle {
 
                 if self.stroke_weight > 0.0 {
                     p.assign("stroke-width", self.stroke_weight);
+                    p.assign("stroke-linejoin", "round");
+                    p.assign("stroke-linecap", "round");
                     p.assign("stroke", self.color.get_svg_attributes());
                 }
             }
@@ -258,6 +262,8 @@ impl AddSvgAttributes for MurreletStyle {
 
                 if self.stroke_weight > 0.0 {
                     p.assign("stroke-width", self.stroke_weight);
+                    p.assign("stroke-linejoin", "round");
+                    p.assign("stroke-linecap", "round");
                     p.assign("stroke", self.color.get_svg_attributes());
                 }
             }

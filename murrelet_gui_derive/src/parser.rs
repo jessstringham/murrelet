@@ -32,7 +32,7 @@ where
     fn from_override_struct(idents: StructIdents, func: &str) -> Self;
     fn from_override_enum(func: &str) -> Self;
 
-    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<Self>) -> TokenStream2;
+    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<Self>, is_untagged: bool) -> TokenStream2;
     fn make_struct_final(idents: ParsedFieldIdent, variants: Vec<Self>) -> TokenStream2;
     fn make_newtype_struct_final(idents: ParsedFieldIdent, variants: Vec<Self>) -> TokenStream2;
 
@@ -105,7 +105,26 @@ where
 
         let idents = ParsedFieldIdent { name: name.clone() };
 
-        Self::make_enum_final(idents, variants)
+        // "external" => quote! {},
+        // "internal" => default,
+        // "untagged" => quote! {#[serde(untagged)]},
+        // _ => default,
+        //    let is_external =  match &e.enum_tag.map(|x| x.as_str()) {
+        //         Some("external") => true,
+        //         None => false,
+        //         _ => unimplemented!("enum type not implemented")
+        //     };
+        let is_untagged = if let Some(enum_tag) = &e.enum_tag {
+            if enum_tag.as_str() == "external" {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        Self::make_enum_final(idents, variants, is_untagged)
     }
 
     fn make_newtype(s: &LivecodeReceiver) -> TokenStream2 {
@@ -195,6 +214,7 @@ pub(crate) struct LivecodeVariantReceiver {
 pub(crate) struct LivecodeReceiver {
     ident: syn::Ident,
     data: ast::Data<LivecodeVariantReceiver, LivecodeFieldReceiver>,
+    enum_tag: Option<String>,
 }
 impl LivecodeReceiver {}
 

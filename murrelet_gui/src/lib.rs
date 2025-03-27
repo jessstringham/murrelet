@@ -33,7 +33,7 @@ pub enum MurreletEnumValGUI {
 pub enum MurreletGUISchema {
     NewType(String, Box<MurreletGUISchema>),
     Struct(String, Vec<(String, MurreletGUISchema)>), // field val
-    Enum(String, Vec<MurreletEnumValGUI>),            // type, val
+    Enum(String, Vec<MurreletEnumValGUI>, bool),      // type, val, is untagged
     List(Box<MurreletGUISchema>),
     Val(ValueGUI),
     Skip,
@@ -48,7 +48,7 @@ impl MurreletGUISchema {
     }
 
     pub fn as_enum(&self) -> Option<&Vec<MurreletEnumValGUI>> {
-        if let Self::Enum(_, v) = self {
+        if let Self::Enum(_, v, _) = self {
             Some(v)
         } else {
             None
