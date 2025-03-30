@@ -31,6 +31,13 @@ pub struct BasicTypes {
     xy: Vec2,
     #[murrelet_gen(method(vec2_circle(x = 0.0, y = 0.0, radius = 100.0)))]
     other_xy: Vec2,
+    #[murrelet_gen(method(vec2_uniform_grid(
+        x = 500.0,
+        y = 500.0,
+        width = 200.0,
+        height = 200.0
+    )))]
+    another_xy: Vec2,
     #[murrelet_gen(method(color_normal))]
     normal_color: MurreletColor, // 3 rn
     #[murrelet_gen(method(color_transparency))]

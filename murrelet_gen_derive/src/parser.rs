@@ -145,10 +145,9 @@ where
                     HowToControlThis::Recurse(_outer, _inner) => {
                         // Self::from_type_recurse(idents, &outer, &inner)
                         Self::from_newtype_struct(idents, name.clone())
-                    }
-                    // HowToControlThis::Override(func, labels, count) => {
-                    //     Self::from_override_struct(idents, &func, labels, count)
-                    // }
+                    } // HowToControlThis::Override(func, labels, count) => {
+                      //     Self::from_override_struct(idents, &func, labels, count)
+                      // }
                 }
             })
             .collect::<Vec<_>>();
@@ -231,10 +230,8 @@ pub(crate) enum HowToControlThis {
     Type(GenMethod),
     Recurse(GenMethod, GenMethod), // one level... defaults to calling its func
     Default,                       // just do the default values
-    // Override(String, Vec<String>, usize),
+                                   // Override(String, Vec<String>, usize),
 }
-
-
 
 pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
     match t {

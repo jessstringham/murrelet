@@ -32,7 +32,11 @@ where
     fn from_override_struct(idents: StructIdents, func: &str) -> Self;
     fn from_override_enum(func: &str) -> Self;
 
-    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<Self>, is_untagged: bool) -> TokenStream2;
+    fn make_enum_final(
+        idents: ParsedFieldIdent,
+        variants: Vec<Self>,
+        is_untagged: bool,
+    ) -> TokenStream2;
     fn make_struct_final(idents: ParsedFieldIdent, variants: Vec<Self>) -> TokenStream2;
     fn make_newtype_struct_final(idents: ParsedFieldIdent, variants: Vec<Self>) -> TokenStream2;
 

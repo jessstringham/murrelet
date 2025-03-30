@@ -66,7 +66,11 @@ impl GenFinal for FieldTokensGUI {
         }
     }
 
-    fn make_enum_final(idents: ParsedFieldIdent, variants: Vec<FieldTokensGUI>, is_untagged: bool) -> TokenStream2 {
+    fn make_enum_final(
+        idents: ParsedFieldIdent,
+        variants: Vec<FieldTokensGUI>,
+        is_untagged: bool,
+    ) -> TokenStream2 {
         let name = idents.name;
         let name_str = name.to_string();
 

@@ -24,6 +24,10 @@ pub mod anglepi {
         pub fn from_angle_pi(angle_pi: f32) -> Self {
             Self(angle_pi)
         }
+
+        pub fn scale(&self, scale: f32) -> Self {
+            Self(self.0 * scale)
+        }
     }
 
     impl From<LivecodeAnglePi> for Angle {

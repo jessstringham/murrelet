@@ -165,7 +165,12 @@ impl GenMethod {
                 }};
 
                 let for_to_dist = quote! { {
-                    let c = (#name + 0.5 * glam::vec2(#width, #height));
+                    // let c = (#name + 0.5 * glam::vec2(#width, #height));
+                    // vec![c.x / #width, c.y / #height]
+
+                    let c = #name
+                        - glam::vec2(#x, #y)
+                        + 0.5 * glam::vec2(#width, #height);
                     vec![c.x / #width, c.y / #height]
                 }};
 
