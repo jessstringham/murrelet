@@ -168,6 +168,12 @@ impl SimpleTransform2d {
         Self(v)
     }
 
+    pub fn rotate_pi(angle_pi: f32) -> Self {
+        Self(vec![SimpleTransform2dStep::rotate_pi(AnglePi::new(
+            angle_pi,
+        ))])
+    }
+
     pub fn noop() -> Self {
         Self(vec![])
     }

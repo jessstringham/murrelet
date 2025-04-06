@@ -1,6 +1,6 @@
 // defines the SVG basic shapes
 
-use glam::Mat4;
+use glam::{Mat4, Vec2};
 use lerpable::Lerpable;
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
@@ -28,6 +28,17 @@ impl SvgRect {
             ry: 0.0,
             width,
             height,
+        }
+    }
+
+    pub fn new_at_loc(loc: Vec2, w_h: Vec2) -> Self {
+        Self {
+            x: loc.x,
+            y: loc.y,
+            rx: 0.0,
+            ry: 0.0,
+            width: w_h.x,
+            height: w_h.y,
         }
     }
 }

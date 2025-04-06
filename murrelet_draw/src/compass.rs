@@ -181,16 +181,20 @@ impl InteractiveCompassBuilder {
             }
             CompassAction::Arc(x) => {
                 vec![self.add_arc(x)]
-            } // CompassAction::Repeat(x) => {
-              //     let mut n = Vec::new();
-              //     for _ in 0..x.times {
-              //         for w in &x.what {
-              //             n.extend(self.new_segments(w))
-              //         }
-              //     }
-              //     n
-              // }
+            }
         }
+    }
+
+    pub fn add_qline(&mut self, length: f32) {
+        self.add_segment(&CompassAction::qline(length));
+    }
+
+    pub fn add_qangle<A: IsAngle>(&mut self, angle: A) {
+        self.add_segment(&CompassAction::qangle(angle));
+    }
+
+    pub fn add_qarc<A: IsAngle>(&mut self, rad: f32, arc: A) {
+        self.add_segment(&CompassAction::qarc(rad, arc));
     }
 
     pub fn add_segment(&mut self, dir: &CompassAction) {
@@ -294,6 +298,10 @@ impl InteractiveCompassBuilder {
 
     pub fn set_curr_angle<A: IsAngle>(&mut self, curr_angle: A) {
         self.curr_angle = curr_angle.as_angle_pi();
+    }
+
+    pub fn add_absolute_point(&mut self, loc: Vec2) {
+        self.so_far.push(CurveSegment::Points(CurvePoints { points: vec![loc] }))
     }
 }
 

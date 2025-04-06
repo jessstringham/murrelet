@@ -322,6 +322,15 @@ pub trait Sdraw: Sized {
         self.with_svg_style(svg_style)
     }
 
+    fn as_line(&self) -> Self {
+        let svg_style = MurreletStyle {
+            filled: false,
+            closed: false,
+            ..self.svg_style()
+        };
+        self.with_svg_style(svg_style)
+    }
+
     fn transform(&self) -> Mat4;
     fn set_transform(&self, m: Mat4) -> Self;
 

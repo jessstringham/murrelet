@@ -13,7 +13,7 @@ use murrelet_draw::{
     curve_drawer::CurveDrawer,
     draw::{MurreletColorStyle, MurreletStyle},
     newtypes::RGBandANewtype,
-    style::{MurreletCurve, MurreletPath, StyledPath, StyledPathSvgFill},
+    style::{MurreletCurve, MurreletPath, MurreletPathAnnotation, StyledPath, StyledPathSvgFill},
     svg::{SvgShape, TransformedSvgShape},
 };
 use murrelet_perform::perform::SvgDrawConfig;
@@ -59,6 +59,10 @@ pub trait ToStyledGroup {
 pub trait ToSvgData {
     fn to_svg_data(&self) -> Option<Data>;
 
+    fn transform(&self) -> Option<Mat4> {
+        None
+    }
+
     fn make_path(&self, style: &MurreletStyle) -> Option<svg::node::element::Path> {
         if let Some(d) = self.to_svg_data() {
             let mut d = d;
@@ -79,6 +83,9 @@ impl<T: ToSvgData> ToStyledGroup for T {
     fn to_group(&self, style: &MurreletStyle) -> Option<Group> {
         if let Some(p) = self.make_path(style) {
             let mut g = Group::new();
+            if let Some(t) = self.transform() {
+                g = g.set("transform", t.to_svg_matrix());
+            }
             g.append(p);
             Some(g)
         } else {
@@ -90,6 +97,10 @@ impl<T: ToSvgData> ToStyledGroup for T {
 impl ToSvgData for MurreletCurve {
     fn to_svg_data(&self) -> Option<Data> {
         self.curve().to_svg_data()
+    }
+
+    fn transform(&self) -> Option<Mat4> {
+        Some(self.mat4())
     }
 }
 
@@ -189,6 +200,7 @@ impl GetSvgAttributes for RGBandANewtype {
 impl AddSvgAttributes for MurreletColorStyle {
     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
         let mut p = p;
+        p.assign("fill-rule", "evenodd");
         match self {
             MurreletColorStyle::Color(c) => p.assign("fill", c.get_svg_attributes()),
             MurreletColorStyle::RgbaFill(c) => p.assign("fill", c.get_svg_attributes()),
@@ -231,6 +243,8 @@ impl GetSvgAttributes for MurreletPath {
 impl AddSvgAttributes for MurreletStyle {
     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
         let mut p = p;
+
+        p.assign("fill-rule", "evenodd");
 
         match self.drawing_plan() {
             murrelet_draw::draw::MurreletDrawPlan::Shader(fill) => {
@@ -276,8 +290,19 @@ impl AddSvgAttributes for MurreletStyle {
 impl AddSvgAttributes for StyledPath {
     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
         let mut p = p;
+        p = self.annotations.add_svg_attributes(p);
         p = self.path.add_svg_attributes(p);
         p = self.style.add_svg_attributes(p);
+        p
+    }
+}
+
+impl AddSvgAttributes for MurreletPathAnnotation {
+    fn add_svg_attributes<T: Node>(&self, p: T) -> T {
+        let mut p = p;
+        for (k, v) in self.vals() {
+            p.assign(k.to_string(), v.to_string());
+        }
         p
     }
 }
@@ -314,7 +339,9 @@ impl ToSvgPath for StyledPath {
     }
 
     fn make_group(&self) -> Option<svg::node::element::Group> {
-        self.path.to_group(&self.style)
+        self.path
+            .to_group(&self.style)
+            .map(|x| self.annotations.add_svg_attributes(x))
     }
 }
 
@@ -661,6 +688,7 @@ impl SvgPathCache {
             StyledPath {
                 path: MurreletPath::Polyline(path.as_polyline()),
                 style: MurreletStyle::new_outline(),
+                annotations: MurreletPathAnnotation::noop(),
             },
         )
     }

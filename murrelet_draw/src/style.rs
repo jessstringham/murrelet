@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use std::collections::HashMap;
+
 use crate::{curve_drawer::CurveDrawer, draw::*, svg::TransformedSvgShape, transform2d::*};
 use glam::*;
 use lerpable::Lerpable;
@@ -417,7 +419,7 @@ pub mod styleconf {
             Self::Fill(MurreletStyleFilled {
                 color,
                 stroke_weight: 0.0,
-                stroke_color: MurreletColor::black(),
+                stroke_color: MurreletColor::transparent(),
             })
         }
     }
@@ -535,19 +537,53 @@ impl MurreletPath {
 }
 
 #[derive(Debug, Clone)]
+pub struct MurreletPathAnnotation(Vec<(String, String)>);
+impl MurreletPathAnnotation {
+    pub fn noop() -> MurreletPathAnnotation {
+        Self(vec![])
+    }
+
+    pub fn new(annotation: (String, String)) -> Self {
+        Self(vec![annotation])
+    }
+
+    pub fn vals(&self) -> &Vec<(String, String)> {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct StyledPath {
     pub path: MurreletPath,
     pub style: MurreletStyle,
+    pub annotations: MurreletPathAnnotation, // can be useful to attach information to a particular path, for interactions
 }
 impl StyledPath {
     pub fn new_from_path(path: MurreletPath, style: MurreletStyle) -> Self {
-        Self { path, style }
+        Self {
+            path,
+            style,
+            annotations: MurreletPathAnnotation::noop(),
+        }
+    }
+
+    pub fn new_from_path_with_annotation(
+        path: MurreletPath,
+        style: MurreletStyle,
+        annotation: (String, String),
+    ) -> Self {
+        Self {
+            path,
+            style,
+            annotations: MurreletPathAnnotation::new(annotation),
+        }
     }
 
     pub fn new<F: IsPolyline>(path: F, style: MurreletStyle) -> Self {
         Self {
             path: MurreletPath::Polyline(path.as_polyline()),
             style,
+            annotations: MurreletPathAnnotation::noop(),
         }
     }
 
@@ -555,6 +591,7 @@ impl StyledPath {
         StyledPath {
             path: MurreletPath::Polyline(path.as_polyline()),
             style: MurreletStyle::default(),
+            annotations: MurreletPathAnnotation::noop(),
         }
     }
 
