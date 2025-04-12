@@ -8,7 +8,7 @@ pub mod anglepi {
     use murrelet_gui::CanMakeGUI;
     use murrelet_livecode_derive::Livecode;
 
-    #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default)]
+    #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default, PartialEq)]
     pub struct LivecodeAnglePi(f32);
     impl LivecodeAnglePi {
         pub const ZERO: Self = LivecodeAnglePi(0.0);

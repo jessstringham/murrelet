@@ -39,6 +39,8 @@ impl ToString for TextureDimensions {
 impl Default for TextureDimensions {
     fn default() -> Self {
         Self {
+            // width: 3000,
+            // height: 2000,
             width: 1080,
             height: 1080,
         }

@@ -301,7 +301,8 @@ impl InteractiveCompassBuilder {
     }
 
     pub fn add_absolute_point(&mut self, loc: Vec2) {
-        self.so_far.push(CurveSegment::Points(CurvePoints { points: vec![loc] }))
+        self.so_far
+            .push(CurveSegment::Points(CurvePoints { points: vec![loc] }))
     }
 }
 

@@ -10,6 +10,7 @@ use std::hash::{Hash, Hasher};
 
 pub mod intersection;
 
+pub mod arcs;
 mod assets;
 mod color;
 mod geometry;

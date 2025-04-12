@@ -580,3 +580,58 @@ impl LineFromVecAndLen {
         self.start + self.length.len() * self.angle.to_norm_dir()
     }
 }
+
+// more curve things
+
+//https://en.wikibooks.org/wiki/Algorithm_Implementation/Geometry/Tangents_between_two_circles
+
+pub enum TangentBetweenCirclesKind {
+    RightRight,
+    LeftLeft,
+    RightLeft,
+    LeftRight,
+}
+
+pub fn tangents_between_two_circles(
+    kind: TangentBetweenCirclesKind,
+    v1: Vec2,
+    r1: f32,
+    v2: Vec2,
+    r2: f32,
+) -> Option<(Vec2, Vec2)> {
+    let d_sq = v1.distance_squared(v2);
+
+    // these are too close together
+    if d_sq <= (r1 - r2).powi(2) {
+        return None;
+    }
+
+    let d = d_sq.sqrt();
+
+    let v = (v2 - v1) / d;
+
+    let (sign1, sign2) = match kind {
+        TangentBetweenCirclesKind::RightRight => (1.0, 1.0),
+        TangentBetweenCirclesKind::LeftLeft => (1.0, -1.0),
+        TangentBetweenCirclesKind::RightLeft => (-1.0, 1.0),
+        TangentBetweenCirclesKind::LeftRight => (-1.0, -1.0),
+    };
+
+    let c = (r1 - sign1 * r2) / d;
+
+    // Now we're just intersecting a line with a circle: v*n=c, n*n=1
+
+    if c.powi(2) > 1.0 {
+        return None;
+    }
+    let h = (1.0 - c.powi(2)).max(0.0).sqrt();
+
+    let nx = v.x * c - sign2 * h * v.y;
+    let ny = v.y * c + sign2 * h * v.x;
+
+    let start = vec2(v1.x + r1 * nx, v1.y + r1 * ny);
+
+    let end = vec2(v2.x + sign1 * r2 * nx, v2.y + sign1 * r2 * ny);
+
+    Some((start, end))
+}
