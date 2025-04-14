@@ -408,6 +408,14 @@ pub mod styleconf {
             })
         }
 
+        pub fn font(color: MurreletColor, font_size: f32) -> Self {
+            Self::Fill(MurreletStyleFilled {
+                color,
+                stroke_weight: font_size,
+                stroke_color: MurreletColor::transparent(),
+            })
+        }
+
         pub fn line(color: MurreletColor, stroke_weight: f32) -> Self {
             Self::Line(MurreletStyleLined {
                 color,

@@ -458,21 +458,33 @@ impl SvgDocCreator {
             .set(
                 "viewBox",
                 (
-                    target_size / 2.0,
-                    target_size / 2.0,
-                    target_size,
-                    target_size,
+                    0, 0, 200,
+                    200, // target_size / 2.0,
+                        // target_size / 2.0,
+                        // target_size,
+                        // target_size,
                 ),
             )
             .set("width", format!("{:?}mm", target_size))
             .set("height", format!("{:?}mm", target_size));
 
-        for (name, layer) in paths.layers.iter() {
-            let (g, _) = self.make_layer(name, layer, true);
-            doc.append(g);
-        }
+        // todo, maybe figure out defs?
+        let (group, _) = self.make_html(paths);
+
+        let mut centering_group = svg::node::element::Group::new();
+        centering_group = centering_group.set("transform", "translate(400px, 400px)");
+        centering_group = centering_group.add(group);
+
+        doc = doc.add(centering_group);
 
         doc
+
+        // for (name, layer) in paths.layers.iter() {
+        //     let (g, _) = self.make_layer(name, layer, true);
+        //     doc.append(g);
+        // }
+
+        // doc
     }
 
     pub fn create_guides(&self) -> Vec<Vec<Vec2>> {
@@ -790,16 +802,20 @@ impl ToSvgData for Vec<Vec2> {
             return None;
         }
 
-        // whee, flip y's so we stop drawing everything upside down
+        // todo, hmmm, see if we can consolidate this.
+        let cd = CurveDrawer::new_simple_points(self.clone(), false);
+        cd.to_svg_data()
 
-        let mut curr_item: Vec2 = *self.first().unwrap();
+        // // whee, flip y's so we stop drawing everything upside down
 
-        let mut data = Data::new().move_to((curr_item.x, -curr_item.y));
+        // let mut curr_item: Vec2 = *self.first().unwrap();
 
-        for loc in self[1..].iter() {
-            data = data.line_by((loc.x - curr_item.x, -(loc.y - curr_item.y)));
-            curr_item = *loc;
-        }
-        Some(data)
+        // let mut data = Data::new().move_to((curr_item.x, -curr_item.y));
+
+        // for loc in self[1..].iter() {
+        //     data = data.line_by((loc.x - curr_item.x, -(loc.y - curr_item.y)));
+        //     curr_item = *loc;
+        // }
+        // Some(data)
     }
 }
