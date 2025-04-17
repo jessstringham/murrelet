@@ -450,29 +450,40 @@ impl SvgDocCreator {
     // this one's meant for svgs for pen plotters, so it drops fill styles
     fn make_doc(&self, paths: &SvgPathCache) -> Document {
         let target_size = self.svg_draw_config.full_target_width(); // guides are at 10x 10x, gives 1cm margin
+
+        let (view_box_x, view_box_y) = if let Some(r) = self.svg_draw_config.resolution {
+            let [width, height] = r.as_dims();
+            (width * 2, height * 2)
+        } else {
+            (800, 800)
+        };
         let mut doc = Document::new()
             .set(
                 "xmlns:inkscape",
                 "http://www.inkscape.org/namespaces/inkscape",
             )
-            .set(
-                "viewBox",
-                (
-                    0, 0, 200,
-                    200, // target_size / 2.0,
-                        // target_size / 2.0,
-                        // target_size,
-                        // target_size,
-                ),
-            )
+            .set("viewBox", (0, 0, view_box_x, view_box_y))
             .set("width", format!("{:?}mm", target_size))
             .set("height", format!("{:?}mm", target_size));
+
+        if let Some(bg_color) = self.svg_draw_config.bg_color() {
+            let bg_rect = svg::node::element::Rectangle::new()
+                .set("x", 0)
+                .set("y", 0)
+                .set("width", view_box_x)
+                .set("height", view_box_y)
+                .set("fill", bg_color.to_svg_rgb());
+            doc = doc.add(bg_rect);
+        }
 
         // todo, maybe figure out defs?
         let (group, _) = self.make_html(paths);
 
         let mut centering_group = svg::node::element::Group::new();
-        centering_group = centering_group.set("transform", "translate(400px, 400px)");
+        centering_group = centering_group.set(
+            "transform",
+            format!("translate({}px, {}px)", view_box_x / 2, view_box_y / 2),
+        );
         centering_group = centering_group.add(group);
 
         doc = doc.add(centering_group);

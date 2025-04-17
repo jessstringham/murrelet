@@ -46,6 +46,7 @@ pub struct SvgDrawConfig {
     target_size: f32, // in mm
     margin_size: f32,
     should_resize: bool, // sorry, something to force it not to resize my shapes on the web!
+    bg_color: Option<MurreletColor>,
 }
 impl SvgDrawConfig {
     pub fn new(
@@ -63,7 +64,14 @@ impl SvgDrawConfig {
             frame,
             should_resize: true,
             resolution,
+            bg_color: None
         }
+    }
+
+    pub fn with_bg_color(&self, bg_color: MurreletColor) -> Self {
+        let mut c = self.clone();
+        c.bg_color = Some(bg_color);
+        c
     }
 
     pub fn with_no_resize(&self) -> Self {
@@ -107,6 +115,10 @@ impl SvgDrawConfig {
 
     pub fn frame(&self) -> u64 {
         self.frame
+    }
+
+    pub fn bg_color(&self) -> Option<MurreletColor> {
+        self.bg_color
     }
 }
 

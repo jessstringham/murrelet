@@ -106,10 +106,10 @@ impl Transform2d {
         mat4_from_mat3_transform(self.to_mat3())
     }
 
-    pub fn rotate_around(angle_pi: f32, v: Vec2) -> Transform2d {
+    pub fn rotate_around<A: IsAngle>(angle_pi: A, v: Vec2) -> Transform2d {
         Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(
             v,
-            a_pi(angle_pi),
+            angle_pi,
         ))])
     }
 
