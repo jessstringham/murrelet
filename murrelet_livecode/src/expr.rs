@@ -241,6 +241,10 @@ impl ExprWorldContextValues {
         Self(v)
     }
 
+    pub fn to_mixed_defs(&self) -> MixedEvalDefs {
+        MixedEvalDefs::new_from_expr(self.clone())
+    }
+
     pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         for (identifier, value) in &self.0 {
             // todo, maybe handle the result here to help dev
