@@ -864,3 +864,75 @@ pub fn make_gui_vec2_coords() -> murrelet_gui::MurreletGUISchema {
 pub fn make_gui_vec3() -> murrelet_gui::MurreletGUISchema {
     murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Vec3)
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct Dim2d {
+    x: usize, // e.g. rows
+    y: usize, // e.g. cols
+}
+
+impl Dim2d {
+    pub fn new(x: usize, y: usize) -> Self {
+        Self { x, y }
+    }
+
+    pub fn x(&self) -> usize {
+        self.x
+    }
+
+    pub fn y(&self) -> usize {
+        self.y
+    }
+
+    pub fn row(&self) -> usize {
+        self.y
+    }
+
+    pub fn col(&self) -> usize {
+        self.x
+    }
+
+    pub fn i(&self) -> usize {
+        self.y
+    }
+
+    pub fn j(&self) -> usize {
+        self.x
+    }
+
+    pub fn i_plus_1(&self) -> Self {
+        let i = self.i();
+        let j = self.j();
+        Self::from_i_j(i + 1, j)
+    }
+
+    pub fn j_plus_1(&self) -> Self {
+        let i = self.i();
+        let j = self.j();
+        Self::from_i_j(i, j + 1)
+    }
+
+    pub fn from_x_y<T: TryInto<u64>>(x: T, y: T) -> Self
+    where
+        T::Error: std::fmt::Debug,
+    {
+        Self {
+            x: x.try_into().expect("Conversion failed") as usize,
+            y: y.try_into().expect("Conversion failed") as usize,
+        }
+    }
+
+    pub fn from_row_col<T: TryInto<u64>>(row: T, col: T) -> Self
+    where
+        T::Error: std::fmt::Debug,
+    {
+        Self::from_x_y(col, row)
+    }
+
+    pub fn from_i_j<T: TryInto<u64>>(i: T, j: T) -> Self
+    where
+        T::Error: std::fmt::Debug,
+    {
+        Self::from_x_y(j, i)
+    }
+}

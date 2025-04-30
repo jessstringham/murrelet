@@ -1,4 +1,5 @@
 use glam::*;
+use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode_derive::*;
@@ -107,6 +108,13 @@ impl CurveSegment {
         }
     }
 
+    pub fn reverse(&self) -> Self {
+        match self {
+            CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.reverse()),
+            CurveSegment::Points(curve_points) => CurveSegment::Points(curve_points.reverse()),
+        }
+    }
+
     pub fn new_simple_arc<Rad: IsLength, A1: IsAngle, A2: IsAngle>(
         loc: Vec2,
         radius: Rad,
@@ -186,6 +194,14 @@ impl CurveArc {
         self.end_pi.angle_pi() > self.start_pi.angle_pi()
     }
 
+    pub fn reverse(&self) -> Self {
+        Self {
+            start_pi: self.end_pi,
+            end_pi: self.start_pi,
+            ..*self
+        }
+    }
+
     // useful for svg
     pub fn is_large_arc(&self) -> bool {
         (self.end_pi.angle_pi() - self.start_pi.angle_pi()).abs() > 1.0
@@ -258,5 +274,9 @@ impl CurvePoints {
 
     pub fn points(&self) -> &Vec<Vec2> {
         &self.points
+    }
+
+    pub fn reverse(&self) -> Self {
+        CurvePoints::new(self.points.iter().cloned().rev().collect_vec())
     }
 }

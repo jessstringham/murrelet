@@ -430,6 +430,18 @@ pub mod styleconf {
                 stroke_color: MurreletColor::transparent(),
             })
         }
+
+        pub fn outlined_fill(
+            color: MurreletColor,
+            stroke_weight: f32,
+            stroke_color: MurreletColor,
+        ) -> Self {
+            Self::Fill(MurreletStyleFilled {
+                color,
+                stroke_weight,
+                stroke_color,
+            })
+        }
     }
 
     impl Default for StyleConf {
@@ -483,6 +495,8 @@ impl MurreletCurve {
     pub fn curve(&self) -> &CurveDrawer {
         &self.cd
     }
+
+
 }
 
 #[derive(Debug, Clone)]
@@ -490,6 +504,7 @@ pub enum MurreletPath {
     Polyline(Polyline),
     Curve(MurreletCurve),
     Svg(TransformedSvgShape),
+    MaskedCurve(MurreletCurve, MurreletCurve), // first is mask
 }
 impl MurreletPath {
     pub fn polyline<F: IsPolyline>(path: F) -> Self {
@@ -508,6 +523,7 @@ impl MurreletPath {
             },
             MurreletPath::Curve(c) => c.clone(),
             MurreletPath::Svg(_) => todo!(),
+            MurreletPath::MaskedCurve(_mask, c) => c.clone(),
         }
     }
 
@@ -515,7 +531,8 @@ impl MurreletPath {
         match self {
             MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
             MurreletPath::Curve(mc) => todo!(),
-            MurreletPath::Svg(_) => todo!(), // i'm not sure how i want to handle this yet
+            MurreletPath::Svg(_) => todo!(),
+            MurreletPath::MaskedCurve(murrelet_curve, murrelet_curve1) => todo!(),
         }
     }
 
@@ -524,6 +541,10 @@ impl MurreletPath {
             MurreletPath::Polyline(_) => self.transform_with(&t),
             MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_after(t)),
             MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_with_mat4_after(t)),
+            MurreletPath::MaskedCurve(mask, curve) => MurreletPath::MaskedCurve(
+                mask.transform_with_mat4_after(t),
+                curve.transform_with_mat4_after(t),
+            ),
         }
     }
 
@@ -532,6 +553,10 @@ impl MurreletPath {
             MurreletPath::Polyline(_) => self.transform_with(&t),
             MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_before(t)),
             MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_with_mat4_before(t)),
+            MurreletPath::MaskedCurve(mask, curve) => MurreletPath::MaskedCurve(
+                mask.transform_with_mat4_before(t),
+                curve.transform_with_mat4_before(t),
+            ),
         }
     }
 
@@ -540,6 +565,7 @@ impl MurreletPath {
             MurreletPath::Polyline(_) => None,
             MurreletPath::Curve(c) => Some(c.t),
             MurreletPath::Svg(c) => Some(c.t),
+            MurreletPath::MaskedCurve(_mask, c) => Some(c.t),
         }
     }
 }

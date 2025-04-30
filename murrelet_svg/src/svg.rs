@@ -14,7 +14,7 @@ use murrelet_draw::{
     draw::{MurreletColorStyle, MurreletStyle},
     newtypes::RGBandANewtype,
     style::{MurreletCurve, MurreletPath, MurreletPathAnnotation, StyledPath, StyledPathSvgFill},
-    svg::{SvgShape, TransformedSvgShape},
+    svg::{SvgPathDef, SvgShape, TransformedSvgShape},
 };
 use murrelet_perform::perform::SvgDrawConfig;
 use svg::{
@@ -134,6 +134,14 @@ impl ToStyledGroup for TransformedSvgShape {
                 g.append(circ);
                 Some(g)
             }
+            SvgShape::Path(svg_path) => {
+                if let Some(data) = svg_path.to_svg_data() {
+                    let mut path = svg::node::element::Path::new().set("d", data);
+                    path = style.add_svg_attributes(path);
+                    g.append(path);
+                }
+                Some(g)
+            }
         }
     }
 }
@@ -144,6 +152,7 @@ impl ToStyledGroup for MurreletPath {
             MurreletPath::Polyline(path) => path.into_iter_vec2().collect_vec().to_group(style),
             MurreletPath::Curve(c) => c.to_group(style),
             MurreletPath::Svg(c) => c.to_group(style),
+            MurreletPath::MaskedCurve(_, _) => todo!(), //curve.to_group_with_mask(style, mask),
         }
     }
 }
@@ -380,7 +389,9 @@ impl SvgDocCreator {
             .set("x", text.loc.x)
             .set("y", text.loc.y)
             .set("text-anchor", "middle")
+            .set("font-family", "monospace".to_string())
             .set("font-size", format!("{}px", text_size))
+            .set("fill", text.style.color.get_svg_attributes())
             .add(svg::node::Text::new(text.text.clone()));
 
         text
@@ -737,6 +748,26 @@ impl SvgPathCache {
 //     fn to_svg(&self) -> Option<Data>;
 
 // }
+
+// why am i doing this again, it is a good question
+impl ToSvgData for SvgPathDef {
+    fn to_svg_data(&self) -> Option<Data> {
+        let mut path = Data::new();
+
+        path = path.move_to(self.svg_move_to());
+
+        for v in self.cmds() {
+            match v {
+                murrelet_draw::svg::SvgCmd::Line(svg_to) => path = path.line_to(svg_to.params()),
+                murrelet_draw::svg::SvgCmd::CubicBezier(svg_cubic_bezier) => {
+                    path = path.cubic_curve_to(svg_cubic_bezier.params())
+                }
+            }
+        }
+
+        Some(path)
+    }
+}
 
 impl ToSvgData for CurveDrawer {
     fn to_svg_data(&self) -> Option<Data> {

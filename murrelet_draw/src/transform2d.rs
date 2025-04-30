@@ -22,6 +22,11 @@ impl Transform2d {
         self.0 = vec![actions.to_vec(), self.0.clone()].concat();
     }
 
+    pub fn prepend_one_action(&mut self, action: Transform2dStep) {
+        self.0 = vec![vec![action], self.0.clone()].concat();
+
+    }
+
     pub fn append_one_action(&mut self, action: Transform2dStep) {
         self.0.push(action)
     }

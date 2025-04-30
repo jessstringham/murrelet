@@ -58,9 +58,9 @@ pub fn mat4_from_mat3_transform(m: Mat3) -> Mat4 {
     // i don't know about this..
     // println!("_z_z {:?}", _z_z);
     if z_z != 1.0 {
-        println!("trying to turn a mat3 to mat4 with invalid values");
-        println!("z_z {:?}", z_z);
-        println!("m {:?}", m);
+        // println!("trying to turn a mat3 to mat4 with invalid values");
+        // println!("z_z {:?}", z_z);
+        // println!("m {:?}", m);
     }
     let z_axis = vec3(z_x, z_y, 0.0);
 

@@ -290,6 +290,15 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
         Self { data, maxes }
     }
 
+    pub fn x_y_z_max(&self) -> (u64, u64, u64) {
+        self.maxes
+    }
+
+    pub fn dims(&self) -> Dim2d {
+        let (x, y, _) = self.maxes;
+        Dim2d::from_x_y(x, y)
+    }
+
     pub fn to_vec2d(&self) -> Vec<Vec<Option<UnitCell<Target>>>> {
         let mut vs = vec![];
 
@@ -369,6 +378,10 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
         self.data
             .get(&(i as u64, j as u64, 0))
             .map(|x| *(x.node).clone())
+    }
+
+    pub fn force_get_dim(&self, dim: &Dim2d) -> &UnitCell<Target> {
+        self.force_get_ij(dim.i(), dim.j())
     }
 }
 

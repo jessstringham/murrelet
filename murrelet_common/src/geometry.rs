@@ -6,7 +6,7 @@ use glam::{vec2, Mat3, Mat4, Vec2};
 
 use crate::{
     intersection::{find_intersection_inf, within_segment},
-    transform::TransformVec2,
+    transform::TransformVec2, SimpleTransform2d,
 };
 
 pub fn a_pi(a: f32) -> AnglePi {
@@ -20,6 +20,10 @@ impl AnglePi {
 
     pub fn new(v: f32) -> AnglePi {
         AnglePi(v)
+    }
+
+    pub fn to_transform(&self) -> SimpleTransform2d {
+        SimpleTransform2d::rotate_pi(self.angle_pi())
     }
 
     pub fn _angle(&self) -> f32 {
