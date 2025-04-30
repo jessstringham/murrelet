@@ -297,8 +297,8 @@ fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2
   return VertexOutput(
     tex_coords,
     vec4<f32>(0.0), // shad_info
-    vec3<f32>(0.0), //normal
-    vec4<f32>(0.0), //light space pos
+    normal,
+    vec4<f32>(face_loc, 0.0, 0.0), //face loc
     vec3<f32>(0.0), //world_pos,
     out_pos);
 }";

@@ -178,12 +178,20 @@ impl Triangulate {
         }
     }
 
+    pub fn set_order(&mut self, u: Vec<u16>) {
+        self.order = u;
+    }
+
     fn order(&self) -> &[u16] {
         &self.order
     }
 
     pub fn indices(&self) -> &[u16] {
         &self.order
+    }
+
+    pub fn add_order(&mut self, collect: &[u16]) {
+        self.order.extend_from_slice(collect);
     }
 }
 
@@ -201,6 +209,13 @@ pub struct InputVertexConf {
 impl InputVertexConf {
     pub fn buffer_slice(&self) -> &[u16] {
         self.order.as_slice()
+    }
+
+    pub fn from_triangulate_2d(t: &Triangulate) -> Self {
+        let mut c = Self::default();
+        c.vertices = t.vertices.clone();
+        c.order = t.order.clone();
+        c
     }
 
     pub fn from_triangulate(t: &Triangulate) -> Self {
@@ -378,8 +393,12 @@ impl GraphicsCreator {
         self
     }
 
-    pub fn with_custom_triangle(mut self, t: &Triangulate) -> Self {
-        self.input_vertex = InputVertexConf::from_triangulate(t);
+    pub fn with_custom_triangle(mut self, t: &Triangulate, is_3d: bool) -> Self {
+        if is_3d {
+            self.input_vertex = InputVertexConf::from_triangulate(t);
+        } else {
+            self.input_vertex = InputVertexConf::from_triangulate_2d(t);
+        }
         self
     }
 
@@ -671,6 +690,62 @@ impl GraphicsRef {
         let col = self.graphics.borrow().conf.input_vertex.view.view_proj;
         Mat4::from_cols_array_2d(&col)
     }
+
+    pub fn update_tri(&mut self, c: &GraphicsWindowConf, tri: Triangulate) {
+        // capture previous buffer sizes
+        let (old_vert_bytes_len, old_index_bytes_len) = {
+            let g = self.graphics.borrow();
+            (
+                bytemuck::cast_slice::<Vertex, u8>(&g.conf.input_vertex.vertices).len(),
+                bytemuck::cast_slice::<u16, u8>(&g.conf.input_vertex.order).len(),
+            )
+        };
+
+        {
+            let mut g = self.graphics.borrow_mut();
+            g.conf.input_vertex.vertices = tri.vertices.clone();
+            g.conf.input_vertex.order = tri.order.clone();
+            let queue = c.device.queue();
+
+            // vertex buffer: either recreate or overwrite
+            let new_vert_bytes = bytemuck::cast_slice::<Vertex, u8>(&g.conf.input_vertex.vertices);
+            if new_vert_bytes.len() > old_vert_bytes_len {
+                // recreate vertex buffer with new size
+                let vb = c.device.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("vertex buffer"),
+                    contents: new_vert_bytes,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                });
+                g.vertex_buffers.vertex = vb;
+            } else {
+                queue.write_buffer(&g.vertex_buffers.vertex, 0, new_vert_bytes);
+            }
+
+            // index buffer with 4-byte alignment: recreate if growing
+            const ALIGN: usize = 4;
+            let raw_index = bytemuck::cast_slice::<u16, u8>(&g.conf.input_vertex.order);
+            let (index_bytes, needs_recreate) = if raw_index.len() % ALIGN != 0 {
+                // pad to alignment
+                let pad = ALIGN - (raw_index.len() % ALIGN);
+                let mut data = Vec::with_capacity(raw_index.len() + pad);
+                data.extend_from_slice(raw_index);
+                data.extend(std::iter::repeat(0).take(pad));
+                (data.into_boxed_slice(), raw_index.len() + pad > old_index_bytes_len)
+            } else {
+                (raw_index.into(), raw_index.len() > old_index_bytes_len)
+            };
+            if needs_recreate {
+                let ib = c.device.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("index buffer"),
+                    contents: &index_bytes,
+                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                });
+                g.vertex_buffers.index = ib;
+            } else {
+                queue.write_buffer(&g.vertex_buffers.index, 0, &index_bytes);
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -904,7 +979,7 @@ impl Graphics {
     fn _sampler(device: &wgpu::Device, details: ShaderOptions) -> wgpu::Sampler {
         let sampler_desc = details.as_sampler_desc();
         let sampler = device.create_sampler(&sampler_desc);
-        println!("sampler: {:?}, {:?}", sampler, sampler_desc);
+        // println!("sampler: {:?}, {:?}", sampler, sampler_desc);
         sampler
     }
 
@@ -1451,12 +1526,12 @@ impl VertexBuffers {
         let vertex = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&conf.vertices[..]),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
         let order = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&conf.order[..]),
-            usage: wgpu::BufferUsages::INDEX,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         });
         let uniform = conf.view.to_buffer(device);
 
