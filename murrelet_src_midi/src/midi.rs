@@ -49,7 +49,11 @@ impl IsLivecodeSrc for MidiMng {
         vals
     }
 
-    fn feedback(&mut self, variables: &HashMap<String, murrelet_common::LivecodeUsage>) {
+    fn feedback(
+        &mut self,
+        variables: &HashMap<String, murrelet_common::LivecodeUsage>,
+        _outgoing_msgs: &[(String, String, LivecodeValue)],
+    ) {
         if let Some(out) = self.out.get_mut(&MidiDevice::MidiTwister) {
             let mut twister = TwisterController { out };
 

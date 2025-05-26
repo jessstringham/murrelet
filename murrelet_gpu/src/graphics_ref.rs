@@ -139,7 +139,7 @@ pub struct Scene {
 #[derive(Debug, Clone)]
 pub struct Triangulate {
     vertices: Vec<Vertex>,
-    order: Vec<u16>,
+    order: Vec<u32>,
 }
 
 impl Triangulate {
@@ -154,10 +154,10 @@ impl Triangulate {
         &self.vertices
     }
 
-    pub fn add_vertex(&mut self, v: [f32; 3], n: [f32; 3], face_pos: [f32; 2]) -> u16 {
+    pub fn add_vertex(&mut self, v: [f32; 3], n: [f32; 3], face_pos: [f32; 2]) -> u32 {
         let vv = Vertex::new(v, n, face_pos);
         self.vertices.push(vv);
-        (self.vertices.len() - 1) as u16
+        (self.vertices.len() - 1) as u32
     }
 
     // alternatively can add vertices and then add teh vec
@@ -178,19 +178,19 @@ impl Triangulate {
         }
     }
 
-    pub fn set_order(&mut self, u: Vec<u16>) {
+    pub fn set_order(&mut self, u: Vec<u32>) {
         self.order = u;
     }
 
-    fn order(&self) -> &[u16] {
+    fn order(&self) -> &[u32] {
         &self.order
     }
 
-    pub fn indices(&self) -> &[u16] {
+    pub fn indices(&self) -> &[u32] {
         &self.order
     }
 
-    pub fn add_order(&mut self, collect: &[u16]) {
+    pub fn add_order(&mut self, collect: &[u32]) {
         self.order.extend_from_slice(collect);
     }
 }
@@ -203,11 +203,11 @@ pub struct InputVertexConf {
     view: VertexUniforms,
     topology: wgpu::PrimitiveTopology,
     vertices: Vec<Vertex>,
-    order: Vec<u16>,
+    order: Vec<u32>,
 }
 
 impl InputVertexConf {
-    pub fn buffer_slice(&self) -> &[u16] {
+    pub fn buffer_slice(&self) -> &[u32] {
         self.order.as_slice()
     }
 
@@ -381,6 +381,8 @@ impl Default for GraphicsCreator {
     }
 }
 impl GraphicsCreator {
+
+
     pub fn with_first_texture_format(mut self, format: wgpu::TextureFormat) -> Self {
         self.first_texture = TextureCreator { format };
         self
@@ -697,7 +699,7 @@ impl GraphicsRef {
             let g = self.graphics.borrow();
             (
                 bytemuck::cast_slice::<Vertex, u8>(&g.conf.input_vertex.vertices).len(),
-                bytemuck::cast_slice::<u16, u8>(&g.conf.input_vertex.order).len(),
+                bytemuck::cast_slice::<u32, u8>(&g.conf.input_vertex.order).len(),
             )
         };
 
@@ -723,7 +725,7 @@ impl GraphicsRef {
 
             // index buffer with 4-byte alignment: recreate if growing
             const ALIGN: usize = 4;
-            let raw_index = bytemuck::cast_slice::<u16, u8>(&g.conf.input_vertex.order);
+            let raw_index = bytemuck::cast_slice::<u32, u8>(&g.conf.input_vertex.order);
             let (index_bytes, needs_recreate) = if raw_index.len() % ALIGN != 0 {
                 // pad to alignment
                 let pad = ALIGN - (raw_index.len() % ALIGN);
@@ -1052,12 +1054,13 @@ impl Graphics {
     }
 
     fn _render_pipeline(
-        vertex_conf: &InputVertexConf,
+        conf: &GraphicsCreator,
         device: &wgpu::Device,
         bind_group_layout: &wgpu::BindGroupLayout,
         fs_mod: &wgpu::ShaderModule,
         dst_format: wgpu::TextureFormat,
     ) -> wgpu::RenderPipeline {
+        let vertex_conf = &conf.input_vertex;
         let pipeline_layout = Graphics::_pipeline_layout(device, bind_group_layout);
 
         let vertex_buffer_layouts = wgpu::VertexBufferLayout {
@@ -1075,7 +1078,9 @@ impl Graphics {
 
         let color_state = vec![Some(wgpu::ColorTargetState {
             format: dst_format,
+            // blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             blend: Some(wgpu::BlendState::REPLACE), //None,
+            //Some(conf.blend_state()), // todo get this to work!
             write_mask: wgpu::ColorWrites::ALL,
         })];
 
@@ -1164,7 +1169,7 @@ impl Graphics {
     ) -> Self {
         let conf_c = conf.clone();
         let has_second_texture = conf.second_texture.is_some();
-        let details = conf.details;
+        let details = conf.clone().details;
         let first_format = conf.first_texture.format;
         let second_format = conf.second_texture.map(|x| x.format);
         let dst_format = conf.dst_texture.format;
@@ -1207,7 +1212,7 @@ impl Graphics {
         let initial_uniform_buffer = initial_uniform.to_buffer(device);
 
         let render_pipeline = Graphics::_render_pipeline(
-            &conf.input_vertex,
+            &conf,
             device,
             &bind_group_layout,
             &fs_mod,
@@ -1492,7 +1497,7 @@ impl Graphics {
             rpass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
             rpass.set_index_buffer(
                 self.vertex_buffers.index.slice(..),
-                wgpu::IndexFormat::Uint16,
+                wgpu::IndexFormat::Uint32,
             );
             rpass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
             drop(rpass);

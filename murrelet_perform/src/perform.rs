@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use glam::{vec3, Mat4, Vec2};
 use lerpable::Lerpable;
-use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
+use murrelet_common::{Assets, AssetsRef, LivecodeUsage, LivecodeValue};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_gui::MurreletGUI;
@@ -548,6 +548,7 @@ where
     maybe_args: Option<BaseConfigArgs>, // should redesign this...
     lerp_pct: f32,                      // moving between things
     used_variable_names: HashSet<String>,
+    outgoing_msgs: Vec<(String, String, LivecodeValue)>, // addr, name, value
 }
 impl<ConfType, ControlConfType> LiveCoder<ConfType, ControlConfType>
 where
@@ -622,6 +623,7 @@ where
             maybe_args,
             lerp_pct: 1.0, // start in the done state!
             used_variable_names,
+            outgoing_msgs: vec![]
         };
 
         // hrm, before doing most things, load the assets (but we'll do this line again...)
@@ -773,6 +775,10 @@ where
         self.app_config().bg_alpha()
     }
 
+    pub fn add_outgoing_msg(&mut self, addr: String, name: String, value: LivecodeValue) {
+        self.outgoing_msgs.push((addr, name, value));
+    }
+
     // called every frame
     pub fn update(&mut self, app: &MurreletAppInput, reload: bool) -> LivecodeResult<()> {
         // use the previous frame's world for this
@@ -801,7 +807,9 @@ where
                 })
                 .collect::<HashMap<_, _>>();
 
-            self.livecode_src.feedback(&variables);
+            let outgoing_msgs = std::mem::take(&mut self.outgoing_msgs);
+
+            self.livecode_src.feedback(&variables, &outgoing_msgs);
         }
 
         // needs to happen before checking is on bar

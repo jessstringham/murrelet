@@ -469,7 +469,7 @@ pub trait IsLivecodeSrc {
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
     // this is a way to give usage feedback to the livecode src, e.g. tell a MIDI controller
     // we're using a parameter, or what value to set indicator lights to.
-    fn feedback(&mut self, _variables: &HashMap<String, LivecodeUsage>) {
+    fn feedback(&mut self, _variables: &HashMap<String, LivecodeUsage>, _outgoing_msgs: &[(String, String, LivecodeValue)]) {
         // default don't do anything
     }
 }
@@ -579,9 +579,9 @@ impl LivecodeSrc {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
     }
 
-    pub fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>) {
+    pub fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>, outgoing_msgs: &[(String, String, LivecodeValue)]) {
         for v in self.vs.iter_mut() {
-            v.feedback(variables);
+            v.feedback(variables, outgoing_msgs);
         }
     }
 }

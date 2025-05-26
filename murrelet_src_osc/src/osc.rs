@@ -1,5 +1,7 @@
 #![allow(dead_code)]
-use murrelet_common::{print_expect, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue};
+use murrelet_common::{
+    print_expect, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue,
+};
 use rosc::{OscPacket, OscType};
 use std::collections::HashMap;
 use std::net::UdpSocket;
@@ -32,6 +34,36 @@ impl IsLivecodeSrc for OscMng {
     fn to_exec_funcs(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
         self.values.to_livecode_vals()
     }
+
+    fn feedback(
+        &mut self,
+        _variables: &HashMap<String, LivecodeUsage>,
+        outgoing_msgs: &[(String, String, LivecodeValue)],
+    ) {
+        for (_addr, name, vals) in outgoing_msgs.iter() {
+            match vals {
+                LivecodeValue::Float(v) => {
+                    let args: Vec<OscType> = vec![OscType::Float(*v as f32)];
+                    let osc_path = format!("{}{}", OSC_PREFIX, name);
+
+                    let msg = rosc::OscMessage {
+                        addr: osc_path.to_string(),
+                        args,
+                    };
+                    let packet_data = rosc::encoder::encode(&OscPacket::Message(msg));
+                    if let Ok(pd) = packet_data {
+                        if let Some(a) = &self.cxn.target_addr {
+                            self.cxn.send_socket.send_to(&pd, a);
+                        }
+                    }
+                }
+                LivecodeValue::Bool(_) => {}
+                LivecodeValue::Int(_) => {}
+            }
+        }
+
+        // Ok(())
+    }
 }
 
 pub struct OscMng {
@@ -62,7 +94,7 @@ impl OscValues {
 }
 
 impl OscMng {
-    pub fn new_from_str(ip_address: &str, smoothed: bool) -> Self {
+    pub fn new_from_str(ip_address: &str, smoothed: bool, target_addr: Option<String>) -> Self {
         let addr = match SocketAddrV4::from_str(ip_address) {
             Ok(addr) => addr,
             Err(_) => panic!(
@@ -71,7 +103,7 @@ impl OscMng {
             ),
         };
 
-        let cxn = OscCxn::new(&addr, smoothed);
+        let cxn = OscCxn::new(&addr, smoothed, target_addr);
         Self {
             cxn,
             values: OscValues {
@@ -86,6 +118,8 @@ pub struct OscCxn {
     smoothed: bool,
     _osc_cxn: JoinHandle<()>, // keep it alive!
     pub osc_rx: Receiver<OSCMessage>,
+    send_socket: UdpSocket,
+    target_addr: Option<String>,
 }
 
 impl OscCxn {
@@ -120,10 +154,13 @@ impl OscCxn {
         })
     }
 
-    pub fn new<A: ToSocketAddrs>(addr: &A, smoothed: bool) -> Self {
+    pub fn new<A: ToSocketAddrs>(addr: &A, smoothed: bool, target_addr: Option<String>) -> Self {
         let (event_tx, event_rx) = mpsc::channel::<OSCMessage>();
 
         let sock = UdpSocket::bind(addr).unwrap();
+        let send_socket = sock
+            .try_clone()
+            .expect("Failed to clone socket for sending"); // Clone the socket
 
         println!("setting up osc");
         println!("sock {:?}", sock);
@@ -152,6 +189,8 @@ impl OscCxn {
             smoothed,
             _osc_cxn: handle,
             osc_rx: event_rx,
+            send_socket,
+            target_addr,
         }
     }
 }

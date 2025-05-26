@@ -6,7 +6,8 @@ use glam::{vec2, Mat3, Mat4, Vec2};
 
 use crate::{
     intersection::{find_intersection_inf, within_segment},
-    transform::TransformVec2, SimpleTransform2d,
+    transform::TransformVec2,
+    SimpleTransform2d,
 };
 
 pub fn a_pi(a: f32) -> AnglePi {
@@ -562,6 +563,16 @@ impl PointToPoint {
 
     pub fn end(&self) -> Vec2 {
         self.end
+    }
+
+    pub fn closest_pt_to_pt(&self, intersection: Vec2) -> PointToPoint {
+        let closest_point =
+            self.start + (intersection - self.start).dot(self.to_norm_dir()) * self.to_norm_dir();
+
+        PointToPoint {
+            start: intersection,
+            end: closest_point,
+        }
     }
 }
 

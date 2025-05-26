@@ -74,6 +74,7 @@ pub struct SvgCubicBezier {
     to_y: f32,
 }
 impl SvgCubicBezier {
+
     pub fn params(&self) -> (f32, f32, f32, f32, f32, f32) {
         (
             self.ctrl1_x,

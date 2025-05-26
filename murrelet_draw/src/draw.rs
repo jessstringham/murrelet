@@ -84,6 +84,7 @@ impl MurreletColorStyle {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum MurreletDrawPlan {
     Shader(StyledPathSvgFill),
     DebugPoints(PixelShape),

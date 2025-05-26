@@ -139,15 +139,15 @@ impl ControlVecElementRepeatMethod {
 
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct ControlVecElementRepeat<Source> {
+pub struct ControlVecElementRepeat<Source: Clone + Debug> {
     repeat: ControlVecElementRepeatMethod,
     // #[serde(default)]
     prefix: String,
-    what: Vec<Source>,
+    what: Vec<ControlVecElement<Source>>,
 }
 
 // impl<Sequencer, Source> GetLivecodeIdentifiers for ControlVecElement<Sequencer, Source>
-impl<Source> GetLivecodeIdentifiers for ControlVecElement<Source>
+impl<Source: Clone + Debug> GetLivecodeIdentifiers for ControlVecElement<Source>
 where
     Source: Clone + Debug + GetLivecodeIdentifiers,
     // Sequencer: UnitCellCreator + GetLivecodeIdentifiers,
@@ -197,7 +197,7 @@ where
     }
 }
 
-impl<Source> ControlVecElementRepeat<Source> {
+impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
     pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
     where
         Source: LivecodeFromWorld<Target>,
@@ -216,9 +216,17 @@ impl<Source> ControlVecElementRepeat<Source> {
             let new_w = w.clone_with_vals(expr, &prefix)?;
 
             for src in &self.what {
-                let o = src.o(&new_w)?;
-                result.push(o);
-            }
+                match src {
+                    ControlVecElement::Single(c) => {
+                        let o = c.o(&new_w)?;
+                        result.push(o);
+                    },
+                    ControlVecElement::Repeat(c) => {
+                        let o = c.eval_and_expand_vec(&new_w)?;
+                        result.extend(o.into_iter());
+                    }
+                }
+    }
         }
         Ok(result)
     }

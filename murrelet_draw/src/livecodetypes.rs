@@ -3,10 +3,13 @@
 pub mod anglepi {
     use std::ops::Sub;
 
+    use glam::Vec2;
     use lerpable::Lerpable;
     use murrelet_common::{Angle, AnglePi, IsAngle};
     use murrelet_gui::CanMakeGUI;
     use murrelet_livecode_derive::Livecode;
+
+    use crate::transform2d::Transform2d;
 
     #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default, PartialEq)]
     pub struct LivecodeAnglePi(f32);
@@ -27,6 +30,12 @@ pub mod anglepi {
 
         pub fn scale(&self, scale: f32) -> Self {
             Self(self.0 * scale)
+        }
+
+        pub fn transform_vec2(&self, v: glam::Vec2) -> Vec2 {
+            Transform2d::rotate(self.angle_pi())
+                .to_mat3()
+                .transform_vector2(v)
         }
     }
 

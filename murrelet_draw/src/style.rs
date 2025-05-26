@@ -401,6 +401,10 @@ pub mod styleconf {
             self.to_style().color.as_color()
         }
 
+        pub fn stroke_weight(&self) -> f32 {
+            self.to_style().stroke_weight
+        }
+
         pub fn outline(color: MurreletColor, stroke_weight: f32) -> Self {
             Self::Outline(MurreletStyleOutlined {
                 color,
@@ -441,6 +445,10 @@ pub mod styleconf {
                 stroke_weight,
                 stroke_color,
             })
+        }
+
+        pub fn fill_color(&self) -> MurreletColor {
+            self.color()
         }
     }
 
