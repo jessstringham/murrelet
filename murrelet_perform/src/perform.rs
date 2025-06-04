@@ -64,7 +64,7 @@ impl SvgDrawConfig {
             frame,
             should_resize: true,
             resolution,
-            bg_color: None
+            bg_color: None,
         }
     }
 
@@ -623,7 +623,7 @@ where
             maybe_args,
             lerp_pct: 1.0, // start in the done state!
             used_variable_names,
-            outgoing_msgs: vec![]
+            outgoing_msgs: vec![],
         };
 
         // hrm, before doing most things, load the assets (but we'll do this line again...)

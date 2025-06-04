@@ -381,8 +381,6 @@ impl Default for GraphicsCreator {
     }
 }
 impl GraphicsCreator {
-
-
     pub fn with_first_texture_format(mut self, format: wgpu::TextureFormat) -> Self {
         self.first_texture = TextureCreator { format };
         self
@@ -713,11 +711,14 @@ impl GraphicsRef {
             let new_vert_bytes = bytemuck::cast_slice::<Vertex, u8>(&g.conf.input_vertex.vertices);
             if new_vert_bytes.len() > old_vert_bytes_len {
                 // recreate vertex buffer with new size
-                let vb = c.device.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("vertex buffer"),
-                    contents: new_vert_bytes,
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                });
+                let vb = c
+                    .device
+                    .device()
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("vertex buffer"),
+                        contents: new_vert_bytes,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    });
                 g.vertex_buffers.vertex = vb;
             } else {
                 queue.write_buffer(&g.vertex_buffers.vertex, 0, new_vert_bytes);
@@ -732,16 +733,22 @@ impl GraphicsRef {
                 let mut data = Vec::with_capacity(raw_index.len() + pad);
                 data.extend_from_slice(raw_index);
                 data.extend(std::iter::repeat(0).take(pad));
-                (data.into_boxed_slice(), raw_index.len() + pad > old_index_bytes_len)
+                (
+                    data.into_boxed_slice(),
+                    raw_index.len() + pad > old_index_bytes_len,
+                )
             } else {
                 (raw_index.into(), raw_index.len() > old_index_bytes_len)
             };
             if needs_recreate {
-                let ib = c.device.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("index buffer"),
-                    contents: &index_bytes,
-                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                });
+                let ib = c
+                    .device
+                    .device()
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("index buffer"),
+                        contents: &index_bytes,
+                        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                    });
                 g.vertex_buffers.index = ib;
             } else {
                 queue.write_buffer(&g.vertex_buffers.index, 0, &index_bytes);
@@ -1211,13 +1218,8 @@ impl Graphics {
 
         let initial_uniform_buffer = initial_uniform.to_buffer(device);
 
-        let render_pipeline = Graphics::_render_pipeline(
-            &conf,
-            device,
-            &bind_group_layout,
-            &fs_mod,
-            dst_format,
-        );
+        let render_pipeline =
+            Graphics::_render_pipeline(&conf, device, &bind_group_layout, &fs_mod, dst_format);
 
         let vertex_buffers = VertexBuffers::from_conf(device, &conf.input_vertex);
 

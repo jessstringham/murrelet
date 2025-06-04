@@ -85,8 +85,6 @@ impl CurveDrawer {
         let last_command = self.segments().last()?;
         Some(last_command.last_point())
     }
-
-
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]

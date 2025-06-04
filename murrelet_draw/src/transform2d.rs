@@ -24,7 +24,6 @@ impl Transform2d {
 
     pub fn prepend_one_action(&mut self, action: Transform2dStep) {
         self.0 = vec![vec![action], self.0.clone()].concat();
-
     }
 
     pub fn append_one_action(&mut self, action: Transform2dStep) {
@@ -112,10 +111,7 @@ impl Transform2d {
     }
 
     pub fn rotate_around<A: IsAngle>(angle_pi: A, v: Vec2) -> Transform2d {
-        Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(
-            v,
-            angle_pi,
-        ))])
+        Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(v, angle_pi))])
     }
 
     pub fn new_from_scale_rotate<A: IsAngle>(s: f32, angle_pi: A) -> Transform2d {

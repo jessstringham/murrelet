@@ -469,7 +469,11 @@ pub trait IsLivecodeSrc {
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
     // this is a way to give usage feedback to the livecode src, e.g. tell a MIDI controller
     // we're using a parameter, or what value to set indicator lights to.
-    fn feedback(&mut self, _variables: &HashMap<String, LivecodeUsage>, _outgoing_msgs: &[(String, String, LivecodeValue)]) {
+    fn feedback(
+        &mut self,
+        _variables: &HashMap<String, LivecodeUsage>,
+        _outgoing_msgs: &[(String, String, LivecodeValue)],
+    ) {
         // default don't do anything
     }
 }
@@ -579,7 +583,11 @@ impl LivecodeSrc {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
     }
 
-    pub fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>, outgoing_msgs: &[(String, String, LivecodeValue)]) {
+    pub fn feedback(
+        &mut self,
+        variables: &HashMap<String, LivecodeUsage>,
+        outgoing_msgs: &[(String, String, LivecodeValue)],
+    ) {
         for v in self.vs.iter_mut() {
             v.feedback(variables, outgoing_msgs);
         }
@@ -642,12 +650,14 @@ impl FixedPointF32 {
     pub const MAX: Self = FixedPointF32 { x: i64::MAX };
     pub const MIN: Self = FixedPointF32 { x: i64::MIN };
 
+    pub const GRANULARITY: f32 = 1e2f32;
+
     fn f32_to_i64(f: f32) -> i64 {
-        (f * 1e4f32) as i64
+        (f * Self::GRANULARITY) as i64
     }
 
     fn i64_to_f32(f: i64) -> f32 {
-        f as f32 / 1e4f32
+        f as f32 / Self::GRANULARITY
     }
 
     pub fn to_i64(&self) -> i64 {
@@ -682,11 +692,19 @@ impl FixedPointF32 {
     }
 }
 
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
+#[derive(Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
 pub struct FixedPointVec2 {
     pub x: FixedPointF32,
     pub y: FixedPointF32,
 }
+
+impl std::fmt::Debug for FixedPointVec2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let vec2_representation = self.to_vec2();
+        write!(f, "FixedPointVec2({:?})", vec2_representation)
+    }
+}
+
 impl FixedPointVec2 {
     pub fn round(&self, n: i64) -> FixedPointVec2 {
         FixedPointVec2::new_from_fixed_point(self.x.round(n), self.y.round(n))

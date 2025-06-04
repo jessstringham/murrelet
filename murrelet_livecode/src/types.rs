@@ -220,13 +220,13 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
                     ControlVecElement::Single(c) => {
                         let o = c.o(&new_w)?;
                         result.push(o);
-                    },
+                    }
                     ControlVecElement::Repeat(c) => {
                         let o = c.eval_and_expand_vec(&new_w)?;
                         result.extend(o.into_iter());
                     }
                 }
-    }
+            }
         }
         Ok(result)
     }

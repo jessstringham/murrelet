@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
-
 use crate::{curve_drawer::CurveDrawer, draw::*, svg::TransformedSvgShape, transform2d::*};
 use glam::*;
 use lerpable::Lerpable;
@@ -503,8 +501,6 @@ impl MurreletCurve {
     pub fn curve(&self) -> &CurveDrawer {
         &self.cd
     }
-
-
 }
 
 #[derive(Debug, Clone)]
