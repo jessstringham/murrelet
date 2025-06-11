@@ -646,11 +646,37 @@ pub fn fixed_pt_f32_to_str(x: f32) -> String {
 pub struct FixedPointF32 {
     pub x: i64,
 }
+
+impl FixedPointF32 {
+    pub fn abs(&self) -> Self {
+        Self { x: self.x.abs() }
+    }
+}
+
+impl std::ops::Sub for FixedPointF32 {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+        }
+    }
+}
+
+impl std::ops::Add for FixedPointF32 {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+        }
+    }
+}
 impl FixedPointF32 {
     pub const MAX: Self = FixedPointF32 { x: i64::MAX };
     pub const MIN: Self = FixedPointF32 { x: i64::MIN };
 
-    pub const GRANULARITY: f32 = 1e2f32;
+    pub const GRANULARITY: f32 = 1e4f32;
 
     fn f32_to_i64(f: f32) -> i64 {
         (f * Self::GRANULARITY) as i64

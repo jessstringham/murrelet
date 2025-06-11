@@ -134,6 +134,17 @@ impl MurreletStyle {
         }
     }
 
+    pub fn new_line_color(color: MurreletColor, stroke_weight: f32) -> MurreletStyle {
+        MurreletStyle {
+            closed: false,
+            filled: false,
+            color: MurreletColorStyle::Color(color),
+            stroke_weight,
+            stroke_color: MurreletColorStyle::Color(color),
+            ..Default::default()
+        }
+    }
+
     pub fn new_outline_color(color: MurreletColor, stroke_weight: f32) -> MurreletStyle {
         MurreletStyle {
             closed: true,

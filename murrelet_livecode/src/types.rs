@@ -87,6 +87,10 @@ impl AdditionalContextNode {
             .eval_empty_with_context_mut(ctx)
             .map_err(|err| LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err))
     }
+
+    pub fn new_dummy() -> AdditionalContextNode {
+        AdditionalContextNode(build_operator_tree("").unwrap())
+    }
 }
 
 impl CanMakeGUI for AdditionalContextNode {

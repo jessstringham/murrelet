@@ -96,7 +96,8 @@ impl<T: ToSvgData> ToStyledGroup for T {
 
 impl ToSvgData for MurreletCurve {
     fn to_svg_data(&self) -> Option<Data> {
-        self.curve().to_svg_data()
+        // self.curve().to_svg_data()
+        todo!()
     }
 
     fn transform(&self) -> Option<Mat4> {

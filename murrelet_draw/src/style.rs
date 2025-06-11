@@ -1,5 +1,10 @@
 #![allow(dead_code)]
-use crate::{curve_drawer::CurveDrawer, draw::*, svg::TransformedSvgShape, transform2d::*};
+use crate::{
+    curve_drawer::CurveDrawer,
+    draw::*,
+    svg::{SvgPathDef, SvgShape, TransformedSvgShape},
+    transform2d::*,
+};
 use glam::*;
 use lerpable::Lerpable;
 use md5::{Digest, Md5};
@@ -463,19 +468,25 @@ impl CanMakeGUI for StyleConf {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum MurreletCurveKinds {
+    CD(CurveDrawer),
+    Svg(SvgPathDef),
+}
+
 // this one attaches a transform to the curve.
 // you can _try_ to apply it using to_curve_maker, but this
 // will act funny for non-affine
 #[derive(Debug, Clone)]
 pub struct MurreletCurve {
-    cd: CurveDrawer,
+    cd: MurreletCurveKinds,
     t: Mat4,
 }
 
 impl MurreletCurve {
     pub fn new(cd: CurveDrawer) -> Self {
         Self {
-            cd,
+            cd: MurreletCurveKinds::CD(cd),
             t: Mat4::IDENTITY,
         }
     }
@@ -498,7 +509,23 @@ impl MurreletCurve {
         self.t
     }
 
-    pub fn curve(&self) -> &CurveDrawer {
+    // pub fn curve(&self) -> &CurveDrawer {
+    //     match &self.cd {
+    //         MurreletCurveKinds::CD(cd) => cd,
+    //         MurreletCurveKinds::Svg(pts) => {
+    //             &CurveDrawer::new_simple_points(parse_svg_path_as_vec2(pts), false)
+    //         },
+    //     }
+    // }
+
+    fn new_transformed_svg(svg: &TransformedSvgShape) -> MurreletCurve {
+        Self {
+            cd: MurreletCurveKinds::Svg(svg.shape.as_path()),
+            t: svg.t,
+        }
+    }
+
+    pub fn cd(&self) -> &MurreletCurveKinds {
         &self.cd
     }
 }
@@ -522,11 +549,11 @@ impl MurreletPath {
     pub fn as_curve(&self) -> MurreletCurve {
         match self {
             MurreletPath::Polyline(c) => MurreletCurve {
-                cd: CurveDrawer::new_simple_points(c.clone_to_vec(), false),
+                cd: MurreletCurveKinds::CD(CurveDrawer::new_simple_points(c.clone_to_vec(), false)),
                 t: Mat4::IDENTITY,
             },
             MurreletPath::Curve(c) => c.clone(),
-            MurreletPath::Svg(_) => todo!(),
+            MurreletPath::Svg(svg) => MurreletCurve::new_transformed_svg(svg),
             MurreletPath::MaskedCurve(_mask, c) => c.clone(),
         }
     }

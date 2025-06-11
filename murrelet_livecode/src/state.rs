@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use evalexpr::{HashMapContext, IterateVariablesContext};
 use murrelet_common::*;
@@ -180,6 +180,17 @@ impl LivecodeWorldState {
     pub fn asset_layers_in_key(&self, key: &str) -> &[String] {
         self.assets.layer_for_key(key)
     }
+
+    pub fn new_dummy() -> LivecodeWorldState {
+        let empty_ctx = HashMapContext::new();
+        Self::new(
+            &empty_ctx,
+            &LivecodeSrc::new(vec![]),
+            LiveCodeTimeInstantInfo::new_dummy(),  // time
+            AdditionalContextNode::new_dummy(), // node
+            Arc::new(Assets::empty()), // assets
+        ).unwrap()
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -317,6 +328,18 @@ impl LiveCodeTimeInstantInfo {
             self.seconds_since_updated_realtime()
         } else {
             self.seconds_since_updated_frame()
+        }
+    }
+
+    fn new_dummy() -> LiveCodeTimeInstantInfo {
+        LiveCodeTimeInstantInfo {
+            timing_config: LivecodeTimingConfig {
+                bpm: 120.0,
+                fps: 60.0,
+                realtime: false,
+                beats_per_bar: 4.0,
+            },
+            system_timing: LiveCodeTiming::default(),
         }
     }
 }
