@@ -532,14 +532,15 @@ impl BasicUniform {
         })
     }
 
-    fn copy_to_buffer(
-        &self,
-        dest: &wgpu::Buffer,
-        device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
-    ) {
-        encoder.copy_buffer_to_buffer(&self.to_buffer(device), 0, dest, 0, self.uniforms_size());
-    }
+    // fn copy_to_buffer(
+    //     &self,
+    //     dest: &wgpu::Buffer,
+    //     device: &wgpu::Device,
+    //     encoder: &mut wgpu::CommandEncoder,
+    // ) {
+    //     println!("copy to buffer");
+    //     encoder.copy_buffer_to_buffer(&self.to_buffer(device), 0, dest, 0, self.uniforms_size());
+    // }
 }
 
 pub struct UniformsPair {
@@ -579,6 +580,7 @@ impl GraphicsRef {
         conf: &GraphicsCreator,
         assets: GraphicsAssets,
     ) -> Self {
+        println!("name {:?}", name);
         let graphics = Graphics::new_mut(
             name.to_string(),
             c,
@@ -587,6 +589,7 @@ impl GraphicsRef {
             assets,
             conf.clone(),
         );
+        println!("done name {:?}", name);
         Self { graphics }
     }
 

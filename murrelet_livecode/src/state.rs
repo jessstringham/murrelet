@@ -186,10 +186,11 @@ impl LivecodeWorldState {
         Self::new(
             &empty_ctx,
             &LivecodeSrc::new(vec![]),
-            LiveCodeTimeInstantInfo::new_dummy(),  // time
-            AdditionalContextNode::new_dummy(), // node
-            Arc::new(Assets::empty()), // assets
-        ).unwrap()
+            LiveCodeTimeInstantInfo::new_dummy(), // time
+            AdditionalContextNode::new_dummy(),   // node
+            Arc::new(Assets::empty()),            // assets
+        )
+        .unwrap()
     }
 }
 
