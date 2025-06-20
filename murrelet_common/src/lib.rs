@@ -4,6 +4,7 @@ use glam::{vec3, Vec3};
 use itertools::Itertools;
 use lerpable::{IsLerpingMethod, Lerpable};
 use num_traits::NumCast;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -598,7 +599,24 @@ const MAX_STRID_LEN: usize = 16;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StrId([u8; MAX_STRID_LEN]);
+impl Serialize for StrId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
 
+impl<'de> Deserialize<'de> for StrId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(StrId::new(&s))
+    }
+}
 // from chatgpt
 impl StrId {
     pub fn new(s: &str) -> Self {
@@ -642,7 +660,7 @@ pub fn fixed_pt_f32_to_str(x: f32) -> String {
     FixedPointF32::new(x).to_str()
 }
 
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash,  Serialize, Deserialize)]
 pub struct FixedPointF32 {
     pub x: i64,
 }
@@ -679,7 +697,7 @@ impl FixedPointF32 {
     pub const GRANULARITY: f32 = 1e4f32;
 
     fn f32_to_i64(f: f32) -> i64 {
-        (f * Self::GRANULARITY) as i64
+        (f * Self::GRANULARITY).round() as i64
     }
 
     fn i64_to_f32(f: i64) -> f32 {
@@ -718,7 +736,7 @@ impl FixedPointF32 {
     }
 }
 
-#[derive(Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
+#[derive(Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash,  Serialize, Deserialize)]
 pub struct FixedPointVec2 {
     pub x: FixedPointF32,
     pub y: FixedPointF32,

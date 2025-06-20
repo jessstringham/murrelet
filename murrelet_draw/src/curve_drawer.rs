@@ -4,7 +4,7 @@ use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode_derive::*;
 
-use crate::{livecodetypes::anglepi::*, svg::SvgPathDef};
+use crate::livecodetypes::anglepi::*;
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveDrawer {
