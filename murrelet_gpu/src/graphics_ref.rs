@@ -3,6 +3,8 @@ use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
+use itertools::Itertools;
+use murrelet_common::triangulate::{Triangulate, VertexSimple};
 use std::rc::Rc;
 
 #[cfg(feature = "nannou")]
@@ -60,6 +62,14 @@ impl Vertex {
 
     pub fn pos_vec3(&self) -> Vec3 {
         glam::vec3(self.position[0], self.position[1], self.position[2])
+    }
+
+    pub fn from_simple(vs: &VertexSimple) -> Self {
+        Self {
+            position: vs.position,
+            normal: vs.normal,
+            face_pos: vs.face_pos,
+        }
     }
 }
 
@@ -136,64 +146,64 @@ pub struct Scene {
 }
 
 // this is the conf that you'll interface with
-#[derive(Debug, Clone)]
-pub struct Triangulate {
-    vertices: Vec<Vertex>,
-    order: Vec<u32>,
-}
+// #[derive(Debug, Clone)]
+// pub struct Triangulate {
+//     vertices: Vec<Vertex>,
+//     order: Vec<u32>,
+// }
 
-impl Triangulate {
-    pub fn new() -> Self {
-        Triangulate {
-            vertices: vec![],
-            order: vec![],
-        }
-    }
+// impl Triangulate {
+//     pub fn new() -> Self {
+//         Triangulate {
+//             vertices: vec![],
+//             order: vec![],
+//         }
+//     }
 
-    pub fn vertices(&self) -> &[Vertex] {
-        &self.vertices
-    }
+//     pub fn vertices(&self) -> &[Vertex] {
+//         &self.vertices
+//     }
 
-    pub fn add_vertex(&mut self, v: [f32; 3], n: [f32; 3], face_pos: [f32; 2]) -> u32 {
-        let vv = Vertex::new(v, n, face_pos);
-        self.vertices.push(vv);
-        (self.vertices.len() - 1) as u32
-    }
+//     pub fn add_vertex(&mut self, v: [f32; 3], n: [f32; 3], face_pos: [f32; 2]) -> u32 {
+//         let vv = Vertex::new(v, n, face_pos);
+//         self.vertices.push(vv);
+//         (self.vertices.len() - 1) as u32
+//     }
 
-    // alternatively can add vertices and then add teh vec
-    pub fn add_rect(&mut self, v: &[Vec3; 4], flip: bool) {
-        let edge1 = v[0] - v[1];
-        let edge2 = v[3] - v[1];
-        let normal = edge1.cross(edge2).normalize().to_array();
+//     // alternatively can add vertices and then add teh vec
+//     pub fn add_rect(&mut self, v: &[Vec3; 4], flip: bool) {
+//         let edge1 = v[0] - v[1];
+//         let edge2 = v[3] - v[1];
+//         let normal = edge1.cross(edge2).normalize().to_array();
 
-        let v0 = self.add_vertex(v[0].to_array(), normal, [1.0, 0.0]);
-        let v1 = self.add_vertex(v[1].to_array(), normal, [0.0, 0.0]);
-        let v2 = self.add_vertex(v[2].to_array(), normal, [1.0, 1.0]);
-        let v3 = self.add_vertex(v[3].to_array(), normal, [0.0, 1.0]);
+//         let v0 = self.add_vertex(v[0].to_array(), normal, [1.0, 0.0]);
+//         let v1 = self.add_vertex(v[1].to_array(), normal, [0.0, 0.0]);
+//         let v2 = self.add_vertex(v[2].to_array(), normal, [1.0, 1.0]);
+//         let v3 = self.add_vertex(v[3].to_array(), normal, [0.0, 1.0]);
 
-        if !flip {
-            self.order.extend([v0, v2, v1, v1, v2, v3])
-        } else {
-            self.order.extend([v0, v1, v2, v1, v3, v2])
-        }
-    }
+//         if !flip {
+//             self.order.extend([v0, v2, v1, v1, v2, v3])
+//         } else {
+//             self.order.extend([v0, v1, v2, v1, v3, v2])
+//         }
+//     }
 
-    pub fn set_order(&mut self, u: Vec<u32>) {
-        self.order = u;
-    }
+//     pub fn set_order(&mut self, u: Vec<u32>) {
+//         self.order = u;
+//     }
 
-    fn order(&self) -> &[u32] {
-        &self.order
-    }
+//     fn order(&self) -> &[u32] {
+//         &self.order
+//     }
 
-    pub fn indices(&self) -> &[u32] {
-        &self.order
-    }
+//     pub fn indices(&self) -> &[u32] {
+//         &self.order
+//     }
 
-    pub fn add_order(&mut self, collect: &[u32]) {
-        self.order.extend_from_slice(collect);
-    }
-}
+//     pub fn add_order(&mut self, collect: &[u32]) {
+//         self.order.extend_from_slice(collect);
+//     }
+// }
 
 // this is the conf that you'll interface with
 #[derive(Debug, Clone)]
@@ -213,7 +223,7 @@ impl InputVertexConf {
 
     pub fn from_triangulate_2d(t: &Triangulate) -> Self {
         let mut c = Self::default();
-        c.vertices = t.vertices.clone();
+        c.vertices = t.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
         c.order = t.order.clone();
         c
     }
@@ -222,7 +232,7 @@ impl InputVertexConf {
         let mut c = Self::default();
         c.is_3d = true;
         c.vs_mod = VERTEX_SHADER_3D;
-        c.vertices = t.vertices.clone();
+        c.vertices = t.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
         c.order = t.order.clone();
         c
     }
@@ -250,7 +260,7 @@ fn main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
     }
 
     pub fn with_custom_vertices(mut self, tri: &Triangulate) -> Self {
-        self.vertices = tri.vertices.clone();
+        self.vertices = tri.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
         self.topology = wgpu::PrimitiveTopology::TriangleList;
         self.order = tri.order.clone();
         self
@@ -706,7 +716,7 @@ impl GraphicsRef {
 
         {
             let mut g = self.graphics.borrow_mut();
-            g.conf.input_vertex.vertices = tri.vertices.clone();
+            g.conf.input_vertex.vertices = tri.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
             g.conf.input_vertex.order = tri.order.clone();
             let queue = c.device.queue();
 
@@ -1088,8 +1098,8 @@ impl Graphics {
 
         let color_state = vec![Some(wgpu::ColorTargetState {
             format: dst_format,
-            // blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-            blend: Some(wgpu::BlendState::REPLACE), //None,
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            // blend: Some(wgpu::BlendState::REPLACE), //None,
             //Some(conf.blend_state()), // todo get this to work!
             write_mask: wgpu::ColorWrites::ALL,
         })];

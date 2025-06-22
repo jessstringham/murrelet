@@ -20,6 +20,7 @@ mod iter;
 mod metric;
 mod polyline;
 mod transform;
+pub mod triangulate;
 
 pub use assets::*;
 pub use color::*;

@@ -518,6 +518,7 @@ impl PrevCurrNextVec2 {
     }
 }
 
+
 #[derive(Copy, Clone, Debug)]
 pub struct PointToPoint {
     start: Vec2,
@@ -649,4 +650,22 @@ pub fn tangents_between_two_circles(
     let end = vec2(v2.x + sign1 * r2 * nx, v2.y + sign1 * r2 * ny);
 
     Some((start, end))
+}
+
+
+#[derive(Copy, Clone, Debug)]
+pub struct Tangent {
+    pub loc: Vec2,
+    pub dir: AnglePi,
+    // strength: f32,
+}
+
+impl Tangent {
+    pub fn dir(&self) -> AnglePi {
+        self.dir
+    }
+
+    pub fn loc(&self) -> Vec2 {
+        self.loc
+    }
 }

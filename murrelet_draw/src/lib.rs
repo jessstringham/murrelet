@@ -7,3 +7,5 @@ pub mod sequencers;
 pub mod style;
 pub mod svg;
 pub mod transform2d;
+pub mod cubic;
+pub mod tesselate;

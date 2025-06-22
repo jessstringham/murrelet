@@ -142,7 +142,10 @@ impl LazyNodeF32 {
     }
 
     pub fn simple_number(val: f32) -> Self {
-        Self::new(ControlLazyNodeF32::Float(val), &LivecodeWorldState::new_dummy())
+        Self::new(
+            ControlLazyNodeF32::Float(val),
+            &LivecodeWorldState::new_dummy(),
+        )
     }
 
     pub fn n(&self) -> Option<&Node> {
