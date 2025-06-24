@@ -166,6 +166,7 @@ impl MurreletModel {
 
     #[wasm_bindgen]
     pub fn bg_color(&self) -> String {
+        // it's fine that this one drops transparency
         self.livecode.app_config().bg_color.to_svg_rgb()
     }
 }

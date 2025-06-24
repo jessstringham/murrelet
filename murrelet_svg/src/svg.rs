@@ -22,6 +22,43 @@ use svg::{
     Document, Node,
 };
 
+pub struct MurreletSvgAttributes(Vec<(String, String)>);
+impl MurreletSvgAttributes {
+    pub fn add(&mut self, key: &str, value: &str) {
+        self.0.push((key.to_string(), value.to_string()))
+    }
+
+    fn new(v: Vec<(String, String)>) -> Self {
+        Self(v)
+    }
+
+    fn empty() -> Self {
+        Self(vec![])
+    }
+
+    fn new_single(key: &str, value: &str) -> Self {
+        let mut v = Self::empty();
+        v.add(key, value);
+        v
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, (String, String)> {
+        self.0.iter()
+    }
+
+    fn add_other(&mut self, other: &Self) {
+        self.0.extend(other.0.clone());
+    }
+
+    fn add_float(&mut self, key: &str, stroke_weight: f32) {
+        self.add(key, &format!("{}", stroke_weight))
+    }
+
+    fn add_px(&mut self, key: &str, val: f32) {
+        self.add(key, &format!("{}px", val))
+    }
+}
+
 // this area actually follows the spec more closely
 
 #[derive(Debug, Clone)]
@@ -171,57 +208,59 @@ impl ToSvgMatrix for Mat4 {
     }
 }
 
-// for a type that means something, e.g. "style fro a shape"
-trait AddSvgAttributes {
-    fn add_svg_attributes<T: Node>(&self, p: T) -> T;
-}
+// // for a type that means something, e.g. "style fro a shape"
+// trait AddSvgAttributes {
+//     fn add_svg_attributes<T: Node>(&self, p: T) -> T;
+// }
 
 // for component types, e.g. "color"
 trait GetSvgAttributes {
-    fn get_svg_attributes(&self) -> String;
-}
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes;
 
-impl GetSvgAttributes for StyledPathSvgFill {
-    fn get_svg_attributes(&self) -> String {
-        format!("url(#P{})", self.hash())
-    }
-}
-
-impl GetSvgAttributes for MurreletColor {
-    fn get_svg_attributes(&self) -> String {
-        let [r, g, b, a] = self.into_rgba_components();
-        let fill = format!(
-            "rgba({}, {}, {}, {})",
-            (r * 255.0) as i32,
-            (g * 255.0) as i32,
-            (b * 255.0) as i32,
-            a
-        );
-        fill
-    }
-}
-
-impl GetSvgAttributes for RGBandANewtype {
-    fn get_svg_attributes(&self) -> String {
-        self.color().get_svg_attributes()
-    }
-}
-
-impl AddSvgAttributes for MurreletColorStyle {
     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
         let mut p = p;
-        p.assign("fill-rule", "evenodd");
-        match self {
-            MurreletColorStyle::Color(c) => p.assign("fill", c.get_svg_attributes()),
-            MurreletColorStyle::RgbaFill(c) => p.assign("fill", c.get_svg_attributes()),
-            MurreletColorStyle::SvgFill(c) => p.assign("fill", c.get_svg_attributes()),
+        let updates = self.get_svg_attributes();
+        for (key, value) in &updates.0 {
+            p.assign(key, value.clone());
         }
         p
     }
 }
 
+impl GetSvgAttributes for StyledPathSvgFill {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        MurreletSvgAttributes::new_single("fill", &format!("url(#P{})", self.hash()))
+    }
+}
+
+impl GetSvgAttributes for MurreletColor {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut v = MurreletSvgAttributes::new_single("fill", &self.to_svg_rgb());
+        v.add("fill-rule", "evenodd");
+        if self.alpha() < 1.0 {
+            v.add("fill-opacity", &format!("{}", self.alpha()));
+        }
+        v
+    }
+}
+
+impl GetSvgAttributes for RGBandANewtype {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        self.color().get_svg_attributes()
+    }
+}
+
+// impl AddSvgAttributes for MurreletColorStyle {
+//     // fn add_svg_attributes<T: Node>(&self, p: T) -> T {
+//     //     let mut p = p;
+//     //     p.assign("fill-rule", "evenodd");
+//     //     update_node(&mut p, &self.get_svg_attributes());
+//     //     p
+//     // }
+// }
+
 impl GetSvgAttributes for MurreletColorStyle {
-    fn get_svg_attributes(&self) -> String {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
         match self {
             MurreletColorStyle::Color(c) => c.get_svg_attributes(),
             MurreletColorStyle::RgbaFill(c) => c.get_svg_attributes(),
@@ -230,92 +269,151 @@ impl GetSvgAttributes for MurreletColorStyle {
     }
 }
 
-impl AddSvgAttributes for MurreletPath {
-    fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-        let mut p = p;
-        let svg_str = self.get_svg_attributes();
-        if !svg_str.is_empty() {
-            p.assign("transform", svg_str);
-        }
-        p
-    }
-}
+// impl AddSvgAttributes for MurreletPath {
+//     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
+//         let mut p = p;
+//         update_node(&mut p, &self.get_svg_attributes());
+//         p
+//     }
+// }
 impl GetSvgAttributes for MurreletPath {
-    fn get_svg_attributes(&self) -> String {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
         if let Some(t) = self.transform() {
-            t.to_svg_matrix()
+            MurreletSvgAttributes::new_single("transform", &t.to_svg_matrix())
         } else {
-            "".to_string()
+            MurreletSvgAttributes::empty()
         }
     }
 }
 
-impl AddSvgAttributes for MurreletStyle {
-    fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-        let mut p = p;
-
-        p.assign("fill-rule", "evenodd");
+impl GetSvgAttributes for MurreletStyle {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut v = MurreletSvgAttributes::new_single("fill-rule", "evenodd");
 
         match self.drawing_plan() {
             murrelet_draw::draw::MurreletDrawPlan::Shader(fill) => {
-                p.assign("fill", fill.get_svg_attributes())
+                v.add_other(&fill.get_svg_attributes());
             }
             murrelet_draw::draw::MurreletDrawPlan::DebugPoints(_) => unimplemented!(),
             murrelet_draw::draw::MurreletDrawPlan::FilledClosed => {
-                p.assign("fill", self.color.get_svg_attributes());
+                // v.add("fill", self.color.get_svg_attributes());
+
+                v.add_other(&self.color.get_svg_attributes());
 
                 if self.stroke_weight > 0.0 {
-                    p.assign("stroke-width", self.stroke_weight);
-                    p.assign("stroke-linejoin", "round");
-                    p.assign("stroke-linecap", "round");
-                    p.assign("stroke", self.stroke_color.get_svg_attributes());
+                    v.add_float("stroke-width", self.stroke_weight);
+                    v.add("stroke-linejoin", "round");
+                    v.add("stroke-linecap", "round");
+                    v.add("stroke", &self.stroke_color.as_color().hex());
                 }
             }
             murrelet_draw::draw::MurreletDrawPlan::Outline => {
-                p.assign("fill", "none");
+                v.add("fill", "none");
 
                 if self.stroke_weight > 0.0 {
-                    p.assign("stroke-width", self.stroke_weight);
-                    p.assign("stroke-linejoin", "round");
-                    p.assign("stroke-linecap", "round");
-                    p.assign("stroke", self.color.get_svg_attributes());
+                    v.add_float("stroke-width", self.stroke_weight);
+                    v.add("stroke-linejoin", "round");
+                    v.add("stroke-linecap", "round");
+                    v.add("stroke", &self.color.as_color().hex());
                 }
             }
             murrelet_draw::draw::MurreletDrawPlan::Line => {
-                p.assign("fill", "none");
+                v.add("fill", "none");
 
                 if self.stroke_weight > 0.0 {
-                    p.assign("stroke-width", self.stroke_weight);
-                    p.assign("stroke-linejoin", "round");
-                    p.assign("stroke-linecap", "round");
-                    p.assign("stroke", self.color.get_svg_attributes());
+                    v.add_float("stroke-width", self.stroke_weight);
+                    v.add("stroke-linejoin", "round");
+                    v.add("stroke-linecap", "round");
+                    v.add("stroke", &self.color.as_color().hex());
                 }
             }
         }
-
-        p
+        v
     }
 }
 
-impl AddSvgAttributes for StyledPath {
-    fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-        let mut p = p;
-        p = self.annotations.add_svg_attributes(p);
-        p = self.path.add_svg_attributes(p);
-        p = self.style.add_svg_attributes(p);
-        p
+// impl AddSvgAttributes for MurreletStyle {
+//     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
+//         let mut p = p;
+
+// p.assign("fill-rule", "evenodd");
+
+// match self.drawing_plan() {
+//     murrelet_draw::draw::MurreletDrawPlan::Shader(fill) => {
+//         p.assign("fill", fill.get_svg_attributes())
+//     }
+//     murrelet_draw::draw::MurreletDrawPlan::DebugPoints(_) => unimplemented!(),
+//     murrelet_draw::draw::MurreletDrawPlan::FilledClosed => {
+//         p.assign("fill", self.color.get_svg_attributes());
+
+//         if self.stroke_weight > 0.0 {
+//             p.assign("stroke-width", self.stroke_weight);
+//             p.assign("stroke-linejoin", "round");
+//             p.assign("stroke-linecap", "round");
+//             p.assign("stroke", self.stroke_color.get_svg_attributes());
+//         }
+//     }
+//     murrelet_draw::draw::MurreletDrawPlan::Outline => {
+//         p.assign("fill", "none");
+
+//         if self.stroke_weight > 0.0 {
+//             p.assign("stroke-width", self.stroke_weight);
+//             p.assign("stroke-linejoin", "round");
+//             p.assign("stroke-linecap", "round");
+//             p.assign("stroke", self.color.get_svg_attributes());
+//         }
+//     }
+//     murrelet_draw::draw::MurreletDrawPlan::Line => {
+//         p.assign("fill", "none");
+
+//         if self.stroke_weight > 0.0 {
+//             p.assign("stroke-width", self.stroke_weight);
+//             p.assign("stroke-linejoin", "round");
+//             p.assign("stroke-linecap", "round");
+//             p.assign("stroke", self.color.get_svg_attributes());
+//         }
+//     }
+// }
+
+//         p
+//     }
+// }
+
+impl GetSvgAttributes for StyledPath {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut c = self.annotations.get_svg_attributes();
+        c.add_other(&self.path.get_svg_attributes());
+        c.add_other(&self.style.get_svg_attributes());
+        c
     }
+    // fn add_svg_attributes<T: Node>(&self, p: T) -> T {
+    //     let mut p = p;
+    //     p = self.annotations.add_svg_attributes(p);
+    //     p = self.path.add_svg_attributes(p);
+    //     p = self.style.add_svg_attributes(p);
+    //     p
+    // }
 }
 
-impl AddSvgAttributes for MurreletPathAnnotation {
-    fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-        let mut p = p;
+impl GetSvgAttributes for MurreletPathAnnotation {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut a = MurreletSvgAttributes::empty();
         for (k, v) in self.vals() {
-            p.assign(k.to_string(), v.to_string());
+            a.add(k, v);
         }
-        p
+        a
     }
 }
+
+// impl AddSvgAttributes for MurreletPathAnnotation {
+//     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
+//         let mut p = p;
+//         for (k, v) in self.vals() {
+//             p.assign(k.to_string(), v.to_string());
+//         }
+//         p
+//     }
+// }
 
 pub trait ToSvgPath {
     fn make_group(&self) -> Option<svg::node::element::Group>;
@@ -392,7 +490,7 @@ impl SvgDocCreator {
             .set("text-anchor", "middle")
             .set("font-family", "monospace".to_string())
             .set("font-size", format!("{}px", text_size))
-            .set("fill", text.style.color.get_svg_attributes())
+            .set("fill", text.style.color.as_color().hex())
             .add(svg::node::Text::new(text.text.clone()));
 
         text
@@ -465,7 +563,8 @@ impl SvgDocCreator {
 
         let (view_box_x, view_box_y) = if let Some(r) = self.svg_draw_config.resolution {
             let [width, height] = r.as_dims();
-            (width * 2, height * 2)
+            // (width * 2, height * 2) // i'm not sure why i had this?
+            (width, height)
         } else {
             (800, 800)
         };
@@ -479,12 +578,16 @@ impl SvgDocCreator {
             .set("height", format!("{:?}mm", target_size));
 
         if let Some(bg_color) = self.svg_draw_config.bg_color() {
-            let bg_rect = svg::node::element::Rectangle::new()
+            let mut bg_rect = svg::node::element::Rectangle::new()
                 .set("x", 0)
                 .set("y", 0)
                 .set("width", view_box_x)
                 .set("height", view_box_y)
                 .set("fill", bg_color.to_svg_rgb());
+
+            if bg_color.alpha() < 1.0 {
+                bg_rect = bg_rect.set("fill-opacity", bg_color.to_svg_rgb());
+            }
             doc = doc.add(bg_rect);
         }
 

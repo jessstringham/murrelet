@@ -7,6 +7,8 @@ use lerpable::{IsLerpingMethod, Lerpable};
 use murrelet_gui::CanMakeGUI;
 use palette::{rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha};
 
+use crate::rgb_to_hex;
+
 // hrm, color is confusing, so make a newtype around LinSrgba for all our color stuff
 // i need to double check i'm handling linear/not rgb right
 #[derive(Copy, Clone, Default)]
@@ -121,10 +123,7 @@ impl MurreletColor {
         let [h, s, v, _a] = self.into_hsva_components();
         Self([h, s, v, alpha])
     }
-}
 
-// getters and such that use the functions already
-impl MurreletColor {
     pub fn black() -> Self {
         Self::hsva(0.0, 0.0, 0.0, 1.0)
     }
@@ -143,14 +142,16 @@ impl MurreletColor {
     }
 
     pub fn to_svg_rgb(&self) -> String {
-        let [r, g, b, a] = self.into_rgba_components();
-        format!(
-            "rgba({} {} {} / {})",
-            (r * 255.0) as i32,
-            (g * 255.0) as i32,
-            (b * 255.0) as i32,
-            a
-        )
+        self.hex()
+    }
+
+    pub fn to_fill_opacity(&self) -> String {
+        format!("{}", self.alpha())
+    }
+
+    pub fn hex(&self) -> String {
+        let [r, g, b, _a] = self.into_rgba_components();
+        rgb_to_hex(r, g, b)
     }
 }
 

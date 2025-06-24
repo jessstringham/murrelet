@@ -661,7 +661,7 @@ pub fn fixed_pt_f32_to_str(x: f32) -> String {
     FixedPointF32::new(x).to_str()
 }
 
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash,  Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct FixedPointF32 {
     pub x: i64,
 }
@@ -737,7 +737,7 @@ impl FixedPointF32 {
     }
 }
 
-#[derive(Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash,  Serialize, Deserialize)]
+#[derive(Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct FixedPointVec2 {
     pub x: FixedPointF32,
     pub y: FixedPointF32,
@@ -998,4 +998,16 @@ impl Dim2d {
     {
         Self::from_x_y(j, i)
     }
+}
+
+pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
+    let r = clamp(r, 0.0, 1.0);
+    let g = clamp(g, 0.0, 1.0);
+    let b = clamp(b, 0.0, 1.0);
+
+    let r = (r * 255.0) as u8;
+    let g = (g * 255.0) as u8;
+    let b = (b * 255.0) as u8;
+
+    format!("#{:02X}{:02X}{:02X}", r, g, b)
 }

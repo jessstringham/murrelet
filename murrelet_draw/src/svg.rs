@@ -1,12 +1,10 @@
 // defines the SVG basic shapes
 
-use glam::{vec2, Mat4, Vec2};
+use glam::{Mat4, Vec2};
 use lerpable::Lerpable;
 use lyon::geom::{euclid::Point2D, Point};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
-
-use crate::style::MurreletCurve;
 
 #[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]
 pub struct SvgRect {
@@ -134,7 +132,6 @@ impl SvgPathDef {
     pub fn cmds(&self) -> &[SvgCmd] {
         &self.v
     }
-
 }
 
 fn glam_to_lyon(vec: Vec2) -> Point2D<f32, lyon::geom::euclid::UnknownUnit> {

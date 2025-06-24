@@ -75,4 +75,8 @@ impl RGBandANewtype {
         c.a = alpha;
         c
     }
+
+    pub fn alpha(&self) -> f32 {
+        self.a
+    }
 }

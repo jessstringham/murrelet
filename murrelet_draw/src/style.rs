@@ -145,6 +145,10 @@ impl StyledPathSvgFill {
         p.alpha = alpha;
         p
     }
+
+    pub fn alpha(&self) -> f32 {
+        self.alpha
+    }
 }
 
 #[derive(Clone, Debug, Livecode, Lerpable)]

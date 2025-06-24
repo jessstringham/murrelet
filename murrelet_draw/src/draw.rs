@@ -82,6 +82,7 @@ impl MurreletColorStyle {
     fn hue(hue: f32) -> MurreletColorStyle {
         MurreletColorStyle::Color(MurreletColor::hsva(hue, 1.0, 1.0, 1.0))
     }
+
 }
 
 #[derive(Debug, Clone)]
