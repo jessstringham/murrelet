@@ -196,6 +196,22 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = (PI * 2.0 * (w * t + phase)).sin();
             Ok(Value::Float(f))
         }),
+        "sinpos" => Function::new(move |argument| {
+            let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
+                Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?),
+                Err(_) => {
+                    match argument.as_fixed_len_tuple(2) {
+                        Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, 0.0),
+                        Err(_) => {
+                            (argument.as_float()?, 1.0, 0.0)
+                        },
+                    }
+                }
+            };
+            let f = 0.5 + 0.5 * (PI * 2.0 * (w * t + phase)).sin();
+            Ok(Value::Float(f))
+        }),
+
         "cos" => Function::new(move |argument| {
             let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
                 Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?),

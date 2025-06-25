@@ -427,12 +427,12 @@ impl SpotOnCurve {
         }
     }
 
-    pub fn move_left_perp_dist(&self, length: Length) -> Vec2 {
-        self.turn_left_perp().to_line(length).to_last_point()
+    pub fn move_left_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
+        self.turn_left_perp().to_line(length.to_length()).to_last_point()
     }
 
-    pub fn move_right_perp_dist(&self, length: Length) -> Vec2 {
-        self.turn_right_perp().to_line(length).to_last_point()
+    pub fn move_right_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
+        self.turn_right_perp().to_line(length.to_length()).to_last_point()
     }
 
     pub fn rotate(&self, rotate: AnglePi) -> Self {

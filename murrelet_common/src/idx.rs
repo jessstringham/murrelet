@@ -111,6 +111,11 @@ impl IdxInRange {
     pub fn amount_from_end(&self) -> u64 {
         self.total - self.i - 1
     }
+
+    // scale
+    pub fn s(&self, range: Vec2) -> f32 {
+        lerp(range.x, range.y, self.pct())
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
