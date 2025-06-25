@@ -7,7 +7,7 @@ use glam::{vec2, Mat3, Mat4, Vec2};
 use crate::{
     intersection::{find_intersection_inf, within_segment},
     transform::TransformVec2,
-    SimpleTransform2d,
+    SimpleTransform2d, SimpleTransform2dStep,
 };
 
 pub fn a_pi(a: f32) -> AnglePi {
@@ -360,6 +360,9 @@ impl IsLength for PointToPoint {
 
 // Special types
 
+
+// should combine this with Tangent...
+
 #[derive(Debug, Copy, Clone)]
 pub struct SpotOnCurve {
     loc: Vec2,
@@ -437,6 +440,13 @@ impl SpotOnCurve {
             loc: self.loc,
             angle: self.angle + rotate,
         }
+    }
+
+    pub fn to_transform(&self) -> SimpleTransform2d {
+        SimpleTransform2d::new(vec![
+            SimpleTransform2dStep::rotate_pi(self.angle()),
+            SimpleTransform2dStep::translate(self.loc()),
+        ])
     }
 }
 
@@ -539,7 +549,8 @@ impl PointToPoint {
     }
 
     pub fn midpoint(&self) -> Vec2 {
-        0.5 * (self.start + self.end)
+        // 0.5 * (self.start + self.end)
+        self.pct(0.5)
     }
 
     pub fn to_vec(&self) -> Vec<Vec2> {
@@ -574,6 +585,10 @@ impl PointToPoint {
             start: intersection,
             end: closest_point,
         }
+    }
+
+    pub fn pct(&self, loc: f32) -> Vec2 {
+        self.start + loc * (self.end - self.start)
     }
 }
 
@@ -668,4 +683,5 @@ impl Tangent {
     pub fn loc(&self) -> Vec2 {
         self.loc
     }
+
 }

@@ -213,6 +213,16 @@ impl Transform2d {
     pub fn to_simple(&self) -> SimpleTransform2d {
         SimpleTransform2d::new(self.0.iter().map(|t| t.to_simple()).collect_vec())
     }
+
+    pub fn from_simple(simple: &SimpleTransform2d) -> Self {
+        Self::new(
+            simple
+                .steps()
+                .iter()
+                .map(|x| Transform2dStep::from_simple(x.clone()))
+                .collect_vec(),
+        )
+    }
 }
 
 impl Default for ControlTransform2d {

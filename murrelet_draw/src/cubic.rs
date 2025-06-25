@@ -10,7 +10,21 @@ pub struct CubicBezier {
 }
 impl CubicBezier {
     pub fn new(from: Vec2, ctrl1: Vec2, ctrl2: Vec2, to: Vec2) -> Self {
-        Self { from, ctrl1, ctrl2, to }
+        Self {
+            from,
+            ctrl1,
+            ctrl2,
+            to,
+        }
+    }
+
+    pub fn line(from: Vec2, to: Vec2) -> Self {
+        Self {
+            from,
+            ctrl1: from,
+            ctrl2: to,
+            to,
+        }
     }
 
     pub fn split(&self, t: f32) -> (CubicBezier, CubicBezier) {
@@ -77,5 +91,11 @@ impl CubicBezier {
             },
             ctrl_line.length(),
         )
+    }
+
+    pub fn tangent_at_pct(&self, pct: f32) -> Tangent {
+        let (start, _) = self.split(pct);
+        let (t, _a) = start.end_to_tangent();
+        t
     }
 }
