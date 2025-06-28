@@ -5,7 +5,7 @@ use crate::{
     // curve_drawer::{CurveDrawer, CurveSegment},
     svg::SvgPathDef,
 };
-use glam::{vec2, Vec2};
+use glam::{vec2, Vec2, Vec2Swizzles};
 use itertools::Itertools;
 use kurbo::BezPath;
 use lyon::{
@@ -42,7 +42,13 @@ impl ToVecVec2 for CubicBezier {
         .into();
         svg = svg.cubic_curve_to(cubic);
 
-        let path = parse_svg_data_as_vec2(&svg, 1.0);
+        let mut path = parse_svg_data_as_vec2(&svg, 1.0);
+
+        if let Some(a) = path.last() {
+            if a.distance(self.to.yx()) > 1.0e-3 {
+                path.push(self.to.yx())
+            }
+        }
 
         path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
     }
