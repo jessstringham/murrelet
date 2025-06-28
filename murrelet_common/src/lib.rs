@@ -810,6 +810,13 @@ impl FixedPointVec2 {
     pub fn nudge(&self, x: i64, y: i64) -> Self {
         Self::new_from_fixed_point(self.x.nudge(x), self.y.nudge(y))
     }
+
+    // manhattan
+    pub fn dist_man(&self, other: FixedPointVec2) -> i64 {
+        let dx = (self.x - other.x).abs();
+        let dy = (self.y - other.y).abs();
+        (dx + dy).to_i64()
+    }
 }
 
 pub fn approx_eq_eps(x: f32, y: f32, eps: f32) -> bool {

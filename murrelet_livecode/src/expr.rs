@@ -211,6 +211,13 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = 0.5 + 0.5 * (PI * 2.0 * (w * t + phase)).sin();
             Ok(Value::Float(f))
         }),
+        "quantize" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (x, y) = (tuple[0].as_number()?, tuple[1].as_number()?);
+
+            let p = (x * y).floor() / y;
+            Ok(Value::Float(p))
+        }),
 
         "cos" => Function::new(move |argument| {
             let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
