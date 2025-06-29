@@ -124,6 +124,29 @@ impl CurveSegment {
         CurveSegment::Arc(CurveArc::new(loc, radius.len(), start, end))
     }
 
+    // pub fn new_simple_arc_from<Rad: IsLength, A1: IsAngle, A2: IsAngle>(
+    //     start: Vec2,
+    //     radius: Rad,
+    //     in_angle: A1,
+    //     angle_length: A2,
+    //     ccw: bool,
+    // ) -> Self {
+    //     // calculate the center
+    //     let (loc, end_pi) = if ccw {
+    //         (
+    //             start + in_angle.to_norm_dir() * radius.len(),
+    //             in_angle.as_angle() - angle_length.as_angle(),
+    //         )
+    //     } else {
+    //         (
+    //             start - in_angle.to_norm_dir() * radius.len(),
+    //             in_angle.as_angle() + angle_length.as_angle(),
+    //         )
+    //     };
+
+    //     CurveSegment::Arc(CurveArc::new(loc, radius.len(), in_angle, end_pi))
+    // }
+
     pub fn new_simple_circle(loc: Vec2, radius: f32) -> Self {
         CurveSegment::Arc(CurveArc::new(
             loc,
