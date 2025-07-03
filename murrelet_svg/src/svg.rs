@@ -544,7 +544,7 @@ impl SvgDocCreator {
         let mut defs = vec![];
 
         for (name, layer) in paths.layers.iter() {
-            let (g, patterns) = self.make_layer(name, layer, false);
+            let (g, patterns) = self.make_layer(name, layer, self.svg_draw_config.make_layers());
             doc.append(g);
             for p in patterns {
                 defs.push(p.to_string());

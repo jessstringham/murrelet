@@ -37,6 +37,12 @@ pub trait ConfCommon: CommonTrait {
     fn config_app_loc(&self) -> &AppConfig;
 }
 
+#[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
+pub enum SvgSaveKind {
+    HTML,
+    Inkscape,
+}
+
 #[derive(Clone, Debug)]
 pub struct SvgDrawConfig {
     size: f32, // todo, what's the difference between this and texture sizes?
@@ -47,6 +53,7 @@ pub struct SvgDrawConfig {
     margin_size: f32,
     should_resize: bool, // sorry, something to force it not to resize my shapes on the web!
     bg_color: Option<MurreletColor>,
+    output_kind: SvgSaveKind,
 }
 impl SvgDrawConfig {
     pub fn new(
@@ -55,6 +62,7 @@ impl SvgDrawConfig {
         capture_path: Option<PathBuf>,
         target_size: f32,
         frame: u64,
+        output_kind: SvgSaveKind,
     ) -> SvgDrawConfig {
         SvgDrawConfig {
             size,
@@ -65,6 +73,7 @@ impl SvgDrawConfig {
             should_resize: true,
             resolution,
             bg_color: None,
+            output_kind,
         }
     }
 
@@ -119,6 +128,15 @@ impl SvgDrawConfig {
 
     pub fn bg_color(&self) -> Option<MurreletColor> {
         self.bg_color
+    }
+
+    // hrm, for now, we have two main types, html, which i don't think will need
+    // layers(?), and inkscape. in any case, make_layers is also very inkscape-focused
+    pub fn make_layers(&self) -> bool {
+        match self.output_kind {
+            SvgSaveKind::HTML => false,
+            SvgSaveKind::Inkscape => true,
+        }
     }
 }
 
@@ -299,25 +317,38 @@ pub struct SvgConfig {
     #[livecode(serde_default = "_default_svg_size")]
     pub size: f32,
     #[livecode(serde_default = "_default_svg_save")]
-    pub save: bool, // trigger for svg save
+    pub save: bool,
+    #[livecode(serde_default = "_default_svg_kind")]
+    output_kind: SvgSaveKind, // trigger for svg save
 }
 impl Default for ControlSvgConfig {
     fn default() -> Self {
         Self {
             size: _default_svg_size(),
             save: _default_svg_save(),
+            output_kind: _default_svg_kind(),
         }
     }
 }
+
 impl Default for ControlLazySvgConfig {
     fn default() -> Self {
         Self {
             size: _default_svg_size_lazy(),
             save: _default_svg_save_lazy(),
+            output_kind: _default_svg_kind_lazy(),
         }
     }
 }
 
+// set this in websites!
+fn _default_svg_kind_lazy() -> ControlLazySvgSaveKind {
+    ControlLazySvgSaveKind::Inkscape
+}
+
+fn _default_svg_kind() -> ControlSvgSaveKind {
+    ControlSvgSaveKind::Inkscape
+}
 fn _default_gpu_debug_next() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
@@ -510,6 +541,7 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
         capture_path,
         lil_liveconfig.app_config.svg.size,
         lil_liveconfig.w.actual_frame_u64(),
+        lil_liveconfig.app_config.svg.output_kind,
     )
 }
 

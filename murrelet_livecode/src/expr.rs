@@ -92,6 +92,17 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = 1.0 - (src * 2.0 - 1.0).abs();
             Ok(Value::Float(f))
         }),
+        // l2 version of this, use power instead!
+        "tri2" => Function::new(|argument| {
+            let src = argument.as_number()?;
+            let f = 1.0 - (src * 2.0 - 1.0).powi(2);
+            Ok(Value::Float(f))
+        }),
+        "smooth" => Function::new(|argument| {
+            let t = argument.as_number()?;
+            let f = smoothstep(t, 0.0, 1.0);
+            Ok(Value::Float(f))
+        }),
         // bounce(t, 0.25)
         "bounce" => Function::new(|argument| {
             let (src, mult, offset) = match argument.as_fixed_len_tuple(3) {
@@ -128,6 +139,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = smoothstep(t, edge0, edge1);
             Ok(Value::Float(f))
         }),
+
         "step" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(2)?;
             let (src, val) = (tuple[0].as_number()?, tuple[1].as_number()?);
@@ -244,6 +256,23 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             );
             let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos() * (m * PI * y / b).cos();
             Ok(Value::Float(f))
+        }),
+        "len" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (x1, y1) = (
+                tuple[0].as_number()?, tuple[1].as_number()?,
+            );
+            let f = vec2(x1 as f32, y1 as f32).length();
+            Ok(Value::Float(f as f64))
+        }),
+        "dist" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(4)?;
+            let (x1, y1, x2, y2) = (
+                tuple[0].as_number()?, tuple[1].as_number()?,
+                tuple[2].as_number()?, tuple[3].as_number()?,
+            );
+            let f = vec2(x1 as f32, y1 as f32).distance(vec2(x2 as f32, y2 as f32));
+            Ok(Value::Float(f as f64))
         })
     }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err)})
 }
