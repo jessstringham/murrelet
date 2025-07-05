@@ -134,7 +134,8 @@ impl SvgPathDef {
     }
 }
 
-fn glam_to_lyon(vec: Vec2) -> Point2D<f32, lyon::geom::euclid::UnknownUnit> {
+#[allow(dead_code)]
+pub fn glam_to_lyon(vec: Vec2) -> Point2D<f32, lyon::geom::euclid::UnknownUnit> {
     Point::new(vec.x, vec.y)
 }
 

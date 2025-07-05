@@ -320,6 +320,53 @@ impl GenFinal for FieldTokensLivecode {
         }
     }
 
+    fn from_newtype_struct_lazy(idents: StructIdents, parent_ident: syn::Ident) -> Self {
+        Self::from_newtype_struct_struct(idents, parent_ident)
+    }
+
+    fn from_newtype_struct_struct(
+        idents: StructIdents,
+        _parent_ident: syn::Ident,
+    ) -> FieldTokensLivecode {
+        // let serde = idents.serde(false).clone();
+        // let name = idents.name().clone();
+        // let _orig_type = idents.orig_ty().clone();
+
+        // we need to get the internal struct type
+        let orig_ty = idents.orig_ty();
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let internal_type = parsed_type_info.main_type;
+
+        let for_struct = {
+            let t = Self::new_ident(internal_type);
+            quote! {#t}
+        };
+        let for_world = {
+            quote! { self.0.o(w)? }
+        };
+
+        let for_to_control = {
+            quote! { self.0.to_control() }
+        };
+
+        let (for_variable_idents, for_function_idents) = if idents.how_to_control_this_is_none() {
+            (quote! { vec![] }, quote! { vec![] })
+        } else {
+            (
+                quote! {self.0.variable_identifiers()},
+                quote! {self.0.function_identifiers()},
+            )
+        };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
     // e.g. TileAxisLocs::V(TileAxisVs)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensLivecode {
         let variant_ident = idents.variant_ident();

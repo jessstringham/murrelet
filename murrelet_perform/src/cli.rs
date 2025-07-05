@@ -74,10 +74,12 @@ impl BaseConfigArgs {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn config_path(&self) -> PathBuf {
         self.config_path.clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn should_capture(&self) -> bool {
         self.capture
     }

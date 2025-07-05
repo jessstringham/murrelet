@@ -4,7 +4,7 @@ use glam::{vec2, Vec2};
 use itertools::Itertools;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::{lerp, Dim2d};
+use crate::lerp;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct IdxInRange {

@@ -80,6 +80,7 @@ impl VectorLayersAssetLookup {
 pub trait IsColorType {}
 
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct BlackWhite(bool);
 impl IsColorType for BlackWhite {}
 
@@ -107,6 +108,7 @@ impl RasterAssetLookup {
 
 pub struct Assets {
     vectors: VectorLayersAssetLookup,
+    #[allow(dead_code)]
     rasters: RasterAssetLookup,
 }
 impl Assets {

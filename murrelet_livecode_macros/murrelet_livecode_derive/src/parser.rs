@@ -25,6 +25,8 @@ where
     Self: Sized,
 {
     fn from_newtype_struct(_idents: StructIdents, parent_ident: syn::Ident) -> Self;
+    fn from_newtype_struct_struct(idents: StructIdents, parent_ident: syn::Ident) -> Self;
+    fn from_newtype_struct_lazy(idents: StructIdents, parent_ident: syn::Ident) -> Self;
     fn from_newtype_recurse_struct_vec(_idents: StructIdents) -> Self;
     fn from_unnamed_enum(idents: EnumIdents) -> Self;
     fn from_unit_enum(idents: EnumIdents) -> Self;
@@ -38,6 +40,7 @@ where
     fn from_ast(ast_receiver: LivecodeReceiver) -> TokenStream2 {
         match ast_receiver.data {
             ast::Data::Enum(_) => Self::make_enum(&ast_receiver),
+            // it's a newtype!
             ast::Data::Struct(ast::Fields {
                 style: ast::Style::Tuple,
                 ..
@@ -211,11 +214,27 @@ where
                         }
                         Self::from_newtype_recurse_struct_vec(idents)
                     }
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_struct_struct");
+                        }
+                        Self::from_newtype_struct_struct(idents, name.clone())
+                    }
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_struct_struct");
+                        }
+                        Self::from_newtype_struct_lazy(idents, name.clone())
+                    }
+
                     // creating a : Something in livecode
                     // HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => Self::from_recurse_struct_struct(idents),
                     // dealing with UnitCell<something>
                     // HowToControlThis::WithRecurse(_, RecursiveControlType::UnitCell) => Self::from_recurse_struct_unitcell(idents),
-                    _ => panic!("newtype for this kind isn't implemented yet"),
+                    _ => panic!(
+                        "{:?} for this kind isn't implemented yet",
+                        field.how_to_control_this()
+                    ),
                 }
             })
             .collect::<Vec<_>>();

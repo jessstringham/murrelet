@@ -59,8 +59,6 @@ impl AnglePi {
     pub fn is_neg(&self) -> bool {
         self.0 < 0.0
     }
-
-
 }
 
 impl std::ops::Neg for AnglePi {
@@ -362,7 +360,6 @@ impl IsLength for PointToPoint {
 
 // Special types
 
-
 // should combine this with Tangent...
 
 #[derive(Debug, Copy, Clone)]
@@ -430,11 +427,15 @@ impl SpotOnCurve {
     }
 
     pub fn move_left_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
-        self.turn_left_perp().to_line(length.to_length()).to_last_point()
+        self.turn_left_perp()
+            .to_line(length.to_length())
+            .to_last_point()
     }
 
     pub fn move_right_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
-        self.turn_right_perp().to_line(length.to_length()).to_last_point()
+        self.turn_right_perp()
+            .to_line(length.to_length())
+            .to_last_point()
     }
 
     pub fn rotate(&self, rotate: AnglePi) -> Self {
@@ -530,7 +531,6 @@ impl PrevCurrNextVec2 {
     }
 }
 
-
 #[derive(Copy, Clone, Debug)]
 pub struct PointToPoint {
     start: Vec2,
@@ -580,13 +580,18 @@ impl PointToPoint {
     }
 
     pub fn closest_pt_to_pt(&self, intersection: Vec2) -> PointToPoint {
-        let closest_point =
-            self.start + (intersection - self.start).dot(self.to_norm_dir()) * self.to_norm_dir();
+        let closest_point = self.closest_point_to_line(intersection);
 
         PointToPoint {
             start: intersection,
             end: closest_point,
         }
+    }
+
+    // drop a right angle down from intersection, where does it fall along
+    // the line extended from point to point?
+    pub fn closest_point_to_line(&self, intersection: Vec2) -> Vec2 {
+        self.start + (intersection - self.start).dot(self.to_norm_dir()) * self.to_norm_dir()
     }
 
     pub fn pct(&self, loc: f32) -> Vec2 {
@@ -669,7 +674,6 @@ pub fn tangents_between_two_circles(
     Some((start, end))
 }
 
-
 #[derive(Copy, Clone, Debug)]
 pub struct Tangent {
     pub loc: Vec2,
@@ -685,5 +689,4 @@ impl Tangent {
     pub fn loc(&self) -> Vec2 {
         self.loc
     }
-
 }

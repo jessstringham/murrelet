@@ -53,6 +53,13 @@ impl Triangulate {
         }
     }
 
+    pub fn add_many_vertices_and_offset(&mut self, vertices: Vec<VertexSimple>, indices: Vec<u32>) {
+        let vertex_offset = self.vertices.len() as u32;
+        self.vertices.extend(vertices);
+        self.order
+            .extend(indices.iter().map(|i| *i + vertex_offset));
+    }
+
     pub fn vertices(&self) -> &[VertexSimple] {
         &self.vertices
     }
@@ -65,6 +72,10 @@ impl Triangulate {
     pub fn add_vertex_simple(&mut self, vv: VertexSimple) -> u32 {
         self.vertices.push(vv);
         (self.vertices.len() - 1) as u32
+    }
+
+    pub fn add_tri(&mut self, tri: [u32; 3]) {
+        self.order.extend(tri)
     }
 
     // alternatively can add vertices and then add teh vec
@@ -89,7 +100,7 @@ impl Triangulate {
         self.order = u;
     }
 
-    fn order(&self) -> &[u32] {
+    pub fn order(&self) -> &[u32] {
         &self.order
     }
 

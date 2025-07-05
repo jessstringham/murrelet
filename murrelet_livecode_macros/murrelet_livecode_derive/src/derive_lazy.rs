@@ -208,6 +208,49 @@ impl GenFinal for FieldTokensLazy {
         }
     }
 
+    fn from_newtype_struct_lazy(idents: StructIdents, _parent_ident: syn::Ident) -> Self {
+        let orig_ty = idents.orig_ty();
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let internal_type = parsed_type_info.main_type;
+
+        let for_struct = {
+            let new_inside_type = Self::new_ident(internal_type.clone());
+            quote! {#new_inside_type}
+        };
+
+        let for_world = {
+            quote! { self.0.clone() }
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+        }
+    }
+
+    fn from_newtype_struct_struct(
+        idents: StructIdents,
+        _parent_ident: syn::Ident,
+    ) -> FieldTokensLazy {
+        let orig_ty = idents.orig_ty();
+        let parsed_type_info = ident_from_type(&orig_ty);
+        let internal_type = parsed_type_info.main_type;
+
+        let for_struct = {
+            let new_inside_type = Self::new_ident(internal_type.clone());
+            quote! {#new_inside_type}
+        };
+
+        let for_world = {
+            quote! { self.0.eval_lazy(ctx)? }
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+        }
+    }
+
     fn from_newtype_struct(idents: StructIdents, _parent_idents: syn::Ident) -> FieldTokensLazy {
         let ctrl = idents.control_type();
 

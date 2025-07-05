@@ -2,7 +2,7 @@
 use crate::{
     curve_drawer::CurveDrawer,
     draw::*,
-    svg::{SvgPathDef, SvgShape, TransformedSvgShape},
+    svg::{SvgPathDef, TransformedSvgShape},
     transform2d::*,
 };
 use glam::*;
@@ -565,9 +565,9 @@ impl MurreletPath {
     pub fn transform_with<T: TransformVec2>(&self, t: &T) -> Self {
         match self {
             MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
-            MurreletPath::Curve(mc) => todo!(),
+            MurreletPath::Curve(_) => todo!(),
             MurreletPath::Svg(_) => todo!(),
-            MurreletPath::MaskedCurve(murrelet_curve, murrelet_curve1) => todo!(),
+            MurreletPath::MaskedCurve(_, _) => todo!(),
         }
     }
 

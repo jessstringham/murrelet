@@ -53,7 +53,7 @@ impl IsLivecodeSrc for OscMng {
                     let packet_data = rosc::encoder::encode(&OscPacket::Message(msg));
                     if let Ok(pd) = packet_data {
                         if let Some(a) = &self.cxn.target_addr {
-                            self.cxn.send_socket.send_to(&pd, a);
+                            print_expect(self.cxn.send_socket.send_to(&pd, a), "failed to send osc");
                         }
                     }
                 }

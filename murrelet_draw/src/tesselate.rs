@@ -136,6 +136,66 @@ pub fn cubic_bezier_path_to_lyon(path: &[CubicBezier], closed: bool) -> Option<l
     Some(path)
 }
 
+pub fn tesselate_lyon_vertex_with_steiner(
+    outline: &[VertexSimple],
+    steiner: &[VertexSimple],
+) -> (Vec<u32>, Vec<VertexSimple>) {
+    let mut path_builder = Path::builder_with_attributes(5);
+
+    // convert path to lyon
+    if let Some(first_vertex) = outline.first() {
+        path_builder.begin(vec2_to_pt(first_vertex.pos2d()), &first_vertex.attrs());
+        for vertex in outline.iter().skip(1) {
+            path_builder.line_to(vec2_to_pt(vertex.pos2d()), &vertex.attrs());
+        }
+        path_builder.close();
+    } else {
+        return (Vec::new(), Vec::new());
+    }
+
+    let amount = 1e-6f32;
+    for s in steiner {
+        // now poke holes in it
+        let loc = s.pos2d();
+
+        let p0 = loc + vec2(amount, 0.0);
+        let p1 = loc + vec2(0.0, amount);
+        let p2 = loc + vec2(-amount, 0.0);
+        path_builder.begin(vec2_to_pt(p0), &s.attrs());
+        path_builder.line_to(vec2_to_pt(p1), &s.attrs());
+        path_builder.line_to(vec2_to_pt(p2), &s.attrs());
+        path_builder.close()
+    }
+
+    let path = path_builder.build();
+
+    let opts = FillOptions::default()
+        // .with_tolerance(0.1) // we're passing in line segments
+        .with_fill_rule(FillRule::EvenOdd)
+        .with_intersections(true);
+
+    let mut geometry: lyon::lyon_tessellation::VertexBuffers<VertexSimple, u32> =
+        lyon::lyon_tessellation::VertexBuffers::new();
+    let mut tess = FillTessellator::new();
+    tess.tessellate_path(
+        path.as_slice(),
+        &opts,
+        &mut BuffersBuilder::new(&mut geometry, |mut v: FillVertex| {
+            let pos = v.position();
+            let attrs = v.interpolated_attributes();
+
+            VertexSimple {
+                position: [pos.x, pos.y, 0.0],
+                normal: [attrs[0], attrs[1], attrs[2]],
+                face_pos: [attrs[3], attrs[4]],
+            }
+        }),
+    )
+    .expect("tessellation failed");
+
+    (geometry.indices, geometry.vertices)
+}
+
 pub fn tesselate_lyon_vertex_simple(outline: &[VertexSimple]) -> (Vec<u32>, Vec<VertexSimple>) {
     let mut path_builder = Path::builder_with_attributes(5);
 
@@ -153,7 +213,7 @@ pub fn tesselate_lyon_vertex_simple(outline: &[VertexSimple]) -> (Vec<u32>, Vec<
     let path = path_builder.build();
 
     let opts = FillOptions::default()
-        .with_tolerance(10.1)
+        // .with_tolerance(0.1) // we're passing in line segments
         .with_fill_rule(FillRule::EvenOdd)
         .with_intersections(true);
 

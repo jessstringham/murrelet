@@ -134,6 +134,17 @@ impl GenFinal for FieldTokensNestEdit {
         name.clone()
     }
 
+    fn from_newtype_struct_lazy(idents: StructIdents, parent_ident: syn::Ident) -> Self {
+        Self::from_newtype_struct_struct(idents, parent_ident)
+    }
+
+    fn from_newtype_struct_struct(
+        idents: StructIdents,
+        parent_ident: syn::Ident,
+    ) -> FieldTokensNestEdit {
+        Self::from_newtype_struct(idents, parent_ident)
+    }
+
     fn from_newtype_struct(_idents: StructIdents, parent_ident: syn::Ident) -> FieldTokensNestEdit {
         // let name = idents.control_type();
 

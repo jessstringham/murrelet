@@ -4,7 +4,7 @@ use glam::*;
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
-use murrelet_livecode_derive::Livecode;
+use murrelet_livecode_derive::{Livecode, LivecodeOnly, NestEdit};
 
 #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypes {
@@ -130,5 +130,17 @@ impl UnitCellCreator for SimpleSquareSequence {
         make_grid(self.cols, self.rows, vec2(self.size, self.size), false)
     }
 }
+
+// new type
+
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
+pub struct NewTypeWithType(f32);
+
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
+pub struct NewTypeWithVec(Vec<f32>);
+
+
+#[derive(Clone, Debug, Default, LivecodeOnly)]
+pub struct NewTypeWithStruct(BasicTypes);
 
 fn main() {}
