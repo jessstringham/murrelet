@@ -33,6 +33,10 @@ impl IdxInRange {
             .collect_vec()
     }
 
+    pub fn enumerate_count(total: usize) -> Vec<IdxInRange> {
+        (0..total).map(|i| IdxInRange::new(i, total)).collect_vec()
+    }
+
     pub fn prev_i(&self) -> Option<IdxInRange> {
         if self.i == 0 {
             None

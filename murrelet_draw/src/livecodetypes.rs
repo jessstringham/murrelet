@@ -7,6 +7,7 @@ pub mod anglepi {
     use lerpable::Lerpable;
     use murrelet_common::{Angle, AnglePi, IsAngle};
     use murrelet_gui::CanMakeGUI;
+    use murrelet_livecode::lazy::ControlLazyNodeF32;
     use murrelet_livecode_derive::Livecode;
 
     use crate::transform2d::Transform2d;
@@ -63,6 +64,12 @@ pub mod anglepi {
         fn sub(self, other: Self) -> Self::Output {
             let new_angle = self.0 - other.0;
             LivecodeAnglePi(new_angle)
+        }
+    }
+
+    impl ControlLazyLivecodeAnglePi {
+        pub fn from_angle(a: AnglePi) -> Self {
+            Self(ControlLazyNodeF32::Float(a.angle_pi()))
         }
     }
 }

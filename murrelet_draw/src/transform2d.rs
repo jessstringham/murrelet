@@ -313,6 +313,10 @@ impl Transform2dStep {
         Self::Scale(V2::new(vec2(scale_x, scale_y)))
     }
 
+    pub fn scale_p(scale_x: f32) -> Self {
+        Self::Scale(V2::new(vec2(scale_x, scale_x)))
+    }
+
     fn transform(&self) -> Mat3 {
         match self {
             Transform2dStep::Translate(t) => Mat3::from_translation(t.v),
