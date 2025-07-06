@@ -262,6 +262,11 @@ impl<Target: std::fmt::Debug + Clone + Default> UnitCells<Target> {
 
         None
     }
+
+    // conveninence method
+    pub fn copy_nodes(&self) -> Vec<Target> {
+        self.items.iter().map(|x| *x.node.clone()).collect_vec()
+    }
 }
 
 impl<Target: std::fmt::Debug + Clone + Default> FromIterator<UnitCell<Target>>

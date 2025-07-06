@@ -111,4 +111,13 @@ impl Triangulate {
     pub fn add_order(&mut self, collect: &[u32]) {
         self.order.extend_from_slice(collect);
     }
+
+    pub fn add_rect_simple(&mut self, ids: &[u32; 4], flip: bool) {
+        let [v0, v1, v3, v2] = ids;
+        if !flip {
+            self.order.extend([v0, v2, v1, v1, v2, v3])
+        } else {
+            self.order.extend([v0, v1, v2, v1, v3, v2])
+        }
+    }
 }
