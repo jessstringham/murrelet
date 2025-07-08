@@ -223,7 +223,11 @@ impl InputVertexConf {
 
     pub fn from_triangulate_2d(t: &Triangulate) -> Self {
         let mut c = Self::default();
-        c.vertices = t.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
+        c.vertices = t
+            .vertices
+            .iter()
+            .map(|x| Vertex::from_simple(x))
+            .collect_vec();
         c.order = t.order.clone();
         c
     }
@@ -232,7 +236,11 @@ impl InputVertexConf {
         let mut c = Self::default();
         c.is_3d = true;
         c.vs_mod = VERTEX_SHADER_3D;
-        c.vertices = t.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
+        c.vertices = t
+            .vertices
+            .iter()
+            .map(|x| Vertex::from_simple(x))
+            .collect_vec();
         c.order = t.order.clone();
         c
     }
@@ -260,7 +268,11 @@ fn main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
     }
 
     pub fn with_custom_vertices(mut self, tri: &Triangulate) -> Self {
-        self.vertices = tri.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
+        self.vertices = tri
+            .vertices
+            .iter()
+            .map(|x| Vertex::from_simple(x))
+            .collect_vec();
         self.topology = wgpu::PrimitiveTopology::TriangleList;
         self.order = tri.order.clone();
         self
@@ -370,6 +382,7 @@ pub struct GraphicsCreator {
     color_blend: wgpu::BlendComponent,
     dst_texture: TextureCreator,
     input_vertex: InputVertexConf, // defaults to the square
+    blend_state: wgpu::BlendState,
 }
 impl Default for GraphicsCreator {
     fn default() -> Self {
@@ -387,6 +400,7 @@ impl Default for GraphicsCreator {
                 format: DEFAULT_TEXTURE_FORMAT,
             },
             input_vertex: InputVertexConf::default(),
+            blend_state: wgpu::BlendState::REPLACE,
         }
     }
 }
@@ -447,6 +461,11 @@ impl GraphicsCreator {
         self
     }
 
+    pub fn with_blend_state(mut self, blend_state: wgpu::BlendState) -> Self {
+        self.blend_state = blend_state;
+        self
+    }
+
     pub fn to_graphics_ref<'a>(
         &self,
         c: &GraphicsWindowConf<'a>,
@@ -464,6 +483,10 @@ impl GraphicsCreator {
 
     fn is_3d(&self) -> bool {
         self.input_vertex.is_3d
+    }
+
+    pub fn blend_state(&self) -> wgpu::BlendState {
+        self.blend_state
     }
 }
 
@@ -716,7 +739,11 @@ impl GraphicsRef {
 
         {
             let mut g = self.graphics.borrow_mut();
-            g.conf.input_vertex.vertices = tri.vertices.iter().map(|x| Vertex::from_simple(x)).collect_vec();
+            g.conf.input_vertex.vertices = tri
+                .vertices
+                .iter()
+                .map(|x| Vertex::from_simple(x))
+                .collect_vec();
             g.conf.input_vertex.order = tri.order.clone();
             let queue = c.device.queue();
 
@@ -1098,9 +1125,10 @@ impl Graphics {
 
         let color_state = vec![Some(wgpu::ColorTargetState {
             format: dst_format,
-            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            // blend: None,
+            // blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             // blend: Some(wgpu::BlendState::REPLACE), //None,
-            //Some(conf.blend_state()), // todo get this to work!
+            blend: Some(conf.blend_state()), // todo get this to work!
             write_mask: wgpu::ColorWrites::ALL,
         })];
 

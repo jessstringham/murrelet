@@ -1,4 +1,26 @@
 use glam::{vec2, Vec2, Vec3};
+use lerpable::Lerpable;
+
+impl Lerpable for VertexSimple {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        VertexSimple {
+            position: [
+                self.position[0].lerpify(&other.position[0], pct),
+                self.position[1].lerpify(&other.position[1], pct),
+                self.position[2].lerpify(&other.position[2], pct),
+            ],
+            normal: [
+                self.normal[0].lerpify(&other.normal[0], pct),
+                self.normal[1].lerpify(&other.normal[1], pct),
+                self.normal[2].lerpify(&other.normal[2], pct),
+            ],
+            face_pos: [
+                self.face_pos[0].lerpify(&other.face_pos[0], pct),
+                self.face_pos[1].lerpify(&other.face_pos[1], pct),
+            ],
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
