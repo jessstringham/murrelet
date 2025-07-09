@@ -388,6 +388,8 @@ pub mod styleconf {
         RGBAPoints(MurreletStyleRGBAPoints),
     }
     impl StyleConf {
+
+
         pub fn to_style(&self) -> MurreletStyle {
             match self {
                 // StyleConf::Verbose(a) => *a,

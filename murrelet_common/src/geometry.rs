@@ -451,6 +451,12 @@ impl SpotOnCurve {
             SimpleTransform2dStep::translate(self.loc()),
         ])
     }
+
+    pub fn set_angle<A: Into<Angle>>(&self, new: A) -> Self {
+        let mut c = self.clone();
+        c.angle = new.into();
+        c
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
