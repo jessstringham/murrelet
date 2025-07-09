@@ -1,10 +1,13 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
 use evalexpr::{HashMapContext, IterateVariablesContext};
 use murrelet_common::*;
 
 use crate::{
-    expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs},
+    expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef},
     types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,
 };
@@ -13,23 +16,170 @@ use crate::{
 enum LivecodeWorldStateStage {
     Timeless,
     World(LiveCodeTimeInstantInfo),
-    Unit(LiveCodeTimeInstantInfo),
-    Lazy(LiveCodeTimeInstantInfo),
+    // Unit(LiveCodeTimeInstantInfo),
+    // Lazy(LiveCodeTimeInstantInfo),
 }
-impl LivecodeWorldStateStage {
-    fn add_step(&self, stage: LivecodeWorldStateStage) -> LivecodeWorldStateStage {
-        // todo, i could start to represent the tree of steps.. but right now, just do the latest one
-        stage
+// impl LivecodeWorldStateStage {
+//     fn add_step(&self, stage: LivecodeWorldStateStage) -> LivecodeWorldStateStage {
+//         // todo, i could start to represent the tree of steps.. but right now, just do the latest one
+//         stage
+//     }
+// }
+
+#[derive(Clone, Debug)]
+pub enum CachedHM {
+    NotCached,
+    Cached(Arc<HashMapContext>),
+}
+impl CachedHM {
+    fn new_rw() -> Arc<RwLock<CachedHM>> {
+        Arc::new(RwLock::new(CachedHM::NotCached))
+    }
+
+    fn update(&mut self, hm: HashMapContext) {
+        *self = CachedHM::Cached(Arc::new(hm));
+    }
+
+    fn clear(&mut self) {
+        *self = CachedHM::NotCached;
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LivecodeWorldState {
+    cached: Arc<RwLock<CachedHM>>,
+    state: Arc<LivecodeWorldStateInner>,
+    refs: Vec<MixedEvalDefsRef>,
+}
+impl LivecodeWorldState {
+    pub fn new_legacy(state: LivecodeWorldStateInner) -> LivecodeResult<Self> {
+        Ok(Self {
+            cached: CachedHM::new_rw(),
+            state: Arc::new(state),
+            refs: vec![],
+        })
+    }
+
+    pub fn new(
+        evalexpr_func_ctx: &HashMapContext,
+        livecode_src: &LivecodeSrc,
+        time: LiveCodeTimeInstantInfo,
+        node: AdditionalContextNode,
+        assets: AssetsRef,
+    ) -> LivecodeResult<Self> {
+        let state =
+            LivecodeWorldStateInner::new(evalexpr_func_ctx, livecode_src, time, node, assets)?;
+
+        Self::new_legacy(state)
+    }
+
+    pub fn new_timeless(
+        evalexpr_func_ctx: &HashMapContext,
+        livecode_src: &LivecodeSrc,
+    ) -> LivecodeResult<Self> {
+        let state = LivecodeWorldStateInner::new_timeless(evalexpr_func_ctx, livecode_src)?;
+        Self::new_legacy(state)
+    }
+
+    pub fn clone_with_vals(&self, expr: ExprWorldContextValues, prefix: &str) -> Self {
+        let e = expr.with_prefix(prefix);
+        let new_info = MixedEvalDefs::new_from_expr(e);
+
+        let mut refs = self.refs.clone();
+        refs.push(MixedEvalDefsRef::new(new_info));
+
+        Self {
+            cached: CachedHM::new_rw(),
+            state: self.state.clone(),
+            refs,
+        }
+    }
+
+    pub fn clone_to_unitcell(
+        &self,
+        unit_cell_ctx: &UnitCellContext,
+        prefix: &str,
+        maybe_node: Option<&MixedEvalDefsRef>,
+    ) -> LivecodeResult<LivecodeWorldState> {
+        let new_info = unit_cell_ctx
+            .as_expr_world_context_values()
+            .with_prefix(prefix);
+
+        let mut refs = self.refs.clone();
+        refs.push(MixedEvalDefsRef::new(MixedEvalDefs::new_from_expr(
+            new_info,
+        )));
+        if let Some(node) = maybe_node {
+            refs.push(node.clone());
+        }
+
+        Ok(Self {
+            cached: CachedHM::new_rw(),
+            state: self.state.clone(),
+            refs,
+        })
+    }
+
+    pub(crate) fn new_dummy() -> Self {
+        Self::new_legacy(LivecodeWorldStateInner::new_dummy()).unwrap()
+    }
+
+    pub(crate) fn ctx(&self) -> LivecodeResult<Arc<HashMapContext>> {
+        let mut cache = self.cached.write().unwrap();
+
+        if let CachedHM::Cached(c) = cache.clone() {
+            return Ok(c);
+        }
+        let mut ctx = self.state.ctx().clone();
+        for mixed in &self.refs {
+            mixed.update_ctx(&mut ctx)?;
+        }
+        cache.update(ctx);
+
+        if let CachedHM::Cached(c) = cache.clone() {
+            return Ok(c);
+        } else {
+            unreachable!("we just set it?")
+        }
+    }
+
+    pub fn actual_frame_u64(&self) -> u64 {
+        self.state.actual_frame_u64()
+    }
+
+    pub fn vars(&self) -> HashSet<String> {
+        self.state.vars()
+    }
+
+    pub fn update_with_defs(&mut self, md: MixedEvalDefsRef) {
+        self.refs.push(md);
+        self.cached.write().unwrap().clear();
+    }
+
+    pub fn time(&self) -> LiveCodeTimeInstantInfo {
+        self.state.time()
+    }
+
+    pub fn actual_frame(&self) -> f32 {
+        self.state.actual_frame()
+    }
+
+    pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<Vec<Polyline>> {
+        self.state.asset_layer(key, layer_idx)
+    }
+
+    pub fn asset_layers_in_key(&self, key: &str) -> &[String] {
+        self.state.asset_layers_in_key(key)
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct LivecodeWorldState {
+pub struct LivecodeWorldStateInner {
     context: HashMapContext,
     stage: LivecodeWorldStateStage,
     assets: AssetsRef,
 }
-impl LivecodeWorldState {
+impl LivecodeWorldStateInner {
     pub fn vars(&self) -> HashSet<String> {
         self.context.iter_variable_names().collect()
     }
@@ -58,17 +208,17 @@ impl LivecodeWorldState {
         Ok(ctx)
     }
 
-    pub fn new<'a>(
+    pub fn new(
         evalexpr_func_ctx: &HashMapContext,
         livecode_src: &LivecodeSrc,
         time: LiveCodeTimeInstantInfo,
         node: AdditionalContextNode,
         assets: AssetsRef,
-    ) -> LivecodeResult<LivecodeWorldState> {
+    ) -> LivecodeResult<Self> {
         let context =
             Self::clone_ctx_and_add_world(evalexpr_func_ctx, livecode_src, Some(time), Some(node))?;
 
-        Ok(LivecodeWorldState {
+        Ok(Self {
             context,
             stage: LivecodeWorldStateStage::World(time),
             assets: assets.clone(),
@@ -78,10 +228,10 @@ impl LivecodeWorldState {
     pub fn new_timeless(
         evalexpr_func_ctx: &HashMapContext,
         livecode_src: &LivecodeSrc,
-    ) -> LivecodeResult<LivecodeWorldState> {
+    ) -> LivecodeResult<Self> {
         let context = Self::clone_ctx_and_add_world(evalexpr_func_ctx, livecode_src, None, None)?;
 
-        Ok(LivecodeWorldState {
+        Ok(Self {
             context,
             stage: LivecodeWorldStateStage::Timeless,
             assets: Assets::empty_ref(),
@@ -99,8 +249,8 @@ impl LivecodeWorldState {
         match self.stage {
             LivecodeWorldStateStage::Timeless => panic!("checking time in a timeless world"),
             LivecodeWorldStateStage::World(t) => t,
-            LivecodeWorldStateStage::Unit(t) => t,
-            LivecodeWorldStateStage::Lazy(t) => t,
+            // LivecodeWorldStateStage::Unit(t) => t,
+            // LivecodeWorldStateStage::Lazy(t) => t,
         }
     }
 
@@ -128,50 +278,48 @@ impl LivecodeWorldState {
         more_defs.update_ctx(self.ctx_mut())
     }
 
-    pub fn clone_with_vals(
-        &self,
-        expr: ExprWorldContextValues,
-        prefix: &str,
-    ) -> LivecodeResult<LivecodeWorldState> {
-        let mut lazy = self.clone_to_lazy(); // eh just need to clone
+    // pub fn clone_with_vals(
+    //     &self,
+    //     expr: ExprWorldContextValues,
+    //     prefix: &str,
+    // ) -> LivecodeResult<LivecodeWorldStateRef> {
+    //     let mut lazy = self.clone_to_lazy(); // eh just need to clone
+    //     expr.with_prefix(prefix).update_ctx(lazy.ctx_mut())?;
+    //     Ok(lazy)
+    // }
 
-        expr.with_prefix(prefix).update_ctx(lazy.ctx_mut())?;
+    // pub fn clone_to_unitcell(
+    //     &self,
+    //     unit_cell_ctx: &UnitCellContext,
+    //     prefix: &str,
+    // ) -> LivecodeResult<LivecodeWorldState> {
+    //     let mut context = self.context.clone();
+    //     unit_cell_ctx
+    //         .as_expr_world_context_values()
+    //         .with_prefix(prefix)
+    //         .update_ctx(&mut context)?;
 
-        Ok(lazy)
-    }
+    //     let r = LivecodeWorldState {
+    //         context,
+    //         stage: self
+    //             .stage
+    //             .add_step(LivecodeWorldStateStage::Unit(self.time())),
+    //         assets: self.assets.clone(),
+    //     };
 
-    pub fn clone_to_unitcell(
-        &self,
-        unit_cell_ctx: &UnitCellContext,
-        prefix: &str,
-    ) -> LivecodeResult<LivecodeWorldState> {
-        let mut context = self.context.clone();
-        unit_cell_ctx
-            .as_expr_world_context_values()
-            .with_prefix(prefix)
-            .update_ctx(&mut context)?;
+    //     Ok(r)
+    // }
 
-        let r = LivecodeWorldState {
-            context,
-            stage: self
-                .stage
-                .add_step(LivecodeWorldStateStage::Unit(self.time())),
-            assets: self.assets.clone(),
-        };
-
-        Ok(r)
-    }
-
-    pub fn clone_to_lazy(&self) -> Self {
-        let context = self.context.clone();
-        LivecodeWorldState {
-            context,
-            stage: self
-                .stage
-                .add_step(LivecodeWorldStateStage::Lazy(self.time())),
-            assets: self.assets.clone(),
-        }
-    }
+    // pub fn clone_to_lazy(&self) -> Self {
+    //     let context = self.context.clone();
+    //     LivecodeWorldState {
+    //         context,
+    //         stage: self
+    //             .stage
+    //             .add_step(LivecodeWorldStateStage::Lazy(self.time())),
+    //         assets: self.assets.clone(),
+    //     }
+    // }
 
     pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<Vec<Polyline>> {
         self.assets.asset_layer(key, layer_idx).cloned()
@@ -181,7 +329,7 @@ impl LivecodeWorldState {
         self.assets.layer_for_key(key)
     }
 
-    pub fn new_dummy() -> LivecodeWorldState {
+    pub fn new_dummy() -> Self {
         let empty_ctx = HashMapContext::new();
         Self::new(
             &empty_ctx,

@@ -34,7 +34,11 @@ pub enum LivecodeError {
     #[error("parse: {0}")]
     JsonParse(String),
 }
-impl LivecodeError {}
+impl LivecodeError {
+    pub fn raw(s: &str) -> Self {
+        Self::Raw(s.to_string())
+    }
+}
 // impl std::fmt::Display for LivecodeError {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         match self {
@@ -217,7 +221,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
         for idx in self.repeat.iter() {
             let expr =
                 UnitCellExprWorldContext::from_idx2d(idx, 1.0).as_expr_world_context_values();
-            let new_w = w.clone_with_vals(expr, &prefix)?;
+            let new_w = w.clone_with_vals(expr, &prefix);
 
             for src in &self.what {
                 match src {

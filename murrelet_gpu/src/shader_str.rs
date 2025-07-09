@@ -136,6 +136,16 @@ fn smoothStep(edge0: vec2<f32>, edge1: vec2<f32>, x: vec2<f32>) -> vec2<f32> {
     return t * t * (vec2<f32>(3.0, 3.0) - 2.0 * t);
 }
 
+fn smoothStepf32(edge0: f32, edge1: f32, x: f32) -> f32 {
+    let t: f32 = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+// just basically mix but this is what i use when livecoding
+fn s(pct: f32, a: f32, b: f32) -> f32 {
+  return mix(a, b, pct);
+}
+
 
 fn noise2(n: vec2<f32>) -> f32 {
   let d = vec2<f32>(0., 1.);
@@ -221,6 +231,56 @@ fn clamp4(p: vec4<f32>, min: f32, max: f32) -> vec4<f32> {
       clamp(p.z, 0.0, 1.0),
       clamp(p.a, 0.0, 1.0)
   );
+}
+
+
+
+fn colormap(
+  hue_start: f32, hue_length: f32, hue_target_offset: f32,
+  center_loc: f32,
+  sat_center: f32, sat_edges: f32,
+  value_center: f32, value_edges: f32,
+  tex_coords: vec2<f32>,
+) -> vec3<f32> {
+    // what is the main hue?
+    // let hue_start = uniforms.more_info.x;
+    // // how far to go across the x-axis
+    // let hue_length = uniforms.more_info.y;
+    // // how far to go along the y-axis, this one will have some effects that we'll add next
+    // let hue_target_offset = uniforms.more_info.z;
+
+    // let center_loc = uniforms.more_info.a;
+
+    // // now add in the transition variables
+    // let sat_center = uniforms.more_info_other.x;
+    // let sat_edges = uniforms.more_info_other.y;
+
+    // let value_center = uniforms.more_info_other.z;
+    // let value_edges = uniforms.more_info_other.a;
+
+    let target_hue_top = hue_start + tex_coords.x * hue_length;
+    let target_hue = target_hue_top + tex_coords.y * hue_target_offset;
+
+    // now compute some things to figure out what we should show
+    let abs_shape = 1.0 - 2.0 * abs(tex_coords.y - 0.5);
+    let l_shape = 1.0 - tex_coords.y;
+    let v_shape = mix(abs_shape, l_shape, center_loc);
+
+    let smoothed_dist_from_center = v_shape * v_shape * (3.0 - 2.0 * v_shape);
+
+    let target_sat = mix(sat_edges, sat_center, smoothed_dist_from_center);
+    let target_value = mix(value_edges, value_center, smoothed_dist_from_center);
+
+    // okay and convert to rgb
+    let rgb1 = hsv2rgb(vec3<f32>(target_hue, target_sat, target_value));
+
+    // if it's at the edges, set to black i guess?
+    let is_too_high_x = step(1.0, tex_coords.y + uniforms.dims.a);
+    let rgb = mix(rgb1, vec3<f32>(0.0, 0.0, 0.0), is_too_high_x);
+
+    return rgb;
+
+
 }
 
 fn color_if_for_neg_color(p: vec4<f32>) -> vec4<f32> {

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{f64::consts::PI, fmt::Debug};
+use std::{f64::consts::PI, fmt::Debug, sync::Arc};
 
 use evalexpr::*;
 use glam::{vec2, Vec2};
@@ -410,6 +410,28 @@ impl GuideType {
                 ]
             }
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MixedEvalDefsRef(Arc<MixedEvalDefs>);
+impl MixedEvalDefsRef {
+    pub fn new(m: MixedEvalDefs) -> Self {
+        MixedEvalDefsRef(Arc::new(m))
+    }
+
+    pub fn from_ctx_node(x: AdditionalContextNode) -> Self {
+        let mut m = MixedEvalDefs::new();
+        m.add_node(x);
+        Self::new(m)
+    }
+
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+        self.0.update_ctx(ctx)
+    }
+
+    pub(crate) fn new_from_expr(more_vals: ExprWorldContextValues) -> MixedEvalDefsRef {
+        Self::new(MixedEvalDefs::new_from_expr(more_vals))
     }
 }
 

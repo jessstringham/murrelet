@@ -5,7 +5,7 @@ use murrelet_common::{Assets, AssetsRef, LivecodeUsage, LivecodeValue};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_gui::MurreletGUI;
-use murrelet_livecode::expr::MixedEvalDefs;
+use murrelet_livecode::expr::{MixedEvalDefs, MixedEvalDefsRef};
 use murrelet_livecode::lazy::ControlLazyNodeF32;
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{AdditionalContextNode, ControlVecElement, LivecodeResult};
@@ -896,13 +896,14 @@ where
                 md.set_val(x, murrelet_common::LivecodeValue::Float(0.0));
             }
         }
-        world.update_with_defs(&md).unwrap(); // i'm setting this so it should be okay..
+        world.update_with_defs(MixedEvalDefsRef::new(md)); // i'm setting this so it should be okay..
 
         self.cached_world = Some(world);
         Ok(())
     }
 
     pub fn world(&self) -> &LivecodeWorldState {
+        // self.cached_world.as_ref().unwrap()
         self.cached_world.as_ref().unwrap()
     }
 

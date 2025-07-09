@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
-use crate::expr::{ExprWorldContextValues, IntoExprWorldContext};
+use crate::expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefsRef};
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
@@ -18,7 +18,7 @@ use crate::types::LivecodeResult;
 pub struct TmpUnitCells<CtxSource: UnitCellCreator, Target> {
     sequencer: CtxSource,
     node: Box<dyn LivecodeFromWorld<Target>>,
-    ctx: Option<AdditionalContextNode>,
+    ctx: Option<MixedEvalDefsRef>,
     prefix: String,
 }
 
@@ -32,32 +32,32 @@ impl<CtxSource: UnitCellCreator, Target: Default> TmpUnitCells<CtxSource, Target
         Self {
             sequencer,
             node,
-            ctx,
+            ctx: ctx.map(|x| MixedEvalDefsRef::from_ctx_node(x)),
             prefix: prefix.to_owned(),
         }
     }
 }
 
-fn create_unit_cell<'a>(
-    world_ctx: &'a LivecodeWorldState,
-    prefix: &'a str,
-    unit_cell_ctx: &'a UnitCellContext,
-    maybe_node: Option<&'a AdditionalContextNode>,
-) -> LivecodeResult<LivecodeWorldState> {
-    // world_ctx is currently just the World, so first attach the unit cell world state
+// fn create_unit_cell<'a>(
+//     world_ctx: &'a LivecodeWorldState,
+//     prefix: &'a str,
+//     unit_cell_ctx: &'a UnitCellContext,
+//     maybe_node: Option<&'a AdditionalContextNode>,
+// ) -> LivecodeResult<LivecodeWorldState> {
+//     // world_ctx is currently just the World, so first attach the unit cell world state
 
-    let mut world_state = world_ctx.clone_to_unitcell(unit_cell_ctx, prefix)?;
+//     let mut world_state = ;
 
-    let unit_cell_world_ctx = world_state.ctx_mut();
+//     // let unit_cell_world_ctx = world_state.ctx_mut();
 
-    // now update the unit_cell context to have the node
-    if let Some(node) = maybe_node {
-        node.eval_raw(unit_cell_world_ctx)?;
-    }
+//     // now update the unit_cell context to have the node
+//     // if let Some(node) = maybe_node {
+//     //     node.eval_raw(unit_cell_world_ctx)?;
+//     // }
 
-    // great, now we have it built. return it!
-    Ok(world_state)
-}
+//     // great, now we have it built. return it!
+//     Ok(world_state)
+// }
 
 impl<CtxSource, Target> TmpUnitCells<CtxSource, Target>
 where
@@ -67,7 +67,7 @@ where
     pub fn eval_with_ctx(
         &self,
         world_ctx: &LivecodeWorldState,
-        unit_cell_ctx: &Option<AdditionalContextNode>,
+        unit_cell_ctx: Option<&MixedEvalDefsRef>,
     ) -> Vec<UnitCell<Target>> {
         // right now this one doesn't usually return an error because we do stuff
         // to avoid returning every time, should tidy up
@@ -83,8 +83,11 @@ where
                 // - unit cell location
                 // it doesn't have sequencer ctx yet, we'll add that next
 
+                // let unit_cell_world_ctx_result =
+                //     create_unit_cell(world_ctx, &self.prefix, ctx, unit_cell_ctx.as_ref());
+
                 let unit_cell_world_ctx_result =
-                    create_unit_cell(world_ctx, &self.prefix, ctx, unit_cell_ctx.as_ref());
+                    world_ctx.clone_to_unitcell(ctx, &self.prefix, unit_cell_ctx);
 
                 // and evaluate with this!
                 // todo can i use the result to clean this up
@@ -114,7 +117,7 @@ where
     }
 
     pub fn o(&self, ctx: &LivecodeWorldState) -> LivecodeResult<UnitCells<Target>> {
-        Ok(UnitCells::new(self.eval_with_ctx(ctx, &self.ctx)))
+        Ok(UnitCells::new(self.eval_with_ctx(ctx, self.ctx.as_ref())))
     }
 }
 

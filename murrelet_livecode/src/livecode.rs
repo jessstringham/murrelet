@@ -458,6 +458,8 @@ impl ControlF32 {
     }
 
     pub fn _o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
+        let a = w.ctx()?;
+        let ctx = a.as_ref();
         match self {
             ControlF32::Bool(b) => {
                 if *b {
@@ -469,11 +471,11 @@ impl ControlF32 {
             ControlF32::Int(i) => Ok(*i as f32),
             ControlF32::Float(x) => Ok(*x),
             ControlF32::Expr(e) => e
-                .eval_float_with_context(w.ctx())
+                .eval_float_with_context(ctx)
                 .map(|x| x as f32)
-                .or_else(|_| e.eval_int_with_context(w.ctx()).map(|b| b as f32))
+                .or_else(|_| e.eval_int_with_context(ctx).map(|b| b as f32))
                 .or_else(|_| {
-                    e.eval_boolean_with_context(w.ctx())
+                    e.eval_boolean_with_context(ctx)
                         .map(|b| if b { 1.0 } else { -1.0 })
                         .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err))
                 }),
@@ -519,6 +521,8 @@ impl ControlBool {
 
     pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<bool> {
         // self.to_unitcell_control().eval(w)
+        let a = w.ctx()?;
+        let ctx = a.as_ref();
 
         match self {
             ControlBool::Raw(b) => Ok(*b),
@@ -526,10 +530,10 @@ impl ControlBool {
             ControlBool::Float(x) => Ok(*x > 0.0),
 
             ControlBool::Expr(e) => e
-                .eval_boolean_with_context(w.ctx())
-                .or_else(|_| e.eval_float_with_context(w.ctx()).map(|b| b > 0.0))
+                .eval_boolean_with_context(ctx)
+                .or_else(|_| e.eval_float_with_context(ctx).map(|b| b > 0.0))
                 .or_else(|_| {
-                    e.eval_int_with_context(w.ctx())
+                    e.eval_int_with_context(ctx)
                         .map(|b| b > 0)
                         .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err))
                 }),
