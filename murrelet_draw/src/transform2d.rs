@@ -223,6 +223,10 @@ impl Transform2d {
                 .collect_vec(),
         )
     }
+
+    pub fn steps(&self) -> &Vec<Transform2dStep> {
+        &self.0
+    }
 }
 
 impl Default for ControlTransform2d {

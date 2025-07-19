@@ -210,6 +210,7 @@ impl IdxInRange2d {
         let cell_idx = vec2(self.i.i as f32, self.j.i as f32);
         let centering_offset = -0.5 * self.totals_vec2();
 
+
         cell_idx + vec2(0.5, 0.5) + centering_offset
     }
 
