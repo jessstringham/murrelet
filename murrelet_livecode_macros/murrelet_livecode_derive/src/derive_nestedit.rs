@@ -298,6 +298,40 @@ impl GenFinal for FieldTokensNestEdit {
         }
     }
 
+    fn from_option(idents: StructIdents) -> Self {
+        let name = idents.name();
+        let yaml_name = name.to_string();
+
+        // let s = ident_from_type(&idents.orig_ty());
+        // let ctrl = s.second_how_to.unwrap().get_control_type();
+
+        // we'll just use the trait! (unless it's none, then we bail
+        let for_nestedit = match idents.how_to_control_this() {
+            HowToControlThis::WithNone(_) => quote! {
+                #name: self.#name.clone()
+            },
+            _ => quote! {
+                #name: self.#name.as_ref().map(|name| name.nest_update(mods.next_loc(#yaml_name)))
+            },
+        };
+
+        let for_nestedit_get = quote! {
+            [#yaml_name, rest @ ..] => self.#name.as_ref().map(|name| name.nest_get(rest)).unwrap_or(Ok("".to_string()))
+        };
+
+        let for_nestedit_get_newtype = quote! {
+            _ => self.#name.map(|name| name.nest_get(getter)).unwrap_or(Ok("".to_string()))
+        };
+
+        FieldTokensNestEdit {
+            kind: "type struct".to_owned(),
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_newtype: Some(for_nestedit_get_newtype),
+            for_nestedit_get_flatten: None,
+        }
+    }
+
     // v: Vec<f32>
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensNestEdit {
         let name = idents.name();

@@ -15,6 +15,8 @@ pub struct BasicTypes {
     something: Vec<f32>,
     #[lerpable(func = "lerpify_vec_vec2")]
     list_of_vec2: Vec<Vec2>,
+    // option_f32: Option<f32>,
+    // option_vec2: Option<Vec2>,
 }
 
 fn empty_string() -> String {

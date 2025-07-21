@@ -55,9 +55,66 @@ impl LivecodeFieldType {
         }
     }
 
+    // usually can call for_world directly, but this is useful in Vec<>
+    pub(crate) fn for_world_no_name_option(
+        &self,
+        name: syn::Ident,
+        orig_ty: syn::Type,
+        f32min: Option<f32>,
+        f32max: Option<f32>,
+    ) -> TokenStream2 {
+        // let name = idents.name();
+        // let orig_ty = idents.orig_ty();
+        match self.0 {
+            ControlType::F32_2 => quote! {self.#name.map(|name| name.o(w)?)},
+            ControlType::F32_3 => quote! {self.#name.map(|name| name.o(w)?)},
+            ControlType::Color => quote! {self.#name.map(|name| name.o(w)?)},
+            ControlType::ColorUnclamped => {
+                quote! {self.#name.map(|name| murrelet_livecode::livecode::ControlF32::hsva_unclamped(&name, w)?)}
+            }
+            ControlType::LazyNodeF32 => quote! {
+                if let Some(name) = &self.#name {
+                    let a = name.o(w)?;
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            _ => {
+                let f32_out = match (f32min, f32max) {
+                    (None, None) => quote! {
+                        if let Some(name) = &self.#name {
+                            let n = name.o(w)?;
+                            Some(n)
+                        } else {
+                            None
+                        }
+                    },
+                    (None, Some(max)) => quote! {f32::min(self.#name.map(|name| name.o(w)?), #max)},
+                    (Some(min), None) => quote! {f32::max(#min, self.#name.map(|name| name.o(w)?))},
+                    (Some(min), Some(max)) => {
+                        quote! {f32::min(f32::max(#min, self.#name.map(|name| name.o(w)?)), #max)}
+                    }
+                };
+                quote! {#f32_out as #orig_ty}
+            }
+        }
+    }
+
     pub(crate) fn for_world(&self, idents: StructIdents) -> TokenStream2 {
         let name = idents.name();
         let rest = self.for_world_no_name(
+            idents.name(),
+            idents.orig_ty(),
+            idents.data.f32min,
+            idents.data.f32max,
+        );
+        quote! {#name: #rest}
+    }
+
+    pub(crate) fn for_world_option(&self, idents: StructIdents) -> TokenStream2 {
+        let name = idents.name();
+        let rest = self.for_world_no_name_option(
             idents.name(),
             idents.orig_ty(),
             idents.data.f32min,
@@ -472,6 +529,41 @@ impl GenFinal for FieldTokensLivecode {
             quote! {#serde #name: #t}
         };
         let for_world = LivecodeFieldType(ctrl).for_world(idents.clone());
+
+        let for_to_control = LivecodeFieldType(ctrl).for_control(idents.clone());
+
+        // we'll just use the trait (i want to try it for the above, but we'll come back to that!)
+        let (for_variable_idents, for_function_idents) = if idents.how_to_control_this_is_none() {
+            (quote! { vec![] }, quote! { vec![] })
+        } else {
+            (
+                quote! {self.#name.variable_identifiers()},
+                quote! {self.#name.function_identifiers()},
+            )
+        };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    fn from_option(idents: StructIdents) -> FieldTokensLivecode {
+        let serde = idents.serde().clone();
+        let name = idents.name().clone();
+        // let _orig_type = idents.orig_ty().clone();
+
+        let s = ident_from_type(&idents.orig_ty());
+
+        let ctrl = s.second_how_to.unwrap().get_control_type();
+        let for_struct = {
+            let t = LivecodeFieldType(ctrl).to_token();
+            quote! {#serde #name: Option<#t>}
+        };
+        let for_world = LivecodeFieldType(ctrl).for_world_option(idents.clone());
 
         let for_to_control = LivecodeFieldType(ctrl).for_control(idents.clone());
 

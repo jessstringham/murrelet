@@ -14,7 +14,7 @@ schemars = ["dep:schemars"]
 murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
 murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/", features = ["glam"] }
 
-lerpable = "0.0.2"
+lerpable = { version = "0.0.2", path = "../../../../lerpable/lerpable" }
 
 itertools = "0.10.5"
 regex = "1.7.3"

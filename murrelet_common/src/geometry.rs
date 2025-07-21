@@ -59,6 +59,12 @@ impl AnglePi {
     pub fn is_neg(&self) -> bool {
         self.0 < 0.0
     }
+
+    pub fn transform_vec2(&self, v: Vec2) -> Vec2 {
+        SimpleTransform2d::rotate_pi(self.angle_pi())
+            .to_mat3()
+            .transform_vector2(v)
+    }
 }
 
 impl std::ops::Neg for AnglePi {

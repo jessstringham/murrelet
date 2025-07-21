@@ -288,6 +288,16 @@ impl<T: NestEditable + Clone> NestEditable for Vec<T> {
     }
 }
 
+impl<T: NestEditable + Clone> NestEditable for Option<T> {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone() // noop
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("Option<T>".to_owned())) // maybe in the future!
+    }
+}
+
 impl<K: Clone, V: Clone> NestEditable for HashMap<K, V> {
     fn nest_update(&self, _mods: NestedMod) -> Self {
         self.clone() // noop

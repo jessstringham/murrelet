@@ -36,6 +36,7 @@ where
     fn from_recurse_struct_struct(idents: StructIdents) -> Self;
     fn from_recurse_struct_unitcell(idents: StructIdents) -> Self;
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self;
+    fn from_option(idents: StructIdents) -> Self;
 
     fn from_ast(ast_receiver: LivecodeReceiver) -> TokenStream2 {
         match ast_receiver.data {
@@ -115,6 +116,12 @@ where
                             println!("-> from_recurse_struct_unitcell");
                         }
                         Self::from_recurse_struct_unitcell(idents)
+                    }
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::Option) => {
+                        if DEBUG_THIS {
+                            println!("-> from_option");
+                        }
+                        Self::from_option(idents)
                     }
                 }
             })
@@ -539,8 +546,9 @@ pub(crate) enum RecursiveControlType {
     Struct,
     StructLazy, // just a way to stop some features from propogating..
     Vec,
-    UnitCell, // special type that builds up an expression context
-              // Array,
+    UnitCell,
+    Option, // special type that builds up an expression context
+            // Array,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -628,6 +636,10 @@ impl HowToControlThis {
             "Vec" => HowToControlThis::WithRecurse(
                 OverrideOrInferred::Inferred,
                 RecursiveControlType::Vec,
+            ),
+            "Option" => HowToControlThis::WithRecurse(
+                OverrideOrInferred::Inferred,
+                RecursiveControlType::Option,
             ),
             "Vec3" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32_3),
             "String" => HowToControlThis::WithNone(OverrideOrInferred::Inferred),

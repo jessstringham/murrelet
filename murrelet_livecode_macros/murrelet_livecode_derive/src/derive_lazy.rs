@@ -94,6 +94,57 @@ impl LazyFieldType {
         }
     }
 
+    fn for_world_option(&self, idents: StructIdents) -> TokenStream2 {
+        let name = idents.name();
+        let orig_ty = idents.orig_ty();
+        match self.0 {
+            ControlType::F32_2 => {
+                quote! { #name: self.#name.map(|name| glam::vec2(name[0].eval_lazy(ctx)? as f32, name[1].eval_lazy(ctx)? as f32))}
+            }
+            ControlType::F32_3 => {
+                quote! {#name: self.#name.map(|name| glam::vec3(name[0].eval_lazy(ctx)? as f32, name[1].eval_lazy(ctx)? as f32, name[2].eval_lazy(ctx)? as f32))}
+            }
+            ControlType::Color => {
+                quote! {#name: self.#name.map(|name| murrelet_common::MurreletColor::hsva(name[0].eval_lazy(ctx)? as f32, name[1].eval_lazy(ctx)? as f32, name[2].eval_lazy(ctx)? as f32, name[3].eval_lazy(ctx)? as f32))}
+            }
+            ControlType::Bool => quote! {#name: self.#name.map(|name| name.eval_lazy(ctx)? > 0.0)},
+            ControlType::LazyNodeF32 => {
+                quote! {#name: {
+                        if let Some(name) = &self.#name {
+                            let a = name.add_more_defs(ctx)?;
+                            Some(a)
+                        } else {
+                            None
+                        }
+                    }
+                }
+            }
+            _ => {
+                // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
+                let f32_out = match (idents.data.f32min, idents.data.f32max) {
+                    (None, None) => quote! {
+                        if let Some(name) = &self.#name {
+                            let n = name.eval_lazy(ctx)?;
+                            Some(n)
+                        } else {
+                            None
+                        }
+                    },
+                    (None, Some(max)) => {
+                        quote! {f32::min(self.#name.map(|name| name.eval_lazy(ctx)?, #max))}
+                    }
+                    (Some(min), None) => {
+                        quote! {f32::max(#min, self.#name.map(|name| name.eval_lazy(ctx)?))}
+                    }
+                    (Some(min), Some(max)) => {
+                        quote! {f32::min(f32::max(#min, self.#name.map(|name| name.eval_lazy(ctx)?), #max))}
+                    }
+                };
+                quote! {#name: #f32_out as #orig_ty}
+            }
+        }
+    }
+
     fn for_newtype_world(&self, idents: StructIdents) -> TokenStream2 {
         let orig_ty = idents.orig_ty();
         match self.0 {
@@ -356,6 +407,27 @@ impl GenFinal for FieldTokensLazy {
         };
 
         let for_world = LazyFieldType(ctrl).for_world(idents.clone());
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+        }
+    }
+
+    fn from_option(idents: StructIdents) -> Self {
+        let name = idents.name();
+        let back_to_quote = idents.back_to_quote();
+
+        let s = ident_from_type(&idents.orig_ty());
+
+        let ctrl = s.second_how_to.unwrap().get_control_type();
+
+        let for_struct = {
+            let t = LazyFieldType(ctrl).to_token();
+            quote! {#back_to_quote #name: Option<#t>}
+        };
+
+        let for_world = LazyFieldType(ctrl).for_world_option(idents.clone());
 
         FieldTokensLazy {
             for_struct,

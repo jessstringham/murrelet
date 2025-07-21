@@ -141,6 +141,16 @@ impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
     }
 }
 
+impl<T, ControlType> LivecodeToControl<Option<ControlType>> for Option<T>
+where
+    T: LivecodeToControl<ControlType> + Clone,
+    ControlType: LivecodeFromWorld<T>,
+{
+    fn to_control(&self) -> Option<ControlType> {
+        self.as_ref().map(|s| s.to_control())
+    }
+}
+
 // wrappers around identifiers evalexpr gives us, right now
 // just to control midi controller
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -312,6 +322,20 @@ impl<K, V> GetLivecodeIdentifiers for HashMap<K, V> {
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         vec![]
+    }
+}
+
+impl<T: GetLivecodeIdentifiers> GetLivecodeIdentifiers for Option<T> {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        self.as_ref()
+            .map(|x| x.variable_identifiers())
+            .unwrap_or(vec![])
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        self.as_ref()
+            .map(|x| x.function_identifiers())
+            .unwrap_or(vec![])
     }
 }
 
