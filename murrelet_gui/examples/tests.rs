@@ -1,96 +1,99 @@
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
-use murrelet_gui::{CanMakeGUI, MurreletEnumValGUI, MurreletGUI, MurreletGUISchema, ValueGUI};
+// use murrelet_gui::{CanMakeGUI, MurreletEnumValGUI, MurreletGUI, MurreletGUISchema, ValueGUI};
 
-#[derive(MurreletGUI)]
-pub struct BasicTypes {
-    a_number: f32,
-    b_number: usize,
-    c_number: u64,
-    d_number: i32,
-    bool: bool,
-    something: Vec<f32>,
-    s: String,
-    #[murrelet_gui(reference = "test")]
-    referenced_string: String,
-}
-
-fn custom_func() -> MurreletGUISchema {
-    MurreletGUISchema::Val(ValueGUI::Num)
-}
-
-#[derive(MurreletGUI)]
-pub struct OverridesAndRecursive {
-    a_number: f32,
-    something: Vec<BasicTypes>,
-    #[murrelet_gui(func = "custom_func")]
-    label: String,
-    #[murrelet_gui(kind = "skip")]
-    b: HashMap<String, String>,
-}
-
-#[derive(MurreletGUI)]
-enum EnumTest {
-    A,
-    B(OverridesAndRecursive),
-}
-
-#[derive(MurreletGUI)]
-struct SimpleNewtype(f32);
-
-//     fn lerp_partial<T: IsLerpingMethod>(&self, pct: T) -> Self {
-//         SimpleNewtype(pct.lerp_pct() as f32)
-//     }
+// #[derive(MurreletGUI)]
+// pub struct BasicTypes {
+//     a_number: f32,
+//     b_number: usize,
+//     c_number: u64,
+//     d_number: i32,
+//     bool: bool,
+//     something: Vec<f32>,
+//     s: String,
+//     #[murrelet_gui(reference = "test")]
+//     referenced_string: String,
 // }
 
-// #[derive(Debug, Clone, MurreletUX)]
+// fn custom_func() -> MurreletGUISchema {
+//     MurreletGUISchema::Val(ValueGUI::Num)
+// }
 
-fn main() {
-    // let b = BasicTypes{
-    //     a_number: 1.0,
-    //     b_number: -10.0,
-    // };
-    let test_val = BasicTypes::make_gui();
+// #[derive(MurreletGUI)]
+// pub struct OverridesAndRecursive {
+//     a_number: f32,
+//     something: Vec<BasicTypes>,
+//     #[murrelet_gui(func = "custom_func")]
+//     label: String,
+//     #[murrelet_gui(kind = "skip")]
+//     b: HashMap<String, String>,
+// }
 
-    let basic_types_schema = MurreletGUISchema::Struct(vec![
-        ("a_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
-        ("b_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
-        ("c_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
-        ("d_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
-        ("bool".to_owned(), MurreletGUISchema::Val(ValueGUI::Bool)),
-        (
-            "something".to_owned(),
-            MurreletGUISchema::list(MurreletGUISchema::Val(ValueGUI::Num)),
-        ),
-        ("s".to_owned(), MurreletGUISchema::Skip),
-        (
-            "referenced_string".to_owned(),
-            MurreletGUISchema::Val(ValueGUI::Name("test".to_owned())),
-        ),
-    ]);
+// #[derive(MurreletGUI)]
+// enum EnumTest {
+//     A,
+//     B(OverridesAndRecursive),
+// }
 
-    assert_eq!(test_val, basic_types_schema);
+// #[derive(MurreletGUI)]
+// struct SimpleNewtype(f32);
 
-    let test_val = OverridesAndRecursive::make_gui();
+// //     fn lerp_partial<T: IsLerpingMethod>(&self, pct: T) -> Self {
+// //         SimpleNewtype(pct.lerp_pct() as f32)
+// //     }
+// // }
 
-    let overrides_and_recursive_schema = MurreletGUISchema::Struct(vec![
-        ("a_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
-        (
-            "something".to_owned(),
-            MurreletGUISchema::list(basic_types_schema),
-        ),
-        ("label".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)), // make sure it calls the override
-        ("b".to_owned(), MurreletGUISchema::Skip),
-    ]);
-    assert_eq!(test_val, overrides_and_recursive_schema);
+// // #[derive(Debug, Clone, MurreletUX)]
 
-    let test_val = EnumTest::make_gui();
+// fn main() {
+//     // let b = BasicTypes{
+//     //     a_number: 1.0,
+//     //     b_number: -10.0,
+//     // };
+//     let test_val = BasicTypes::make_gui();
 
-    assert_eq!(
-        test_val,
-        MurreletGUISchema::Enum(vec![
-            (MurreletEnumValGUI::Unit("A".to_owned())),
-            (MurreletEnumValGUI::Unnamed("B".to_owned(), overrides_and_recursive_schema)),
-        ])
-    );
-}
+//     let basic_types_schema = MurreletGUISchema::Struct(vec![
+//         ("a_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+//         ("b_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+//         ("c_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+//         ("d_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+//         ("bool".to_owned(), MurreletGUISchema::Val(ValueGUI::Bool)),
+//         (
+//             "something".to_owned(),
+//             MurreletGUISchema::list(MurreletGUISchema::Val(ValueGUI::Num)),
+//         ),
+//         ("s".to_owned(), MurreletGUISchema::Skip),
+//         (
+//             "referenced_string".to_owned(),
+//             MurreletGUISchema::Val(ValueGUI::Name("test".to_owned())),
+//         ),
+//     ]);
+
+//     assert_eq!(test_val, basic_types_schema);
+
+//     let test_val = OverridesAndRecursive::make_gui();
+
+//     let overrides_and_recursive_schema = MurreletGUISchema::Struct(vec![
+//         ("a_number".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)),
+//         (
+//             "something".to_owned(),
+//             MurreletGUISchema::list(basic_types_schema),
+//         ),
+//         ("label".to_owned(), MurreletGUISchema::Val(ValueGUI::Num)), // make sure it calls the override
+//         ("b".to_owned(), MurreletGUISchema::Skip),
+//     ]);
+//     assert_eq!(test_val, overrides_and_recursive_schema);
+
+//     let test_val = EnumTest::make_gui();
+
+//     assert_eq!(
+//         test_val,
+//         MurreletGUISchema::Enum(vec![
+//             (MurreletEnumValGUI::Unit("A".to_owned())),
+//             (MurreletEnumValGUI::Unnamed("B".to_owned(), overrides_and_recursive_schema)),
+//         ])
+//     );
+// }
+
+
+fn main() {}

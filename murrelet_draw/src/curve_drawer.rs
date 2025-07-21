@@ -91,6 +91,7 @@ impl CurveDrawer {
 pub enum CurveSegment {
     Arc(CurveArc),
     Points(CurvePoints),
+    // Bezier(CubicBezier),
 }
 
 impl CurveSegment {
@@ -98,6 +99,7 @@ impl CurveSegment {
         match self {
             CurveSegment::Arc(c) => c.first_point(),
             CurveSegment::Points(c) => c.first_point(),
+            // CurveSegment::Bezier(_) => todo!(),
         }
     }
 

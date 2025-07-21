@@ -1,5 +1,5 @@
 use glam::Vec2;
-use murrelet_common::{Angle, IsAngle, Tangent};
+use murrelet_common::{Angle, IsAngle, SpotOnCurve, Tangent};
 
 #[derive(Debug, Clone)]
 pub struct CubicBezier {
@@ -9,6 +9,25 @@ pub struct CubicBezier {
     pub to: Vec2,
 }
 impl CubicBezier {
+    pub fn from_spots(
+        in_spot: SpotOnCurve,
+        in_strength: f32,
+        out_spot: SpotOnCurve,
+        out_strength: f32,
+    ) -> Self {
+        let norm_dist = in_spot.loc().distance(out_spot.loc());
+
+        let ctrl1 = in_spot.loc() + in_spot.angle().to_norm_dir() * in_strength * norm_dist;
+        let ctrl2 = out_spot.loc() + out_spot.angle().to_norm_dir() * out_strength * norm_dist;
+
+        Self {
+            from: in_spot.loc(),
+            ctrl1,
+            ctrl2,
+            to: out_spot.loc(),
+        }
+    }
+
     pub fn new(from: Vec2, ctrl1: Vec2, ctrl2: Vec2, to: Vec2) -> Self {
         Self {
             from,
