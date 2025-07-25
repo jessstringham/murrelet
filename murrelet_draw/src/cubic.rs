@@ -1,5 +1,5 @@
 use glam::Vec2;
-use murrelet_common::{Angle, IsAngle, SpotOnCurve, Tangent};
+use murrelet_common::{Angle, IsAngle, SpotOnCurve};
 
 #[derive(Debug, Clone)]
 pub struct CubicBezier {
@@ -72,7 +72,7 @@ impl CubicBezier {
         )
     }
 
-    pub fn start_to_tangent(&self) -> (Tangent, f32) {
+    pub fn start_to_tangent(&self) -> (SpotOnCurve, f32) {
         // let side_len = self.from.distance(self.to);
 
         let ctrl_line = self.from - self.ctrl1;
@@ -83,16 +83,16 @@ impl CubicBezier {
         // let strength = ctrl_line.length() / side_len;
 
         (
-            Tangent {
+            SpotOnCurve {
                 loc: self.from,
-                dir: dir.into(),
+                angle: dir.into(),
                 // strength,
             },
             ctrl_line.length(),
         )
     }
 
-    pub fn end_to_tangent(&self) -> (Tangent, f32) {
+    pub fn end_to_tangent(&self) -> (SpotOnCurve, f32) {
         // let side_len = self.from.distance(self.to);
 
         let ctrl_line = self.ctrl2 - self.to;
@@ -103,18 +103,27 @@ impl CubicBezier {
         // let strength = ctrl_line.length() / side_len;
 
         (
-            Tangent {
+            SpotOnCurve {
                 loc: self.to,
-                dir: dir.into(),
+                angle: dir.into(),
                 // strength,
             },
             ctrl_line.length(),
         )
     }
 
-    pub fn tangent_at_pct(&self, pct: f32) -> Tangent {
+    pub fn tangent_at_pct(&self, pct: f32) -> SpotOnCurve {
         let (start, _) = self.split(pct);
         let (t, _a) = start.end_to_tangent();
         t
+    }
+
+    pub fn reverse(&self) -> CubicBezier {
+        CubicBezier {
+            from: self.to,
+            ctrl1: self.ctrl2,
+            ctrl2: self.ctrl1,
+            to: self.from,
+        }
     }
 }

@@ -4,7 +4,7 @@ use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode_derive::*;
 
-use crate::livecodetypes::anglepi::*;
+use crate::{cubic::CubicBezier, livecodetypes::anglepi::*, tesselate::ToVecVec2};
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveDrawer {
@@ -91,15 +91,24 @@ impl CurveDrawer {
 pub enum CurveSegment {
     Arc(CurveArc),
     Points(CurvePoints),
-    // Bezier(CubicBezier),
+    CubicBezier(CurveCubicBezier),
 }
 
 impl CurveSegment {
+    pub fn arc<A: IsAngle>(loc: Vec2, radius: f32, start_pi: A, end_pi: A) -> Self {
+        Self::Arc(CurveArc {
+            loc,
+            radius,
+            start_pi: LivecodeAnglePi::new(start_pi),
+            end_pi: LivecodeAnglePi::new(end_pi),
+        })
+    }
+
     pub fn first_point(&self) -> Vec2 {
         match self {
             CurveSegment::Arc(c) => c.first_point(),
             CurveSegment::Points(c) => c.first_point(),
-            // CurveSegment::Bezier(_) => todo!(),
+            CurveSegment::CubicBezier(c) => c.first_point(),
         }
     }
 
@@ -107,6 +116,7 @@ impl CurveSegment {
         match self {
             CurveSegment::Arc(c) => c.last_point(),
             CurveSegment::Points(c) => c.last_point(),
+            CurveSegment::CubicBezier(c) => c.last_point(),
         }
     }
 
@@ -114,6 +124,7 @@ impl CurveSegment {
         match self {
             CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.reverse()),
             CurveSegment::Points(curve_points) => CurveSegment::Points(curve_points.reverse()),
+            CurveSegment::CubicBezier(c) => CurveSegment::CubicBezier(c.reverse()),
         }
     }
 
@@ -174,33 +185,54 @@ impl CurveSegment {
         match self {
             CurveSegment::Arc(_) => None,
             CurveSegment::Points(p) => Some(p.points.len()),
+            CurveSegment::CubicBezier(_) => None,
         }
     }
 
     pub fn first_angle(&self) -> Option<AnglePi> {
-        match self {
-            CurveSegment::Arc(curve_arc) => {
-                Some(curve_arc.start_angle().perp_to_left().as_angle_pi())
-            }
-            CurveSegment::Points(_) => None,
-        }
+        Some(self.first_spot().angle().into()) // todo, return none if it's one point
     }
 
     pub fn first_spot(&self) -> SpotOnCurve {
-        SpotOnCurve::new(self.first_point(), self.first_angle().unwrap())
-    }
-
-    pub fn last_angle(&self) -> Option<AnglePi> {
         match self {
-            CurveSegment::Arc(curve_arc) => {
-                Some(curve_arc.end_angle().perp_to_right().as_angle_pi())
+            CurveSegment::Arc(arc) => {
+                let a = CurveArc::new(arc.loc, arc.radius, arc.start_pi, arc.end_pi);
+                SpotOnCurve::new(a.first_point(), a.start_tangent_angle())
             }
-            CurveSegment::Points(_) => None,
+            CurveSegment::Points(points) => {
+                let vec2s = points.points();
+                if vec2s.len() >= 2 {
+                    let first = vec2s[0];
+                    let second = vec2s[1];
+
+                    let angle = PointToPoint::new(first, second).angle().perp_to_left();
+                    SpotOnCurve::new(first, angle)
+                } else {
+                    todo!()
+                }
+            }
+            CurveSegment::CubicBezier(cubic_bezier) => cubic_bezier.to_cubic().start_to_tangent().0,
         }
     }
 
     pub fn last_spot(&self) -> SpotOnCurve {
-        SpotOnCurve::new(self.last_point(), self.last_angle().unwrap())
+        match self {
+            CurveSegment::Arc(arc) => {
+                let a = CurveArc::new(arc.loc, arc.radius, arc.start_pi, arc.end_pi);
+                SpotOnCurve::new(a.last_point(), a.end_tangent_angle())
+            }
+            CurveSegment::Points(_) => todo!(),
+            CurveSegment::CubicBezier(c) => c.to_cubic().end_to_tangent().0,
+        }
+    }
+
+    pub fn cubic_bezier(from: Vec2, ctrl1: Vec2, ctrl2: Vec2, to: Vec2) -> Self {
+        Self::CubicBezier(CurveCubicBezier {
+            from,
+            ctrl1,
+            ctrl2,
+            to,
+        })
     }
 }
 
@@ -301,6 +333,53 @@ impl CurveArc {
         let mut m = self.clone();
         m.radius = radius;
         m
+    }
+}
+
+#[derive(Debug, Clone, Livecode, Lerpable)]
+pub struct CurveCubicBezier {
+    #[lerpable(func = "lerpify_vec2")]
+    from: Vec2,
+    #[lerpable(func = "lerpify_vec2")]
+    ctrl1: Vec2,
+    #[lerpable(func = "lerpify_vec2")]
+    ctrl2: Vec2,
+    #[lerpable(func = "lerpify_vec2")]
+    to: Vec2,
+}
+impl CurveCubicBezier {
+    pub fn to_cubic(&self) -> CubicBezier {
+        CubicBezier {
+            from: self.from,
+            ctrl1: self.ctrl1,
+            ctrl2: self.ctrl2,
+            to: self.to,
+        }
+    }
+
+    pub fn from_cubic(c: CubicBezier) -> Self {
+        Self {
+            from: c.from,
+            ctrl1: c.ctrl1,
+            ctrl2: c.ctrl2,
+            to: c.to,
+        }
+    }
+
+    pub fn first_point(&self) -> Vec2 {
+        self.from
+    }
+
+    pub fn last_point(&self) -> Vec2 {
+        self.to
+    }
+
+    pub fn reverse(&self) -> CurveCubicBezier {
+        Self::from_cubic(self.to_cubic().reverse())
+    }
+
+    pub fn as_points(&self) -> CurvePoints {
+        CurvePoints::new(self.to_cubic().to_vec2())
     }
 }
 

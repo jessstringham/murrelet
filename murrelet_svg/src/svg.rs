@@ -893,6 +893,7 @@ impl ToSvgData for CurveDrawer {
             }
 
             match curve {
+                murrelet_draw::curve_drawer::CurveSegment::CubicBezier(_) => {todo!()}
                 murrelet_draw::curve_drawer::CurveSegment::Arc(a) => {
                     let f = a.first_point();
                     // first make sure we're at the first point

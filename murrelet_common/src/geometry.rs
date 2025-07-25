@@ -685,20 +685,3 @@ pub fn tangents_between_two_circles(
 
     Some((start, end))
 }
-
-#[derive(Copy, Clone, Debug)]
-pub struct Tangent {
-    pub loc: Vec2,
-    pub dir: AnglePi,
-    // strength: f32,
-}
-
-impl Tangent {
-    pub fn dir(&self) -> AnglePi {
-        self.dir
-    }
-
-    pub fn loc(&self) -> Vec2 {
-        self.loc
-    }
-}
