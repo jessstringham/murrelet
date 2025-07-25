@@ -11,10 +11,10 @@ license = "AGPL-3.0-or-later"
 schemars = ["dep:schemars"]
 
 [dependencies]
-murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
-murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/", features = ["glam"] }
+murrelet_common = "0.1.2"
+murrelet_gui = { version = "0.1.2", features = ["glam"] }
 
-lerpable = { version = "0.0.2", path = "../../../../lerpable/lerpable" }
+lerpable = "0.0.2"
 
 itertools = "0.10.5"
 regex = "1.7.3"

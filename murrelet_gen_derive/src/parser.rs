@@ -233,6 +233,7 @@ pub(crate) enum HowToControlThis {
                                    // Override(String, Vec<String>, usize),
 }
 
+#[allow(dead_code)]
 pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
     match t {
         syn::Type::Path(syn::TypePath { path, .. }) => {

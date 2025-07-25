@@ -370,8 +370,8 @@ impl IsLength for PointToPoint {
 
 #[derive(Debug, Copy, Clone)]
 pub struct SpotOnCurve {
-    loc: Vec2,
-    angle: Angle,
+    pub loc: Vec2,
+    pub angle: Angle,
 }
 
 impl SpotOnCurve {

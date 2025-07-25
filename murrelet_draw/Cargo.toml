@@ -8,17 +8,22 @@ description = "drawing functions for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
 [features]
-schemars = ["dep:schemars", "murrelet_livecode/schemars", "murrelet_livecode_macros/schemars", "murrelet_livecode_derive/schemars"]
+schemars = [
+    "dep:schemars",
+    "murrelet_livecode/schemars",
+    "murrelet_livecode_macros/schemars",
+    "murrelet_livecode_derive/schemars",
+]
 # murrelet_gui = ["dep:murrelet_gui", "murrelet_livecode/murrelet_gui", "murrelet_livecode_macros/murrelet_gui", "murrelet_livecode_derive/murrelet_gui"]
 
 [dependencies]
-murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
+murrelet_common = "0.1.2"
 
-murrelet_livecode = { version = "0.1.2", path = "../murrelet_livecode/", default-features = false }
-murrelet_livecode_macros = { version = "0.1.2", path = "../murrelet_livecode_macros/", default-features = false }
-murrelet_livecode_derive = { version = "0.1.2", path = "../murrelet_livecode_macros/murrelet_livecode_derive/", default-features = false }
+murrelet_livecode = { version = "0.1.2", default-features = false }
+murrelet_livecode_macros = { version = "0.1.2", default-features = false }
+murrelet_livecode_derive = { version = "0.1.2", default-features = false }
 
-lerpable = { version = "0.0.2", path = "../../../../lerpable/lerpable" }
+lerpable = "0.0.2"
 
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
@@ -33,7 +38,7 @@ md-5 = "0.10.6"
 hex = "0.4.3"
 
 schemars = { version = "0.8.21", optional = true }
-murrelet_gui = { version = "0.1.2", path = "../murrelet_gui/", features = ["glam"] }
+murrelet_gui = { version = "0.1.2", features = ["glam"] }
 
 kurbo = "0.11"
 svg = "0.10.0"

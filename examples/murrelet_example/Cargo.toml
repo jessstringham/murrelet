@@ -11,17 +11,17 @@ itertools = "0.10.5"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 
-murrelet = { version = "0.1.1", path = "../../murrelet/" }
-murrelet_livecode = { version = "0.1.1", path = "../../murrelet_livecode/" }
-murrelet_livecode_macros = { version = "0.1.1", path = "../../murrelet_livecode_macros/" }
-murrelet_common = { version = "0.1.1", path = "../../murrelet_common/" }
-murrelet_livecode_derive = { version = "0.1.1", path = "../../murrelet_livecode_macros/murrelet_livecode_derive/" }
-murrelet_perform = { version = "0.1.1", path = "../../murrelet_perform/" }
-murrelet_draw = { version = "0.1.1", path = "../../murrelet_draw/" }
-murrelet_svg = { version = "0.1.1", path = "../../murrelet_svg/" }
+murrelet = "0.1.1"
+murrelet_livecode = "0.1.1"
+murrelet_livecode_macros = "0.1.1"
+murrelet_common = "0.1.1"
+murrelet_livecode_derive = "0.1.1"
+murrelet_perform = "0.1.1"
+murrelet_draw = "0.1.1"
+murrelet_svg = "0.1.1"
 
-murrelet_src_audio = { version = "0.1.1", path = "../../murrelet_src_audio/" }
-murrelet_src_midi = { version = "0.1.1", path = "../../murrelet_src_midi/" }
+murrelet_src_audio = "0.1.1"
+murrelet_src_midi = "0.1.1"
 
-lerpable = { version = "0.0.2", path = "../../../../../lerpable/lerpable" }
+lerpable = "0.0.2"
 schemars = "0.8.21"

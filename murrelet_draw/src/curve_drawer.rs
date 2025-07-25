@@ -176,6 +176,32 @@ impl CurveSegment {
             CurveSegment::Points(p) => Some(p.points.len()),
         }
     }
+
+    pub fn first_angle(&self) -> Option<AnglePi> {
+        match self {
+            CurveSegment::Arc(curve_arc) => {
+                Some(curve_arc.start_angle().perp_to_left().as_angle_pi())
+            }
+            CurveSegment::Points(_) => None,
+        }
+    }
+
+    pub fn first_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.first_point(), self.first_angle().unwrap())
+    }
+
+    pub fn last_angle(&self) -> Option<AnglePi> {
+        match self {
+            CurveSegment::Arc(curve_arc) => {
+                Some(curve_arc.end_angle().perp_to_right().as_angle_pi())
+            }
+            CurveSegment::Points(_) => None,
+        }
+    }
+
+    pub fn last_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.last_point(), self.last_angle().unwrap())
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]

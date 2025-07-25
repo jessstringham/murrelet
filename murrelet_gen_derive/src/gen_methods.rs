@@ -49,6 +49,9 @@ pub enum GenMethod {
     StringChoice {
         choices: HashMap<String, f32>, // string mapped to its weight
     },
+    F32Lazy, // eval data is passed in through another method.
+             // BoolLazy,
+             // Vec2Lazy,
 }
 impl GenMethod {
     pub(crate) fn to_methods(
@@ -280,11 +283,11 @@ impl GenMethod {
                 } };
 
                 let for_to_dist_choices = choices
-                .iter()
-                .map(|(key, _)| {
-                    quote! { if #key.clone() == #name { result.push(1.0) } else { result.push(0.0) } }
-                })
-                .collect::<Vec<_>>();
+                        .iter()
+                        .map(|(key, _)| {
+                            quote! { if #key.clone() == #name { result.push(1.0) } else { result.push(0.0) } }
+                        })
+                        .collect::<Vec<_>>();
 
                 let for_to_dist = quote! { {
                     let mut result = vec![];
@@ -307,6 +310,7 @@ impl GenMethod {
 
                 (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
+            GenMethod::F32Lazy => todo!(),
         }
     }
 
