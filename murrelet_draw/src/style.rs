@@ -389,6 +389,9 @@ pub mod styleconf {
     }
     impl StyleConf {
 
+        pub fn black_fill() -> Self {
+            Self::fill(MurreletColor::black())
+        }
 
         pub fn to_style(&self) -> MurreletStyle {
             match self {

@@ -124,7 +124,10 @@ impl CurveSegment {
         match self {
             CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.reverse()),
             CurveSegment::Points(curve_points) => CurveSegment::Points(curve_points.reverse()),
-            CurveSegment::CubicBezier(c) => CurveSegment::CubicBezier(c.reverse()),
+            CurveSegment::CubicBezier(c) => {
+                // CurveSegment::CubicBezier(c.reverse())
+                CurveSegment::Points(c.as_points().reverse())
+            }
         }
     }
 

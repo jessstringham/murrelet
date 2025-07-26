@@ -7,13 +7,21 @@ pub mod anglepi {
     use lerpable::Lerpable;
     use murrelet_common::{Angle, AnglePi, IsAngle};
     use murrelet_gui::CanMakeGUI;
-    use murrelet_livecode::lazy::ControlLazyNodeF32;
+    use murrelet_livecode::{lazy::ControlLazyNodeF32, livecode::ControlF32};
     use murrelet_livecode_derive::Livecode;
 
     use crate::transform2d::Transform2d;
 
     #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default, PartialEq)]
     pub struct LivecodeAnglePi(f32);
+
+    impl std::ops::Add for LivecodeAnglePi {
+        type Output = Self;
+
+        fn add(self, other: Self) -> Self::Output {
+            Self(self.0 + other.0)
+        }
+    }
     impl LivecodeAnglePi {
         pub const ZERO: Self = LivecodeAnglePi(0.0);
 
@@ -38,6 +46,11 @@ pub mod anglepi {
                 .to_mat3()
                 .transform_vector2(v)
         }
+
+        pub fn add<A: IsAngle>(&self, f: A) -> LivecodeAnglePi {
+            Self(self.0 + f.angle_pi())
+        }
+
     }
 
     impl From<LivecodeAnglePi> for Angle {
@@ -64,6 +77,12 @@ pub mod anglepi {
         fn sub(self, other: Self) -> Self::Output {
             let new_angle = self.0 - other.0;
             LivecodeAnglePi(new_angle)
+        }
+    }
+
+    impl ControlLivecodeAnglePi {
+        pub fn from_angle(a: AnglePi) -> Self {
+            Self(ControlF32::Float(a.angle_pi()))
         }
     }
 
