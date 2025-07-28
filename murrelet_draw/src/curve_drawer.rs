@@ -384,6 +384,18 @@ impl CurveCubicBezier {
     pub fn as_points(&self) -> CurvePoints {
         CurvePoints::new(self.to_cubic().to_vec2())
     }
+
+    pub fn ctrl1(&self) -> Vec2 {
+        self.ctrl1
+    }
+
+    pub fn ctrl2(&self) -> Vec2 {
+        self.ctrl2
+    }
+
+    pub fn to(&self) -> Vec2 {
+        self.to
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]

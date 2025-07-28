@@ -3,6 +3,7 @@ use crate::{
     curve_drawer::CurveDrawer,
     draw::*,
     svg::{SvgPathDef, TransformedSvgShape},
+    tesselate::parse_svg_path_as_vec2,
     transform2d::*,
 };
 use glam::*;
@@ -388,7 +389,6 @@ pub mod styleconf {
         RGBAPoints(MurreletStyleRGBAPoints),
     }
     impl StyleConf {
-
         pub fn black_fill() -> Self {
             Self::fill(MurreletColor::black())
         }
@@ -518,14 +518,15 @@ impl MurreletCurve {
         self.t
     }
 
-    // pub fn curve(&self) -> &CurveDrawer {
-    //     match &self.cd {
-    //         MurreletCurveKinds::CD(cd) => cd,
-    //         MurreletCurveKinds::Svg(pts) => {
-    //             &CurveDrawer::new_simple_points(parse_svg_path_as_vec2(pts), false)
-    //         },
-    //     }
-    // }
+    pub fn curve(&self) -> CurveDrawer {
+        match &self.cd {
+            MurreletCurveKinds::CD(cd) => cd.clone(),
+            MurreletCurveKinds::Svg(pts) => {
+                let s = parse_svg_path_as_vec2(pts, 1.0);
+                CurveDrawer::new_simple_points(s, false)
+            }
+        }
+    }
 
     fn new_transformed_svg(svg: &TransformedSvgShape) -> MurreletCurve {
         Self {
@@ -536,6 +537,16 @@ impl MurreletCurve {
 
     pub fn cd(&self) -> &MurreletCurveKinds {
         &self.cd
+    }
+
+    fn to_svg(&self) -> TransformedSvgShape {
+        let c = match &self.cd {
+            MurreletCurveKinds::CD(cd) => TransformedSvgShape::from_cd(cd),
+            MurreletCurveKinds::Svg(pts) => {
+                TransformedSvgShape::from_shape(crate::svg::SvgShape::Path(pts.clone()))
+            }
+        };
+        c.transform_with_mat4_after(self.mat4())
     }
 }
 
@@ -567,11 +578,15 @@ impl MurreletPath {
         }
     }
 
-    pub fn transform_with<T: TransformVec2>(&self, t: &T) -> Self {
+    pub fn transform_with<T: TransformVec2 + ToMat4>(&self, t: &T) -> Self {
         match self {
             MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
-            MurreletPath::Curve(_) => todo!(),
-            MurreletPath::Svg(_) => todo!(),
+            MurreletPath::Curve(cd) => {
+                MurreletPath::Svg(cd.to_svg().transform_with_mat4_after(t.change_to_mat4()))
+            }
+            MurreletPath::Svg(svg) => {
+                MurreletPath::Svg(svg.transform_with_mat4_after(t.change_to_mat4()))
+            }
             MurreletPath::MaskedCurve(_, _) => todo!(),
         }
     }
@@ -669,7 +684,7 @@ impl StyledPath {
         }
     }
 
-    pub fn transform_path<T: TransformVec2>(&self, t: &T) -> Self {
+    pub fn transform_path<T: TransformVec2 + ToMat4>(&self, t: &T) -> Self {
         StyledPath {
             path: self.path.transform_with(t),
             ..self.clone()

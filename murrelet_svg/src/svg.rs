@@ -133,8 +133,8 @@ impl<T: ToSvgData> ToStyledGroup for T {
 
 impl ToSvgData for MurreletCurve {
     fn to_svg_data(&self) -> Option<Data> {
-        // self.curve().to_svg_data()
-        todo!()
+        self.curve().to_svg_data()
+        // todo!()
     }
 
     fn transform(&self) -> Option<Mat4> {
@@ -866,6 +866,9 @@ impl ToSvgData for SvgPathDef {
                 murrelet_draw::svg::SvgCmd::CubicBezier(svg_cubic_bezier) => {
                     path = path.cubic_curve_to(svg_cubic_bezier.params())
                 }
+                murrelet_draw::svg::SvgCmd::ArcTo(svg_arc) => {
+                    path = path.elliptical_arc_to(svg_arc.params())
+                }
             }
         }
 
@@ -893,7 +896,26 @@ impl ToSvgData for CurveDrawer {
             }
 
             match curve {
-                murrelet_draw::curve_drawer::CurveSegment::CubicBezier(_) => {todo!()}
+                murrelet_draw::curve_drawer::CurveSegment::CubicBezier(cb) => {
+                    let f = cb.first_point();
+                    // first make sure we're at the first point
+                    if curr_point != Some(f) {
+                        path = path.line_to((f.x, f.y));
+                    }
+
+                    let params = (
+                        cb.ctrl1().x,
+                        cb.ctrl1().y,
+                        cb.ctrl2().x,
+                        cb.ctrl2().y,
+                        cb.to().x,
+                        cb.to().y,
+                    );
+
+                    path = path.cubic_curve_to(params);
+
+                    curr_point = Some(cb.to())
+                }
                 murrelet_draw::curve_drawer::CurveSegment::Arc(a) => {
                     let f = a.first_point();
                     // first make sure we're at the first point

@@ -11,6 +11,28 @@ use murrelet_common::{
 };
 use murrelet_livecode_derive::Livecode;
 
+pub trait ToMat4 {
+    fn change_to_mat4(&self) -> Mat4;
+}
+
+impl ToMat4 for Transform2d {
+    fn change_to_mat4(&self) -> Mat4 {
+        self.to_mat4()
+    }
+}
+
+impl ToMat4 for SimpleTransform2d {
+    fn change_to_mat4(&self) -> Mat4 {
+        self.to_mat4()
+    }
+}
+
+impl ToMat4 for Mat4 {
+    fn change_to_mat4(&self) -> Mat4 {
+        self.clone()
+    }
+}
+
 #[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct Transform2d(Vec<Transform2dStep>);
 impl Transform2d {

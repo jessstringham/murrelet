@@ -763,6 +763,10 @@ pub fn parse_svg_path_as_vec2(data: &SvgPathDef, tolerance: f32) -> Vec<Vec2> {
                 let (a, b, c, d, e, f) = svg_cubic_bezier.params();
                 cmds = cmds.cubic_curve_to(vec![a, b, c, d, e, f]);
             }
+            crate::svg::SvgCmd::ArcTo(svg_arc) => {
+                let (a, b, c, d, e, f, g) = svg_arc.params();
+                cmds = cmds.elliptical_arc_to(vec![a, b, c, d, e, f, g]);
+            },
         }
     }
 

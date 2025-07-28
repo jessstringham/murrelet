@@ -11,6 +11,7 @@ use palette::{named::AQUAMARINE, LinSrgba, Srgb};
 use crate::{
     newtypes::RGBandANewtype,
     style::{styleconf::*, StyledPathSvgFill},
+    transform2d::ToMat4,
 };
 
 #[derive(Debug, Clone, Copy, Livecode, Lerpable, Default)]
@@ -82,7 +83,6 @@ impl MurreletColorStyle {
     fn hue(hue: f32) -> MurreletColorStyle {
         MurreletColorStyle::Color(MurreletColor::hsva(hue, 1.0, 1.0, 1.0))
     }
-
 }
 
 #[derive(Debug, Clone)]
@@ -345,7 +345,8 @@ pub trait Sdraw: Sized {
     }
 
     fn transform(&self) -> Mat4;
-    fn set_transform(&self, m: Mat4) -> Self;
+    // fn set_transform(&self, m: Mat4) -> Self;
+    fn set_transform<M: ToMat4>(&self, m: M) -> Self;
 
     fn add_transform_after(&self, t: Mat4) -> Self {
         let m = t * self.transform();
@@ -412,9 +413,9 @@ impl Sdraw for CoreSDrawCtxUnitCell {
         self.sdraw.transform
     }
 
-    fn set_transform(&self, m: Mat4) -> Self {
+    fn set_transform<M: ToMat4>(&self, m: M) -> Self {
         let mut ctx = self.clone();
-        ctx.sdraw.transform = m;
+        ctx.sdraw.transform = m.change_to_mat4();
         ctx
     }
 }
@@ -492,9 +493,9 @@ impl Sdraw for CoreSDrawCtx {
     fn transform(&self) -> Mat4 {
         self.transform
     }
-    fn set_transform(&self, m: Mat4) -> Self {
+    fn set_transform<M: ToMat4>(&self, m: M) -> Self {
         let mut sdraw = self.clone();
-        sdraw.transform = m;
+        sdraw.transform = m.change_to_mat4();
         sdraw
     }
 
