@@ -4,7 +4,6 @@ use glam::{Mat4, Vec2};
 use lerpable::Lerpable;
 use lyon::geom::{euclid::Point2D, Point};
 use murrelet_gui::MurreletGUI;
-use murrelet_livecode::types::LivecodeResult;
 use murrelet_livecode_derive::Livecode;
 
 use crate::curve_drawer::{CurveArc, CurveDrawer};
@@ -135,17 +134,8 @@ impl SvgArc {
     }
 
     pub fn from_arc(a: &CurveArc) -> Self {
-        let last_point = a.last_point();
-
-        SvgArc::new(
-            a.radius,
-            a.radius, // same as other rad because it's a circle
-            0.0,      // angle of ellipse doesn't matter, so 0
-            if a.is_large_arc() { 1.0 } else { 0.0 }, // large arc flag
-            if a.is_ccw() { 1.0 } else { 0.0 }, // sweep-flag
-            last_point.x,
-            last_point.y,
-        )
+        let [a, b, c, d, e, f, g] = a.svg_params();
+        SvgArc::new(a, b, c, d, e, f, g)
     }
 
     pub fn params(&self) -> (f32, f32, f32, f32, f32, f32, f32) {
@@ -168,7 +158,7 @@ pub enum SvgCmd {
     ArcTo(SvgArc),
 }
 impl SvgCmd {
-    fn to(&self) -> Vec2{
+    pub fn to(&self) -> Vec2 {
         match self {
             SvgCmd::Line(svg_to) => svg_to.to(),
             SvgCmd::CubicBezier(svg_cubic_bezier) => svg_cubic_bezier.to(),
@@ -184,7 +174,6 @@ pub struct SvgPathDef {
 }
 
 impl SvgPathDef {
-
     pub fn start(&self) -> Vec2 {
         (self.start.x, self.start.y).into()
     }
@@ -229,8 +218,17 @@ impl SvgPathDef {
     }
 
     fn add_curve_arc(&mut self, curve_arc: &CurveArc) {
-        self.v.push(SvgCmd::ArcTo(SvgArc::from_arc(curve_arc)));
+        if let Some((hemi1, hemi2)) = curve_arc.is_full_circle_then_split() {
+            self.v.push(SvgCmd::ArcTo(SvgArc::from_arc(&hemi1)));
+            self.v.push(SvgCmd::ArcTo(SvgArc::from_arc(&hemi2)));
+        } else {
+            self.v.push(SvgCmd::ArcTo(SvgArc::from_arc(curve_arc)));
+        }
     }
+
+    // fn add_curve_arc(&mut self, curve_arc: &CurveArc) {
+    //     self.v.push(SvgCmd::ArcTo(SvgArc::from_arc(curve_arc)));
+    // }
 
     pub fn svg_move_to(&self) -> (f32, f32) {
         (self.start.x, self.start.y)
@@ -367,7 +365,12 @@ mod tests {
 
     #[test]
     fn test_curve_drawer_to_svg_to_curve_drawer_arc() {
-        let cd = CurveDrawer::new_simple_arc(Vec2::new(20.0, 20.0), 5.0, AnglePi::new(-1.0), AnglePi::new(0.0));
+        let cd = CurveDrawer::new_simple_arc(
+            Vec2::new(20.0, 20.0),
+            5.0,
+            AnglePi::new(-1.0),
+            AnglePi::new(0.0),
+        );
 
         let first_point_before = cd.first_point().unwrap();
         let last_point_before = cd.last_point().unwrap();
@@ -382,9 +385,6 @@ mod tests {
         let cmds = svg_path.cmds().to_vec();
         assert_eq!(cmds.len(), 1);
 
-
         assert_eq!(cmds[0].to(), last_point_before);
-
-
     }
 }

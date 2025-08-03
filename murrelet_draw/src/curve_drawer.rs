@@ -17,6 +17,13 @@ impl CurveDrawer {
         Self { segments, closed }
     }
 
+    pub fn new_closed(segments: Vec<CurveSegment>) -> Self {
+        Self {
+            segments,
+            closed: true,
+        }
+    }
+
     pub fn is_closed(&self) -> bool {
         self.closed
     }
@@ -224,7 +231,17 @@ impl CurveSegment {
                 let a = CurveArc::new(arc.loc, arc.radius, arc.start_pi, arc.end_pi);
                 SpotOnCurve::new(a.last_point(), a.end_tangent_angle())
             }
-            CurveSegment::Points(_) => todo!(),
+            CurveSegment::Points(p) => {
+                if p.points().len() >= 2 {
+                    let points = p.points();
+                    let end = *points.last().unwrap();
+                    let prev = *points.get(points.len() - 2).unwrap();
+                    let angle = PointToPoint::new(prev, end).angle().perp_to_left();
+                    SpotOnCurve::new(end, angle)
+                } else {
+                    unimplemented!() // need to look at the val before...
+                }
+            }
             CurveSegment::CubicBezier(c) => c.to_cubic().end_to_tangent().0,
         }
     }
@@ -290,7 +307,18 @@ impl CurveArc {
 
     // useful for svg
     pub fn is_large_arc(&self) -> bool {
-        (self.end_pi.angle_pi() - self.start_pi.angle_pi()).abs() > 1.0
+        // (self.end_pi.angle_pi() - self.start_pi.angle_pi()).abs() > 1.0
+        // (self.end_pi.angle_pi() - self.start_pi.angle_pi()).rem_euclid(2.0) > 1.0
+
+        let ccw_angular_distance =
+            (self.end_pi.angle_pi() - self.start_pi.angle_pi()).rem_euclid(2.0);
+
+        if self.is_ccw() {
+            ccw_angular_distance > 1.0
+        } else {
+            // for CW, the distance is the other way around the circle
+            (2.0 - ccw_angular_distance) > 1.0
+        }
     }
 
     pub fn last_point(&self) -> Vec2 {
@@ -336,6 +364,39 @@ impl CurveArc {
         let mut m = self.clone();
         m.radius = radius;
         m
+    }
+
+    pub fn svg_params(&self) -> [f32; 7] {
+        // assumes you've already moved to first_point
+        let last_point = self.last_point();
+        [
+            self.radius,
+            self.radius, // same as other rad because it's a circle
+            0.0,         // angle of ellipse doesn't matter, so 0
+            if self.is_large_arc() { 1.0 } else { 0.0 }, // large arc flag
+            if self.is_ccw() { 1.0 } else { 0.0 }, // sweep-flag
+            last_point.x,
+            last_point.y,
+        ]
+    }
+
+    pub fn is_full_circle(&self) -> bool {
+        (self.end_pi - self.start_pi).angle_pi().abs() >= 0.0
+            && (self.end_pi - self.start_pi).angle_pi().rem_euclid(2.0) < 1e-3f32
+    }
+
+    pub fn is_full_circle_then_split(&self) -> Option<(CurveArc, CurveArc)> {
+        if self.is_full_circle() {
+            let start_angle = self.start_angle();
+            let mid_angle = self.start_angle() + (self.end_angle() - self.start_angle()).scale(0.5);
+            let end_angle = self.end_angle();
+
+            let semi_circle1 = CurveArc::new(self.loc, self.radius, start_angle, mid_angle);
+            let semi_circle2 = CurveArc::new(self.loc, self.radius, mid_angle, end_angle);
+            Some((semi_circle1, semi_circle2))
+        } else {
+            None
+        }
     }
 }
 

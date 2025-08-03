@@ -629,6 +629,10 @@ impl LineFromVecAndLen {
     pub fn to_last_point(&self) -> Vec2 {
         self.start + self.length.len() * self.angle.to_norm_dir()
     }
+
+    pub fn to_vec(&self) -> Vec<Vec2> {
+        vec![self.start, self.to_last_point()]
+    }
 }
 
 // more curve things

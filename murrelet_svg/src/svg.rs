@@ -922,20 +922,35 @@ impl ToSvgData for CurveDrawer {
                     if curr_point != Some(f) {
                         path = path.line_to((f.x, f.y));
                     }
-
                     let last_point = a.last_point();
 
-                    let params = (
-                        a.radius,
-                        a.radius, // same as other rad because it's a circle
-                        0.0,      // angle of ellipse doesn't matter, so 0
-                        if a.is_large_arc() { 1 } else { 0 }, // large arc flag
-                        if a.is_ccw() { 1 } else { 0 }, // sweep-flag
-                        last_point.x,
-                        last_point.y,
-                    );
+                    // special cases for circles!
+                    if let Some((hemi1, hemi2)) = a.is_full_circle_then_split() {
+                        // let params = (
+                        //     a.radius,
+                        //     a.radius, // same as other rad because it's a circle
+                        //     0.0,      // angle of ellipse doesn't matter, so 0
+                        //     if a.is_large_arc() { 1 } else { 0 }, // large arc flag
+                        //     if a.is_ccw() { 1 } else { 0 }, // sweep-flag
+                        //     last_point.x,
+                        //     last_point.y,
+                        // );
 
-                    path = path.elliptical_arc_to(params);
+                        path = path.elliptical_arc_to(hemi1.svg_params().to_vec());
+                        path = path.elliptical_arc_to(hemi2.svg_params().to_vec());
+                    } else {
+                        // let params = (
+                        //     a.radius,
+                        //     a.radius, // same as other rad because it's a circle
+                        //     0.0,      // angle of ellipse doesn't matter, so 0
+                        //     if a.is_large_arc() { 1 } else { 0 }, // large arc flag
+                        //     if a.is_ccw() { 1 } else { 0 }, // sweep-flag
+                        //     last_point.x,
+                        //     last_point.y,
+                        // );
+
+                        path = path.elliptical_arc_to(a.svg_params().to_vec());
+                    }
 
                     curr_point = Some(last_point)
                 }
