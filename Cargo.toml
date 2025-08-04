@@ -13,8 +13,13 @@ members = [
     "murrelet_svg",
     "examples/murrelet_example",
     "examples/foolish_guillemot",
-    "tinylivecode"
-, "murrelet_gui", "murrelet_gui_derive"
-, "murrelet_gen", "murrelet_gen_derive"]
+    "tinylivecode",
+    "murrelet_schema",
+    "murrelet_schema_derive",
+    "murrelet_gui",
+    "murrelet_gui_derive",
+    "murrelet_gen",
+    "murrelet_gen_derive",
+]
 
 resolver = "2"
