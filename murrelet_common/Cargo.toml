@@ -14,7 +14,7 @@ palette = "0.7.6"
 rand = "0.8"
 num-traits = "0.2.19"
 lerpable = "0.0.2"
-murrelet_gui = { version = "0.1.2", features = ["glam"] }
+# murrelet_gui = { version = "0.1.2", features = ["glam"] }
 serde = { version = "1.0.104", features = ["derive"] }
 bytemuck = { version = "1.15", features = ["derive"] }
 

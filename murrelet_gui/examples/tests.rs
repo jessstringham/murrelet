@@ -1,3 +1,5 @@
+mod tests_schema;
+
 use std::collections::HashMap;
 
 use murrelet_gui::{CanMakeGUI, MurreletEnumValGUI, MurreletGUI, MurreletGUISchema, ValueGUI};

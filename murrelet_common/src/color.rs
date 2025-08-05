@@ -4,7 +4,7 @@ use std::{
 };
 
 use lerpable::{IsLerpingMethod, Lerpable};
-use murrelet_gui::CanMakeGUI;
+// use murrelet_gui::CanMakeGUI;
 use palette::{rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha};
 
 use crate::rgb_to_hex;
@@ -155,11 +155,11 @@ impl MurreletColor {
     }
 }
 
-impl CanMakeGUI for MurreletColor {
-    fn make_gui() -> murrelet_gui::MurreletGUISchema {
-        murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Color)
-    }
-}
+// impl CanMakeGUI for MurreletColor {
+//     fn make_gui() -> murrelet_gui::MurreletGUISchema {
+//         murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Color)
+//     }
+// }
 
 pub trait MurreletIntoLinSrgba {
     fn into_murrelet_color(&self) -> MurreletColor;

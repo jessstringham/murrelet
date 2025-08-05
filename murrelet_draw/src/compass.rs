@@ -3,6 +3,7 @@ use glam::Vec2;
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_gui::MurreletGUI;
+use murrelet_gui::make_gui_vec2;
 use murrelet_livecode_derive::Livecode;
 
 use crate::{

@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -58,6 +59,62 @@ impl MurreletSchema {
         match self {
             MurreletSchema::Struct(_, items) => items,
             _ => unreachable!("tried to flatten a struct that wasn't a struct"),
+        }
+    }
+
+    pub fn update_with_hints(&self, s: &std::collections::HashMap<String, String>) -> Result<Self> {
+        // basically we go through s and then traverse until we find the spot we need to update
+
+        let mut n = self.clone();
+
+        for (key, new_type) in s.iter() {
+            let location = key.split(".").collect::<Vec<_>>();
+
+            let kind = match new_type.as_str() {
+                "Vec2" => Ok(MurreletPrimitive::Vec2),
+                _ => Result::Err(anyhow!(format!("unsupported schema hint, {}", new_type))),
+            }?;
+
+            n.update_with_one_hint(&location, &kind)?;
+        }
+
+        Ok(n)
+    }
+
+    pub fn update_with_one_hint(
+        &mut self,
+        location: &[&str],
+        value: &MurreletPrimitive,
+    ) -> Result<()> {
+        // basically we go through s and then traverse until we find the spot we need to update
+
+        match self {
+            MurreletSchema::NewType(_, murrelet_schema) => {
+                murrelet_schema.update_with_one_hint(location, value)
+            }
+            MurreletSchema::Struct(_, items) => {
+                if let Some((first_name, rest)) = location.split_first() {
+                    let mut found_match = false;
+                    for (name, schema) in items {
+                        if name == first_name {
+                            found_match = true;
+                            schema.update_with_one_hint(rest, value)?;
+                            break;
+                        }
+                    }
+                    if !found_match {
+                        Result::Err(anyhow!(format!("{} didn't match", first_name)))
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    Result::Err(anyhow!("missing"))
+                }
+            },
+            MurreletSchema::Enum(_, murrelet_enum_vals, _) => todo!(),
+            MurreletSchema::List(murrelet_schema) => todo!(),
+            MurreletSchema::Val(murrelet_primitive) => todo!(),
+            MurreletSchema::Skip => Result::Err(anyhow!("hm, trying to edit a skip")),
         }
     }
 }

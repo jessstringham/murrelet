@@ -9,7 +9,9 @@ glam = ["dep:glam"]
 
 [dependencies]
 murrelet_schema_derive = "0.1.2"
+murrelet_common = "0.1.2"
 
+anyhow = "1.0.86"
 thiserror = "2.0.11"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.48"

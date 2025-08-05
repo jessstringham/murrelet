@@ -38,7 +38,7 @@ md-5 = "0.10.6"
 hex = "0.4.3"
 
 schemars = { version = "0.8.21", optional = true }
-murrelet_gui = { version = "0.1.2", features = ["glam"] }
+murrelet_gui = { version = "0.1.2", features = ["glam", "murrelet"] }
 
 kurbo = "0.11"
 svg = "0.10.0"

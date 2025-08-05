@@ -1,4 +1,8 @@
+use itertools::Itertools;
+#[cfg(feature = "murrelet")]
+use murrelet_common::MurreletColor;
 pub use murrelet_gui_derive::MurreletGUI;
+use murrelet_schema::{MurreletEnumVal, MurreletPrimitive, MurreletSchema};
 use serde::Serialize;
 
 // #[derive(Debug, Error)]
@@ -21,6 +25,7 @@ pub enum ValueGUI {
     Style,              // murrelet style
     Angle,              // angle pi
     Coords,             // global coords, so the user can click things
+    String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -123,5 +128,85 @@ impl CanMakeGUI for glam::Vec2 {
 impl CanMakeGUI for glam::Vec3 {
     fn make_gui() -> MurreletGUISchema {
         MurreletGUISchema::Val(ValueGUI::Vec3)
+    }
+}
+
+#[cfg(feature = "murrelet")]
+impl CanMakeGUI for MurreletColor {
+    fn make_gui() -> MurreletGUISchema {
+        MurreletGUISchema::Val(ValueGUI::Color)
+    }
+}
+
+#[cfg(feature = "murrelet")]
+pub fn make_gui_vec2() -> MurreletGUISchema {
+    MurreletGUISchema::Val(ValueGUI::Vec2)
+}
+
+#[cfg(feature = "murrelet")]
+pub fn make_gui_vec2_coords() -> MurreletGUISchema {
+    MurreletGUISchema::Val(ValueGUI::Coords)
+}
+
+#[cfg(feature = "murrelet")]
+pub fn make_gui_vec3() -> MurreletGUISchema {
+    MurreletGUISchema::Val(ValueGUI::Vec3)
+}
+
+// if you already have a schema, you can transform it
+pub trait CanChangeToGUI: Sized {
+    fn change_to_gui(&self) -> MurreletGUISchema;
+}
+
+impl CanChangeToGUI for MurreletSchema {
+    fn change_to_gui(&self) -> MurreletGUISchema {
+        match self {
+            MurreletSchema::NewType(name, murrelet_schema) => {
+                MurreletGUISchema::NewType(name.clone(), Box::new(murrelet_schema.change_to_gui()))
+            }
+            MurreletSchema::Struct(name, items) => MurreletGUISchema::Struct(
+                name.clone(),
+                items
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.change_to_gui()))
+                    .collect::<Vec<_>>(),
+            ),
+            MurreletSchema::Enum(name, items, b) => MurreletGUISchema::Enum(
+                name.clone(),
+                items.iter().map(|x| change_enum_to_gui(x)).collect_vec(),
+                *b,
+            ),
+            MurreletSchema::List(murrelet_schema) => {
+                MurreletGUISchema::List(Box::new(murrelet_schema.change_to_gui()))
+            }
+            MurreletSchema::Val(murrelet_primitive) => {
+                MurreletGUISchema::Val(change_primitive_to_gui(murrelet_primitive))
+            }
+            MurreletSchema::Skip => MurreletGUISchema::Skip,
+        }
+    }
+}
+
+fn change_enum_to_gui(a: &MurreletEnumVal) -> MurreletEnumValGUI {
+    match a {
+        MurreletEnumVal::Unnamed(a, murrelet_schema) => {
+            MurreletEnumValGUI::Unnamed(a.clone(), murrelet_schema.change_to_gui())
+        }
+        MurreletEnumVal::Unit(a) => MurreletEnumValGUI::Unit(a.clone()),
+    }
+}
+
+fn change_primitive_to_gui(a: &MurreletPrimitive) -> ValueGUI {
+    match a {
+        MurreletPrimitive::Bool => ValueGUI::Bool,
+        MurreletPrimitive::Num => ValueGUI::Num,
+        MurreletPrimitive::Color => ValueGUI::Color,
+        MurreletPrimitive::Defs => ValueGUI::Defs,
+        MurreletPrimitive::Vec2 => ValueGUI::Vec2,
+        MurreletPrimitive::Vec3 => ValueGUI::Vec3,
+        MurreletPrimitive::Style => ValueGUI::Style,
+        MurreletPrimitive::Angle => ValueGUI::Angle,
+        MurreletPrimitive::Coords => ValueGUI::Coords,
+        MurreletPrimitive::String => ValueGUI::String,
     }
 }
