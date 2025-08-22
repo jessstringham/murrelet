@@ -6,7 +6,7 @@ use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode::expr::{MixedEvalDefs, MixedEvalDefsRef};
-use murrelet_livecode::lazy::ControlLazyNodeF32;
+use murrelet_livecode::lazy::{ControlLazyNodeF32, LazyNodeF32};
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
 use murrelet_livecode::types::{AdditionalContextNode, ControlVecElement, LivecodeResult};
 use std::collections::{HashMap, HashSet};
@@ -262,6 +262,28 @@ fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(false)
 }
 
+impl Default for ControlAppConfigTiming {
+    fn default() -> Self {
+        Self {
+            bpm: _default_bpm(),
+            beats_per_bar: _default_beats_per_bar(),
+            fps: _default_fps(),
+            realtime: ControlBool::Raw(true),
+        }
+    }
+}
+
+impl Default for ControlLazyAppConfigTiming {
+    fn default() -> Self {
+        Self {
+            bpm: _default_bpm_lazy(),
+            beats_per_bar: _default_beats_per_bar_lazy(),
+            fps: _default_fps_lazy(),
+            realtime: ControlLazyNodeF32::Bool(true),
+        }
+    }
+}
+
 // this stuff adjusts how time works, so needs to be split off pretty early
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
@@ -432,6 +454,88 @@ fn _default_should_reset_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(false)
 }
 
+fn _default_redraw() -> ControlF32 {
+    ControlF32::Int(1)
+}
+
+fn _default_redraw_lazy() -> LazyNodeF32 {
+    LazyNodeF32::simple_number(1.0)
+}
+
+fn _default_reload() -> ControlBool {
+    ControlBool::Raw(true)
+}
+
+fn _default_reload_lazy() -> LazyNodeF32 {
+    LazyNodeF32::simple_number(1.0)
+}
+
+fn _default_reload_rate() -> ControlF32 {
+    ControlF32::Int(1)
+}
+
+fn _default_reload_rate_lazy() -> LazyNodeF32 {
+    LazyNodeF32::simple_number(1.0)
+}
+
+fn _default_time() -> ControlAppConfigTiming {
+    ControlAppConfigTiming::default()
+}
+
+fn _default_ctx() -> AdditionalContextNode {
+    AdditionalContextNode::new_dummy()
+}
+
+fn _default_ctx_lazy() -> AdditionalContextNode {
+    AdditionalContextNode::new_dummy()
+}
+
+fn _default_svg() -> ControlSvgConfig {
+    ControlSvgConfig::default()
+}
+
+impl Default for ControlAppConfig {
+    fn default() -> Self {
+        Self {
+            should_reset: _default_should_reset(),
+            debug: ControlBool::Raw(false),
+            capture: ControlBool::Raw(false),
+            seed: _default_seed(),
+            width: _default_width(),
+            bg_alpha: _default_bg_alpha(),
+            clear_bg: _default_clear_bg(),
+            bg_color: _default_bg_color(),
+            capture_frame: _default_capture_frame(),
+            redraw: _default_redraw(),
+            reload: _default_reload(),
+            reload_rate: _default_reload_rate(),
+            time: _default_time(),
+            ctx: _default_ctx(),
+            svg: _default_svg(),
+            gpu: _default_gpu(),
+            reload_on_bar: _default_reload_on_bar(),
+            assets: _default_assets(),
+            lerp_rate: _default_lerp_rate(),
+        }
+    }
+}
+
+fn _default_lerp_rate() -> ControlF32 {
+    ControlF32::Int(0)
+}
+
+fn _default_assets() -> ControlAssetFilenames {
+    _empty_filenames()
+}
+
+fn _default_reload_on_bar() -> ControlBool {
+    ControlBool::Raw(false)
+}
+
+fn _default_gpu() -> ControlGpuConfig {
+    ControlGpuConfig::default()
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct AppConfig {
@@ -459,8 +563,10 @@ pub struct AppConfig {
     pub reload: bool, // should reload and draw, good for slow drawing things
     #[livecode(serde_default = "0")]
     pub reload_rate: u64, // controls should_redraw, how many frames between redraw. if < 1, always defer to reload
+    #[livecode(serde_default = "default")]
     pub time: AppConfigTiming,
     #[livecode(kind = "none")]
+    #[livecode(serde_default = "_default_ctx")]
     pub ctx: AdditionalContextNode,
     #[livecode(serde_default = "default")]
     pub svg: SvgConfig,
@@ -719,11 +825,13 @@ where
         self.lerp_pct += lerp_change;
 
         if self.lerp_pct >= 1.0 {
+            // todo, just move it out...
             if let Some(new_target) = &self.queued_configcontrol {
-                self.prev_controlconfig = self.controlconfig.clone();
-                self.controlconfig = new_target.clone();
-                self.lerp_pct = 0.0;
-                self.queued_configcontrol = None;
+                // self.prev_controlconfig = self.controlconfig.clone();
+                // self.controlconfig = new_target.clone();
+                // self.lerp_pct = 0.0;
+                // self.queued_configcontrol = None;
+                self.update_config_directly(new_target.clone())?;
             }
         }
 
@@ -788,14 +896,23 @@ where
     pub fn update_config_to(&mut self, text: &str) -> Result<(), String> {
         match ControlConfType::cb_reload_and_update_info(&mut self.util, text) {
             Ok(d) => {
-                self.prev_controlconfig = self.controlconfig.clone();
-                self.controlconfig = d;
-                self.queued_configcontrol = None;
-                self.lerp_pct = 0.0;
-                Ok(())
+                // self.prev_controlconfig = self.controlconfig.clone();
+                // self.controlconfig = d;
+                // self.queued_configcontrol = None;
+                // self.lerp_pct = 0.0;
+                // Ok(())
+                self.update_config_directly(d).map_err(|x| x.to_string())
             }
             Err(e) => Err(e),
         }
+    }
+
+    pub fn update_config_directly(&mut self, control_conf: ControlConfType) -> LivecodeResult<()> {
+        self.prev_controlconfig = self.controlconfig.clone();
+        self.controlconfig = control_conf;
+        self.queued_configcontrol = None;
+        self.lerp_pct = 0.0;
+        Ok(())
     }
 
     /// if the bg_alpha is above 0.5 or clear_bg is true

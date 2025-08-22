@@ -2,7 +2,7 @@
 use crate::{
     curve_drawer::CurveDrawer,
     draw::*,
-    svg::{SvgPathDef, TransformedSvgShape},
+    svg::{SvgCircle, SvgPathDef, SvgShape, TransformedSvgShape},
     tesselate::parse_svg_path_as_vec2,
     transform2d::*,
 };
@@ -560,6 +560,10 @@ pub enum MurreletPath {
 impl MurreletPath {
     pub fn polyline<F: IsPolyline>(path: F) -> Self {
         Self::Polyline(path.as_polyline())
+    }
+
+    pub fn svg_circle(loc: Vec2, rad: f32) -> Self {
+        Self::Svg(TransformedSvgShape::from_shape(SvgShape::circle(loc, rad)))
     }
 
     pub fn curve(cd: CurveDrawer) -> Self {

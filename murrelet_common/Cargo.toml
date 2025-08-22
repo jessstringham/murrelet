@@ -9,7 +9,7 @@ license = "AGPL-3.0-or-later"
 
 [dependencies]
 itertools = "0.10.5"
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
 rand = "0.8"
 num-traits = "0.2.19"

@@ -506,15 +506,11 @@ impl IsLivecodeSrc for LiveCodeTimeInstantInfo {
             ("t".to_owned(), LivecodeValue::Float(time as f64)),
             (
                 "tease".to_owned(),
-                LivecodeValue::Float(ease(
-                    time.into(),
-                    (1.0 / self.timing_config.beats_per_bar).into(),
-                    0.0,
-                )),
+                LivecodeValue::Float(ease(time.into(), (1.0 / 4.0).into(), 0.0)),
             ),
             (
                 "stease".to_owned(),
-                LivecodeValue::Float(ease(time.into(), 0.01, 0.0)),
+                LivecodeValue::Float(ease(time.into(), 0.0125, 0.0)),
             ),
             ("ti".to_owned(), LivecodeValue::Int(time as i64)),
             ("f".to_owned(), LivecodeValue::Float(frame as f64)),

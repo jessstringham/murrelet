@@ -9,10 +9,11 @@ pub mod anglepi {
     use murrelet_gui::CanMakeGUI;
     use murrelet_livecode::{lazy::ControlLazyNodeF32, livecode::ControlF32};
     use murrelet_livecode_derive::Livecode;
+    use serde::{Deserialize, Serialize};
 
     use crate::transform2d::Transform2d;
 
-    #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default, PartialEq)]
+    #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default, PartialEq, Serialize, Deserialize)]
     pub struct LivecodeAnglePi(f32);
 
     impl std::ops::Add for LivecodeAnglePi {

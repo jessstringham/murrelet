@@ -7,7 +7,11 @@ use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
 
 use crate::curve_drawer::{CurveArc, CurveDrawer};
-
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into())
+    }
+}
 #[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]
 pub struct SvgRect {
     #[livecode(serde_default = "0")]
@@ -268,7 +272,6 @@ impl SvgPathDef {
     }
 }
 
-#[allow(dead_code)]
 pub fn glam_to_lyon(vec: Vec2) -> Point2D<f32, lyon::geom::euclid::UnknownUnit> {
     Point::new(vec.x, vec.y)
 }
@@ -316,6 +319,14 @@ impl SvgShape {
             SvgShape::Circle(_) => todo!(),
             SvgShape::Path(svg_path_def) => svg_path_def.clone(),
         }
+    }
+
+    pub(crate) fn circle(loc: Vec2, rad: f32) -> SvgShape {
+        SvgShape::Circle(SvgCircle {
+            x: loc.x,
+            y: loc.y,
+            r: rad,
+        })
     }
 }
 

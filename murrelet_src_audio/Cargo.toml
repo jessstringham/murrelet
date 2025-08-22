@@ -11,6 +11,6 @@ license = "AGPL-3.0-or-later"
 murrelet_common = "0.1.2"
 cpal = "0.14"
 rustfft = "6.1.0"
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 itertools = "0.10.5"
 anyhow = "1.0.86"

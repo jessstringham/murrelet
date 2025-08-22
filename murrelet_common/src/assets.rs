@@ -105,15 +105,37 @@ impl RasterAssetLookup {
 }
 
 #[derive(Debug, Clone)]
+pub struct JsonAssetLookup(HashMap<String, String>);
+impl JsonAssetLookup {
+    pub fn empty() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn insert(&mut self, filename: String, img: String) {
+        self.0.insert(filename, img);
+    }
+}
+
+#[derive(Debug, Clone)]
 
 pub struct Assets {
     vectors: VectorLayersAssetLookup,
     #[allow(dead_code)]
     rasters: RasterAssetLookup,
+    #[allow(dead_code)]
+    json: JsonAssetLookup,
 }
 impl Assets {
-    pub fn new(vectors: VectorLayersAssetLookup, rasters: RasterAssetLookup) -> Self {
-        Self { vectors, rasters }
+    pub fn new(
+        vectors: VectorLayersAssetLookup,
+        rasters: RasterAssetLookup,
+        json: JsonAssetLookup,
+    ) -> Self {
+        Self {
+            vectors,
+            rasters,
+            json,
+        }
     }
 
     pub fn empty_ref() -> AssetsRef {
@@ -124,6 +146,7 @@ impl Assets {
         Self {
             vectors: VectorLayersAssetLookup::empty(),
             rasters: RasterAssetLookup::empty(),
+            json: JsonAssetLookup::empty()
         }
     }
 

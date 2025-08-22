@@ -483,6 +483,36 @@ pub struct LivecodeSrc {
     vs: Vec<Box<dyn IsLivecodeSrc>>,
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct CustomVars(Option<HashMap<String, f32>>);
+
+impl CustomVars {
+    pub fn new(hash_map: HashMap<String, f32>) -> Self {
+        Self(Some(hash_map))
+    }
+
+    pub fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
+        if let Some(hm) = &self.0 {
+            let mut v = vec![];
+            for (key, value) in hm.iter() {
+                v.push((key.clone(), LivecodeValue::float(*value)))
+            }
+            v
+        } else {
+            vec![]
+        }
+    }
+
+    pub fn update(&mut self, new: &Self) {
+        // basically update add, you can never delete >:D
+        if let Some(o) = &new.0 {
+            self.0
+                .get_or_insert_with(Default::default)
+                .extend(o.iter().map(|(k, v)| (k.clone(), *v)));
+        }
+    }
+}
+
 // what is sent from apps (like nannou)
 #[derive(Default)]
 pub struct MurreletAppInput {
@@ -491,6 +521,7 @@ pub struct MurreletAppInput {
     pub mouse_position: Vec2,
     pub mouse_left_is_down: bool,
     pub elapsed_frames: u64,
+    pub custom_vars: CustomVars,
 }
 
 impl MurreletAppInput {
@@ -507,6 +538,7 @@ impl MurreletAppInput {
             mouse_position,
             mouse_left_is_down,
             elapsed_frames,
+            custom_vars: CustomVars::default(),
         }
     }
 
@@ -515,6 +547,7 @@ impl MurreletAppInput {
         mouse_position: Vec2,
         mouse_left_is_down: bool,
         elapsed_frames: u64,
+        custom_vars: HashMap<String, f32>,
     ) -> Self {
         Self {
             keys: None,
@@ -522,6 +555,7 @@ impl MurreletAppInput {
             mouse_position,
             mouse_left_is_down,
             elapsed_frames,
+            custom_vars: CustomVars::new(custom_vars),
         }
     }
 
@@ -921,7 +955,6 @@ pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
 
     lerped.into_iter().map(|v| v.into()).collect_vec()
 }
-
 
 #[derive(Clone, Copy, Debug)]
 pub struct Dim2d {

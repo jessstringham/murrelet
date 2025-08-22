@@ -25,7 +25,7 @@ murrelet_livecode = { version = "0.1.2", default-features = false }
 # just for examples...
 [dev-dependencies]
 murrelet_common = "0.1.2"
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
 lerpable = "0.0.2"
 schemars = "0.8.21"

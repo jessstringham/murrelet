@@ -1,10 +1,12 @@
 // these could probably be somewhere else, but they are used by this crate
 // and just give more livecode defaults to work with instead of always
 // needing to create a new type.
+// use crate::serialize::serialize_vec2;
 use glam::{Vec2, Vec3};
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode_derive::Livecode;
+use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
 pub struct F32Newtype {
@@ -17,7 +19,7 @@ impl F32Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default, Serialize, Deserialize)]
 pub struct Vec2Newtype {
     #[lerpable(func = "lerpify_vec2")]
     v: Vec2,

@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path};
 use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::{
-    Assets, RasterAsset, RasterAssetLookup, VectorAsset, VectorLayersAssetLookup,
+    Assets, JsonAssetLookup, RasterAsset, RasterAssetLookup, VectorAsset, VectorLayersAssetLookup
 };
 use murrelet_gui::CanMakeGUI;
 use murrelet_livecode_derive::Livecode;
@@ -16,6 +16,20 @@ pub trait VectorAssetLoader {
 pub trait RasterAssetLoader {
     fn is_match(&self, file_extension: &str) -> bool;
     fn load(&self, filename: &Path) -> RasterAsset;
+}
+
+#[derive(Livecode, Lerpable, Clone, Debug)]
+pub struct JsonStringFile {
+    #[livecode(kind = "none")]
+    name: String,
+    #[livecode(kind = "none")]
+    content: String,
+    // probably will want to add something to normalize the nums coming in...
+}
+impl JsonStringFile {
+    pub fn path(&self) -> &Path {
+        Path::new(&self.name)
+    }
 }
 
 #[derive(Livecode, Lerpable, Clone, Debug)]
@@ -50,6 +64,7 @@ pub fn _empty_filenames() -> ControlAssetFilenames {
     ControlAssetFilenames {
         vector_files: vec![],
         raster_files: vec![],
+        json_files: vec![],
     }
 }
 
@@ -57,6 +72,7 @@ pub fn _empty_filenames_lazy() -> ControlLazyAssetFilenames {
     ControlLazyAssetFilenames {
         vector_files: vec![],
         raster_files: vec![],
+        json_files: vec![],
     }
 }
 
@@ -86,6 +102,7 @@ pub struct AssetFilenames {
     // hmm, the parsers are all in a different part of the code
     vector_files: Vec<PolylineLayerFile>,
     raster_files: Vec<RasterFile>,
+    json_files: Vec<JsonStringFile>, // just load as a string
 }
 
 impl AssetFilenames {
@@ -93,6 +110,7 @@ impl AssetFilenames {
         Self {
             vector_files: Vec::new(),
             raster_files: Vec::new(),
+            json_files: Vec::new(),
         }
     }
 
@@ -142,7 +160,12 @@ impl AssetFilenames {
             }
         }
 
-        Assets::new(polylines, raster)
+        let mut json = JsonAssetLookup::empty();
+        for s in &self.json_files {
+            json.insert(s.name.clone(), s.content.clone());
+        }
+
+        Assets::new(polylines, raster, json)
     }
 }
 

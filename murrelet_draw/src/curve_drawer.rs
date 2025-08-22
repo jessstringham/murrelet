@@ -1,10 +1,177 @@
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
+use lyon::{geom::CubicBezierSegment, path::Path};
 use murrelet_common::*;
 use murrelet_livecode_derive::*;
+use serde::{Deserialize, Serialize};
+use svg::node::element::path::Data;
+// use crate::serialize::serialize_vec2;
 
-use crate::{cubic::CubicBezier, livecodetypes::anglepi::*, tesselate::ToVecVec2};
+use crate::{
+    cubic::CubicBezier,
+    livecodetypes::anglepi::*,
+    newtypes::*,
+    svg::glam_to_lyon,
+    tesselate::{
+        cubic_bezier_path_to_lyon, flatten_cubic_bezier_path, parse_svg_data_as_vec2, ToVecVec2,
+    },
+};
+
+#[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
+pub enum CubicOptionVec2 {
+    #[default]
+    None,
+    Some(Vec2Newtype),
+}
+impl CubicOptionVec2 {
+    pub fn or_last(&self, anchor: Vec2, last_ctrl2: Vec2) -> Vec2 {
+        match self {
+            CubicOptionVec2::None => anchor * 2.0 - last_ctrl2,
+            CubicOptionVec2::Some(vec2_newtype) => vec2_newtype.vec2(),
+        }
+    }
+
+    pub fn none() -> Self {
+        Self::None
+    }
+
+    pub fn some(v: Vec2) -> Self {
+        Self::Some(Vec2Newtype::new(v))
+    }
+}
+
+#[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
+pub struct CubicBezierTo {
+    pub ctrl1: CubicOptionVec2,
+    #[lerpable(func = "lerpify_vec2")]
+    // #[serde(serialize_with = "serialize_vec2")]
+    pub ctrl2: Vec2,
+    // #[serde(serialize_with = "serialize_vec2")]
+    #[lerpable(func = "lerpify_vec2")]
+    pub to: Vec2,
+}
+
+impl CubicBezierTo {
+    pub fn new(ctrl1o: Option<Vec2>, ctrl2: Vec2, to: Vec2) -> Self {
+        let ctrl1 = match ctrl1o {
+            Some(c) => CubicOptionVec2::some(c),
+            None => CubicOptionVec2::none(),
+        };
+        Self { ctrl1, ctrl2, to }
+    }
+}
+
+#[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
+pub struct CubicBezierPath {
+    #[lerpable(func = "lerpify_vec2")]
+    pub from: Vec2,
+    #[lerpable(func = "lerpify_vec2")]
+    pub ctrl1: Vec2,
+    pub curves: Vec<CubicBezierTo>,
+    pub closed: bool,
+}
+impl CubicBezierPath {
+    pub fn new(from: Vec2, ctrl1: Vec2, curves: Vec<CubicBezierTo>, closed: bool) -> Self {
+        Self {
+            from,
+            ctrl1,
+            curves,
+            closed,
+        }
+    }
+
+    fn to_vec2_count(&self, count: usize) -> Vec<Vec2> {
+        let len = self.to_cd().length();
+        let line_space = len / count as f32;
+
+        let svg = self.to_data();
+        let path = parse_svg_data_as_vec2(&svg, line_space);
+
+        // if let Some(a) = path.last() {
+        //     if a.distance(self.to.yx()) > 1.0e-3 {
+        //         path.push(self.to.yx())
+        //     }
+        // }
+
+        path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
+    }
+
+    pub fn to_cd(&self) -> CurveDrawer {
+        let mut cs = vec![];
+        for c in self.to_cubic() {
+            cs.push(CurveSegment::cubic(c));
+        }
+        CurveDrawer::new(cs, self.closed)
+    }
+
+    pub fn to_cubic(&self) -> Vec<CubicBezier> {
+        let mut svg = vec![];
+
+        let mut from = self.from;
+
+        let mut last_ctrl1 = self.ctrl1;
+
+        for s in &self.curves {
+            let ctrl1 = s.ctrl1.or_last(from, last_ctrl1);
+            svg.push(CubicBezier::new(from, ctrl1, s.ctrl2, s.to));
+            last_ctrl1 = s.ctrl2;
+            from = s.to;
+        }
+
+        if self.closed {
+            let ctrl1 = CubicOptionVec2::none().or_last(from, last_ctrl1);
+            let ctrl2 = CubicOptionVec2::none().or_last(self.from, self.ctrl1);
+            svg.push(CubicBezier::new(from, ctrl1, ctrl2, self.from));
+        }
+
+        svg
+    }
+
+    pub fn to_data(&self) -> Data {
+        let mut svg = svg::node::element::path::Data::new();
+
+        let x = self.from.x;
+        let y = self.from.y;
+        let start: svg::node::element::path::Parameters = vec![x, y].into();
+        svg = svg.move_to(start);
+
+        let mut last = self.from;
+        let mut last_ctrl1 = self.ctrl1;
+
+        for s in &self.curves {
+            let ctrl1 = s.ctrl1.or_last(last, last_ctrl1);
+
+            let cubic: svg::node::element::path::Parameters =
+                vec![ctrl1.x, ctrl1.y, s.ctrl2.x, s.ctrl2.y, s.to.x, s.to.y].into();
+            svg = svg.cubic_curve_to(cubic);
+
+            last_ctrl1 = s.ctrl2;
+            last = s.to;
+        }
+        svg
+    }
+
+    pub fn to_lyon(&self) -> Option<Path> {
+        cubic_bezier_path_to_lyon(&self.to_cubic(), self.closed)
+    }
+
+    pub fn to_vec2(&self) -> Option<Vec<Vec2>> {
+        flatten_cubic_bezier_path(&self.to_cubic(), self.closed)
+    }
+
+    pub fn last_point(&self) -> Vec2 {
+        if let Some(last) = self.curves.last() {
+            last.to
+        } else {
+            self.from
+        }
+    }
+
+    pub fn first_point(&self) -> Vec2 {
+        self.from
+    }
+}
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveDrawer {
@@ -91,6 +258,33 @@ impl CurveDrawer {
     pub fn last_point(&self) -> Option<Vec2> {
         let last_command = self.segments().last()?;
         Some(last_command.last_point())
+    }
+
+    pub fn length(&self) -> f32 {
+        self.segments
+            .iter()
+            .map(|segment| match segment {
+                CurveSegment::CubicBezier(c) => {
+                    let lyon_cubic = CubicBezierSegment {
+                        from: glam_to_lyon(c.from),
+                        ctrl1: glam_to_lyon(c.ctrl1),
+                        ctrl2: glam_to_lyon(c.ctrl2),
+                        to: glam_to_lyon(c.to),
+                    };
+                    lyon_cubic.approximate_length(0.1)
+                }
+                CurveSegment::Points(p) => p
+                    .points()
+                    .windows(2)
+                    .map(|pts| pts[0].distance(pts[1]))
+                    .sum(),
+                CurveSegment::Arc(a) => {
+                    let angle_diff = (a.end_pi.angle_pi() - a.start_pi.angle_pi()).rem_euclid(2.0);
+                    let sweep_angle_rads = angle_diff * std::f32::consts::PI;
+                    a.radius * sweep_angle_rads
+                }
+            })
+            .sum()
     }
 }
 
@@ -253,6 +447,10 @@ impl CurveSegment {
             ctrl2,
             to,
         })
+    }
+
+    fn cubic(c: CubicBezier) -> CurveSegment {
+        Self::CubicBezier(CurveCubicBezier::from_cubic(c))
     }
 }
 

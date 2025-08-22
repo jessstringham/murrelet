@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::{anyhow, Result};
 use serde::Serialize;
 
@@ -17,15 +19,16 @@ pub enum MurreletPrimitive {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum MurreletEnumVal {
-    Unnamed(String, MurreletSchema),
+    Unnamed(String, Box<MurreletSchema>),
     Unit(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum MurreletSchema {
     NewType(String, Box<MurreletSchema>),
-    Struct(String, Vec<(String, MurreletSchema)>),
-    Enum(String, Vec<MurreletEnumVal>, bool),
+    Struct(String, BTreeMap<String, MurreletSchema>),
+    // hmm, we'll need to figure out how to provide this
+    Enum(String, BTreeMap<String, MurreletEnumVal>, bool),
     List(Box<MurreletSchema>),
     Val(MurreletPrimitive),
     Skip,
@@ -39,7 +42,7 @@ impl MurreletSchema {
         Self::List(Box::new(m))
     }
 
-    pub fn as_enum(&self) -> Option<&Vec<MurreletEnumVal>> {
+    pub fn as_enum(&self) -> Option<&BTreeMap<String, MurreletEnumVal>> {
         if let Self::Enum(_, v, _) = self {
             Some(v)
         } else {
@@ -55,7 +58,7 @@ impl MurreletSchema {
         }
     }
 
-    pub fn unwrap_to_struct_fields(self) -> Vec<(String, MurreletSchema)> {
+    pub fn unwrap_to_struct_fields(self) -> BTreeMap<String, MurreletSchema> {
         match self {
             MurreletSchema::Struct(_, items) => items,
             _ => unreachable!("tried to flatten a struct that wasn't a struct"),
@@ -70,12 +73,16 @@ impl MurreletSchema {
         for (key, new_type) in s.iter() {
             let location = key.split(".").collect::<Vec<_>>();
 
-            let kind = match new_type.as_str() {
-                "Vec2" => Ok(MurreletPrimitive::Vec2),
+            let kind = match new_type.to_lowercase().as_str() {
+                "vec2" => Ok(MurreletPrimitive::Vec2),
+                "f32" => Ok(MurreletPrimitive::Num),
+                "number" => Ok(MurreletPrimitive::Num),
+                "num" => Ok(MurreletPrimitive::Num),
+                "string" => Ok(MurreletPrimitive::String),
                 _ => Result::Err(anyhow!(format!("unsupported schema hint, {}", new_type))),
             }?;
 
-            n.update_with_one_hint(&location, &kind)?;
+            n.update_with_one_hint(key, &location, &kind)?;
         }
 
         Ok(n)
@@ -83,14 +90,22 @@ impl MurreletSchema {
 
     pub fn update_with_one_hint(
         &mut self,
+        original_location: &str, // for debugging
         location: &[&str],
         value: &MurreletPrimitive,
     ) -> Result<()> {
         // basically we go through s and then traverse until we find the spot we need to update
 
+        if location.is_empty() {
+            // we're there!
+            // return Result::Err(anyhow!(format!("couldn't find {} in {:?}!", original_location, self)));
+            *self = MurreletSchema::Val(value.clone());
+            return Ok(());
+        }
+
         match self {
             MurreletSchema::NewType(_, murrelet_schema) => {
-                murrelet_schema.update_with_one_hint(location, value)
+                murrelet_schema.update_with_one_hint(original_location, location, value)
             }
             MurreletSchema::Struct(_, items) => {
                 if let Some((first_name, rest)) = location.split_first() {
@@ -98,7 +113,7 @@ impl MurreletSchema {
                     for (name, schema) in items {
                         if name == first_name {
                             found_match = true;
-                            schema.update_with_one_hint(rest, value)?;
+                            schema.update_with_one_hint(original_location, rest, value)?;
                             break;
                         }
                     }
@@ -110,13 +125,16 @@ impl MurreletSchema {
                 } else {
                     Result::Err(anyhow!("missing"))
                 }
-            },
-            MurreletSchema::Enum(_, murrelet_enum_vals, _) => todo!(),
-            MurreletSchema::List(murrelet_schema) => todo!(),
-            MurreletSchema::Val(murrelet_primitive) => todo!(),
+            }
+            MurreletSchema::Enum(_, _, _) => todo!(),
+            // need to do this one...
+            MurreletSchema::List(_) => todo!(),
+            // i think these should be handled in the struct level!
+            MurreletSchema::Val(_) => todo!(),
             MurreletSchema::Skip => Result::Err(anyhow!("hm, trying to edit a skip")),
         }
     }
+
 }
 
 // this should be on the Control version

@@ -304,7 +304,12 @@ impl GetSvgAttributes for MurreletStyle {
                     v.add_float("stroke-width", self.stroke_weight);
                     v.add("stroke-linejoin", "round");
                     v.add("stroke-linecap", "round");
-                    v.add("stroke", &self.stroke_color.as_color().hex());
+
+                    let sc = self.stroke_color.as_color();
+                    v.add("stroke", &sc.hex());
+                    if sc.alpha() < 1.0 {
+                        v.add("stroke-opacity", &format!("{}", sc.alpha()));
+                    }
                 }
             }
             murrelet_draw::draw::MurreletDrawPlan::Outline => {
@@ -314,7 +319,12 @@ impl GetSvgAttributes for MurreletStyle {
                     v.add_float("stroke-width", self.stroke_weight);
                     v.add("stroke-linejoin", "round");
                     v.add("stroke-linecap", "round");
-                    v.add("stroke", &self.color.as_color().hex());
+
+                    let sc = self.color.as_color();
+                    v.add("stroke", &sc.hex());
+                    if sc.alpha() < 1.0 {
+                        v.add("stroke-opacity", &format!("{}", sc.alpha()));
+                    }
                 }
             }
             murrelet_draw::draw::MurreletDrawPlan::Line => {
@@ -324,7 +334,12 @@ impl GetSvgAttributes for MurreletStyle {
                     v.add_float("stroke-width", self.stroke_weight);
                     v.add("stroke-linejoin", "round");
                     v.add("stroke-linecap", "round");
-                    v.add("stroke", &self.color.as_color().hex());
+
+                    let sc = self.color.as_color();
+                    v.add("stroke", &sc.hex());
+                    if sc.alpha() < 1.0 {
+                        v.add("stroke-opacity", &format!("{}", sc.alpha()));
+                    }
                 }
             }
         }

@@ -12,6 +12,10 @@ pub trait CanSampleFromDist: Sized {
     // given rn of length ^, it'll generate!
     fn sample_dist(rn: &[f32], start_idx: usize) -> Self;
 
+    fn from_dist(rn: &[f32]) -> Self {
+        Self::sample_dist(rn, 0)
+    }
+
     // usually you'll call this one
     fn gen_from_seed(seed: u64) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);

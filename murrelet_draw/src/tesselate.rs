@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops};
 
 use crate::{
     cubic::CubicBezier,
-    // curve_drawer::{CurveDrawer, CurveSegment},
+    curve_drawer::{CubicBezierPath, CurveDrawer, CurveSegment},
     svg::SvgPathDef,
 };
 use glam::{vec2, Vec2, Vec2Swizzles};
@@ -20,10 +20,18 @@ use murrelet_common::{triangulate::VertexSimple, Polyline};
 
 pub trait ToVecVec2 {
     fn to_vec2(&self) -> Vec<Vec2>;
+
+    fn to_vec2_line_space(&self, line_space: f32) -> Vec<Vec2> {
+        todo!()
+    }
+
+    fn to_vec2_count(&self, count: usize) -> Vec<Vec2> {
+        todo!()
+    }
 }
 
 impl ToVecVec2 for CubicBezier {
-    fn to_vec2(&self) -> Vec<Vec2> {
+    fn to_vec2_line_space(&self, line_space: f32) -> Vec<Vec2> {
         let mut svg = svg::node::element::path::Data::new();
 
         let x = self.from.x;
@@ -42,13 +50,31 @@ impl ToVecVec2 for CubicBezier {
         .into();
         svg = svg.cubic_curve_to(cubic);
 
-        let mut path = parse_svg_data_as_vec2(&svg, 1.0);
+        let mut path = parse_svg_data_as_vec2(&svg, line_space);
 
         if let Some(a) = path.last() {
             if a.distance(self.to.yx()) > 1.0e-3 {
                 path.push(self.to.yx())
             }
         }
+
+        path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
+    }
+    fn to_vec2(&self) -> Vec<Vec2> {
+        self.to_vec2_line_space(1.0)
+    }
+}
+
+impl ToVecVec2 for CubicBezierPath {
+    fn to_vec2(&self) -> Vec<Vec2> {
+        let svg = self.to_data();
+        let path = parse_svg_data_as_vec2(&svg, 1.0);
+
+        // if let Some(a) = path.last() {
+        //     if a.distance(self.to.yx()) > 1.0e-3 {
+        //         path.push(self.to.yx())
+        //     }
+        // }
 
         path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
     }
@@ -93,6 +119,52 @@ fn point_from_param3(params: &Vec<&f32>) -> (Pt, Pt, Pt) {
 
 pub fn many_pt2_to_vec2(ps: &Vec<Pt>) -> Vec<Vec2> {
     ps.iter().map(|p| p.as_vec2()).collect_vec()
+}
+
+pub fn cubic_bezier_length(c: &CubicBezier) -> f32 {
+    let line = lyon::geom::CubicBezierSegment {
+        from: vec2_to_pt(c.from),
+        ctrl1: vec2_to_pt(c.ctrl1),
+        ctrl2: vec2_to_pt(c.ctrl2),
+        to: vec2_to_pt(c.to),
+    };
+    line.approximate_length(0.1)
+}
+
+pub fn flatten_cubic_bezier_path(path: &[CubicBezier], closed: bool) -> Option<Vec<Vec2>> {
+    if path.is_empty() {
+        return None;
+    }
+    let mut kurbo_path = BezPath::new();
+
+    kurbo_path.move_to(vec2_to_kurbo(path[0].from));
+    for c in path {
+        kurbo_path.curve_to(
+            vec2_to_kurbo(c.ctrl1),
+            vec2_to_kurbo(c.ctrl2),
+            vec2_to_kurbo(c.to),
+        )
+    }
+
+    if closed {
+        kurbo_path.close_path();
+    }
+
+    let tolerance = 0.01;
+    let mut points = Vec::new();
+    kurbo::flatten(kurbo_path, tolerance, |el| match el {
+        kurbo::PathEl::MoveTo(p) | kurbo::PathEl::LineTo(p) => {
+            points.push(vec2(p.x as f32, p.y as f32));
+        }
+        kurbo::PathEl::ClosePath => {
+            if let Some(first) = points.first() {
+                points.push(*first);
+            }
+        }
+        _ => {}
+    });
+
+    Some(points)
 }
 
 pub fn cubic_bezier_path_to_lyon(path: &[CubicBezier], closed: bool) -> Option<lyon::path::Path> {
@@ -261,13 +333,13 @@ pub fn tesselate_lyon(path: &Path) -> (Vec<u32>, Vec<[f32; 3]>) {
     (geometry.indices, geometry.vertices)
 }
 
-pub fn parse_svg_data_as_vec2(data: &svg::node::element::path::Data, tolerance: f32) -> Vec<Vec2> {
-    parse_data(data, tolerance)
+pub fn parse_svg_data_as_vec2(data: &svg::node::element::path::Data, line_space: f32) -> Vec<Vec2> {
+    parse_data(data, line_space)
 }
 
 // svg loader
-fn parse_data(data: &svg::node::element::path::Data, tolerance: f32) -> Vec<Vec2> {
-    let mut segment_state = SegmentState::new_with_line_space(tolerance);
+fn parse_data(data: &svg::node::element::path::Data, line_space: f32) -> Vec<Vec2> {
+    let mut segment_state = SegmentState::new_with_line_space(line_space);
 
     let mut from = Pt::new(0.0, 0.0);
 
@@ -696,7 +768,7 @@ impl SegmentState {
 //     CurveDrawer::new(curve_segments, close)
 // }
 
-pub fn load_all_data<T>(path: T, tolerance: f32) -> HashMap<String, Vec<Vec<Vec2>>>
+pub fn load_all_data<T>(path: T, line_space: f32) -> HashMap<String, Vec<Vec<Vec2>>>
 where
     T: AsRef<std::path::Path>,
 {
@@ -710,7 +782,7 @@ where
             println!("processing {:?}", k);
             (
                 k.to_string(),
-                v.iter().map(|vv| parse_data(vv, tolerance)).collect_vec(),
+                v.iter().map(|vv| parse_data(vv, line_space)).collect_vec(),
             )
         })
         .collect();
@@ -747,7 +819,7 @@ where
 
 // SvgPathDef is a simplified svg thingy.. this just converts back to the full
 // svg and then parses like usual
-pub fn parse_svg_path_as_vec2(data: &SvgPathDef, tolerance: f32) -> Vec<Vec2> {
+pub fn parse_svg_path_as_vec2(data: &SvgPathDef, line_space: f32) -> Vec<Vec2> {
     let mut cmds = svg::node::element::path::Data::new();
     let (start_x, start_y) = data.svg_move_to();
     cmds = cmds.move_to(vec![start_x, start_y]);
@@ -766,11 +838,11 @@ pub fn parse_svg_path_as_vec2(data: &SvgPathDef, tolerance: f32) -> Vec<Vec2> {
             crate::svg::SvgCmd::ArcTo(svg_arc) => {
                 let (a, b, c, d, e, f, g) = svg_arc.params();
                 cmds = cmds.elliptical_arc_to(vec![a, b, c, d, e, f, g]);
-            },
+            }
         }
     }
 
-    parse_svg_data_as_vec2(&cmds, tolerance)
+    parse_svg_data_as_vec2(&cmds, line_space)
 }
 
 // fn point_to_param(pt: &Point2D<f32, UnknownUnit>) -> Vec<f32> {
@@ -799,4 +871,51 @@ impl LayersFromSvg {
 
         LayersFromSvg { layers }
     }
+}
+
+pub fn tesselate_delauney(v: Vec<VertexSimple>) -> (Vec<u32>, Vec<VertexSimple>) {
+    let points: Vec<_> = v
+        .iter()
+        .map(|vertex| delaunator::Point {
+            x: vertex.position[0] as f64,
+            y: vertex.position[1] as f64,
+        })
+        .collect();
+    let triangulation = delaunator::triangulate(&points);
+
+    // chatgpt
+    fn point_in_poly(x: f64, y: f64, poly: &[(f64, f64)]) -> bool {
+        let mut inside = false;
+        let n = poly.len();
+        for i in 0..n {
+            let (xi, yi) = poly[i];
+            let (xj, yj) = poly[(i + 1) % n];
+            let intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if intersect {
+                inside = !inside;
+            }
+        }
+        inside
+    }
+
+    let mut filtered_indices = Vec::new();
+    for tri in triangulation.triangles.chunks(3) {
+        let a = &points[tri[0]];
+        let b = &points[tri[1]];
+        let c = &points[tri[2]];
+        let cx = (a.x + b.x + c.x) / 3.0;
+        let cy = (a.y + b.y + c.y) / 3.0;
+        if point_in_poly(
+            cx,
+            cy,
+            &v.iter()
+                .map(|p| (p.position[0] as f64, p.position[1] as f64))
+                .collect::<Vec<_>>(),
+        ) {
+            filtered_indices.extend_from_slice(&[tri[0] as u32, tri[1] as u32, tri[2] as u32]);
+        }
+    }
+
+    let vertices = v.clone();
+    (filtered_indices, vertices)
 }

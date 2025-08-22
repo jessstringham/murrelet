@@ -37,7 +37,7 @@ murrelet_perform = { version = "0.1.2", default-features = false }
 
 lerpable = { version = "0.0.2" }
 
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
 
 serde = { version = "1.0.104", features = ["derive"] }

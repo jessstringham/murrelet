@@ -3,10 +3,11 @@
 use glam::{vec2, Vec2};
 use itertools::Itertools;
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
 
 use crate::lerp;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdxInRange {
     i: u64,
     total: u64, // the count
@@ -108,7 +109,7 @@ impl IdxInRange {
         self.i
     }
 
-    fn is_last(&self) -> bool {
+    pub fn is_last(&self) -> bool {
         self.i == self.total - 1
     }
 
@@ -119,6 +120,9 @@ impl IdxInRange {
     // scale
     pub fn s(&self, range: Vec2) -> f32 {
         lerp(range.x, range.y, self.pct())
+    }
+    pub fn scale(&self, start: f32, end: f32) -> f32 {
+        lerp(start, end, self.pct())
     }
 }
 
@@ -209,7 +213,6 @@ impl IdxInRange2d {
     pub fn center_of_cell(&self) -> Vec2 {
         let cell_idx = vec2(self.i.i as f32, self.j.i as f32);
         let centering_offset = -0.5 * self.totals_vec2();
-
 
         cell_idx + vec2(0.5, 0.5) + centering_offset
     }

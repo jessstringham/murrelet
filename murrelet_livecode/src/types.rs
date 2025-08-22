@@ -290,7 +290,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
 // }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 // pub enum ControlVecElement<Sequencer, ControlSequencer, Source>
 pub enum ControlVecElement<Source>
 where
@@ -323,6 +323,37 @@ where
             ControlVecElement::Repeat(r) => r.eval_and_expand_vec(w),
             // ControlVecElement::UnitCell(c) => c.eval_and_expand_vec(w),
         }
+    }
+}
+
+// chatgpt
+#[cfg(feature = "schemars")]
+impl<Source> schemars::JsonSchema for ControlVecElement<Source>
+where
+    Source: schemars::JsonSchema + Clone + Debug,
+{
+    fn schema_name() -> String {
+        format!("ControlVecElement_{}", Source::schema_name())
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::{Schema, SchemaObject, SubschemaValidation};
+        // Variant 1: plain Source (your Single case without a wrapper key)
+        let single_schema = Source::json_schema(gen);
+        // Variant 2: the repeat object
+        let repeat_schema = <ControlVecElementRepeat<Source>>::json_schema(gen);
+
+        Schema::Object(SchemaObject {
+            subschemas: Some(Box::new(SubschemaValidation {
+                one_of: Some(vec![single_schema, repeat_schema]),
+                ..Default::default()
+            })),
+            metadata: Some(Box::new(schemars::schema::Metadata {
+                description: Some("Either a single element (inline) OR a repeat object { repeat, prefix?, what }".to_string()),
+                ..Default::default()
+            })),
+            ..Default::default()
+        })
     }
 }
 

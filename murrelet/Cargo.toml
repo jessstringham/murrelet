@@ -26,7 +26,7 @@ schemars = [
 # ]
 
 [dependencies]
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 itertools = "0.10.5"
 
 serde = { version = "1.0.104", features = ["derive"] }

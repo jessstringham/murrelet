@@ -345,7 +345,7 @@ pub trait Sdraw: Sized {
     }
 
     fn transform(&self) -> Mat4;
-    // fn set_transform(&self, m: Mat4) -> Self;
+
     fn set_transform<M: ToMat4>(&self, m: M) -> Self;
 
     fn add_transform_after(&self, t: Mat4) -> Self {
@@ -353,8 +353,8 @@ pub trait Sdraw: Sized {
         self.set_transform(m)
     }
 
-    fn add_transform_before(&self, t: Mat4) -> Self {
-        let m = self.transform() * t;
+    fn add_transform_before<M: ToMat4>(&self, t: M) -> Self {
+        let m = self.transform() * t.change_to_mat4();
         self.set_transform(m)
     }
 
@@ -505,9 +505,9 @@ impl Sdraw for CoreSDrawCtx {
         ctx
     }
 
-    fn add_transform_before(&self, t: Mat4) -> Self {
+    fn add_transform_before<M: ToMat4>(&self, t: M) -> Self {
         let mut ctx = self.clone();
-        ctx.transform *= t;
+        ctx.transform *= t.change_to_mat4();
         ctx
     }
 

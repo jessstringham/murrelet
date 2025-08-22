@@ -37,7 +37,7 @@ evalexpr = "11.1.0"
 rand = "0.8"
 itertools = "0.10.5"
 regex = "1.7.3"
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
 anyhow = "1.0.86"
 

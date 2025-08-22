@@ -6,12 +6,13 @@ use std::{
 use lerpable::{IsLerpingMethod, Lerpable};
 // use murrelet_gui::CanMakeGUI;
 use palette::{rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha};
+use serde::{Deserialize, Serialize};
 
 use crate::rgb_to_hex;
 
 // hrm, color is confusing, so make a newtype around LinSrgba for all our color stuff
 // i need to double check i'm handling linear/not rgb right
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Serialize, Deserialize)]
 pub struct MurreletColor([f32; 4]); // hsva
 
 impl fmt::Debug for MurreletColor {
@@ -152,6 +153,12 @@ impl MurreletColor {
     pub fn hex(&self) -> String {
         let [r, g, b, _a] = self.into_rgba_components();
         rgb_to_hex(r, g, b)
+    }
+
+    pub fn with_saturation(&self, sat: f32) -> MurreletColor {
+        let mut c = self.clone();
+        c.0[1] = sat;
+        c
     }
 }
 

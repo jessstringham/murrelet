@@ -9,3 +9,5 @@ pub mod svg;
 pub mod transform2d;
 pub mod cubic;
 pub mod tesselate;
+pub mod scaffold;
+pub mod serialize;
