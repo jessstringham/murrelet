@@ -78,6 +78,7 @@ impl MurreletSchema {
                 "f32" => Ok(MurreletPrimitive::Num),
                 "number" => Ok(MurreletPrimitive::Num),
                 "num" => Ok(MurreletPrimitive::Num),
+                "color" => Ok(MurreletPrimitive::Color),
                 "string" => Ok(MurreletPrimitive::String),
                 _ => Result::Err(anyhow!(format!("unsupported schema hint, {}", new_type))),
             }?;
@@ -128,13 +129,14 @@ impl MurreletSchema {
             }
             MurreletSchema::Enum(_, _, _) => todo!(),
             // need to do this one...
-            MurreletSchema::List(_) => todo!(),
+            MurreletSchema::List(murrelet_schema) => {
+                murrelet_schema.update_with_one_hint(original_location, location, value)
+            }
             // i think these should be handled in the struct level!
             MurreletSchema::Val(_) => todo!(),
             MurreletSchema::Skip => Result::Err(anyhow!("hm, trying to edit a skip")),
         }
     }
-
 }
 
 // this should be on the Control version

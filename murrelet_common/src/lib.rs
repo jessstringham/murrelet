@@ -703,6 +703,16 @@ impl FixedPointF32 {
     pub fn abs(&self) -> Self {
         Self { x: self.x.abs() }
     }
+
+    pub fn decode(s: &str) -> Self {
+        Self {
+            x: s.parse::<i64>().unwrap_or(0),
+        }
+    }
+
+    pub fn encode(&self) -> String {
+        self.x.to_string()
+    }
 }
 
 impl std::ops::Sub for FixedPointF32 {

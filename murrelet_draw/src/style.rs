@@ -562,6 +562,7 @@ impl MurreletPath {
         Self::Polyline(path.as_polyline())
     }
 
+
     pub fn svg_circle(loc: Vec2, rad: f32) -> Self {
         Self::Svg(TransformedSvgShape::from_shape(SvgShape::circle(loc, rad)))
     }
@@ -643,6 +644,10 @@ impl MurreletPathAnnotation {
     pub fn vals(&self) -> &Vec<(String, String)> {
         &self.0
     }
+
+    fn new_many(annotations: Vec<(String, String)>) -> MurreletPathAnnotation {
+        Self(annotations)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -669,6 +674,18 @@ impl StyledPath {
             path,
             style,
             annotations: MurreletPathAnnotation::new(annotation),
+        }
+    }
+
+    pub fn new_from_path_with_multiple_annotations(
+        path: MurreletPath,
+        style: MurreletStyle,
+        annotations: Vec<(String, String)>,
+    ) -> Self {
+        Self {
+            path,
+            style,
+            annotations: MurreletPathAnnotation::new_many(annotations),
         }
     }
 

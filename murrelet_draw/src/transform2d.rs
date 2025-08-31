@@ -71,6 +71,13 @@ impl Transform2d {
         ))])
     }
 
+    pub fn rotate_angle<A: IsAngle>(angle_pi: A) -> Transform2d {
+        Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(
+            Vec2::ZERO,
+            angle_pi,
+        ))])
+    }
+
     pub fn scale(scale_x: f32, scale_y: f32) -> Transform2d {
         Transform2d::new(vec![Transform2dStep::Scale(V2::new(vec2(
             scale_x, scale_y,

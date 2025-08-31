@@ -112,8 +112,13 @@ impl CubicBezierPath {
 
         let mut last_ctrl1 = self.ctrl1;
 
+        let mut first_ctrl1_used: Option<Vec2> = None;
+
         for s in &self.curves {
             let ctrl1 = s.ctrl1.or_last(from, last_ctrl1);
+            if first_ctrl1_used.is_none() {
+                first_ctrl1_used = Some(ctrl1);
+            }
             svg.push(CubicBezier::new(from, ctrl1, s.ctrl2, s.to));
             last_ctrl1 = s.ctrl2;
             from = s.to;
@@ -121,7 +126,9 @@ impl CubicBezierPath {
 
         if self.closed {
             let ctrl1 = CubicOptionVec2::none().or_last(from, last_ctrl1);
-            let ctrl2 = CubicOptionVec2::none().or_last(self.from, self.ctrl1);
+            // let ctrl2 = CubicOptionVec2::none().or_last(self.from, self.ctrl1);
+            let ctrl2_source = first_ctrl1_used.unwrap_or(self.ctrl1);
+            let ctrl2 = CubicOptionVec2::none().or_last(self.from, ctrl2_source);
             svg.push(CubicBezier::new(from, ctrl1, ctrl2, self.from));
         }
 
