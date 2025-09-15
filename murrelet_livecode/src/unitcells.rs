@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
-use crate::expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefsRef};
+use crate::expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef};
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
@@ -174,7 +174,7 @@ impl<Target> UnitCell<Target> {
     }
 
     pub fn idx(&self) -> IdxInRange2d {
-        self.detail.ctx.to_idx2d()
+        self.detail.idx.to_idx2d()
     }
 
     pub fn is_alternate(&self) -> bool {
@@ -186,7 +186,7 @@ impl<Target: Default> Default for UnitCell<Target> {
         Self {
             node: Default::default(),
             detail: UnitCellContext::new(
-                UnitCellExprWorldContext::from_idx1d(IdxInRange::new(0, 1)),
+                UnitCellIdx::from_idx1d(IdxInRange::new(0, 1)),
                 SimpleTransform2d::ident(),
             ),
         }
@@ -220,7 +220,7 @@ impl<Target: std::fmt::Debug + Clone + Default> UnitCells<Target> {
     pub fn x_y_z_max(&self) -> (u64, u64, u64) {
         // each should have the same, so grab the first
         if let Some(first) = self.items.first() {
-            first.detail.ctx.max()
+            first.detail.idx.max()
         } else {
             (0, 0, 0)
         }
@@ -235,9 +235,9 @@ impl<Target: std::fmt::Debug + Clone + Default> UnitCells<Target> {
         for item in &self.items {
             hm.insert(
                 (
-                    item.detail.ctx.x_i,
-                    item.detail.ctx.y_i,
-                    item.detail.ctx.z_i,
+                    item.detail.idx.x_i,
+                    item.detail.idx.y_i,
+                    item.detail.idx.z_i,
                 ),
                 item.clone(),
             );
@@ -482,25 +482,38 @@ impl Clone for Box<dyn TileInfo> {
 // eh, should make this easier...
 #[derive(Debug, Clone)]
 pub struct UnitCellContext {
-    ctx: UnitCellExprWorldContext,
+    idx: UnitCellIdx,
+    ctx: Option<ExprWorldContextValues>,
     pub detail: UnitCellDetails,
     pub tile_info: Option<Box<dyn TileInfo>>,
 }
 impl UnitCellContext {
-    pub fn new(ctx: UnitCellExprWorldContext, transform: SimpleTransform2d) -> UnitCellContext {
+    pub fn new(idx: UnitCellIdx, transform: SimpleTransform2d) -> UnitCellContext {
         UnitCellContext {
-            ctx,
+            idx,
+            ctx: None,
             detail: UnitCellDetails::new(transform),
             tile_info: None,
         }
     }
 
-    pub fn new_with_base(
-        ctx: UnitCellExprWorldContext,
-        detail: UnitCellDetails,
+    pub fn new_expr(
+        idx: UnitCellIdx,
+        ctx: ExprWorldContextValues,
+        transform: SimpleTransform2d,
     ) -> UnitCellContext {
         UnitCellContext {
-            ctx,
+            idx,
+            ctx: Some(ctx),
+            detail: UnitCellDetails::new(transform),
+            tile_info: None,
+        }
+    }
+
+    pub fn new_with_base(ctx: UnitCellIdx, detail: UnitCellDetails) -> UnitCellContext {
+        UnitCellContext {
+            idx: ctx,
+            ctx: None,
             detail,
             tile_info: None,
         }
@@ -511,24 +524,26 @@ impl UnitCellContext {
     }
 
     pub fn new_with_info(
-        ctx: UnitCellExprWorldContext,
+        ctx: UnitCellIdx,
         detail: UnitCellDetails,
         tile_info: Box<dyn TileInfo>,
     ) -> UnitCellContext {
         UnitCellContext {
-            ctx,
+            idx: ctx,
+            ctx: None,
             detail,
             tile_info: Some(tile_info),
         }
     }
 
     pub fn new_with_option_info(
-        ctx: UnitCellExprWorldContext,
+        ctx: UnitCellIdx,
         detail: UnitCellDetails,
         tile_info: Option<Box<dyn TileInfo>>,
     ) -> UnitCellContext {
         UnitCellContext {
-            ctx,
+            idx: ctx,
+            ctx: None,
             detail,
             tile_info,
         }
@@ -545,7 +560,8 @@ impl UnitCellContext {
     // applies the other transform _after_ current
     pub fn combine(&self, other: &UnitCellContext) -> UnitCellContext {
         UnitCellContext {
-            ctx: self.ctx,
+            idx: self.idx,
+            ctx: self.ctx.clone(),
             detail: other.detail.as_wallpaper().unwrap().combine(&self.detail),
             tile_info: None,
         }
@@ -553,14 +569,15 @@ impl UnitCellContext {
 
     pub fn combine_keep_other_ctx(&self, other: &UnitCellContext) -> UnitCellContext {
         UnitCellContext {
-            ctx: other.ctx,
+            idx: self.idx,
+            ctx: other.ctx.clone(),
             detail: other.detail.as_wallpaper().unwrap().combine(&self.detail),
             tile_info: None,
         }
     }
 
-    pub fn ctx(&self) -> UnitCellExprWorldContext {
-        self.ctx
+    pub fn ctx(&self) -> UnitCellIdx {
+        self.idx
     }
 
     pub fn transform(&self) -> SimpleTransform2d {
@@ -568,7 +585,7 @@ impl UnitCellContext {
     }
 
     pub fn idx(&self) -> IdxInRange2d {
-        self.ctx.to_idx2d()
+        self.idx.to_idx2d()
     }
 
     pub fn rect_bound(&self) -> Vec<Vec2> {
@@ -623,7 +640,7 @@ impl UnitCellContext {
 
 impl IntoExprWorldContext for UnitCellContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
-        let mut ctx_vals = self.ctx.as_expr_world_context_values();
+        let mut ctx_vals = self.idx.as_expr_world_context_values();
 
         let loc = self.detail.transform_with_skew(&vec![
             vec2(-50.0, -50.0),
@@ -636,6 +653,10 @@ impl IntoExprWorldContext for UnitCellContext {
 
         ctx_vals.set_val("u_width", LivecodeValue::float(width));
         ctx_vals.set_val("u_height", LivecodeValue::float(height));
+
+        if let Some(expr) = &self.ctx {
+            ctx_vals.combine(expr.clone());
+        }
 
         ctx_vals
     }
@@ -656,7 +677,7 @@ impl Lerpable for UnitCellContext {
 
 // world state for unit cell
 #[derive(Copy, Clone, Debug)]
-pub struct UnitCellExprWorldContext {
+pub struct UnitCellIdx {
     x: f32,
     y: f32,
     z: f32,
@@ -669,10 +690,10 @@ pub struct UnitCellExprWorldContext {
     seed: f32,
     h_ratio: f32, // width is always 100, what is h
 }
-impl UnitCellExprWorldContext {
+impl UnitCellIdx {
     // this just needs to be interesting.... not correct
     pub fn experimental_lerp(&self, other: &Self, pct: f32) -> Self {
-        UnitCellExprWorldContext {
+        UnitCellIdx {
             x: self.x.lerpify(&other.x, &pct),
             y: self.y.lerpify(&other.y, &pct),
             z: self.z.lerpify(&other.z, &pct),
@@ -687,12 +708,8 @@ impl UnitCellExprWorldContext {
         }
     }
 
-    pub fn from_idx2d_and_actual_xy(
-        xy: Vec2,
-        idx: IdxInRange2d,
-        h_ratio: f32,
-    ) -> UnitCellExprWorldContext {
-        UnitCellExprWorldContext {
+    pub fn from_idx2d_and_actual_xy(xy: Vec2, idx: IdxInRange2d, h_ratio: f32) -> UnitCellIdx {
+        UnitCellIdx {
             x: xy.x,
             y: xy.y,
             z: 0.0,
@@ -707,8 +724,8 @@ impl UnitCellExprWorldContext {
         }
     }
 
-    pub fn from_idx1d(idx: IdxInRange) -> UnitCellExprWorldContext {
-        UnitCellExprWorldContext {
+    pub fn from_idx1d(idx: IdxInRange) -> UnitCellIdx {
+        UnitCellIdx {
             x: idx.pct(),
             y: 0.0,
             z: 0.0,
@@ -723,8 +740,8 @@ impl UnitCellExprWorldContext {
         }
     }
 
-    pub fn from_idx2d(idx: IdxInRange2d, h_ratio: f32) -> UnitCellExprWorldContext {
-        UnitCellExprWorldContext {
+    pub fn from_idx2d(idx: IdxInRange2d, h_ratio: f32) -> UnitCellIdx {
+        UnitCellIdx {
             x: idx.i.pct(),
             y: idx.j.pct(),
             z: 0.0,
@@ -739,16 +756,12 @@ impl UnitCellExprWorldContext {
         }
     }
 
-    pub fn from_idx3d(
-        x_idx: IdxInRange,
-        y_idx: IdxInRange,
-        z_idx: IdxInRange,
-    ) -> UnitCellExprWorldContext {
+    pub fn from_idx3d(x_idx: IdxInRange, y_idx: IdxInRange, z_idx: IdxInRange) -> UnitCellIdx {
         let seed = z_idx.i() * (y_idx.total_usize() * x_idx.total_usize()) as u64
             + y_idx.i() * (x_idx.total_usize() as u64)
             + x_idx.i();
 
-        UnitCellExprWorldContext {
+        UnitCellIdx {
             x: x_idx.pct(),
             y: y_idx.pct(),
             z: z_idx.pct(),
@@ -783,7 +796,7 @@ impl UnitCellExprWorldContext {
     }
 }
 
-impl IntoExprWorldContext for UnitCellExprWorldContext {
+impl IntoExprWorldContext for UnitCellIdx {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
         // make a few rns
         let mut rng = StdRng::seed_from_u64((self.seed + 19247.0) as u64);

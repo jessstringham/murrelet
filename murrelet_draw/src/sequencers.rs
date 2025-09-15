@@ -2,7 +2,7 @@ use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::*;
-use murrelet_livecode::unitcells::{UnitCellContext, UnitCellCreator, UnitCellExprWorldContext};
+use murrelet_livecode::unitcells::{UnitCellContext, UnitCellCreator, UnitCellIdx};
 // use murrelet_livecode_derive::*;
 use crate::transform2d::{Transform2d, Transform2dStep};
 use murrelet_livecode_derive::Livecode;
@@ -84,7 +84,7 @@ fn make_grid(
             (0..y_usize).map(move |y| {
                 let y_idx = IdxInRange::new(y, y_usize);
                 let idx = IdxInRange2d::new_from_idx(x_idx, y_idx);
-                let ctx = UnitCellExprWorldContext::from_idx2d(idx, 1.0);
+                let ctx = UnitCellIdx::from_idx2d(idx, 1.0);
 
                 let mut center = if offset_alternating {
                     let mut center = idx.to_alternating_i().center_of_cell();
@@ -131,7 +131,7 @@ impl UnitCellCreator for SimpleCountSequence {
         let v = (0..self.0)
             .map(|x| {
                 let idx = IdxInRange::new(x, self.0);
-                let ctx = UnitCellExprWorldContext::from_idx1d(idx);
+                let ctx = UnitCellIdx::from_idx1d(idx);
                 UnitCellContext::new(ctx, SimpleTransform2d::ident())
             })
             .collect_vec();
@@ -165,7 +165,7 @@ impl UnitCellCreator for SimpleVec2Sequence {
                 (0..y_usize).map(move |y| {
                     let y_idx = IdxInRange::new(y, y_usize);
                     let idx = IdxInRange2d::new_from_idx(x_idx, y_idx);
-                    let ctx = UnitCellExprWorldContext::from_idx2d(idx, 1.0);
+                    let ctx = UnitCellIdx::from_idx2d(idx, 1.0);
                     UnitCellContext::new(ctx, SimpleTransform2d::ident())
                 })
             })

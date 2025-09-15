@@ -12,7 +12,7 @@ use crate::{
     expr::IntoExprWorldContext,
     livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeVariable},
     state::LivecodeWorldState,
-    unitcells::UnitCellExprWorldContext,
+    unitcells::UnitCellIdx,
 };
 
 #[derive(Debug, Error)]
@@ -220,7 +220,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
 
         for idx in self.repeat.iter() {
             let expr =
-                UnitCellExprWorldContext::from_idx2d(idx, 1.0).as_expr_world_context_values();
+                UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             let new_w = w.clone_with_vals(expr, &prefix);
 
             for src in &self.what {

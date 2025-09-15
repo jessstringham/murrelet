@@ -293,6 +293,10 @@ impl ExprWorldContextValues {
         Self(v)
     }
 
+    pub fn empty() -> Self {
+        Self::new(vec![])
+    }
+
     pub fn to_mixed_defs(&self) -> MixedEvalDefs {
         MixedEvalDefs::new_from_expr(self.clone())
     }
@@ -341,7 +345,7 @@ impl ExprWorldContextValues {
         Self::new(new_vals)
     }
 
-    fn combine(&mut self, vals: ExprWorldContextValues) -> Self {
+    pub fn combine(&mut self, vals: ExprWorldContextValues) -> Self {
         // have the new ones added later, so they'll overwrite if there are duplicates...
         Self::new([self.0.clone(), vals.0].concat())
     }
