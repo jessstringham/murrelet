@@ -214,6 +214,10 @@ impl Angle {
         Angle::new(t.transform_vec2(self.to_norm_dir()).to_angle())
     }
 
+    pub fn rotate_vec2(&self, v: Vec2) -> Vec2 {
+        Mat3::from_angle(self.angle()).transform_vec2(v)
+    }
+
     pub fn is_vertical(&self) -> bool {
         (self.angle_pi() - 0.5 % 1.0) < 1e-2
     }
@@ -223,6 +227,12 @@ impl Angle {
     }
 
     // todo: mirror across angle
+}
+
+impl TransformVec2 for Angle {
+    fn transform_vec2(&self, v: Vec2) -> Vec2 {
+        self.rotate_vec2(v)
+    }
 }
 
 impl std::fmt::Debug for Angle {
@@ -462,6 +472,10 @@ impl SpotOnCurve {
         let mut c = self.clone();
         c.angle = new.into();
         c
+    }
+
+    pub fn line_to_spot(&self, length: f32) -> Vec2 {
+        self.loc() + self.angle().to_norm_dir() * length
     }
 }
 
