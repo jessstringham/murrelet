@@ -939,7 +939,8 @@ where
 
         self.livecode_src.update(&update_input);
 
-        if app.elapsed_frames() % 20 == 0 {
+        // todo, set this as a variable?
+        if app.elapsed_frames() % 1 == 0 {
             let variables = self
                 .controlconfig
                 .variable_identifiers()
