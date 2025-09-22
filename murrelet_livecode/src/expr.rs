@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{f64::consts::PI, fmt::Debug, sync::Arc};
+use std::{collections::HashMap, f64::consts::PI, fmt::Debug, sync::Arc};
 
 use evalexpr::*;
 use glam::{vec2, Vec2};
@@ -9,6 +9,7 @@ use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
+use regex::Regex;
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{
@@ -287,10 +288,10 @@ fn lc_val_to_expr(v: &LivecodeValue) -> Value {
 
 // simple mapping of values
 #[derive(Debug, Clone)]
-pub struct ExprWorldContextValues(Vec<(String, LivecodeValue)>);
+pub struct ExprWorldContextValues(HashMap<String, LivecodeValue>);
 impl ExprWorldContextValues {
     pub fn new(v: Vec<(String, LivecodeValue)>) -> Self {
-        Self(v)
+        Self(v.into_iter().collect())
     }
 
     pub fn empty() -> Self {
@@ -313,7 +314,20 @@ impl ExprWorldContextValues {
     }
 
     pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
-        self.0.push((name.to_owned(), val))
+        if self.0.contains_key(name) {
+            let re = Regex::new(r"^(.*?)(\d+)$").unwrap();
+            let new_name = if let Some(caps) = re.captures(name) {
+                let base = caps.get(1).map_or("", |m| m.as_str());
+                let num = caps.get(2).map_or("0", |m| m.as_str());
+                let num: u32 = num.parse().unwrap_or(0);
+                format!("{}{}", base, num + 1)
+            } else {
+                format!("{}_0", name)
+            };
+            self.0.insert(new_name, val);
+        } else {
+            self.0.insert(name.to_owned(), val);
+        }
     }
 
     pub fn new_from_idx(idx: IdxInRange) -> Self {
@@ -321,6 +335,7 @@ impl ExprWorldContextValues {
             ("i".to_string(), LivecodeValue::Int(idx.i() as i64)),
             ("if".to_string(), LivecodeValue::Float(idx.i() as f64)),
             ("pct".to_string(), LivecodeValue::Float(idx.pct() as f64)),
+            ("x".to_string(), LivecodeValue::Float(idx.pct() as f64)), // just in case i use the wrong one
             ("total".to_string(), LivecodeValue::Int(idx.total() as i64)),
             (
                 "totalf".to_string(),
@@ -347,7 +362,15 @@ impl ExprWorldContextValues {
 
     pub fn combine(&mut self, vals: ExprWorldContextValues) -> Self {
         // have the new ones added later, so they'll overwrite if there are duplicates...
-        Self::new([self.0.clone(), vals.0].concat())
+
+        let mut new = self.clone();
+
+        for (name, val) in vals.0 {
+            new.set_val(&name, val);
+        }
+
+        // Self::new([self.0.clone(), vals.0].concat())
+        new
     }
 }
 
@@ -360,7 +383,7 @@ impl IntoExprWorldContext for Vec<(String, f32)> {
         let v = self
             .iter()
             .map(|(s, x)| (s.to_owned(), LivecodeValue::Float(*x as f64)))
-            .collect_vec();
+            .collect();
         ExprWorldContextValues(v)
     }
 }

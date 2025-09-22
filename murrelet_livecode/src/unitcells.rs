@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap, fmt};
 
-use crate::expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef};
+use crate::expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefsRef};
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
@@ -559,18 +559,32 @@ impl UnitCellContext {
     // just updates details...
     // applies the other transform _after_ current
     pub fn combine(&self, other: &UnitCellContext) -> UnitCellContext {
+        let ctx = match (&self.ctx, &other.ctx) {
+            (None, None) => self.ctx.clone(),
+            (None, Some(that)) => Some(that.clone()),
+            (Some(this), None) => Some(this.clone()),
+            (Some(this), Some(that)) => Some(this.clone().combine(that.clone())),
+        };
+
         UnitCellContext {
             idx: self.idx,
-            ctx: self.ctx.clone(),
+            ctx,
             detail: other.detail.as_wallpaper().unwrap().combine(&self.detail),
             tile_info: None,
         }
     }
 
     pub fn combine_keep_other_ctx(&self, other: &UnitCellContext) -> UnitCellContext {
+        let ctx = match (&self.ctx, &other.ctx) {
+            (None, None) => self.ctx.clone(),
+            (None, Some(that)) => Some(that.clone()),
+            (Some(this), None) => Some(this.clone()),
+            (Some(this), Some(that)) => Some(that.clone().combine(this.clone())),
+        };
+
         UnitCellContext {
             idx: self.idx,
-            ctx: other.ctx.clone(),
+            ctx: ctx,
             detail: other.detail.as_wallpaper().unwrap().combine(&self.detail),
             tile_info: None,
         }
@@ -655,7 +669,7 @@ impl IntoExprWorldContext for UnitCellContext {
         ctx_vals.set_val("u_height", LivecodeValue::float(height));
 
         if let Some(expr) = &self.ctx {
-            ctx_vals.combine(expr.clone());
+            ctx_vals = ctx_vals.combine(expr.clone());
         }
 
         ctx_vals
