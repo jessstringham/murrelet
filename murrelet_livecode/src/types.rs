@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::IdxInRange2d;
+use murrelet_common::{IdxInRange, IdxInRange2d};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -125,22 +125,11 @@ impl ControlVecElementRepeatMethod {
     }
     fn iter(&self) -> Vec<IdxInRange2d> {
         match self {
-            ControlVecElementRepeatMethod::Single(s) => {
-                let mut v = vec![];
-                for i in 0..*s {
-                    v.push(IdxInRange2d::new(i, 1, *s));
-                }
-                v
-            }
-            ControlVecElementRepeatMethod::Rect(s) => {
-                let mut v = vec![];
-                for i in 0..s[0] {
-                    for j in 0..s[1] {
-                        v.push(IdxInRange2d::new_rect(i, j, s[0], s[1]));
-                    }
-                }
-                v
-            }
+            ControlVecElementRepeatMethod::Single(s) => IdxInRange::enumerate_count(*s)
+                .iter()
+                .map(|x| x.to_2d())
+                .collect_vec(),
+            ControlVecElementRepeatMethod::Rect(s) => IdxInRange2d::enumerate_counts(s[0], s[1]),
         }
     }
 }
@@ -219,8 +208,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
         };
 
         for idx in self.repeat.iter() {
-            let expr =
-                UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
+            let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             let new_w = w.clone_with_vals(expr, &prefix);
 
             for src in &self.what {
@@ -349,7 +337,10 @@ where
                 ..Default::default()
             })),
             metadata: Some(Box::new(schemars::schema::Metadata {
-                description: Some("Either a single element (inline) OR a repeat object { repeat, prefix?, what }".to_string()),
+                description: Some(
+                    "Either a single element (inline) OR a repeat object { repeat, prefix?, what }"
+                        .to_string(),
+                ),
                 ..Default::default()
             })),
             ..Default::default()

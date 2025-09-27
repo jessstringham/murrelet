@@ -124,6 +124,10 @@ impl IdxInRange {
     pub fn scale(&self, start: f32, end: f32) -> f32 {
         lerp(start, end, self.pct())
     }
+
+    pub fn to_2d(&self) -> IdxInRange2d {
+        IdxInRange2d::new_from_single_idx(*self)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -141,6 +145,16 @@ impl IdxInRange2d {
             i: IdxInRange::new(i, total),
             j: IdxInRange::new(j, total),
         }
+    }
+
+    pub fn enumerate_counts(ii: usize, jj: usize) -> Vec<IdxInRange2d> {
+        let mut v = vec![];
+        for i in 0..ii {
+            for j in 0..jj {
+                v.push(IdxInRange2d::new_rect(i, j, ii, jj));
+            }
+        }
+        v
     }
 
     pub fn to_alternating_i(&self) -> IdxInRange2d {
