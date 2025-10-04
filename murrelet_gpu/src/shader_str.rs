@@ -130,6 +130,20 @@ fn rand2(n: vec2<f32>) -> f32 {
   return fract(sin(dot(n, vec2<f32>(12.9898, 4.1414))) * 43758.5453);
 }
 
+  // more things
+  fn hash21(p: vec2<f32>) -> f32 {
+  // Dave-Hoskins style
+  let p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
+  let p3x = p3.x + dot(p3, p3.yzx + 33.33);
+  return fract((p3x + p3.y) * p3.z);
+}
+
+fn hash22(p: vec2<f32>) -> vec2<f32> {
+  var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
+  p3 = p3 + dot(p3, p3.yzx + 33.33);
+  return fract((p3.xx + p3.yz) * p3.zy);
+}
+
 // i don't know where this went
 fn smoothStep(edge0: vec2<f32>, edge1: vec2<f32>, x: vec2<f32>) -> vec2<f32> {
     let t: vec2<f32> = clamp((x - edge0) / (edge1 - edge0), vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
@@ -193,6 +207,10 @@ fn is_almost_nonzero(v: f32) -> f32 {
 
 fn is_almost_zero(v: f32) -> f32 {
   return 1.0 - is_almost_nonzero(v);
+}
+
+  fn soft_disk(d: f32, r: f32, w: f32) -> f32 {
+    return 1.0 - smoothstep(r - w, r, d);
 }
 
 
