@@ -5,6 +5,7 @@ use crate::{
     curve_drawer::{CubicBezierPath, CurveDrawer, CurveSegment},
     svg::SvgPathDef,
 };
+use delaunator::Triangulation;
 use glam::{vec2, Vec2, Vec2Swizzles};
 use itertools::Itertools;
 use kurbo::BezPath;
@@ -873,7 +874,7 @@ impl LayersFromSvg {
     }
 }
 
-pub fn tesselate_delauney(v: Vec<VertexSimple>) -> (Vec<u32>, Vec<VertexSimple>) {
+pub fn tesselate_delauney(v: Vec<VertexSimple>) -> (Vec<u32>, Vec<VertexSimple>, Triangulation) {
     let points: Vec<_> = v
         .iter()
         .map(|vertex| delaunator::Point {
@@ -917,5 +918,5 @@ pub fn tesselate_delauney(v: Vec<VertexSimple>) -> (Vec<u32>, Vec<VertexSimple>)
     }
 
     let vertices = v.clone();
-    (filtered_indices, vertices)
+    (filtered_indices, vertices, triangulation)
 }
