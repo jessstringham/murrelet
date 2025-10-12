@@ -9,7 +9,7 @@ use crate::{
     device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf},
     gpu_livecode::ControlGraphicsRef,
     graphics_ref::{
-        BasicUniform, Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlFn,
+        Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlFn,
         DEFAULT_LOADED_TEXTURE_FORMAT,
     },
     shader_str::*,
@@ -938,7 +938,7 @@ impl VideoTexture {
             )
         };
 
-        let _uniforms = BasicUniform::from_dims(c.dims);
+        // let _uniforms = BasicUniform::from_dims(c.dims);
 
         let conf = GraphicsCreator::default()
             .with_first_texture_format(DEFAULT_TEXTURE_FORMAT)
