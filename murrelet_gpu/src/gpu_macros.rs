@@ -6,13 +6,10 @@ use murrelet_common::MurreletTime;
 use serde::Serialize;
 
 use crate::{
-    device_state::{DeviceStateForRender, GraphicsAssets, GraphicsWindowConf},
-    gpu_livecode::ControlGraphicsRef,
-    graphics_ref::{
+    compute::{ComputeGraphicsToTexture, ComputeGraphicsToTextureRef}, device_state::{DeviceStateForRender, GraphicsAssets}, gpu_livecode::ControlGraphicsRef, graphics_ref::{
         Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlFn,
         DEFAULT_LOADED_TEXTURE_FORMAT,
-    },
-    shader_str::*,
+    }, shader_str::*, window::GraphicsWindowConf
 };
 
 #[cfg(feature = "nannou")]
@@ -110,19 +107,23 @@ pub enum ShaderStr {
     Binding1Tex,
     Binding2Tex,
     Binding3d,
+    Compute,
     Includes,
     Prefix,
     Suffix,
+    ComputeFormatStr,
 }
 impl ShaderStr {
     pub fn to_str(&self) -> &str {
         match self {
             ShaderStr::Binding1Tex => BINDING_1TEX,
             ShaderStr::Binding2Tex => BINDING_2TEX,
+            ShaderStr::Compute => COMPUTE_TEX,
             ShaderStr::Includes => INCLUDES,
             ShaderStr::Prefix => PREFIX,
             ShaderStr::Suffix => SUFFIX,
             ShaderStr::Binding3d => BINDING_3D,
+            ShaderStr::ComputeFormatStr => COMPUTE_FORMAT_STR,
         }
     }
 }
@@ -154,6 +155,31 @@ macro_rules! build_shader_3d {
             )
         }
     };
+}
+
+// input_structure can be
+// struct Input {
+//   a: vec2<f32>;
+//   b: vec2<f32>;
+// }
+
+//COMPUTE_FORMAT_STR.replace("#PREFIX_CODEHERE", prefix).replace("#FORLOOP_CODEHERE#", forloop).replace("#SUFFIX_CODEHERE#", suffix);
+
+#[macro_export]
+macro_rules! build_compute_shader {
+    // capture the initial one
+    ($($input_structure:tt, $prefix:tt, $loop:tt, $suffix:tt)*) => {{
+        format!(
+            "{}\n{}\n{}\n{}",
+            input_structure,
+            ShaderStr::Compute.to_str(),
+            ShaderStr::Includes.to_str(),
+            ShaderStr::ComputeFormatStr
+                .replace("#PREFIX_CODEHERE", prefix)
+                .replace("#FORLOOP_CODEHERE#", forloop)
+                .replace("#SUFFIX_CODEHERE#", suffix)
+        )
+    }};
 }
 
 #[derive(Serialize)]
@@ -420,6 +446,39 @@ impl RenderTrait for TextureViewRender {
 
     fn dest(&self) -> Option<GraphicsRef> {
         None
+    }
+}
+
+pub struct ComputeTextureRender<T> {
+    pub source: ComputeGraphicsToTextureRef<T>,
+    pub dest: GraphicsRef,
+}
+
+impl<T> ComputeTextureRender<T> {
+    pub fn new_box(source: ComputeGraphicsToTextureRef<T>, dest: GraphicsRef) -> Box<Self> {
+        Box::new(Self { source, dest })
+    }
+}
+
+impl<T: bytemuck::Pod> RenderTrait for ComputeTextureRender<T> {
+    // whenver it's called, it'll increment! check if it's overdue before rendering!
+    fn render(&self, device_state_for_render: &DeviceStateForRender) {
+        let source_texture = &self.source;
+        let dest = &self.dest;
+        source_texture.render(device_state_for_render, dest);
+    }
+
+    fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        let source = &self.source;
+        let dest = &self.dest;
+        vec![RenderDebugPrint {
+            src: source.name(),
+            dest: dest.name(),
+        }]
+    }
+
+    fn dest(&self) -> Option<GraphicsRef> {
+        Some(self.dest.clone())
     }
 }
 

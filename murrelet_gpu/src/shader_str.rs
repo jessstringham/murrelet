@@ -3,6 +3,43 @@ pub const SUFFIX: &str = r#"
 }
 "#;
 
+// struct Input {
+//   a: vec2<f32>;
+//   b: vec2<f32>;
+// };
+
+
+pub const COMPUTE_TEX: &str = r#"
+struct Uniforms {
+    dims: vec4<f32>,
+    more_info: vec4<f32>,
+    more_info_other: vec4<f32>,
+};
+
+// --- bindings ---
+@group(0) @binding(0) var<storage, read>       input_data   : array<Input>;
+@group(0) @binding(1) var<storage, read>       cell_offsets : array<u32>;
+@group(0) @binding(2) var<storage, read>       cell_indices : array<u32>;
+@group(0) @binding(3) var<uniform>             uniforms     : BasicUniform;
+
+@group(0) @binding(4) var                      out_img      : texture_storage_2d<rgba16float, write>;
+
+fn img_wh() -> vec2<u32> {
+  return vec2<u32>(u32(uniforms.dims.x), u32(uniforms.dims.y));
+}
+
+fn to_uv(gid_xy: vec2<u32>) -> vec2<f32> {
+  let wh = vec2<f32>(uniforms.dims.xy);
+  return (vec2<f32>(gid_xy) + vec2<f32>(0.5)) / wh;
+}
+
+fn cell_id(uv: vec2<f32>, Nx: u32, Ny: u32) -> u32 {
+  let xy = clamp(vec2<u32>(floor(uv * vec2<f32>(f32(Nx), f32(Ny)))),
+                 vec2<u32>(0u), vec2<u32>(Nx - 1u, Ny - 1u));
+  return xy.y * Nx + xy.x;
+}
+"#;
+
 pub const BINDING_2TEX: &str = r#"
 struct FragmentOutput {
     @location(0) f_color: vec4<f32>,
@@ -415,3 +452,36 @@ pub const PREFIX: &str = r#"
 @fragment
 fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>, @location(3) light_space_pos: vec4<f32>, @location(4) world_pos: vec3<f32>) -> FragmentOutput {
 "#;
+
+
+pub const COMPUTE_FORMAT_STR: &str = r#"
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let w  = u32(uniforms.dims.x);
+  let h  = u32(uniforms.dims.y);
+  let uv = to_uv(gid.xy);
+
+  let Nx = max(u32(uniforms.more_info.x), 1u);
+  let Ny = max(u32(uniforms.more_info.y), 1u);
+  let cid = cell_id(uv, Nx, Ny);
+
+  let start_idx = cell_offsets[cid];
+  let end_idx = cell_offsets[cid + 1u];
+
+  #PREFIX_CODEHERE#
+
+  for (var i = start_idx; i < end_idx; i = i + 1u) {
+    let sid = cell_indices[i];
+    let data = input_data[sid];
+    // dmin = min(dmin, seg_dist(uv, seg.a, seg.b));
+    #FORLOOP_CODEHERE#
+
+  }
+
+  #SUFFIX_CODEHERE#
+
+  textureStore(out_img, vec2<i32>(gid.xy), result);
+}
+"#;
+
+

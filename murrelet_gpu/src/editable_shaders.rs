@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::gpu_macros::ShaderStr;
+use crate::{gpu_macros::ShaderStr, window::GraphicsWindowConf};
 use lerpable::Lerpable;
 use murrelet_livecode_derive::Livecode;
 use wgpu_for_latest::naga;
@@ -12,7 +12,6 @@ use wgpu_for_latest as wgpu;
 
 use crate::{
     build_shader, build_shader_2tex,
-    device_state::GraphicsWindowConf,
     graphics_ref::{GraphicsCreator, GraphicsRef},
 };
 

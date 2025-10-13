@@ -21,6 +21,7 @@ use crate::device_state::*;
 use crate::gpu_livecode::{ControlGraphics, ControlGraphicsRef};
 use crate::shader_str::{VERTEX_SHADER, VERTEX_SHADER_3D};
 use crate::uniforms::{BasicUniform, UniformsPair};
+use crate::window::GraphicsWindowConf;
 
 #[cfg(not(feature = "nannou"))]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -32,7 +33,7 @@ pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureForm
 #[cfg(feature = "nannou")]
 pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
-fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
+pub fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
     device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Shader"),
         source: wgpu::ShaderSource::Wgsl(data.into()),
@@ -491,7 +492,6 @@ impl GraphicsCreator {
     }
 }
 
-
 #[derive(Clone)]
 pub struct GraphicsRef {
     pub graphics: Rc<RefCell<Graphics>>,
@@ -734,6 +734,11 @@ impl<GraphicsConf> GraphicsRefWithControlFn<GraphicsConf> {
 pub struct TextureAndDesc {
     pub texture: Arc<wgpu::Texture>,
     pub desc: wgpu::TextureDescriptor<'static>,
+}
+impl TextureAndDesc {
+    pub(crate) fn default_view(&self) -> wgpu::TextureView {
+        self.texture.create_view(&Default::default())
+    }
 }
 
 pub struct TextureFor3d {

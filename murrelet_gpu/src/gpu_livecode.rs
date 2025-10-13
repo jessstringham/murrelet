@@ -5,7 +5,7 @@ use murrelet_common::*;
 use murrelet_draw::newtypes::*;
 use murrelet_livecode_derive::Livecode;
 
-use crate::{device_state::GraphicsWindowConf, graphics_ref::GraphicsRef};
+use crate::{graphics_ref::GraphicsRef, window::GraphicsWindowConf};
 
 pub trait ControlGraphics {
     fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
@@ -144,9 +144,9 @@ impl ControlGraphics for GPURGBAGradient {
 pub mod prebuilt_shaders {
 
     use crate::{
-        device_state::GraphicsWindowConf,
         gpu_macros::ShaderStr,
         graphics_ref::{GraphicsCreator, GraphicsRef},
+        window::GraphicsWindowConf,
         *,
     };
 
