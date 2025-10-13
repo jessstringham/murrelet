@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops};
 
 use crate::{
     cubic::CubicBezier,
-    curve_drawer::{CubicBezierPath, CurveDrawer, CurveSegment},
+    curve_drawer::CubicBezierPath,
     svg::SvgPathDef,
 };
 use delaunator::Triangulation;
@@ -22,11 +22,11 @@ use murrelet_common::{triangulate::VertexSimple, Polyline};
 pub trait ToVecVec2 {
     fn to_vec2(&self) -> Vec<Vec2>;
 
-    fn to_vec2_line_space(&self, line_space: f32) -> Vec<Vec2> {
+    fn to_vec2_line_space(&self, _line_space: f32) -> Vec<Vec2> {
         todo!()
     }
 
-    fn to_vec2_count(&self, count: usize) -> Vec<Vec2> {
+    fn to_vec2_count(&self, _count: usize) -> Vec<Vec2> {
         todo!()
     }
 }

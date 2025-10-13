@@ -10,7 +10,7 @@ pub const SUFFIX: &str = r#"
 
 
 pub const COMPUTE_TEX: &str = r#"
-struct Uniforms {
+struct BasicUniform {
     dims: vec4<f32>,
     more_info: vec4<f32>,
     more_info_other: vec4<f32>,
@@ -474,6 +474,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let sid = cell_indices[i];
     let data = input_data[sid];
     // dmin = min(dmin, seg_dist(uv, seg.a, seg.b));
+
     #FORLOOP_CODEHERE#
 
   }

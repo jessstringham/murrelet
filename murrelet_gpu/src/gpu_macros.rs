@@ -6,10 +6,15 @@ use murrelet_common::MurreletTime;
 use serde::Serialize;
 
 use crate::{
-    compute::{ComputeGraphicsToTexture, ComputeGraphicsToTextureRef}, device_state::{DeviceStateForRender, GraphicsAssets}, gpu_livecode::ControlGraphicsRef, graphics_ref::{
+    compute::{ComputeGraphicsToTexture, ComputeGraphicsToTextureRef},
+    device_state::{DeviceStateForRender, GraphicsAssets},
+    gpu_livecode::ControlGraphicsRef,
+    graphics_ref::{
         Graphics, GraphicsCreator, GraphicsRef, GraphicsRefWithControlFn,
         DEFAULT_LOADED_TEXTURE_FORMAT,
-    }, shader_str::*, window::GraphicsWindowConf
+    },
+    shader_str::*,
+    window::GraphicsWindowConf,
 };
 
 #[cfg(feature = "nannou")]
@@ -168,16 +173,17 @@ macro_rules! build_shader_3d {
 #[macro_export]
 macro_rules! build_compute_shader {
     // capture the initial one
-    ($($input_structure:tt, $prefix:tt, $loop:tt, $suffix:tt)*) => {{
+    ($input_structure:tt, $prefix:tt, $forloop:tt, $suffix:tt) => {{
         format!(
             "{}\n{}\n{}\n{}",
-            input_structure,
+            $input_structure,
             ShaderStr::Compute.to_str(),
             ShaderStr::Includes.to_str(),
             ShaderStr::ComputeFormatStr
-                .replace("#PREFIX_CODEHERE", prefix)
-                .replace("#FORLOOP_CODEHERE#", forloop)
-                .replace("#SUFFIX_CODEHERE#", suffix)
+                .to_str()
+                .replace("#PREFIX_CODEHERE#", $prefix)
+                .replace("#FORLOOP_CODEHERE#", $forloop)
+                .replace("#SUFFIX_CODEHERE#", $suffix)
         )
     }};
 }
@@ -449,18 +455,18 @@ impl RenderTrait for TextureViewRender {
     }
 }
 
-pub struct ComputeTextureRender<T> {
-    pub source: ComputeGraphicsToTextureRef<T>,
+pub struct ComputeTextureRender {
+    pub source: ComputeGraphicsToTextureRef,
     pub dest: GraphicsRef,
 }
 
-impl<T> ComputeTextureRender<T> {
-    pub fn new_box(source: ComputeGraphicsToTextureRef<T>, dest: GraphicsRef) -> Box<Self> {
+impl ComputeTextureRender {
+    pub fn new_box(source: ComputeGraphicsToTextureRef, dest: GraphicsRef) -> Box<Self> {
         Box::new(Self { source, dest })
     }
 }
 
-impl<T: bytemuck::Pod> RenderTrait for ComputeTextureRender<T> {
+impl RenderTrait for ComputeTextureRender {
     // whenver it's called, it'll increment! check if it's overdue before rendering!
     fn render(&self, device_state_for_render: &DeviceStateForRender) {
         let source_texture = &self.source;
@@ -813,6 +819,23 @@ macro_rules! build_shader_pipeline {
                 )
             );
             pipeline_add_label!($pipeline, $source);
+            pipeline_add_label!($pipeline, $dest);
+
+            build_shader_pipeline!(@parse $pipeline ($($tail)*));
+        }
+    };
+
+    // compute shaders: =a -> T
+    (@parse $pipeline:ident (=$source:ident -> $dest:ident;$($tail:tt)*)) => {
+        {
+            println!("add compute");
+            $pipeline.add_step(
+                ComputeTextureRender::new_box(
+                    $source.clone(),
+                    $dest.graphics()
+                )
+            );
+            // pipeline_add_label!($pipeline, $source);
             pipeline_add_label!($pipeline, $dest);
 
             build_shader_pipeline!(@parse $pipeline ($($tail)*));

@@ -85,7 +85,7 @@ fn parse_graphics(
                             .expect("that's not a function!");
 
                         quote! {
-                            if #should_run_fn(render_in) {
+                            if #should_run_fn(&livecoder, render_in) {
                                 v.push(&self.#ident as &dyn GraphicsRenderer);
                             }
                         }
@@ -114,7 +114,7 @@ fn parse_graphics(
                             .expect("that's not a function!");
 
                         quote! {
-                            if !#should_run_fn(render_in) {
+                            if !#should_run_fn(&livecoder, render_in) {
                                 v.push(&self.#ident as &dyn GraphicsRenderer);
                             }
                         }
@@ -159,13 +159,13 @@ fn parse_graphics(
                 #(#drawers;)*
                 v
             }
-            fn gpu_pipelines(&self, render_in: &GraphicsRenderIn) -> Vec<&dyn GraphicsRenderer> {
+            fn gpu_pipelines<'a, 'b, 'c>(&'a self, livecoder: &'b #ctrlcls, render_in: &'c GraphicsRenderIn) -> Vec<&'a (dyn GraphicsRenderer + 'a)> {
                 let mut v: Vec<&dyn GraphicsRenderer> = vec![];
                 #(#pipelines;)*
                 v
             }
 
-            fn control_graphics<'a>(&'a self, livecoder: &'a #ctrlcls) -> Vec<ControlGraphicsRef> {
+            fn control_graphics<'a, 'b>(&'a self, livecoder: &'b #ctrlcls) -> Vec<ControlGraphicsRef> {
                 let mut v: Vec<ControlGraphicsRef> = vec![];
                 #(#ctrl;)*
                 v

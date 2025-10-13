@@ -1,6 +1,8 @@
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, collections::HashSet, rc::Rc, sync::Arc};
 
 use bytemuck::Pod;
+use glam::Vec2;
+use itertools::Itertools;
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
 
@@ -21,6 +23,43 @@ struct ComputeBindings {
     cell_offsets: wgpu::Buffer,
     cell_indices: wgpu::Buffer,
     uniforms: wgpu::Buffer,
+}
+impl ComputeBindings {
+    fn update_csr_and_data<T: Pod>(&mut self, c: &GraphicsWindowConf, csr: CSR, data: Vec<T>) {
+        let device = c.device();
+
+        let mut offsets = csr.offsets;
+        if offsets.is_empty() {
+            offsets = vec![0; 2]
+        };
+        let mut indices = csr.indices;
+        if indices.is_empty() {
+            indices = vec![0; 2]
+        };
+
+        // let queue = c.queue();
+        // queue.write_buffer(&self.cell_offsets, 0, bytemuck::cast_slice(&offsets));
+        // queue.write_buffer(&self.cell_indices, 0, bytemuck::cast_slice(&indices));
+        // queue.write_buffer(&self.input, 0, bytemuck::cast_slice(&data));
+
+        self.input = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&data),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        });
+
+        self.cell_indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        });
+
+        self.cell_offsets = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&offsets),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        });
+    }
 }
 
 pub struct CSR {
@@ -54,10 +93,69 @@ impl CSRData {
         }
         CSR { offsets, indices }
     }
+
+    fn from_data<T: ToAABB>(nx: u32, ny: u32, data: &[T]) -> Self {
+        let cell_count = (nx * ny) as usize;
+        let mut orig_cells = vec![vec![]; cell_count];
+
+        // helpers
+        // let clamp01 = |v: f32| v.max(0.0).min(1.0);
+        let cell_id = |x_i: u32, y_i: u32| -> usize { (y_i * nx + x_i) as usize };
+        let ix_clamp = |x: i32| -> u32 { x.max(0).min(nx as i32 - 1) as u32 };
+        let iy_clamp = |y: i32| -> u32 { y.max(0).min(ny as i32 - 1) as u32 };
+
+        for (idx, d) in data.iter().enumerate() {
+            let bounds = d.to_aabb();
+
+            // Convert to cell-range (inclusive)
+            let ix0 = ix_clamp((bounds.min.x * nx as f32).floor() as i32);
+            let ix1 = ix_clamp((bounds.max.x * nx as f32).floor() as i32);
+            let iy0 = iy_clamp((bounds.min.y * ny as f32).floor() as i32);
+            let iy1 = iy_clamp((bounds.max.y * ny as f32).floor() as i32);
+
+            for iy in iy0..=iy1 {
+                for ix in ix0..=ix1 {
+                    orig_cells[cell_id(ix, iy)].push(idx as u32);
+                }
+            }
+        }
+
+        // now go through the cells and append the neighboring cells!
+        let mut cells = vec![vec![]; cell_count];
+
+        for x_i in 0..nx {
+            for y_i in 0..ny {
+                let mut cell_val = HashSet::new();
+
+                for offset_x in -1..=1 {
+                    for offset_y in -1..=1 {
+                        let xii = ix_clamp(x_i as i32 + offset_x);
+                        let yii = iy_clamp(y_i as i32 + offset_y);
+
+                        for c in &orig_cells[cell_id(xii, yii)] {
+                            cell_val.insert(*c);
+                        }
+                    }
+                }
+                cells[cell_id(x_i, y_i)] = cell_val.into_iter().collect_vec();
+            }
+        }
+
+        CSRData { cells }
+    }
+}
+
+pub struct AABB {
+    pub min: Vec2,
+    pub max: Vec2,
+}
+
+pub trait ToAABB {
+    fn to_aabb(&self) -> AABB;
 }
 
 // like Graphics, what's needed to create a compute pipeline
-pub struct ComputeGraphicsToTexture<T> {
+pub struct ComputeGraphicsToTexture {
     name: String,
     // conf: GraphicsCreator,
     // bind_group: wgpu::BindGroup,
@@ -69,8 +167,9 @@ pub struct ComputeGraphicsToTexture<T> {
 
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
-    data: Vec<T>,
+    // data: Vec<T>,
     dims: [u32; 2],
+    // csr: CSR,
     // used internally
     // pub input_texture_view: wgpu::TextureView,
     // pub input_texture_view_other: Option<wgpu::TextureView>,
@@ -81,23 +180,44 @@ pub struct ComputeGraphicsToTexture<T> {
     // pub other_texture_and_desc: Option<TextureAndDesc>,
     // textures_for_3d: Option<TextureFor3d>,
 }
-impl<T: Pod> ComputeGraphicsToTexture<T> {
-    pub fn init<'a>(
+impl ComputeGraphicsToTexture {
+    fn sync_data<T: Pod + ToAABB + Clone>(
+        &mut self,
+        c: &GraphicsWindowConf,
+        nx: u32,
+        ny: u32,
+        data: &[T],
+    ) {
+        // the data should already be scaled 0.0 to 1.0
+
+        // make sure we use the same vars on both sides
+        self.update_uniforms_other(c, [nx as f32, ny as f32, 0.0, 0.0], [0.0; 4]);
+
+        // build csr
+        let csr = CSRData::from_data(nx, ny, data).for_buffers();
+
+        let data = data.to_vec();
+
+        self.buffers.update_csr_and_data(c, csr, data);
+    }
+
+    pub fn init<'a, T: Pod + ToAABB + Clone>(
         name: String,
         c: &GraphicsWindowConf<'a>,
         compute_shader: &str,
-    ) -> ComputeGraphicsToTextureRef<T> {
+        data: Vec<T>,
+    ) -> ComputeGraphicsToTextureRef {
         ComputeGraphicsToTextureRef::new(Rc::new(RefCell::new(Self::new(
             name,
             c,
             compute_shader,
-            BasicUniform::from_empty(),
+            BasicUniform::from_dims(c.dims),
             CSR::empty(),
-            vec![],
+            data,
         ))))
     }
 
-    pub fn new<'a>(
+    pub fn new<'a, T: Pod + ToAABB + Clone>(
         name: String,
         c: &GraphicsWindowConf<'a>,
         shader_data: &str,
@@ -110,19 +230,19 @@ impl<T: Pod> ComputeGraphicsToTexture<T> {
         let input_data_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&data),
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
 
         let cell_indices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&csr.indices),
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
 
         let cell_offsets_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&csr.offsets),
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
 
         let uniforms_buffer = initial_uniform.to_buffer(device);
@@ -142,7 +262,7 @@ impl<T: Pod> ComputeGraphicsToTexture<T> {
                     },
                     count: None,
                 },
-                // 2: CSR offsets
+                // 21: CSR offsets
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -181,7 +301,7 @@ impl<T: Pod> ComputeGraphicsToTexture<T> {
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
                         access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: wgpu::TextureFormat::Rgba8Unorm, // match your texture/WGSL
+                        format: wgpu::TextureFormat::Rgba16Float,
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
@@ -266,13 +386,14 @@ impl<T: Pod> ComputeGraphicsToTexture<T> {
 
         Self {
             name,
-            data,
+            // data,
             pipeline,
             buffers,
             uniforms: initial_uniform,
             bind_group_layout,
             texture,
             dims,
+            // csr: CSR::empty(),
         }
     }
 
@@ -369,11 +490,11 @@ impl<T: Pod> ComputeGraphicsToTexture<T> {
 }
 
 #[derive(Clone)]
-pub struct ComputeGraphicsToTextureRef<T> {
-    pub graphics: Rc<RefCell<ComputeGraphicsToTexture<T>>>,
+pub struct ComputeGraphicsToTextureRef {
+    pub graphics: Rc<RefCell<ComputeGraphicsToTexture>>,
 }
-impl<T: Pod> ComputeGraphicsToTextureRef<T> {
-    fn new(graphics: Rc<RefCell<ComputeGraphicsToTexture<T>>>) -> Self {
+impl ComputeGraphicsToTextureRef {
+    fn new(graphics: Rc<RefCell<ComputeGraphicsToTexture>>) -> Self {
         Self { graphics }
     }
 
@@ -386,5 +507,19 @@ impl<T: Pod> ComputeGraphicsToTextureRef<T> {
         self.graphics
             .borrow()
             .render(device_state_for_render.device_state(), view)
+    }
+
+    pub fn sync_data<T: Pod + ToAABB + Clone>(
+        &self,
+        c: &GraphicsWindowConf,
+        nx: u32,
+        ny: u32,
+        segments: &[T],
+    ) {
+        if !segments.is_empty() {
+            self.graphics.borrow_mut().sync_data(c, nx, ny, segments)
+        } else {
+            println!("segments is empty, not doing anything");
+        }
     }
 }
