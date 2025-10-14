@@ -826,7 +826,7 @@ impl Graphics {
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::STORAGE_BINDING,
+                | wgpu::TextureUsages::STORAGE_BINDING, // needed for compute
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
