@@ -41,14 +41,14 @@ impl Default for TextureDimensions {
         Self {
             // width: 3000,
             // height: 2000,
-            // width: 1080,
-            // width: 1080,
-            width: 2000,
-            height: 2000,
+            width: 1080,
+            height: 1080,
+            // width: 2000,
+            // height: 2000,
             // width: 2000,
             // height: 2000,
             // width: 750,
-            // height: 750
+            // height: 750,
         }
     }
 }

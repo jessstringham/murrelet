@@ -378,8 +378,6 @@ impl ComputeGraphicsToTexture {
             entry_point: "main",
             #[cfg(not(feature = "nannou"))]
             compilation_options: wgpu::PipelineCompilationOptions::default(),
-            #[cfg(not(feature = "nannou"))]
-            cache: None,
         });
 
         let dims = c.dims;
@@ -522,4 +520,10 @@ impl ComputeGraphicsToTextureRef {
             println!("segments is empty, not doing anything");
         }
     }
+
+    // pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef> {
+    //     let ctrl_graphics = (self.control_graphic_fn)(conf);
+
+    //     ControlGraphicsRef::new(self.label, ctrl_graphics, Some(self.graphics.clone()))
+    // }
 }

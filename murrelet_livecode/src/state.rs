@@ -27,22 +27,51 @@ enum LivecodeWorldStateStage {
 // }
 
 #[derive(Clone, Debug)]
-pub enum CachedHM {
+pub enum CacheFlag {
     NotCached,
-    Cached(Arc<HashMapContext>),
+    Cached,
+}
+
+#[derive(Clone, Debug)]
+pub struct CachedHM {
+    flag: CacheFlag,
+    data: Arc<HashMapContext>, // we keep this around so we don't need to drop
 }
 impl CachedHM {
     fn new_rw() -> Arc<RwLock<CachedHM>> {
-        Arc::new(RwLock::new(CachedHM::NotCached))
+        let hm = HashMapContext::new();
+        Arc::new(RwLock::new(CachedHM {
+            data: Arc::new(hm),
+            flag: CacheFlag::NotCached,
+        }))
     }
 
-    fn update(&mut self, hm: HashMapContext) {
-        *self = CachedHM::Cached(Arc::new(hm));
-    }
+    // fn update(&mut self, hm: HashMapContext) {
+    //     // *self = CachedHM::Cached(Arc::new(hm));
+    //     self.data = Arc::new(hm);
+    //     self.flag = CacheFlag::Cached;
+    // }
 
     fn clear(&mut self) {
-        *self = CachedHM::NotCached;
+        self.flag = CacheFlag::NotCached;
     }
+
+    fn cached(&self) -> CacheResult {
+        match self.flag {
+            CacheFlag::NotCached => CacheResult::NotCached,
+            CacheFlag::Cached => CacheResult::Cached(self.data.clone()),
+        }
+    }
+
+    fn update_arc(&mut self, hm: Arc<HashMapContext>) {
+        self.data = hm;
+        self.flag = CacheFlag::Cached;
+    }
+}
+
+enum CacheResult {
+    Cached(Arc<HashMapContext>),
+    NotCached,
 }
 
 #[derive(Clone, Debug)]
@@ -125,22 +154,18 @@ impl LivecodeWorldState {
     }
 
     pub(crate) fn ctx(&self) -> LivecodeResult<Arc<HashMapContext>> {
-        let mut cache = self.cached.write().unwrap();
-
-        if let CachedHM::Cached(c) = cache.clone() {
+        if let CacheResult::Cached(c) = self.cached.read().unwrap().cached() {
             return Ok(c);
         }
+        let mut cache = self.cached.write().unwrap();
         let mut ctx = self.state.ctx().clone();
         for mixed in &self.refs {
             mixed.update_ctx(&mut ctx)?;
         }
-        cache.update(ctx);
+        let arc = Arc::new(ctx);
+        cache.update_arc(arc.clone());
 
-        if let CachedHM::Cached(c) = cache.clone() {
-            return Ok(c);
-        } else {
-            unreachable!("we just set it?")
-        }
+        Ok(arc)
     }
 
     pub fn actual_frame_u64(&self) -> u64 {

@@ -3,7 +3,7 @@ use std::{
     ops::{Add, Mul},
 };
 
-use glam::Vec3;
+use glam::{vec3, Vec3};
 use lerpable::{IsLerpingMethod, Lerpable};
 // use murrelet_gui::CanMakeGUI;
 use palette::{rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha};
@@ -63,6 +63,11 @@ impl MurreletColor {
         let (r, g, b) = rgb.into();
         let c = Srgba::new(r, g, b, 1.0);
         Self::from_srgba(c)
+    }
+
+    pub fn to_rgb_vec3(&self) -> Vec3 {
+        let [r, g, b, _] = self.into_rgba_components();
+        vec3(r, g, b)
     }
 
     pub fn gray(g: f32) -> Self {

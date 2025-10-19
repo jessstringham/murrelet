@@ -30,6 +30,7 @@ enum GraphicKind {
     Drawer,
     Pipeline,
     Graphics,
+    ComputeTexture, // similar to graphics, but is a compute shader that outputs a texture
     Ref,
     DrawSrc,
 }
@@ -39,6 +40,7 @@ impl GraphicKind {
             "drawer" => Self::Drawer,
             "pipeline" => Self::Pipeline,
             "graphics" => Self::Graphics,
+            "computetexture" => Self::ComputeTexture,
             "ref" => Self::Ref,
             "draw_src" => Self::DrawSrc,
             _ => panic!("unexpected kind"),
@@ -146,6 +148,11 @@ fn parse_graphics(
                             ).into_iter())
                         })
                     }
+                }
+                GraphicKind::ComputeTexture => {
+                    ctrl.push(
+                        quote! {v.extend(self.#ident.control_graphics(&livecoder).into_iter())},
+                    );
                 }
             }
         }

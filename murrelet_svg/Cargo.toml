@@ -18,3 +18,4 @@ murrelet_draw = { version = "0.1.2", default-features = false }
 glam = { version = "0.28.0", features = ["serde"] }
 itertools = "0.10.5"
 svg = "0.10.0"
+regex = "1.7.3"

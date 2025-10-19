@@ -29,6 +29,10 @@ pub fn empty_vec<T>() -> Vec<T> {
 
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
+
+    fn o_dummy(&self) -> LivecodeResult<T> {
+        self.o(&LivecodeWorldState::new_dummy())
+    }
 }
 
 impl LivecodeFromWorld<f32> for ControlF32 {

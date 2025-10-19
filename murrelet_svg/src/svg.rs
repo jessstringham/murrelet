@@ -17,6 +17,7 @@ use murrelet_draw::{
     svg::{SvgPathDef, SvgShape, TransformedSvgShape},
 };
 use murrelet_perform::perform::SvgDrawConfig;
+use regex::{Captures, Regex};
 use svg::{
     node::element::{path::Data, Group},
     Document, Node,
@@ -103,6 +104,7 @@ pub trait ToSvgData {
     fn make_path(&self, style: &MurreletStyle) -> Option<svg::node::element::Path> {
         if let Some(d) = self.to_svg_data() {
             let mut d = d;
+
             if style.closed {
                 d = d.close();
             }
@@ -859,7 +861,17 @@ impl SvgPathCache {
     pub fn make_html(&self) -> Vec<String> {
         let (paths, defs) = self.config.make_html(self);
 
-        vec![defs.to_string(), paths.to_string()]
+        // hmm, figure out a better way to do this, but quantize it
+
+        let re = Regex::new(r"(-?\d*\.\d{3,})").unwrap();
+        let path_str = re
+            .replace_all(&paths.to_string(), |caps: &Captures| {
+                let val: f32 = caps[0].parse().unwrap_or(0.0);
+                format!("{:.2}", val)
+            })
+            .into_owned();
+
+        vec![defs.to_string(), path_str]
     }
 }
 

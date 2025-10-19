@@ -7,11 +7,7 @@ use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
 
 use crate::curve_drawer::{CurveArc, CurveDrawer};
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into())
-    }
-}
+
 #[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]
 pub struct SvgRect {
     #[livecode(serde_default = "0")]
