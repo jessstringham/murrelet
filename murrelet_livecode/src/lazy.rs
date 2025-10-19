@@ -74,14 +74,14 @@ impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
 // todo, figure out how to only build this context once per unitcell/etc
 #[derive(Debug, Clone)]
 pub struct LazyNodeF32Inner {
-    n: Node, // what will be evaluated!
+    n: Arc<Node>, // what will be evaluated!
     world: WorldWithLocalVariables, //LivecodeWorldState, // this is a reference :D
-             // more_defs: MixedEvalDefs,
+                  // more_defs: MixedEvalDefs,
 }
 impl LazyNodeF32Inner {
     pub fn new(n: Node, world: LivecodeWorldState) -> Self {
         Self {
-            n,
+            n: Arc::new(n),
             world: world.to_local(),
             // more_defs: MixedEvalDefs::new(),
         }
