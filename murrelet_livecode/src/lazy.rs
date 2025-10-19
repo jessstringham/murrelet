@@ -3,13 +3,13 @@ use std::sync::Arc;
 use evalexpr::{HashMapContext, IterateVariablesContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, MurreletColor};
+use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
 use serde::Deserialize;
 
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs, MixedEvalDefsRef},
     livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeVariable},
-    state::LivecodeWorldState,
+    state::{LivecodeWorldState, WorldWithLocalVariables},
     types::{LivecodeError, LivecodeResult},
 };
 
@@ -75,38 +75,42 @@ impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
 #[derive(Debug, Clone)]
 pub struct LazyNodeF32Inner {
     n: Node, // what will be evaluated!
-    world: LivecodeWorldState, // this is a reference :D
+    world: WorldWithLocalVariables, //LivecodeWorldState, // this is a reference :D
              // more_defs: MixedEvalDefs,
 }
 impl LazyNodeF32Inner {
     pub fn new(n: Node, world: LivecodeWorldState) -> Self {
         Self {
             n,
-            world,
+            world: world.to_local(),
             // more_defs: MixedEvalDefs::new(),
         }
     }
 
     // options to add more details...
     pub fn add_more_defs(&self, more_defs: &MixedEvalDefs) -> Self {
-        let mut c = self.clone();
-        c.world
-            .update_with_defs(MixedEvalDefsRef::new(more_defs.clone()));
-        c
+        // unreachable!();
+        let c = self.clone();
+        c.add_expr_values(more_defs.expr_vals())
+
+        // println!("dropping contexts...");
+        // c.world
+        //     .update_with_defs(MixedEvalDefsRef::new(more_defs.clone()));
+        // c
     }
 
-    pub fn add_expr_values(&self, more_vals: ExprWorldContextValues) -> Self {
+    pub fn add_expr_values(&self, more_vals: &ExprWorldContextValues) -> Self {
         // let mut c = self.clone();
         // c.more_defs.set_vals(more_vals);
         // c
         let mut c = self.clone();
-        c.world
-            .update_with_defs(MixedEvalDefsRef::new_from_expr(more_vals));
+        c.world.update_with_simple_defs(more_vals);
         c
     }
 
     // internal function to build the ctx
-    fn build_ctx(&self) -> LivecodeResult<Arc<HashMapContext>> {
+    fn build_ctx(&self) -> &WorldWithLocalVariables {
+        // LivecodeResult<Arc<HashMapContext>> {
         // self.world.clone_with_mixed_defs(&self.more_defs)
 
         // self.world.ctx()?;
@@ -115,7 +119,8 @@ impl LazyNodeF32Inner {
 
         // let a = w.ctx().as_ref()
 
-        self.world.ctx()
+        // self.world.ctx()
+        &self.world
 
         // let copied_world = self.world.ctx().as_ref().clone();
         // let mut ctx = copied_world.clone();
@@ -125,9 +130,8 @@ impl LazyNodeF32Inner {
 
     // what you'll use
     pub fn eval(&self) -> LivecodeResult<f32> {
-        let a = self.build_ctx()?;
-        let ctx = a.as_ref();
-
+        let ctx = self.build_ctx();
+        // let ctx = a.as_ref();
 
         self.n
             .eval_float_with_context(ctx)
@@ -206,7 +210,7 @@ impl LazyNodeF32 {
             LazyNodeF32::Node(v) => {
                 let vals =
                     ExprWorldContextValues::new_from_idx(idx).with_prefix(&format!("{}_", prefix));
-                v.add_expr_values(vals).eval()
+                v.add_expr_values(&vals).eval()
             }
             LazyNodeF32::NoCtxNode(v) => v.result(),
         }
@@ -226,7 +230,7 @@ impl LazyNodeF32 {
     pub fn variable_names(&self) -> LivecodeResult<Vec<String>> {
         match self {
             LazyNodeF32::Uninitialized => Err(LivecodeError::Raw("not initialized".to_owned())),
-            LazyNodeF32::Node(c) => Ok(c.build_ctx()?.iter_variable_names().collect_vec()),
+            LazyNodeF32::Node(c) => Ok(c.build_ctx().variable_names()),
             LazyNodeF32::NoCtxNode(_) => Err(LivecodeError::Raw("no ctx".to_owned())),
         }
     }

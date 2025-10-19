@@ -3,11 +3,14 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use evalexpr::{HashMapContext, IterateVariablesContext};
+use evalexpr::{Context, EvalexprResult, HashMapContext, IterateVariablesContext, Value};
 use murrelet_common::*;
 
 use crate::{
-    expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef},
+    expr::{
+        lc_val_to_expr, ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs,
+        MixedEvalDefsRef,
+    },
     types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,
 };
@@ -195,6 +198,77 @@ impl LivecodeWorldState {
 
     pub fn asset_layers_in_key(&self, key: &str) -> &[String] {
         self.state.asset_layers_in_key(key)
+    }
+
+    pub(crate) fn update_with_simple_defs(
+        &self,
+        more_vals: ExprWorldContextValues,
+    ) -> WorldWithLocalVariables {
+        let locals = more_vals.to_vals();
+
+        WorldWithLocalVariables {
+            base: self.ctx().unwrap(),
+            locals,
+            builtins_disabled: false,
+        }
+    }
+
+    pub fn to_local(&self) -> WorldWithLocalVariables {
+        WorldWithLocalVariables {
+            base: self.ctx().unwrap(),
+            locals: vec![],
+            builtins_disabled: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct WorldWithLocalVariables {
+    base: Arc<HashMapContext>, // your cached global ctx (world.ctx()?.as_ref())
+    locals: Vec<(String, Value)>, // small slice like &[("loc_pct", 0.42.into())]
+    builtins_disabled: bool,
+}
+impl WorldWithLocalVariables {
+    pub fn update_with_simple_defs(&mut self, more_vals: &ExprWorldContextValues) {
+        let mut locals = more_vals.to_vals();
+        locals.extend(self.locals.iter().cloned());
+        self.locals = locals;
+
+        // WorldWithLocalVariables {
+        //     base: self.base.clone(),
+        //     locals,
+        //     builtins_disabled: true,
+        // }
+    }
+
+    pub(crate) fn variable_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.locals.iter().map(|(k, _)| k.clone()).collect();
+        names.extend(self.base.iter_variable_names());
+        names
+    }
+}
+
+impl Context for WorldWithLocalVariables {
+    fn get_value(&self, identifier: &str) -> Option<&Value> {
+        // locals win
+        if let Some((_, v)) = self.locals.iter().find(|(k, v)| k == identifier) {
+            return Some(v);
+        }
+        // otherwise fallback to global
+        self.base.get_value(identifier)
+    }
+
+    fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
+        self.base.call_function(identifier, argument)
+    }
+
+    fn are_builtin_functions_disabled(&self) -> bool {
+        self.builtins_disabled
+    }
+
+    fn set_builtin_functions_disabled(&mut self, disabled: bool) -> EvalexprResult<()> {
+        self.builtins_disabled = disabled;
+        Ok(())
     }
 }
 

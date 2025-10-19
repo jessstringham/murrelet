@@ -278,7 +278,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err)})
 }
 
-fn lc_val_to_expr(v: &LivecodeValue) -> Value {
+pub fn lc_val_to_expr(v: &LivecodeValue) -> Value {
     match v {
         LivecodeValue::Float(f) => Value::Float(*f),
         LivecodeValue::Bool(f) => Value::Boolean(*f),
@@ -372,7 +372,36 @@ impl ExprWorldContextValues {
         // Self::new([self.0.clone(), vals.0].concat())
         new
     }
+
+    pub(crate) fn get_variable(&self, identifier: &str) -> Option<&LivecodeValue> {
+        self.0.get(identifier)
+    }
+
+    pub(crate) fn to_vals(&self) -> Vec<(String, Value)> {
+        self.0
+            .iter()
+            .map(|(k, v)| (k.clone(), lc_val_to_expr(v)))
+            .collect_vec()
+    }
 }
+
+// impl Context for ExprWorldContextValues {
+//     fn get_value(&self, identifier: &str) -> Option<&Value> {
+//         todo!()
+//     }
+
+//     fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
+//         todo!()
+//     }
+
+//     fn are_builtin_functions_disabled(&self) -> bool {
+//         true
+//     }
+
+//     fn set_builtin_functions_disabled(&mut self, disabled: bool) -> EvalexprResult<()> {
+
+//     }
+// }
 
 pub trait IntoExprWorldContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues;
@@ -529,5 +558,9 @@ impl MixedEvalDefs {
 
     pub fn from_idx(idx: IdxInRange) -> Self {
         Self::new_from_expr(ExprWorldContextValues::new_from_idx(idx))
+    }
+
+    pub(crate) fn expr_vals(&self) -> &ExprWorldContextValues {
+        &self.vals
     }
 }
