@@ -756,7 +756,7 @@ impl SvgPathCacheRef {
         self.0.borrow_mut().add_styled_text(layer, text)
     }
 
-    pub fn make_html(&self) -> Vec<String> {
+    pub fn make_html(&self) -> (String, String) {
         self.0.borrow().make_html()
     }
 }
@@ -858,20 +858,10 @@ impl SvgPathCache {
 
     // can add these to a document. I don't give the full svg so I can leave things
     // like <image> defs alone and just update the paths and patternTransforms.
-    pub fn make_html(&self) -> Vec<String> {
+    pub fn make_html(&self) -> (String, String) {
         let (paths, defs) = self.config.make_html(self);
 
-        // hmm, figure out a better way to do this, but quantize it
-
-        let re = Regex::new(r"(-?\d*\.\d{3,})").unwrap();
-        let path_str = re
-            .replace_all(&paths.to_string(), |caps: &Captures| {
-                let val: f32 = caps[0].parse().unwrap_or(0.0);
-                format!("{:.2}", val)
-            })
-            .into_owned();
-
-        vec![defs.to_string(), path_str]
+        (defs.to_string(), paths.to_string())
     }
 }
 

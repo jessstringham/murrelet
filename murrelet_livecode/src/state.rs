@@ -8,8 +8,8 @@ use murrelet_common::*;
 
 use crate::{
     expr::{
-        lc_val_to_expr, ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs,
-        MixedEvalDefsRef,
+        init_evalexpr_func_ctx, lc_val_to_expr, ExprWorldContextValues, IntoExprWorldContext,
+        MixedEvalDefs, MixedEvalDefsRef,
     },
     types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,
@@ -153,7 +153,7 @@ impl LivecodeWorldState {
     }
 
     pub(crate) fn new_dummy() -> Self {
-        Self::new_legacy(LivecodeWorldStateInner::new_dummy()).unwrap()
+        Self::new_legacy(LivecodeWorldStateInner::new_dummy_with_funcs()).unwrap()
     }
 
     pub(crate) fn ctx(&self) -> LivecodeResult<Arc<HashMapContext>> {
@@ -426,6 +426,17 @@ impl LivecodeWorldStateInner {
 
     pub fn asset_layers_in_key(&self, key: &str) -> &[String] {
         self.assets.layer_for_key(key)
+    }
+
+    pub fn new_dummy_with_funcs() -> Self {
+        Self::new(
+            &init_evalexpr_func_ctx().unwrap(),
+            &LivecodeSrc::new(vec![]),
+            LiveCodeTimeInstantInfo::new_dummy(), // time
+            AdditionalContextNode::new_dummy(),   // node
+            Arc::new(Assets::empty()),            // assets
+        )
+        .unwrap()
     }
 
     pub fn new_dummy() -> Self {
