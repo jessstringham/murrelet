@@ -45,7 +45,7 @@ pub struct MurreletTime(u128); // millis
 
 impl MurreletTime {
     pub fn now() -> Self {
-        MurreletTime(epoch_time_ms())
+        MurreletTime(epoch_time_us())
     }
 
     pub fn epoch() -> Self {
@@ -64,21 +64,25 @@ impl MurreletTime {
         MurreletTime::in_x_ms(1000)
     }
 
-    pub fn as_millis_u128(&self) -> u128 {
-        self.0
-    }
-
     pub fn as_secs(&self) -> u64 {
-        (self.0 / 1000) as u64
+        (self.as_millis_u128() / 1000) as u64
     }
 
     // f32 for historical reasons, can change at some point
     pub fn as_secs_f32(&self) -> f32 {
-        (self.0 as f32) / 1000.0
+        (self.as_millis()) / 1000.0
+    }
+
+    pub fn as_millis_u128(&self) -> u128 {
+        self.0 / 1000
     }
 
     pub fn as_millis(&self) -> f32 {
-        self.0 as f32
+        self.0 as f32 / 1000.0
+    }
+
+    pub fn as_micro(&self) -> u128 {
+        self.0
     }
 }
 
@@ -90,7 +94,6 @@ impl std::ops::Sub for MurreletTime {
     }
 }
 
-// in seconds
 pub fn epoch_time_ms() -> u128 {
     #[cfg(target_arch = "wasm32")]
     {
@@ -115,6 +118,33 @@ pub fn epoch_time_ms() -> u128 {
             .as_millis() as f64
             / 1000.0;
         (s * 1000.0) as u128
+    }
+}
+
+pub fn epoch_time_us() -> u128 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        //use wasm_bindgen::JsCast;
+
+        #[wasm_bindgen]
+        extern "C" {
+            #[wasm_bindgen(js_namespace = Date)]
+            fn now() -> f64;
+        }
+
+        (now() * 1000.0) as u128
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::time::SystemTime;
+        use std::time::UNIX_EPOCH;
+        let s = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("wat")
+            .as_micros();
+        // (s * 1_000_000.0) as u128
+        s
     }
 }
 
