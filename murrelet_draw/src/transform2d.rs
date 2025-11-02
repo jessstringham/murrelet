@@ -256,6 +256,18 @@ impl Transform2d {
     pub fn steps(&self) -> &Vec<Transform2dStep> {
         &self.0
     }
+
+    pub fn transform_vec_vec(&self, vs: &[Vec<Vec2>]) -> Vec<Vec<Vec2>> {
+        let mut vv = vec![];
+        for line in vs {
+            let mut vvv = vec![];
+            for v in line {
+                vvv.push(self.transform_vec2(*v));
+            }
+            vv.push(vvv);
+        }
+        vv
+    }
 }
 
 impl Default for ControlTransform2d {

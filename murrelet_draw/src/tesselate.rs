@@ -1,10 +1,6 @@
 use std::{collections::HashMap, ops};
 
-use crate::{
-    cubic::CubicBezier,
-    curve_drawer::CubicBezierPath,
-    svg::SvgPathDef,
-};
+use crate::{cubic::CubicBezier, curve_drawer::CubicBezierPath, svg::SvgPathDef};
 use delaunator::Triangulation;
 use glam::{vec2, Vec2, Vec2Swizzles};
 use itertools::Itertools;
@@ -780,7 +776,7 @@ where
     let r: HashMap<String, Vec<Vec<Vec2>>> = map
         .iter()
         .map(|(k, v)| {
-            println!("processing {:?}", k);
+            // println!("processing {:?}", k);
             (
                 k.to_string(),
                 v.iter().map(|vv| parse_data(vv, line_space)).collect_vec(),
@@ -803,7 +799,7 @@ where
     for event in svg::open(path, &mut content).unwrap() {
         if let svg::parser::Event::Tag(_, _, attributes) = event {
             if let Some(id) = attributes.get("id") {
-                println!("loading {:?}", id);
+                // println!("loading {:?}", id);
                 recent_id = id.to_string();
             }
 
