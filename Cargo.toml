@@ -11,8 +11,6 @@ members = [
     "murrelet_src_midi",
     "murrelet_src_osc",
     "murrelet_svg",
-    "examples/murrelet_example",
-    "examples/foolish_guillemot",
     "tinylivecode",
     "murrelet_schema",
     "murrelet_schema_derive",

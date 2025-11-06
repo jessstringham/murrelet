@@ -391,6 +391,48 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
     pub fn force_get_dim(&self, dim: &Dim2d) -> &UnitCell<Target> {
         self.force_get_ij(dim.i(), dim.j())
     }
+
+    // this probably only works for rectangles...
+    pub fn loc_to_tile_idx_and_offset<T: Debug + Clone + Default + Lerpable>(
+        &self,
+        v: Vec2,
+    ) -> Option<IdxAndOffset> {
+        // blah
+        for uc in self.data.values() {
+            if uc.bounds().contains(v) {
+                let local_offset = v - uc.center();
+                let scaled_offset = local_offset / uc.bounds().wh();
+                return Some(IdxAndOffset {
+                    ij: uc.idx(),
+                    offset_i: scaled_offset.x,
+                    offset_j: scaled_offset.y,
+                });
+            }
+        }
+        None
+    }
+
+    // pub fn get_vec2(&self, v: Vec2) {}
+}
+
+pub struct IdxAndOffset {
+    ij: IdxInRange2d,
+    // how far in i and j they are
+    offset_i: f32,
+    offset_j: f32,
+}
+impl IdxAndOffset {
+    pub fn lerp_idxes(&self) -> [(usize, usize); 4] {
+        self.ij.lerp_idx()
+    }
+
+    pub fn offset_i(&self) -> f32 {
+        self.offset_i
+    }
+
+    pub fn offset_j(&self) -> f32 {
+        self.offset_j
+    }
 }
 
 #[derive(PartialEq, Eq, Copy, Clone)]

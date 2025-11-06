@@ -235,11 +235,13 @@ impl IdxInRange2d {
         vec2(self.i.half_step_pct(), self.j.half_step_pct())
     }
 
-    pub fn lerp_idx(&self, x: f32, y: f32) -> [(usize, usize); 4] {
-        // helps tell which indexes to use for lerping
-        let x_idx = x as usize;
-        let y_idx = y as usize;
+    // pub fn lerp_idx(&self, x: f32, y: f32) -> [(usize, usize); 4] {
+    //     self.lerp_idx_u(x as usize, y as usize)
+    // }
 
+    pub fn lerp_idx(&self) -> [(usize, usize); 4] {
+        let x_idx = self.i.i() as usize;
+        let y_idx = self.j.i() as usize;
         let x_is_too_far = x_idx + 1 >= self.i.total as usize;
         let y_is_too_far = y_idx + 1 >= self.j.total as usize;
 
