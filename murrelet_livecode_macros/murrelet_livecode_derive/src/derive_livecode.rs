@@ -181,14 +181,17 @@ impl GenFinal for FieldTokensLivecode {
         let for_variable_idents = variants.iter().map(|x| x.for_variable_idents.clone());
         let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
-        let maybe_cfg_attr = if cfg!(feature = "schemars") {
-            quote! {, schemars::JsonSchema}
+        let (maybe_cfg_attr, additional) = if cfg!(feature = "schemars") {
+            (
+                quote! {, schemars::JsonSchema},
+                quote! {#[schemars(deny_unknown_fields)]},
+            )
         } else {
-            quote! {}
+            (quote! {}, quote! {})
         };
-
         quote! {
             #[derive(Debug, Clone, serde::Deserialize #maybe_cfg_attr)]
+            #additional
             #vis struct #new_ident {
                 #(#for_struct,)*
             }
@@ -247,14 +250,17 @@ impl GenFinal for FieldTokensLivecode {
 
         let enum_tag = idents.tags;
 
-        let maybe_cfg_attr = if cfg!(feature = "schemars") {
-            quote! {, schemars::JsonSchema}
+        let (maybe_cfg_attr, additional) = if cfg!(feature = "schemars") {
+            (
+                quote! {, schemars::JsonSchema},
+                quote! {#[schemars(deny_unknown_fields)]},
+            )
         } else {
-            quote! {}
+            (quote! {}, quote! {})
         };
-
         quote! {
             #[derive(Debug, Clone, serde::Deserialize #maybe_cfg_attr)]
+            #additional
             #[allow(non_camel_case_types)]
             #enum_tag
             #vis enum #new_ident {
@@ -306,14 +312,18 @@ impl GenFinal for FieldTokensLivecode {
         let for_variable_idents = variants.iter().map(|x| x.for_variable_idents.clone());
         let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
-        let maybe_cfg_attr = if cfg!(feature = "schemars") {
-            quote! {, schemars::JsonSchema}
+        let (maybe_cfg_attr, additional) = if cfg!(feature = "schemars") {
+            (
+                quote! {, schemars::JsonSchema},
+                quote! {#[schemars(deny_unknown_fields)]},
+            )
         } else {
-            quote! {}
+            (quote! {}, quote! {})
         };
 
         quote! {
             #[derive(Debug, Clone, serde::Deserialize #maybe_cfg_attr)]
+            #additional
             #vis struct #new_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
