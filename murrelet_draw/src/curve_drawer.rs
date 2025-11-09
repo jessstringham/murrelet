@@ -6,7 +6,6 @@ use murrelet_common::*;
 use murrelet_livecode_derive::*;
 use serde::{Deserialize, Serialize};
 use svg::node::element::path::Data;
-// use crate::serialize::serialize_vec2;
 
 use crate::{
     cubic::CubicBezier,
@@ -44,11 +43,10 @@ impl CubicOptionVec2 {
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
 pub struct CubicBezierTo {
     pub ctrl1: CubicOptionVec2,
-    #[lerpable(func = "lerpify_vec2")]
+
     // #[serde(serialize_with = "serialize_vec2")]
     pub ctrl2: Vec2,
     // #[serde(serialize_with = "serialize_vec2")]
-    #[lerpable(func = "lerpify_vec2")]
     pub to: Vec2,
 }
 
@@ -64,9 +62,8 @@ impl CubicBezierTo {
 
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
 pub struct CubicBezierPath {
-    #[lerpable(func = "lerpify_vec2")]
     pub from: Vec2,
-    #[lerpable(func = "lerpify_vec2")]
+
     pub ctrl1: Vec2,
     pub curves: Vec<CubicBezierTo>,
     pub closed: bool,
@@ -81,7 +78,7 @@ impl CubicBezierPath {
         }
     }
 
-    fn to_vec2_count(&self, count: usize) -> Vec<Vec2> {
+    pub fn to_vec2_count(&self, count: usize) -> Vec<Vec2> {
         let len = self.to_cd().length();
         let line_space = len / count as f32;
 
@@ -464,7 +461,6 @@ impl CurveSegment {
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveArc {
     #[livecode(serde_default = "zeros")]
-    #[lerpable(func = "lerpify_vec2")]
     pub loc: Vec2, // center of circle
     pub radius: f32,
     pub start_pi: LivecodeAnglePi,
@@ -607,13 +603,12 @@ impl CurveArc {
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveCubicBezier {
-    #[lerpable(func = "lerpify_vec2")]
     from: Vec2,
-    #[lerpable(func = "lerpify_vec2")]
+
     ctrl1: Vec2,
-    #[lerpable(func = "lerpify_vec2")]
+
     ctrl2: Vec2,
-    #[lerpable(func = "lerpify_vec2")]
+
     to: Vec2,
 }
 impl CurveCubicBezier {
