@@ -691,3 +691,33 @@ impl CurvePoints {
         CurvePoints::new(self.points.iter().cloned().rev().collect_vec())
     }
 }
+
+pub trait ToCurveDrawer {
+    fn to_segments(&self) -> Vec<CurveSegment>;
+    fn to_cd_closed(&self) -> CurveDrawer {
+        CurveDrawer::new(self.to_segments(), true)
+    }
+    fn to_cd_open(&self) -> CurveDrawer {
+        CurveDrawer::new(self.to_segments(), false)
+    }
+}
+
+impl ToCurveDrawer for Vec<CurveSegment> {
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        self.clone()
+    }
+}
+
+impl ToCurveDrawer for Vec<Vec2> {
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        vec![CurveSegment::new_simple_points(self.clone())]
+    }
+}
+
+impl ToCurveDrawer for Vec<SpotOnCurve> {
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        vec![CurveSegment::new_simple_points(
+            self.iter().map(|x| x.loc()).collect_vec(),
+        )]
+    }
+}

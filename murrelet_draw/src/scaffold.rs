@@ -1,6 +1,9 @@
-use geo::{BooleanOps, BoundingRect, Contains};
+use geo::{BooleanOps, BoundingRect, Contains, MultiPolygon};
 use glam::{vec2, Vec2};
 use itertools::Itertools;
+use murrelet_common::Polyline;
+
+use crate::curve_drawer::CurveDrawer;
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
     geo::MultiPolygon::new(vec![line_to_polygon(curves)])
