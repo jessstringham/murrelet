@@ -1,7 +1,7 @@
 use glam::Vec2;
 use murrelet_common::{Angle, IsAngle, SpotOnCurve};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CubicBezier {
     pub from: Vec2,
     pub ctrl1: Vec2,
@@ -126,7 +126,14 @@ impl CubicBezier {
             to: self.from,
         }
     }
+
+    pub fn tangent_at_pct_safe(&self, pct: f32) -> SpotOnCurve {
+        if pct < 0.01 {
+            self.start_to_tangent().0
+        } else if pct > 0.99 {
+            self.end_to_tangent().0
+        } else {
+            self.tangent_at_pct(pct)
+        }
+    }
 }
-
-
-

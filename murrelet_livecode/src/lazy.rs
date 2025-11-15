@@ -250,10 +250,16 @@ where
 
     fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target>;
 
-    fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<Self::Target> {
-        let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(&format!("{}_", prefix));
+    // without a _, like unitcell..
+    fn eval_idx_(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<Self::Target> {
+        let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(&format!("{}", prefix));
 
         self.eval_lazy(&MixedEvalDefs::new_from_expr(vals))
+    }
+
+    // backwards compatible
+    fn eval_idx(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<Self::Target> {
+        self.eval_idx_(idx, &format!("{}_", prefix))
     }
 }
 

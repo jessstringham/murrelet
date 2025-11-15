@@ -143,6 +143,21 @@ impl IdxInRange {
     pub fn to_2d(&self) -> IdxInRange2d {
         IdxInRange2d::new_from_single_idx(*self)
     }
+
+    pub fn skip<T: TryInto<u64>>(&self, count: T) -> Option<IdxInRange>
+    where
+        <T as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let count_u64 = count.try_into().expect("can't convert to u64");
+        if self.i + count_u64 >= self.total {
+            None
+        } else {
+            Some(IdxInRange {
+                i: self.i + count_u64,
+                total: self.total,
+            })
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -697,6 +697,12 @@ pub trait ToCurveDrawer {
     }
 }
 
+impl ToCurveDrawer for CurveSegment {
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        vec![self.clone()]
+    }
+}
+
 impl ToCurveDrawer for Vec<CurveSegment> {
     fn to_segments(&self) -> Vec<CurveSegment> {
         self.clone()

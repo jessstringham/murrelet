@@ -477,6 +477,10 @@ impl SpotOnCurve {
     pub fn line_to_spot(&self, length: f32) -> Vec2 {
         self.loc() + self.angle().to_norm_dir() * length
     }
+
+    pub fn flip(&self) -> SpotOnCurve {
+        Self::new(self.loc, self.angle.perp_to_left().perp_to_left())
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -623,6 +627,10 @@ impl PointToPoint {
     pub fn pct(&self, loc: f32) -> Vec2 {
         self.start + loc * (self.end - self.start)
     }
+
+    pub fn start_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.start, self.angle())
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -646,6 +654,10 @@ impl LineFromVecAndLen {
 
     pub fn to_vec(&self) -> Vec<Vec2> {
         vec![self.start, self.to_last_point()]
+    }
+
+    pub fn to_p2p(&self) -> PointToPoint {
+        PointToPoint::new(self.start, self.to_last_point())
     }
 }
 

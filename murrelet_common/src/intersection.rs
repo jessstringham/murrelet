@@ -28,7 +28,6 @@ pub fn find_intersection_inf(line0: (Vec2, Vec2), line1: (Vec2, Vec2)) -> Option
 
         let intersection = vec2(px, py);
 
-        // okay we have an intersection! now just make sure it's in each segment
         Some(intersection)
     }
 }
