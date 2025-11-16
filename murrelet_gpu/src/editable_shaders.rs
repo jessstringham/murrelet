@@ -38,6 +38,22 @@ impl ShaderStrings {
         }
     }
 
+    pub fn get_shader_str(&self, c: &GraphicsWindowConf, name: &str) -> Option<String> {
+        if let Some(str) = self.shaders.get(name) {
+            Some(Self::shader(&str))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_shader_str_2tex(&self, c: &GraphicsWindowConf, name: &str) -> Option<String> {
+        if let Some(str) = self.shaders.get(name) {
+            Some(Self::shader2tex(&str))
+        } else {
+            None
+        }
+    }
+
     pub fn get_graphics_ref(&self, c: &GraphicsWindowConf, name: &str) -> Option<GraphicsRef> {
         if let Some(str) = self.shaders.get(name) {
             Some(
