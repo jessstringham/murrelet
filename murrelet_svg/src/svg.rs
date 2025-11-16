@@ -17,7 +17,6 @@ use murrelet_draw::{
     svg::{SvgPathDef, SvgShape, TransformedSvgShape},
 };
 use murrelet_perform::perform::SvgDrawConfig;
-use regex::{Captures, Regex};
 use svg::{
     node::element::{path::Data, Group},
     Document, Node,

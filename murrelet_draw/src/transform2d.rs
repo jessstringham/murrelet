@@ -268,6 +268,18 @@ impl Transform2d {
         }
         vv
     }
+
+    pub fn with_one_action(&self, action: Transform2dStep) -> Transform2d {
+        let mut c = self.clone();
+        c.append_one_action(action);
+        c
+    }
+
+    pub fn with_transform(&self, loc: Transform2d) -> Transform2d {
+        let mut c = self.clone();
+        c.append_transform(&loc);
+        c
+    }
 }
 
 impl Default for ControlTransform2d {

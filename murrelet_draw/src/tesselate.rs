@@ -13,7 +13,9 @@ use lyon::{
     path::{FillRule, Path},
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
-use murrelet_common::{triangulate::VertexSimple, Polyline};
+use murrelet_common::{
+    curr_next_no_loop_iter, triangulate::VertexSimple, PointToPoint, Polyline, SpotOnCurve,
+};
 
 pub trait ToVecVec2 {
     fn to_vec2(&self) -> Vec<Vec2>;
@@ -128,7 +130,101 @@ pub fn cubic_bezier_length(c: &CubicBezier) -> f32 {
     line.approximate_length(0.1)
 }
 
-pub fn flatten_cubic_bezier_path(path: &[CubicBezier], closed: bool) -> Option<Vec<Vec2>> {
+pub fn segment_vec(from: Vec2, to: Vec2, line_space: f32, offset: f32) -> (Vec<Vec2>, f32) {
+    if to.distance(from) < 1e-7 {
+        return (vec![], offset);
+    }
+
+    let mut dist_since_last = offset; // how far into this one we should start
+    dist_since_last += (to - from).length(); // add how far we will travel
+
+    let backwards_dir = (to - from).normalize();
+
+    let mut lines = vec![];
+
+    while dist_since_last >= line_space {
+        // okay find how much we overshot it, and move backwards
+        // it should be within to and from.. or else we would've stopped before?
+        let overshot_amount = dist_since_last - line_space;
+        // figure out how to go backwards
+        // and now move backwards
+        let new_to = to - backwards_dir * overshot_amount;
+        lines.push(new_to);
+        dist_since_last = overshot_amount;
+    }
+
+    (lines, dist_since_last)
+}
+
+pub fn evenly_split_cubic_bezier(c: &CubicBezier, count: usize) -> Vec<SpotOnCurve> {
+    // always include the start (and end)
+    let v = flatten_cubic_bezier_path_with_tolerance(&vec![c.clone()], false, 0.1);
+    if count <= 1 {
+        let angle = PointToPoint::new(c.from, c.to).angle();
+        return vec![c.from, c.to]
+            .into_iter()
+            .map(|x| SpotOnCurve::new(x, angle))
+            .collect_vec();
+    }
+
+    if let Some(a) = v {
+        let mut length = 0.0;
+        for (curr, next) in curr_next_no_loop_iter(&a) {
+            length += curr.distance(*next);
+        }
+
+        let spacing_for_dot = length / count as f32;
+
+        let mut last_angle = None;
+        // let mut last_point = None;
+
+        let mut v = vec![];
+        let mut dist = 0.0;
+        for (curr, next) in curr_next_no_loop_iter(&a) {
+            let (vs, a) = segment_vec(*curr, *next, spacing_for_dot, dist);
+            let angle = PointToPoint::new(*curr, *next).angle();
+
+            // if it's the very first item
+            if last_angle.is_none() {
+                v.push(SpotOnCurve::new(*curr, angle))
+            }
+
+            let new = vs
+                .into_iter()
+                .map(|x| SpotOnCurve::new(x, angle))
+                .collect_vec();
+            v.extend(new);
+            dist = a;
+
+            last_angle = Some(angle);
+            // if let Some(last) = new.last() {
+            //     last_point = Some(last.loc);
+            // }
+        }
+
+        // if let Some(last) = last_point {
+        //     // skip this spike or reuse previous direction
+        //     continue;
+        // } else {
+        //     // v.push(SpotOnCurve::new(c.from, last_angle.unwrap()));
+
+        // }
+
+        v
+    } else {
+        let angle = PointToPoint::new(c.from, c.to).angle();
+        return vec![c.from, c.to]
+            .into_iter()
+            .map(|x| SpotOnCurve::new(x, angle))
+            .collect_vec();
+    }
+}
+
+pub fn flatten_cubic_bezier_path_with_tolerance(
+    path: &[CubicBezier],
+    closed: bool,
+    tolerance: f32,
+) -> Option<Vec<Vec2>> {
     if path.is_empty() {
         return None;
     }
@@ -147,9 +243,8 @@ pub fn flatten_cubic_bezier_path(path: &[CubicBezier], closed: bool) -> Option<V
         kurbo_path.close_path();
     }
 
-    let tolerance = 0.01;
     let mut points = Vec::new();
-    kurbo::flatten(kurbo_path, tolerance, |el| match el {
+    kurbo::flatten(kurbo_path, tolerance as f64, |el| match el {
         kurbo::PathEl::MoveTo(p) | kurbo::PathEl::LineTo(p) => {
             points.push(vec2(p.x as f32, p.y as f32));
         }
@@ -162,6 +257,10 @@ pub fn flatten_cubic_bezier_path(path: &[CubicBezier], closed: bool) -> Option<V
     });
 
     Some(points)
+}
+
+pub fn flatten_cubic_bezier_path(path: &[CubicBezier], closed: bool) -> Option<Vec<Vec2>> {
+    flatten_cubic_bezier_path_with_tolerance(path, closed, 0.01)
 }
 
 pub fn cubic_bezier_path_to_lyon(path: &[CubicBezier], closed: bool) -> Option<lyon::path::Path> {
