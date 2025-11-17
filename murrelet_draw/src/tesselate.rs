@@ -14,7 +14,7 @@ use lyon::{
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
-    curr_next_no_loop_iter, triangulate::VertexSimple, PointToPoint, Polyline, SpotOnCurve,
+    curr_next_no_loop_iter, triangulate::DefaultVertex, PointToPoint, Polyline, SpotOnCurve,
 };
 
 pub trait ToVecVec2 {
@@ -305,9 +305,9 @@ pub fn cubic_bezier_path_to_lyon(path: &[CubicBezier], closed: bool) -> Option<l
 }
 
 pub fn tesselate_lyon_vertex_with_steiner(
-    outline: &[VertexSimple],
-    steiner: &[VertexSimple],
-) -> (Vec<u32>, Vec<VertexSimple>) {
+    outline: &[DefaultVertex],
+    steiner: &[DefaultVertex],
+) -> (Vec<u32>, Vec<DefaultVertex>) {
     let mut path_builder = Path::builder_with_attributes(5);
 
     // convert path to lyon
@@ -342,7 +342,7 @@ pub fn tesselate_lyon_vertex_with_steiner(
         .with_fill_rule(FillRule::EvenOdd)
         .with_intersections(true);
 
-    let mut geometry: lyon::lyon_tessellation::VertexBuffers<VertexSimple, u32> =
+    let mut geometry: lyon::lyon_tessellation::VertexBuffers<DefaultVertex, u32> =
         lyon::lyon_tessellation::VertexBuffers::new();
     let mut tess = FillTessellator::new();
     tess.tessellate_path(
@@ -352,7 +352,7 @@ pub fn tesselate_lyon_vertex_with_steiner(
             let pos = v.position();
             let attrs = v.interpolated_attributes();
 
-            VertexSimple {
+            DefaultVertex {
                 position: [pos.x, pos.y, 0.0],
                 normal: [attrs[0], attrs[1], attrs[2]],
                 face_pos: [attrs[3], attrs[4]],
@@ -364,7 +364,7 @@ pub fn tesselate_lyon_vertex_with_steiner(
     (geometry.indices, geometry.vertices)
 }
 
-pub fn tesselate_lyon_vertex_simple(outline: &[VertexSimple]) -> (Vec<u32>, Vec<VertexSimple>) {
+pub fn tesselate_lyon_vertex_simple(outline: &[DefaultVertex]) -> (Vec<u32>, Vec<DefaultVertex>) {
     let mut path_builder = Path::builder_with_attributes(5);
 
     // convert path to lyon
@@ -385,7 +385,7 @@ pub fn tesselate_lyon_vertex_simple(outline: &[VertexSimple]) -> (Vec<u32>, Vec<
         .with_fill_rule(FillRule::EvenOdd)
         .with_intersections(true);
 
-    let mut geometry: lyon::lyon_tessellation::VertexBuffers<VertexSimple, u32> =
+    let mut geometry: lyon::lyon_tessellation::VertexBuffers<DefaultVertex, u32> =
         lyon::lyon_tessellation::VertexBuffers::new();
     let mut tess = FillTessellator::new();
     tess.tessellate_path(
@@ -395,7 +395,7 @@ pub fn tesselate_lyon_vertex_simple(outline: &[VertexSimple]) -> (Vec<u32>, Vec<
             let pos = v.position();
             let attrs = v.interpolated_attributes();
 
-            VertexSimple {
+            DefaultVertex {
                 position: [pos.x, pos.y, 0.0],
                 normal: [attrs[0], attrs[1], attrs[2]],
                 face_pos: [attrs[3], attrs[4]],
@@ -969,7 +969,7 @@ impl LayersFromSvg {
     }
 }
 
-pub fn tesselate_delauney(v: Vec<VertexSimple>) -> (Vec<u32>, Vec<VertexSimple>, Triangulation) {
+pub fn tesselate_delauney(v: Vec<DefaultVertex>) -> (Vec<u32>, Vec<DefaultVertex>, Triangulation) {
     let points: Vec<_> = v
         .iter()
         .map(|vertex| delaunator::Point {

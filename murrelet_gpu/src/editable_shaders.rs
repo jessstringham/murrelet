@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::{gpu_macros::ShaderStr, window::GraphicsWindowConf};
 use lerpable::Lerpable;
+use murrelet_common::triangulate::DefaultVertex;
 use murrelet_livecode_derive::Livecode;
 use wgpu_for_latest::naga;
 #[cfg(feature = "nannou")]
@@ -12,7 +13,7 @@ use wgpu_for_latest as wgpu;
 
 use crate::{
     build_shader, build_shader_2tex,
-    graphics_ref::{GraphicsCreator, GraphicsRef},
+    graphics_ref::{GraphicsCreator, GraphicsRefCustom},
 };
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -38,7 +39,7 @@ impl ShaderStrings {
         }
     }
 
-    pub fn get_shader_str(&self, c: &GraphicsWindowConf, name: &str) -> Option<String> {
+    pub fn get_shader_str(&self, _c: &GraphicsWindowConf, name: &str) -> Option<String> {
         if let Some(str) = self.shaders.get(name) {
             Some(Self::shader(&str))
         } else {
@@ -46,7 +47,7 @@ impl ShaderStrings {
         }
     }
 
-    pub fn get_shader_str_2tex(&self, c: &GraphicsWindowConf, name: &str) -> Option<String> {
+    pub fn get_shader_str_2tex(&self, _c: &GraphicsWindowConf, name: &str) -> Option<String> {
         if let Some(str) = self.shaders.get(name) {
             Some(Self::shader2tex(&str))
         } else {
@@ -54,10 +55,14 @@ impl ShaderStrings {
         }
     }
 
-    pub fn get_graphics_ref(&self, c: &GraphicsWindowConf, name: &str) -> Option<GraphicsRef> {
+    pub fn get_graphics_ref(
+        &self,
+        c: &GraphicsWindowConf,
+        name: &str,
+    ) -> Option<GraphicsRefCustom<DefaultVertex>> {
         if let Some(str) = self.shaders.get(name) {
             Some(
-                GraphicsCreator::default()
+                GraphicsCreator::<DefaultVertex>::default()
                     .with_mag_filter(wgpu::FilterMode::Nearest)
                     .to_graphics_ref(c, name, &Self::shader(&str)),
             )
@@ -66,10 +71,14 @@ impl ShaderStrings {
         }
     }
 
-    pub fn get_graphics_ref_2tex(&self, c: &GraphicsWindowConf, name: &str) -> Option<GraphicsRef> {
+    pub fn get_graphics_ref_2tex(
+        &self,
+        c: &GraphicsWindowConf,
+        name: &str,
+    ) -> Option<GraphicsRefCustom<DefaultVertex>> {
         if let Some(str) = self.shaders.get(name) {
             Some(
-                GraphicsCreator::default()
+                GraphicsCreator::<DefaultVertex>::default()
                     .with_mag_filter(wgpu::FilterMode::Nearest)
                     .with_second_texture()
                     .to_graphics_ref(c, name, &Self::shader2tex(&str)),

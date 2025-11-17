@@ -1,31 +1,61 @@
 #![allow(dead_code)]
+use bytemuck::NoUninit;
 use glam::*;
 use lerpable::Lerpable;
-use murrelet_common::*;
+use murrelet_common::{triangulate::DefaultVertex, *};
 use murrelet_draw::newtypes::*;
 use murrelet_livecode_derive::Livecode;
 
-use crate::{graphics_ref::GraphicsRef, window::GraphicsWindowConf};
+use crate::{
+    graphics_ref::{GraphicsRefCustom, GraphicsRefWithControlFn},
+    window::GraphicsWindowConf,
+};
 
 pub trait ControlGraphics {
-    fn update_graphics(&self, c: &GraphicsWindowConf, g: &GraphicsRef) {
-        g.update_uniforms_other_tuple(c, self.more_info_other_tuple());
-    }
-
     fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]);
 }
 
-pub struct ControlGraphicsRef {
+pub trait AnyControlRef {
+    fn update(&self, c: &GraphicsWindowConf);
+}
+
+impl<V> AnyControlRef for ControlGraphicsRef<V>
+where
+    V: NoUninit + Clone + Copy + std::fmt::Debug + 'static,
+{
+    fn update(&self, c: &GraphicsWindowConf) {
+        // use the stored GraphicsRef inside ControlGraphicsRef
+        self.update_graphics(c);
+    }
+}
+
+impl<GraphicsConf, V> ControlProvider<GraphicsConf> for GraphicsRefWithControlFn<GraphicsConf, V>
+where
+    V: NoUninit + Clone + Copy + std::fmt::Debug + 'static,
+{
+    fn make_controls(&self, conf: &GraphicsConf) -> Vec<Box<dyn AnyControlRef>> {
+        self.control_graphics(conf)
+            .into_iter()
+            .map(|c| Box::new(c) as Box<dyn AnyControlRef>)
+            .collect()
+    }
+}
+
+pub trait ControlProvider<GraphicsConf> {
+    fn make_controls(&self, conf: &GraphicsConf) -> Vec<Box<dyn AnyControlRef>>;
+}
+
+pub struct ControlGraphicsRef<VertexKind> {
     pub label: &'static str,
     pub control: Box<dyn ControlGraphics>,
-    graphics: GraphicsRef,
+    graphics: GraphicsRefCustom<VertexKind>,
 }
-impl ControlGraphicsRef {
+impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> ControlGraphicsRef<VertexKind> {
     pub fn new(
         label: &'static str,
         control: Box<dyn ControlGraphics>,
-        graphics: Option<GraphicsRef>,
-    ) -> Vec<ControlGraphicsRef> {
+        graphics: Option<GraphicsRefCustom<VertexKind>>,
+    ) -> Vec<ControlGraphicsRef<VertexKind>> {
         // using a vec here to make it easier to concat with other lists
         if let Some(gg) = graphics {
             vec![ControlGraphicsRef {
@@ -39,8 +69,11 @@ impl ControlGraphicsRef {
             vec![]
         }
     }
+
     pub fn update_graphics(&self, c: &GraphicsWindowConf) {
-        self.control.update_graphics(c, &self.graphics);
+        //}, g: &GraphicsRef<VertexKind>) {
+        self.graphics
+            .update_uniforms_other_tuple(c, self.control.more_info_other_tuple());
     }
 }
 
@@ -82,7 +115,7 @@ impl GPUNoise {
         )
     }
 
-    pub fn shader(c: &GraphicsWindowConf) -> GraphicsRef {
+    pub fn shader(c: &GraphicsWindowConf) -> GraphicsRefCustom<DefaultVertex> {
         prebuilt_shaders::new_shader_noise(c)
     }
 }
@@ -143,18 +176,28 @@ impl ControlGraphics for GPURGBAGradient {
 
 pub mod prebuilt_shaders {
 
+    use murrelet_common::triangulate::DefaultVertex;
+
     use crate::{
         gpu_macros::ShaderStr,
-        graphics_ref::{GraphicsCreator, GraphicsRef},
+        graphics_ref::{GraphicsCreator, GraphicsRefCustom},
         window::GraphicsWindowConf,
         *,
     };
 
-    pub fn new_shader_basic(c: &GraphicsWindowConf, name: &str, shader: &str) -> GraphicsRef {
+    pub fn new_shader_basic<VertexKind>(
+        c: &GraphicsWindowConf,
+        name: &str,
+        shader: &str,
+    ) -> GraphicsRefCustom<DefaultVertex> {
         GraphicsCreator::default().to_graphics_ref(c, name, shader)
     }
 
-    pub fn new_shader_2tex(c: &GraphicsWindowConf, name: &str, shader: &str) -> GraphicsRef {
+    pub fn new_shader_2tex(
+        c: &GraphicsWindowConf,
+        name: &str,
+        shader: &str,
+    ) -> GraphicsRefCustom<DefaultVertex> {
         let name = format!("{} {:?}", name, c.dims);
         GraphicsCreator::default()
             .with_second_texture()
@@ -173,7 +216,7 @@ pub mod prebuilt_shaders {
     /// - 1.y: max value for noise
     /// ## Returns
     /// - GraphicsRef
-    pub fn new_shader_noise(c: &GraphicsWindowConf) -> GraphicsRef {
+    pub fn new_shader_noise(c: &GraphicsWindowConf) -> GraphicsRefCustom<DefaultVertex> {
         let shader: String = build_shader_2tex! {
             (
                 raw r###"

@@ -141,12 +141,16 @@ fn parse_graphics(
                         let ctrl_ident = syn::Ident::new(ctrl_, name.span());
                         let ident_str = ident.to_string();
                         ctrl.push(quote! {
-                            v.extend(ControlGraphicsRef::new(
-                                #ident_str,
-                                Box::new(livecoder.#ctrl_ident.clone()),
-                                Some(self.#ident.clone()),
-                            ).into_iter())
-                        })
+                            v.extend(
+                                ControlGraphicsRef::new(
+                                    #ident_str,
+                                    Box::new(livecoder.#ctrl_ident.clone()),
+                                    Some(self.#ident.clone()),
+                                )
+                                .into_iter()
+                                .map(|c| Box::new(c) as Box<dyn AnyControlRef>)
+                            );
+                        });
                     }
                 }
                 GraphicKind::ComputeTexture => {
@@ -172,8 +176,8 @@ fn parse_graphics(
                 v
             }
 
-            fn control_graphics<'a, 'b>(&'a self, livecoder: &'b #ctrlcls) -> Vec<ControlGraphicsRef> {
-                let mut v: Vec<ControlGraphicsRef> = vec![];
+            fn control_graphics(&self, livecoder: &#ctrlcls) -> Vec<Box<dyn AnyControlRef>> {
+                let mut v: Vec<Box<dyn AnyControlRef>> = vec![];
                 #(#ctrl;)*
                 v
             }

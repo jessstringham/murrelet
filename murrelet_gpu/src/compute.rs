@@ -13,7 +13,7 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     device_state::{DeviceState, DeviceStateForRender},
-    graphics_ref::{shader_from_path, GraphicsRef, TextureAndDesc, DEFAULT_TEXTURE_FORMAT},
+    graphics_ref::{shader_from_path, GraphicsRefCustom, TextureAndDesc, DEFAULT_TEXTURE_FORMAT},
     uniforms::BasicUniform,
     window::GraphicsWindowConf,
 };
@@ -500,7 +500,11 @@ impl ComputeGraphicsToTextureRef {
         self.graphics.borrow().name.clone()
     }
 
-    pub fn render(&self, device_state_for_render: &DeviceStateForRender, other: &GraphicsRef) {
+    pub fn render<VertexKind>(
+        &self,
+        device_state_for_render: &DeviceStateForRender,
+        other: &GraphicsRefCustom<VertexKind>,
+    ) {
         let view = &other.graphics.borrow_mut().input_texture_view;
         self.graphics
             .borrow()
