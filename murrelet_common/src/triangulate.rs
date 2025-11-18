@@ -6,7 +6,7 @@ use glam::{vec2, Vec2, Vec3};
 use lerpable::Lerpable;
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Zeroable, Pod)]
 pub struct DefaultVertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
@@ -88,8 +88,8 @@ impl Lerpable for DefaultVertex {
     }
 }
 
-unsafe impl Zeroable for DefaultVertex {}
-unsafe impl Pod for DefaultVertex {}
+// unsafe impl Zeroable for DefaultVertex {}
+// unsafe impl Pod for DefaultVertex {}
 
 // impl Lerpable for VertexSimple {
 //     fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
@@ -163,6 +163,10 @@ impl<Vertex> Triangulate<Vertex> {
             vertices: vec![],
             order: vec![],
         }
+    }
+
+    pub fn new_from_vertices_indices(vertices: Vec<Vertex>, order: Vec<u32>) -> Self {
+        Triangulate { vertices, order }
     }
 
     pub fn add_many_vertices_and_offset(&mut self, vertices: Vec<Vertex>, indices: Vec<u32>) {

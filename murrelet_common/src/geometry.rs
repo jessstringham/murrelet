@@ -7,6 +7,7 @@ use glam::{vec2, Mat3, Mat4, Vec2};
 use crate::{
     intersection::{find_intersection_inf, within_segment},
     transform::TransformVec2,
+    triangulate::DefaultVertex,
     SimpleTransform2d, SimpleTransform2dStep,
 };
 
@@ -714,4 +715,20 @@ pub fn tangents_between_two_circles(
     let end = vec2(v2.x + sign1 * r2 * nx, v2.y + sign1 * r2 * ny);
 
     Some((start, end))
+}
+
+pub trait ToVec2 {
+    fn to_vec2(&self) -> Vec2;
+}
+
+impl ToVec2 for Vec2 {
+    fn to_vec2(&self) -> Vec2 {
+        self.clone()
+    }
+}
+
+impl ToVec2 for DefaultVertex {
+    fn to_vec2(&self) -> Vec2 {
+        self.pos2d()
+    }
 }

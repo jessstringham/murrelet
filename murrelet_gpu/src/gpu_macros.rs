@@ -1,7 +1,6 @@
 #![allow(dead_code)]
-use std::{cell::RefCell, collections::HashMap, fs, path::PathBuf, rc::Rc, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 
-use bytemuck::NoUninit;
 use glam::Vec2;
 use murrelet_common::{triangulate::DefaultVertex, MurreletTime};
 use serde::Serialize;
@@ -9,10 +8,10 @@ use serde::Serialize;
 use crate::{
     compute::ComputeGraphicsToTextureRef,
     device_state::{DeviceStateForRender, GraphicsAssets},
-    gpu_livecode::{AnyControlRef, ControlGraphicsRef, ControlProvider},
+    gpu_livecode::{AnyControlRef, ControlProvider},
     graphics_ref::{
-        AnyGraphicsRef, Graphics, GraphicsCreator, GraphicsRefCustom, GraphicsRefWithControlFn,
-        TextureAndDesc, DEFAULT_LOADED_TEXTURE_FORMAT,
+        AnyGraphicsRef, Graphics, GraphicsCreator, GraphicsRefCustom, GraphicsVertex,
+        DEFAULT_LOADED_TEXTURE_FORMAT,
     },
     shader_str::*,
     window::GraphicsWindowConf,
@@ -45,6 +44,60 @@ const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16F
 ///     use "ray_march"
 ///    }
 ///
+///
+
+#[macro_export]
+macro_rules! build_shader_custom_vertex {
+    (@parse ()) => {{""}}; // done!
+
+    // for raw things in the prefix
+    (@parse (raw $raw:expr;$($tail:tt)*)) => {
+        {
+            let rest = build_shader!(@parse ($($tail)*));
+            format!("{}\n{}", $raw, rest)
+        }
+    };
+
+    (@parsecode ()) => {{""}}; // done!
+
+    (@parsecode (raw $raw:expr;$($tail:tt)*)) => {
+        {
+            let rest = build_shader!(@parsecode ($($tail)*));
+            format!("{}\n{}", $raw, rest)
+        }
+    };
+
+    // wrap the main code itself in ()
+    (@parse ((prefix $prefix:expr; $($tail:tt)*))) => {
+        {
+            //let prefix = ShaderStr::Prefix.to_str();
+            let rest = build_shader!(@parsecode ($($tail)*));
+            let suffix = ShaderStr::Suffix.to_str();
+            format!("{}\n{}\n{}", $prefix, rest, suffix)
+        }
+    }; // includes
+
+    // arm for funky parsing
+    (@parse $($raw:tt)*) => {
+        {
+            println!("???");
+            "???"
+            // unreachable!();
+        }
+    };
+
+    // capture the initial one
+    ($($raw:tt)*) => {
+        {
+            format!(
+                "{}\n{}\n{}",
+                ShaderStr::Binding1Tex.to_str(),
+                ShaderStr::Includes.to_str(),
+                build_shader_custom_vertex!(@parse ($($raw)*)),
+            )
+        }
+    };
+}
 
 #[macro_export]
 macro_rules! build_shader {
@@ -220,10 +273,8 @@ pub struct SimpleRender<VertexKindSource, VertexKindDest> {
     pub source: GraphicsRefCustom<VertexKindSource>,
     pub dest: GraphicsRefCustom<VertexKindDest>,
 }
-impl<
-        VertexKindSource: Clone + Copy + NoUninit + std::fmt::Debug,
-        VertexKindDest: Clone + Copy + NoUninit + std::fmt::Debug,
-    > SimpleRender<VertexKindSource, VertexKindDest>
+impl<VertexKindSource: GraphicsVertex, VertexKindDest: GraphicsVertex>
+    SimpleRender<VertexKindSource, VertexKindDest>
 {
     pub fn new_box(
         source: GraphicsRefCustom<VertexKindSource>,
@@ -240,8 +291,8 @@ impl<
 impl<VertexKindSource, VertexKindDest> RenderTrait
     for SimpleRender<VertexKindSource, VertexKindDest>
 where
-    VertexKindSource: NoUninit + Clone + std::fmt::Debug,
-    VertexKindDest: NoUninit + Clone + std::fmt::Debug,
+    VertexKindSource: GraphicsVertex,
+    VertexKindDest: GraphicsVertex,
 {
     fn render(&self, device: &DeviceStateForRender) {
         self.source
@@ -270,12 +321,12 @@ where
     fn adjust_choice(&mut self, _choice_val: usize) {}
 }
 
-pub struct TwoSourcesRender<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> {
+pub struct TwoSourcesRender<VertexKind: GraphicsVertex> {
     pub source_main: GraphicsRefCustom<VertexKind>,
     pub source_other: GraphicsRefCustom<VertexKind>,
     pub dest: GraphicsRefCustom<VertexKind>,
 }
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> TwoSourcesRender<VertexKind> {
+impl<VertexKind: GraphicsVertex> TwoSourcesRender<VertexKind> {
     pub fn new_box(
         source_main: GraphicsRefCustom<VertexKind>,
         source_other: GraphicsRefCustom<VertexKind>,
@@ -297,9 +348,7 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> TwoSourcesRender<Ver
     }
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
-    for TwoSourcesRender<VertexKind>
-{
+impl<VertexKind: GraphicsVertex> RenderTrait for TwoSourcesRender<VertexKind> {
     // type VertexKind = VertexKind;
 
     fn render(&self, device: &DeviceStateForRender) {
@@ -336,19 +385,23 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
 }
 
 // holds a gpu pipeline :O
-pub struct PipelineRender<GraphicsConf, VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> {
-    pub source: GraphicsRefCustom<VertexKind>,
+pub struct PipelineRender<
+    GraphicsConf,
+    VertexKindSource: GraphicsVertex,
+    VertexKindDest: GraphicsVertex,
+> {
+    pub source: GraphicsRefCustom<VertexKindSource>,
     pub pipeline: GPUPipelineRef<GraphicsConf>,
-    pub dest: GraphicsRefCustom<VertexKind>,
+    pub dest: GraphicsRefCustom<VertexKindDest>,
 }
 
-impl<GraphicsConf, VertexKind: Clone + Copy + NoUninit + std::fmt::Debug>
-    PipelineRender<GraphicsConf, VertexKind>
+impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex>
+    PipelineRender<GraphicsConf, VertexKindSrc, VertexKindDest>
 {
     pub fn new_box(
-        source: GraphicsRefCustom<VertexKind>,
+        source: GraphicsRefCustom<VertexKindSrc>,
         pipeline: GPUPipelineRef<GraphicsConf>,
-        dest: GraphicsRefCustom<VertexKind>,
+        dest: GraphicsRefCustom<VertexKindDest>,
     ) -> Box<Self> {
         Box::new(Self {
             source,
@@ -357,8 +410,8 @@ impl<GraphicsConf, VertexKind: Clone + Copy + NoUninit + std::fmt::Debug>
         })
     }
 }
-impl<GraphicsConf, VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
-    for PipelineRender<GraphicsConf, VertexKind>
+impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex> RenderTrait
+    for PipelineRender<GraphicsConf, VertexKindSrc, VertexKindDest>
 {
     // type VertexKind = VertexKind;
 
@@ -389,12 +442,12 @@ impl<GraphicsConf, VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> Render
 }
 
 // given a list of inputs, choose which one to use
-pub struct ChoiceRender<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> {
+pub struct ChoiceRender<VertexKind: GraphicsVertex> {
     pub sources: Vec<GraphicsRefCustom<VertexKind>>,
     pub dest: GraphicsRefCustom<VertexKind>,
     choice: usize,
 }
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> ChoiceRender<VertexKind> {
+impl<VertexKind: GraphicsVertex> ChoiceRender<VertexKind> {
     pub fn new_box(
         sources: Vec<GraphicsRefCustom<VertexKind>>,
         dest: GraphicsRefCustom<VertexKind>,
@@ -407,9 +460,7 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> ChoiceRender<VertexK
     }
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
-    for ChoiceRender<VertexKind>
-{
+impl<VertexKind: GraphicsVertex> RenderTrait for ChoiceRender<VertexKind> {
     // type VertexKind = VertexKind;
 
     fn render(&self, device: &DeviceStateForRender) {
@@ -447,13 +498,13 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
     }
 }
 
-pub struct PingPongRender<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> {
+pub struct PingPongRender<VertexKind: GraphicsVertex> {
     pub k: usize,
     pub ping: GraphicsRefCustom<VertexKind>, // it'll end up here
     pub pong: GraphicsRefCustom<VertexKind>,
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> PingPongRender<VertexKind> {
+impl<VertexKind: GraphicsVertex> PingPongRender<VertexKind> {
     pub fn new_box(
         k: usize,
         ping: GraphicsRefCustom<VertexKind>,
@@ -463,9 +514,7 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> PingPongRender<Verte
     }
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
-    for PingPongRender<VertexKind>
-{
+impl<VertexKind: GraphicsVertex> RenderTrait for PingPongRender<VertexKind> {
     // type VertexKind = VertexKind;
 
     fn render(&self, device: &DeviceStateForRender) {
@@ -517,12 +566,12 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
     // }
 }
 
-// pub struct TextureViewRender<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> {
+// pub struct TextureViewRender<VertexKind: GraphicsVertex> {
 //     pub source: GraphicsRef<VertexKind>,
 //     pub dest: TextureAndDesc,
 // }
 
-// impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> TextureViewRender<VertexKind> {
+// impl<VertexKind: GraphicsVertex> TextureViewRender<VertexKind> {
 //     pub fn new_box(
 //         source: GraphicsRef<VertexKind>,
 //         dest: wgpu::TextureView,
@@ -534,7 +583,7 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
 //     }
 // }
 
-// impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
+// impl<VertexKind: GraphicsVertex> RenderTrait
 //     for TextureViewRender<VertexKind>
 // {
 //     // type VertexKind = VertexKind;
@@ -564,12 +613,12 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
 //     // }
 // }
 
-pub struct ComputeTextureRender<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> {
+pub struct ComputeTextureRender<VertexKind: GraphicsVertex> {
     pub source: ComputeGraphicsToTextureRef,
     pub dest: GraphicsRefCustom<VertexKind>,
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> ComputeTextureRender<VertexKind> {
+impl<VertexKind: GraphicsVertex> ComputeTextureRender<VertexKind> {
     pub fn new_box(
         source: ComputeGraphicsToTextureRef,
         dest: GraphicsRefCustom<VertexKind>,
@@ -578,9 +627,7 @@ impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> ComputeTextureRender
     }
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
-    for ComputeTextureRender<VertexKind>
-{
+impl<VertexKind: GraphicsVertex> RenderTrait for ComputeTextureRender<VertexKind> {
     // type VertexKind = VertexKind;
 
     // whenver it's called, it'll increment! check if it's overdue before rendering!
@@ -617,15 +664,13 @@ pub struct DisplayRender<VertexKind> {
     pub source: GraphicsRefCustom<VertexKind>,
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> DisplayRender<VertexKind> {
+impl<VertexKind: GraphicsVertex> DisplayRender<VertexKind> {
     pub fn new_box(source: GraphicsRefCustom<VertexKind>) -> Box<DisplayRender<VertexKind>> {
         Box::new(DisplayRender { source })
     }
 }
 
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> RenderTrait
-    for DisplayRender<VertexKind>
-{
+impl<VertexKind: GraphicsVertex> RenderTrait for DisplayRender<VertexKind> {
     // type VertexKind = VertexKind;
 
     fn render(&self, device: &DeviceStateForRender) {
@@ -719,9 +764,9 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
         self.dag.push(d);
     }
 
-    pub fn add_label<V>(&mut self, name: &str, g: GraphicsRefCustom<V>)
+    pub fn add_label<VertexKind>(&mut self, name: &str, g: GraphicsRefCustom<VertexKind>)
     where
-        V: NoUninit + Clone + Copy + std::fmt::Debug + 'static,
+        VertexKind: GraphicsVertex + 'static,
     {
         self.names.insert(name.to_string(), Box::new(g));
     }

@@ -14,7 +14,7 @@ use lyon::{
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
-    curr_next_no_loop_iter, triangulate::DefaultVertex, PointToPoint, Polyline, SpotOnCurve,
+    curr_next_no_loop_iter, triangulate::DefaultVertex, PointToPoint, Polyline, SpotOnCurve, ToVec2,
 };
 
 pub trait ToVecVec2 {
@@ -969,12 +969,17 @@ impl LayersFromSvg {
     }
 }
 
-pub fn tesselate_delauney(v: Vec<DefaultVertex>) -> (Vec<u32>, Vec<DefaultVertex>, Triangulation) {
+pub fn tesselate_delauney<VertexKind: ToVec2 + Clone>(
+    v: Vec<VertexKind>,
+) -> (Vec<u32>, Vec<VertexKind>, Triangulation) {
     let points: Vec<_> = v
         .iter()
-        .map(|vertex| delaunator::Point {
-            x: vertex.position[0] as f64,
-            y: vertex.position[1] as f64,
+        .map(|vertex| {
+            let loc = vertex.to_vec2();
+            delaunator::Point {
+                x: loc.x as f64,
+                y: loc.y as f64,
+            }
         })
         .collect();
     let triangulation = delaunator::triangulate(&points);
@@ -1005,7 +1010,10 @@ pub fn tesselate_delauney(v: Vec<DefaultVertex>) -> (Vec<u32>, Vec<DefaultVertex
             cx,
             cy,
             &v.iter()
-                .map(|p| (p.position[0] as f64, p.position[1] as f64))
+                .map(|p| {
+                    let loc = p.to_vec2();
+                    (loc.x as f64, loc.y as f64)
+                })
                 .collect::<Vec<_>>(),
         ) {
             filtered_indices.extend_from_slice(&[tri[0] as u32, tri[1] as u32, tri[2] as u32]);
@@ -1014,4 +1022,28 @@ pub fn tesselate_delauney(v: Vec<DefaultVertex>) -> (Vec<u32>, Vec<DefaultVertex
 
     let vertices = v.clone();
     (filtered_indices, vertices, triangulation)
+}
+
+pub fn tesselate_delauney_no_filter<VertexKind: ToVec2 + Clone>(
+    v: Vec<VertexKind>,
+) -> (Vec<u32>, Vec<VertexKind>, Triangulation) {
+    let points: Vec<_> = v
+        .iter()
+        .map(|vertex| {
+            let loc = vertex.to_vec2();
+            delaunator::Point {
+                x: loc.x as f64,
+                y: loc.y as f64,
+            }
+        })
+        .collect();
+    let triangulation = delaunator::triangulate(&points);
+
+    let vertices = v.clone();
+    let indices = triangulation
+        .triangles
+        .iter()
+        .map(|x| *x as u32)
+        .collect_vec();
+    (indices, vertices, triangulation)
 }

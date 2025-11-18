@@ -44,11 +44,11 @@ impl ToCoord for Vec2 {
     }
 }
 
-trait ToVec2 {
+trait ToVec2Griddable {
     fn to_vec2(&self) -> Vec2;
 }
 
-impl ToVec2 for ::geo::Coord {
+impl ToVec2Griddable for ::geo::Coord {
     fn to_vec2(&self) -> Vec2 {
         let (x, y) = self.x_y();
         vec2(x as f32, y as f32)

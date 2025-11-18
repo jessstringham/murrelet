@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{gpu_macros::ShaderStr, window::GraphicsWindowConf};
+use crate::{
+    build_shader_custom_vertex, gpu_macros::ShaderStr, graphics_ref::GraphicsVertex,
+    window::GraphicsWindowConf,
+};
 use lerpable::Lerpable;
 use murrelet_common::triangulate::DefaultVertex;
 use murrelet_livecode_derive::Livecode;
@@ -23,9 +26,22 @@ pub struct ShaderStrings {
     shaders: HashMap<String, String>,
 }
 impl ShaderStrings {
+    fn shader_str<VertexKind: GraphicsVertex>(shader: &str) -> String {
+        Self::shader_custom_prefix(shader, VertexKind::fragment_prefix())
+    }
+
     fn shader(shader: &str) -> String {
         build_shader! {
             (
+                raw shader;
+            )
+        }
+    }
+
+    fn shader_custom_prefix(shader: &str, prefix: &str) -> String {
+        build_shader_custom_vertex! {
+            (
+                prefix prefix;
                 raw shader;
             )
         }
@@ -50,6 +66,19 @@ impl ShaderStrings {
     pub fn get_shader_str_2tex(&self, _c: &GraphicsWindowConf, name: &str) -> Option<String> {
         if let Some(str) = self.shaders.get(name) {
             Some(Self::shader2tex(&str))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_shader_str_custom_prefix(
+        &self,
+        _c: &GraphicsWindowConf,
+        name: &str,
+        prefix: &str,
+    ) -> Option<String> {
+        if let Some(str) = self.shaders.get(name) {
+            Some(Self::shader_custom_prefix(&str, prefix))
         } else {
             None
         }
@@ -92,12 +121,15 @@ impl ShaderStrings {
         self.shaders != other.shaders
     }
 
-    pub fn naga_if_needed(&self, prev_shaders: &ControlShaderStrings) -> bool {
+    pub fn naga_if_needed<VertexKind: GraphicsVertex>(
+        &self,
+        prev_shaders: &ControlShaderStrings,
+    ) -> bool {
         if self.has_changed(&prev_shaders) {
             let mut all_success = true;
 
             for (name, shader_str) in self.shaders.iter() {
-                let t = ShaderStrings::shader2tex(&shader_str);
+                let t = ShaderStrings::shader_str::<VertexKind>(&shader_str);
                 if let Err(err) = naga::front::wgsl::parse_str(&t) {
                     println!(
                         "error with shader {:?}, {:?}, not updating until it works!",
@@ -121,14 +153,14 @@ impl ControlShaderStrings {
         }
     }
 
-    pub fn should_update(
+    pub fn should_update<VertexKind: GraphicsVertex>(
         &self,
         prev: &ControlShaderStrings,
         force_reload: bool,
     ) -> Option<ShaderStrings> {
         let shaders = self.to_normal();
 
-        let shader_changed_and_compiles = shaders.naga_if_needed(&prev);
+        let shader_changed_and_compiles = shaders.naga_if_needed::<VertexKind>(&prev);
 
         if force_reload || shader_changed_and_compiles {
             // just in case there's lerp, be sure to use the one we tested

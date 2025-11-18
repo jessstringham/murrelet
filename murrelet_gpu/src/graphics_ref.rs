@@ -19,7 +19,7 @@ use wgpu::TextureDescriptor;
 
 use crate::device_state::*;
 use crate::gpu_livecode::{ControlGraphics, ControlGraphicsRef};
-use crate::shader_str::{VERTEX_SHADER, VERTEX_SHADER_3D};
+use crate::shader_str::{PREFIX, VERTEX_SHADER, VERTEX_SHADER_3D};
 use crate::uniforms::{BasicUniform, UniformsPair};
 use crate::window::GraphicsWindowConf;
 
@@ -38,6 +38,29 @@ pub fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule
         label: Some("Shader"),
         source: wgpu::ShaderSource::Wgsl(data.into()),
     })
+}
+
+pub trait GraphicsVertex: NoUninit + Copy + Clone + std::fmt::Debug + 'static {
+    fn vertex_shader() -> &'static str;
+    fn vertex_shader_3d() -> &'static str {
+        unimplemented!()
+    }
+
+    fn fragment_prefix() -> &'static str;
+}
+
+impl GraphicsVertex for DefaultVertex {
+    fn vertex_shader() -> &'static str {
+        VERTEX_SHADER
+    }
+
+    fn vertex_shader_3d() -> &'static str {
+        VERTEX_SHADER_3D
+    }
+
+    fn fragment_prefix() -> &'static str {
+        PREFIX
+    }
 }
 
 // for each vertex, this is what we'll pass in
@@ -328,7 +351,7 @@ fn main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
 impl InputVertexConf<DefaultVertex> {
     pub fn default() -> InputVertexConf<DefaultVertex> {
         InputVertexConf {
-            vs_mod: VERTEX_SHADER,
+            vs_mod: DefaultVertex::vertex_shader(),
             view: VertexUniforms::identity(),
             topology: wgpu::PrimitiveTopology::TriangleList,
             tri: Triangulate::<DefaultVertex> {
@@ -338,19 +361,26 @@ impl InputVertexConf<DefaultVertex> {
             is_3d: false,
         }
     }
-
-    pub fn from_triangulate_2d(t: &Triangulate<DefaultVertex>) -> InputVertexConf<DefaultVertex> {
-        let mut c = Self::default();
-        c.tri = t.clone();
-        c
+}
+impl<VertexKind: GraphicsVertex> InputVertexConf<VertexKind> {
+    pub fn from_triangulate_2d(tri: Triangulate<VertexKind>) -> InputVertexConf<VertexKind> {
+        InputVertexConf {
+            vs_mod: VertexKind::vertex_shader(),
+            view: VertexUniforms::identity(),
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            tri,
+            is_3d: false,
+        }
     }
 
-    pub fn from_triangulate(t: &Triangulate<DefaultVertex>) -> InputVertexConf<DefaultVertex> {
-        let mut c = Self::default();
-        c.is_3d = true;
-        c.vs_mod = VERTEX_SHADER_3D;
-        c.tri = t.clone();
-        c
+    pub fn from_triangulate(tri: Triangulate<VertexKind>) -> InputVertexConf<VertexKind> {
+        InputVertexConf {
+            vs_mod: VertexKind::vertex_shader_3d(),
+            view: VertexUniforms::identity(),
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            tri,
+            is_3d: true,
+        }
     }
 }
 
@@ -467,15 +497,39 @@ impl Default for GraphicsCreator<DefaultVertex> {
 impl GraphicsCreator<DefaultVertex> {
     pub fn with_custom_triangle(mut self, t: &Triangulate<DefaultVertex>, is_3d: bool) -> Self {
         if is_3d {
-            self.input_vertex = InputVertexConf::from_triangulate(t);
+            self.input_vertex = InputVertexConf::from_triangulate(t.clone());
         } else {
-            self.input_vertex = InputVertexConf::from_triangulate_2d(t);
+            self.input_vertex = InputVertexConf::from_triangulate_2d(t.clone());
         }
         self
     }
 }
 
-impl<VertexKind: NoUninit + std::fmt::Debug + Clone + Copy> GraphicsCreator<VertexKind> {
+impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
+    pub fn default_with_custom_vertex(t: &Triangulate<VertexKind>, is_3d: bool) -> Self {
+        let input_vertex = if is_3d {
+            InputVertexConf::from_triangulate(t.clone())
+        } else {
+            InputVertexConf::from_triangulate_2d(t.clone())
+        };
+        GraphicsCreator {
+            first_texture: TextureCreator {
+                format: DEFAULT_TEXTURE_FORMAT,
+            },
+            second_texture: None,
+            details: ShaderOptions::new_with_options(
+                wgpu::FilterMode::Linear,
+                wgpu::AddressMode::ClampToEdge,
+            ),
+            color_blend: wgpu::BlendComponent::REPLACE,
+            dst_texture: TextureCreator {
+                format: DEFAULT_TEXTURE_FORMAT,
+            },
+            input_vertex,
+            blend_state: wgpu::BlendState::REPLACE,
+        }
+    }
+
     pub fn with_first_texture_format(mut self, format: wgpu::TextureFormat) -> Self {
         self.first_texture = TextureCreator { format };
         self
@@ -559,7 +613,7 @@ pub struct GraphicsRefCustom<VertexKind> {
 
 pub type GraphicsRef = GraphicsRefCustom<DefaultVertex>;
 
-impl<VertexKind: NoUninit + std::fmt::Debug + Clone + Copy> GraphicsRefCustom<VertexKind> {
+impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
     pub fn name(&self) -> String {
         self.graphics.borrow().name.clone()
     }
@@ -788,30 +842,28 @@ pub struct GraphicsRefWithControlFn<GraphicsConf, VertexKind> {
 }
 
 pub trait AnyGraphicsRef {
-    fn name(&self) -> String;
+    // fn name(&self) -> String;
     fn texture_view(&self) -> wgpu::TextureView;
-    fn render_to_texture(&self, dev: &DeviceState, dst: &wgpu::TextureView);
+    // fn render_to_texture(&self, dev: &DeviceState, dst: &wgpu::TextureView);
 }
-impl<V> AnyGraphicsRef for GraphicsRefCustom<V>
+impl<VertexKind> AnyGraphicsRef for GraphicsRefCustom<VertexKind>
 where
-    V: NoUninit + Clone + Copy + std::fmt::Debug + 'static,
+    VertexKind: GraphicsVertex + 'static,
 {
-    fn name(&self) -> String {
-        self.name()
-    }
+    // fn name(&self) -> String {
+    //     self.name()
+    // }
 
     fn texture_view(&self) -> wgpu::TextureView {
         self.texture_view()
     }
 
-    fn render_to_texture(&self, dev: &DeviceState, dst: &wgpu::TextureView) {
-        self.render_to_texture(dev, dst)
-    }
+    // fn render_to_texture(&self, dev: &DeviceState, dst: &wgpu::TextureView) {
+    //     self.render_to_texture(dev, dst)
+    // }
 }
 
-impl<GraphicsConf, VertexKind: Clone + std::fmt::Debug + NoUninit>
-    GraphicsRefWithControlFn<GraphicsConf, VertexKind>
-{
+impl<GraphicsConf, VertexKind: GraphicsVertex> GraphicsRefWithControlFn<GraphicsConf, VertexKind> {
     pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef<VertexKind>> {
         let ctrl_graphics = (self.control_graphic_fn)(conf);
 
@@ -875,7 +927,7 @@ pub struct Graphics<VertexKind> {
     textures_for_3d: Option<TextureFor3d>,
 }
 
-impl<VertexKind: NoUninit + std::fmt::Debug + Clone + Copy> Graphics<VertexKind> {
+impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
     pub fn update_uniforms(&mut self, c: &GraphicsWindowConf, more_info: [f32; 4]) {
         let queue = &c.device.queue();
         self.uniforms.more_info = more_info;

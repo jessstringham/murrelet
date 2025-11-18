@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use bytemuck::NoUninit;
 use glam::*;
 use lerpable::Lerpable;
 use murrelet_common::{triangulate::DefaultVertex, *};
@@ -7,7 +6,7 @@ use murrelet_draw::newtypes::*;
 use murrelet_livecode_derive::Livecode;
 
 use crate::{
-    graphics_ref::{GraphicsRefCustom, GraphicsRefWithControlFn},
+    graphics_ref::{GraphicsRefCustom, GraphicsRefWithControlFn, GraphicsVertex},
     window::GraphicsWindowConf,
 };
 
@@ -19,9 +18,9 @@ pub trait AnyControlRef {
     fn update(&self, c: &GraphicsWindowConf);
 }
 
-impl<V> AnyControlRef for ControlGraphicsRef<V>
+impl<VertexKind> AnyControlRef for ControlGraphicsRef<VertexKind>
 where
-    V: NoUninit + Clone + Copy + std::fmt::Debug + 'static,
+    VertexKind: GraphicsVertex + 'static,
 {
     fn update(&self, c: &GraphicsWindowConf) {
         // use the stored GraphicsRef inside ControlGraphicsRef
@@ -29,9 +28,10 @@ where
     }
 }
 
-impl<GraphicsConf, V> ControlProvider<GraphicsConf> for GraphicsRefWithControlFn<GraphicsConf, V>
+impl<GraphicsConf, VertexKind> ControlProvider<GraphicsConf>
+    for GraphicsRefWithControlFn<GraphicsConf, VertexKind>
 where
-    V: NoUninit + Clone + Copy + std::fmt::Debug + 'static,
+    VertexKind: GraphicsVertex + 'static,
 {
     fn make_controls(&self, conf: &GraphicsConf) -> Vec<Box<dyn AnyControlRef>> {
         self.control_graphics(conf)
@@ -50,7 +50,7 @@ pub struct ControlGraphicsRef<VertexKind> {
     pub control: Box<dyn ControlGraphics>,
     graphics: GraphicsRefCustom<VertexKind>,
 }
-impl<VertexKind: Clone + Copy + NoUninit + std::fmt::Debug> ControlGraphicsRef<VertexKind> {
+impl<VertexKind: GraphicsVertex> ControlGraphicsRef<VertexKind> {
     pub fn new(
         label: &'static str,
         control: Box<dyn ControlGraphics>,
