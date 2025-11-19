@@ -2,8 +2,8 @@
 use glam::Vec2;
 use lerpable::Lerpable;
 use murrelet_common::*;
-use murrelet_gui::MurreletGUI;
 use murrelet_gui::make_gui_vec2;
+use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
 
 use crate::{
@@ -233,7 +233,7 @@ impl InteractiveCompassBuilder {
 
         self.pen_down = true;
 
-        // trying granular to see if we can mask
+        // know there's at least one point so we can unwrap
         CurveSegment::Points(CurvePoints::new(points))
     }
 
