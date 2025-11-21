@@ -9,7 +9,6 @@ use svg::node::element::path::Data;
 
 use crate::{
     cubic::CubicBezier,
-    livecodetypes::anglepi::*,
     newtypes::*,
     svg::glam_to_lyon,
     tesselate::{
@@ -64,7 +63,6 @@ impl CubicBezierTo {
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
 pub struct CubicBezierPath {
     pub from: Vec2,
-
     pub ctrl1: Vec2,
     pub curves: Vec<CubicBezierTo>,
     pub closed: bool,
@@ -693,6 +691,34 @@ impl CurvePoints {
     }
 }
 
+pub trait ToCurveSegment {
+    fn to_segment(&self) -> CurveSegment;
+}
+
+impl ToCurveSegment for CubicBezier {
+    fn to_segment(&self) -> CurveSegment {
+        CurveSegment::cubic(*self)
+    }
+}
+
+impl ToCurveSegment for Vec2 {
+    fn to_segment(&self) -> CurveSegment {
+        CurveSegment::new_simple_point(*self)
+    }
+}
+
+impl ToCurveSegment for Vec<Vec2> {
+    fn to_segment(&self) -> CurveSegment {
+        CurveSegment::new_simple_points(self.clone())
+    }
+}
+
+impl ToCurveSegment for Polyline {
+    fn to_segment(&self) -> CurveSegment {
+        CurveSegment::new_simple_points(self.clone_to_vec())
+    }
+}
+
 pub trait ToCurveDrawer {
     fn to_segments(&self) -> Vec<CurveSegment>;
     fn to_cd_closed(&self) -> CurveDrawer {
@@ -709,17 +735,26 @@ impl ToCurveDrawer for CurveSegment {
     }
 }
 
+impl<T> ToCurveDrawer for T
+where
+    T: ToCurveSegment,
+{
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        self.to_segment().to_segments()
+    }
+}
+
 impl ToCurveDrawer for Vec<CurveSegment> {
     fn to_segments(&self) -> Vec<CurveSegment> {
         self.clone()
     }
 }
 
-impl ToCurveDrawer for Vec<Vec2> {
-    fn to_segments(&self) -> Vec<CurveSegment> {
-        vec![CurveSegment::new_simple_points(self.clone())]
-    }
-}
+// impl ToCurveDrawer for Vec<Vec2> {
+//     fn to_segments(&self) -> Vec<CurveSegment> {
+//         vec![CurveSegment::new_simple_points(self.clone())]
+//     }
+// }
 
 impl ToCurveDrawer for Vec<SpotOnCurve> {
     fn to_segments(&self) -> Vec<CurveSegment> {
@@ -727,4 +762,15 @@ impl ToCurveDrawer for Vec<SpotOnCurve> {
             self.iter().map(|x| x.loc()).collect_vec(),
         )]
     }
+}
+
+#[macro_export]
+macro_rules! curve_segments {
+    ($($expr:expr),* $(,)?) => {{
+        let mut v: Vec<murrelet_draw::curve_drawer::CurveSegment> = Vec::new();
+        $(
+            v.extend($expr.to_segments());
+        )*
+        v
+    }};
 }
