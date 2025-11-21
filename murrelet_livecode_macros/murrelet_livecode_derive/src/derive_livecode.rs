@@ -18,6 +18,7 @@ impl LivecodeFieldType {
             ControlType::F32_3 => quote! {[murrelet_livecode::livecode::ControlF32; 3]},
             ControlType::Color => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
+            ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
             // ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
         }
@@ -41,6 +42,9 @@ impl LivecodeFieldType {
                 quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)?}
             }
             ControlType::LazyNodeF32 => quote! {self.#name.o(w)?},
+            ControlType::AnglePi => {
+                quote! {murrelet_common::AnglePi::new(self.#name.o(w)?)}
+            }
             _ => {
                 let f32_out = match (f32min, f32max) {
                     (None, None) => quote! {self.#name.o(w)?},
@@ -80,6 +84,16 @@ impl LivecodeFieldType {
                     None
                 }
             },
+            ControlType::AnglePi => {
+                quote! {
+                    if let Some(name) = &self.#name {
+                        let a = name.o(w)?;
+                        Some(murrelet_common::AnglePi::new(a))
+                    } else {
+                        None
+                    }
+                }
+            }
             _ => {
                 let f32_out = match (f32min, f32max) {
                     (None, None) => quote! {
@@ -132,6 +146,9 @@ impl LivecodeFieldType {
             ControlType::LazyNodeF32 => quote! { self.0.o(&w)? },
             ControlType::ColorUnclamped => {
                 quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)?}
+            }
+            ControlType::AnglePi => {
+                quote! {murrelet_common::AnglePi::new(self.0.o(w)?)}
             }
             _ => {
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {

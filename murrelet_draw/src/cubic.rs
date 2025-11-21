@@ -72,6 +72,11 @@ impl CubicBezier {
         )
     }
 
+    pub fn loc_at_pct(&self, t: f32) -> Vec2 {
+        let (a, _) = self.split(t);
+        a.to
+    }
+
     pub fn start_to_tangent(&self) -> (SpotOnCurve, f32) {
         // let side_len = self.from.distance(self.to);
 

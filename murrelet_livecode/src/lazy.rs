@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use evalexpr::{HashMapContext, IterateVariablesContext, Node};
+use evalexpr::Node;
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
+use murrelet_common::{IdxInRange, MurreletColor};
 use serde::Deserialize;
 
 use crate::{
-    expr::{ExprWorldContextValues, MixedEvalDefs, MixedEvalDefsRef},
+    expr::{ExprWorldContextValues, MixedEvalDefs},
     livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeVariable},
     state::{LivecodeWorldState, WorldWithLocalVariables},
     types::{LivecodeError, LivecodeResult},
@@ -25,6 +25,8 @@ pub enum ControlLazyNodeF32 {
 }
 
 impl ControlLazyNodeF32 {
+    pub const ZERO: Self = ControlLazyNodeF32::Float(0.0);
+
     pub fn new(n: Node) -> Self {
         Self::Expr(n)
     }

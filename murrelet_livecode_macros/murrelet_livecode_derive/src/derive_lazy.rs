@@ -27,6 +27,9 @@ impl LazyFieldType {
                 // already lazy...
                 quote! { murrelet_livecode::lazy::LazyNodeF32 }
             }
+            ControlType::AnglePi => {
+                quote! { murrelet_livecode::lazy::LazyNodeF32 }
+            }
             // ControlType::LinSrgbaUnclamped => quote!{[murrelet_livecode::livecode::ControlF32; 4]},
             _ => panic!("unitcell doesn't have this one yet"),
         }
@@ -49,6 +52,10 @@ impl LazyFieldType {
                 quote! { murrelet_livecode::lazy::eval_lazy_color(#ident, ctx) }
             }
             ControlType::Bool => quote! {#ident.eval_lazy(ctx)? > 0.0},
+            ControlType::AnglePi => {
+                // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
+                quote! {murrelet_common::AnglePi::new(#ident.eval_lazy(ctx)?)}
+            }
             _ => {
                 // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
                 let f32_out = match (f32min, f32max) {
@@ -79,6 +86,9 @@ impl LazyFieldType {
             }
             ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
             ControlType::LazyNodeF32 => quote! {#name: self.#name.add_more_defs(ctx)? },
+            ControlType::AnglePi => {
+                quote! {#name: murrelet_common::AnglePi::new(self.#name.eval_lazy(ctx)?)}
+            }
             _ => {
                 // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {
@@ -108,6 +118,9 @@ impl LazyFieldType {
                 quote! {#name: self.#name.map(|name| murrelet_common::MurreletColor::hsva(name[0].eval_lazy(ctx)? as f32, name[1].eval_lazy(ctx)? as f32, name[2].eval_lazy(ctx)? as f32, name[3].eval_lazy(ctx)? as f32))}
             }
             ControlType::Bool => quote! {#name: self.#name.map(|name| name.eval_lazy(ctx)? > 0.0)},
+            ControlType::AnglePi => {
+                quote! {#name: self.#name.map(|name| murrelet_common::AnglePi::new(name.eval_lazy(ctx)?))}
+            }
             ControlType::LazyNodeF32 => {
                 quote! {#name: {
                         if let Some(name) = &self.#name {
@@ -157,6 +170,9 @@ impl LazyFieldType {
             }
             // ControlType::LinSrgbaUnclamped => quote!{murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)},
             ControlType::Bool => quote! {self.0.eval_lazy(ctx)? > 0.0},
+            ControlType::AnglePi => {
+                quote! {murrelet_common::AnglePi::new(self.0.eval_lazy(ctx)?)}
+            }
             // _ => quote!{self.0.eval_lazy(ctx)? as #orig_ty}
             _ => {
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {

@@ -3,6 +3,8 @@
 use std::{f32::consts::PI, ops::Add};
 
 use glam::{vec2, Mat3, Mat4, Vec2};
+use lerpable::Lerpable;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     intersection::{find_intersection_inf, within_segment},
@@ -15,7 +17,7 @@ pub fn a_pi(a: f32) -> AnglePi {
     AnglePi::new(a)
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd, Lerpable, Serialize, Deserialize)]
 pub struct AnglePi(f32);
 impl AnglePi {
     pub const ZERO: Self = AnglePi(0.0);
@@ -487,6 +489,13 @@ impl SpotOnCurve {
     pub fn flip(&self) -> SpotOnCurve {
         Self::new(self.loc, self.angle.perp_to_left().perp_to_left())
     }
+
+    pub fn with_loc(&self, loc: Vec2) -> SpotOnCurve {
+        Self {
+            loc,
+            angle: self.angle,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -636,6 +645,10 @@ impl PointToPoint {
 
     pub fn start_spot(&self) -> SpotOnCurve {
         SpotOnCurve::new(self.start, self.angle())
+    }
+
+    pub fn end_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.end, self.angle())
     }
 }
 

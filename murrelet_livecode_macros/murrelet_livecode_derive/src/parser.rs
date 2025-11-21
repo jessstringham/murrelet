@@ -539,6 +539,7 @@ pub enum ControlType {
     Color,
     ColorUnclamped,
     LazyNodeF32,
+    AnglePi,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -609,6 +610,7 @@ impl HowToControlThis {
                 OverrideOrInferred::Override,
                 RecursiveControlType::Vec,
             ),
+            "a" => HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::AnglePi),
             // "expr" => {
             //     HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::EvalExpr)
             // }
@@ -655,6 +657,9 @@ impl HowToControlThis {
             "LazyNodeF32" => {
                 HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::LazyNodeF32)
             }
+            "AnglePi" => {
+                HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::AnglePi)
+            }
             // _ => HowToControlThis::WithNone(OverrideOrInferred::Inferred)
             _ => {
                 if value.starts_with("Lazy") {
@@ -687,6 +692,9 @@ impl SerdeDefault {
     fn from_control_type(&self, ty: ControlType, is_vec: bool) -> String {
         match (ty, self, is_vec) {
             (ControlType::F32, SerdeDefault::Zeros, _) => {
+                "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
+            }
+            (ControlType::AnglePi, SerdeDefault::Zeros, _) => {
                 "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
             }
             (ControlType::F32, SerdeDefault::Ones, _) => {

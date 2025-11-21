@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use evalexpr::Node;
 use glam::{vec2, vec3, Vec2, Vec3};
-use murrelet_common::MurreletColor;
+use murrelet_common::{AnglePi, MurreletColor};
 
 use crate::lazy::LazyNodeF32;
 use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
@@ -132,6 +132,20 @@ impl NestEditable for i32 {
 
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
         nest_default(getter, format!("{}", self))
+    }
+}
+
+impl NestEditable for AnglePi {
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        AnglePi::new(
+            mods.get_curr_as_f32()
+                .map(|x| x)
+                .unwrap_or(self._angle_pi()),
+        )
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self._angle_pi()))
     }
 }
 

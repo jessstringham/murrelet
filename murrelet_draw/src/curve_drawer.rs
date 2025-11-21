@@ -13,7 +13,8 @@ use crate::{
     newtypes::*,
     svg::glam_to_lyon,
     tesselate::{
-        cubic_bezier_path_to_lyon, flatten_cubic_bezier_path, parse_svg_data_as_vec2, ToVecVec2,
+        cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
+        flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, ToVecVec2,
     },
 };
 
@@ -304,8 +305,8 @@ impl CurveSegment {
         Self::Arc(CurveArc {
             loc,
             radius,
-            start_pi: LivecodeAnglePi::new(start_pi),
-            end_pi: LivecodeAnglePi::new(end_pi),
+            start_pi: start_pi.as_angle_pi(),
+            end_pi: end_pi.as_angle_pi(),
         })
     }
 
@@ -463,16 +464,16 @@ pub struct CurveArc {
     #[livecode(serde_default = "zeros")]
     pub loc: Vec2, // center of circle
     pub radius: f32,
-    pub start_pi: LivecodeAnglePi,
-    pub end_pi: LivecodeAnglePi,
+    pub start_pi: AnglePi,
+    pub end_pi: AnglePi,
 }
 impl CurveArc {
     pub fn new<A1: IsAngle, A2: IsAngle>(loc: Vec2, radius: f32, start_pi: A1, end_pi: A2) -> Self {
         Self {
             loc,
             radius,
-            start_pi: LivecodeAnglePi::new(start_pi),
-            end_pi: LivecodeAnglePi::new(end_pi),
+            start_pi: start_pi.as_angle_pi(),
+            end_pi: end_pi.as_angle_pi(),
         }
     }
 
@@ -604,11 +605,8 @@ impl CurveArc {
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurveCubicBezier {
     from: Vec2,
-
     ctrl1: Vec2,
-
     ctrl2: Vec2,
-
     to: Vec2,
 }
 impl CurveCubicBezier {
@@ -656,6 +654,14 @@ impl CurveCubicBezier {
 
     pub fn to(&self) -> Vec2 {
         self.to
+    }
+
+    pub fn flatten(&self, tolerance: f32) -> Vec<Vec2> {
+        flatten_cubic_bezier_path_with_tolerance(&vec![self.to_cubic()], false, tolerance).unwrap()
+    }
+
+    pub fn to_pts(&self, tolerance: f32) -> CurveSegment {
+        CurveSegment::new_simple_points(self.flatten(tolerance))
     }
 }
 

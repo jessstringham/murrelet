@@ -10,6 +10,7 @@ use glam::Vec2;
 use glam::Vec3;
 use itertools::Itertools;
 use murrelet_common::clamp;
+use murrelet_common::AnglePi;
 
 use murrelet_common::MurreletColor;
 use serde::Deserialize;
@@ -96,6 +97,12 @@ impl LivecodeToControl<ControlF32> for u8 {
 impl LivecodeToControl<ControlBool> for bool {
     fn to_control(&self) -> ControlBool {
         ControlBool::Raw(*self)
+    }
+}
+
+impl LivecodeToControl<ControlF32> for AnglePi {
+    fn to_control(&self) -> ControlF32 {
+        ControlF32::Raw(self._angle_pi())
     }
 }
 
@@ -469,6 +476,8 @@ pub enum ControlF32 {
 }
 
 impl ControlF32 {
+    pub const ZERO: ControlF32 = ControlF32::Float(0.0);
+
     // for backwards compatibility
     #[allow(non_snake_case)]
     pub fn Raw(v: f32) -> ControlF32 {

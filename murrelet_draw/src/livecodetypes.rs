@@ -13,7 +13,9 @@ pub mod anglepi {
 
     use crate::transform2d::Transform2d;
 
-    #[derive(Clone, Copy, Debug, Livecode, Lerpable, Default, PartialEq, Serialize, Deserialize)]
+    #[derive(
+        Clone, Copy, Debug, Livecode, Lerpable, Default, PartialEq, Serialize, Deserialize,
+    )]
     pub struct LivecodeAnglePi(f32);
 
     impl std::ops::Add for LivecodeAnglePi {
@@ -51,7 +53,6 @@ pub mod anglepi {
         pub fn add<A: IsAngle>(&self, f: A) -> LivecodeAnglePi {
             Self(self.0 + f.angle_pi())
         }
-
     }
 
     impl From<LivecodeAnglePi> for Angle {
