@@ -160,7 +160,7 @@ impl IdxInRange {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdxInRange2d {
     pub i: IdxInRange,
     pub j: IdxInRange,
@@ -313,7 +313,20 @@ impl IdxInRange2d {
         vec2(x, y)
     }
 
+    #[deprecated]
     pub fn width(&self) -> f32 {
+        self.i_total()
+    }
+
+    pub fn i_total(&self) -> f32 {
         self.i.total as f32
+    }
+
+    pub fn i(&self) -> u64 {
+        self.i.i()
+    }
+
+    pub fn j(&self) -> u64 {
+        self.j.i()
     }
 }

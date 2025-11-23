@@ -563,4 +563,18 @@ impl MixedEvalDefs {
     pub(crate) fn expr_vals(&self) -> &ExprWorldContextValues {
         &self.vals
     }
+
+    pub fn add_idx(&mut self, i: IdxInRange, prefix: &str) {
+        self.set_vals(ExprWorldContextValues::new_from_idx(i).with_prefix(prefix));
+    }
+
+    pub fn with_idx(mut self, i: IdxInRange, prefix: &str) -> MixedEvalDefs {
+        self.set_vals(ExprWorldContextValues::new_from_idx(i).with_prefix(prefix));
+        self
+    }
+
+    pub fn with_val(mut self, prefix: &str, val: LivecodeValue) -> MixedEvalDefs {
+        self.set_val(prefix, val);
+        self
+    }
 }
