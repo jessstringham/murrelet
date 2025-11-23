@@ -179,7 +179,7 @@ impl Angle {
         a._angle_pi()
     }
 
-    pub fn scale(&self, s: f32) -> Self {
+    pub fn _scale(&self, s: f32) -> Self {
         Angle(self.angle() * s)
     }
 
@@ -244,38 +244,36 @@ impl std::fmt::Debug for Angle {
     }
 }
 
-pub trait IsAngle {
+pub trait IsAngle: Sized {
     fn angle_pi(&self) -> f32;
     fn angle(&self) -> f32;
     fn as_angle(&self) -> Angle;
     fn as_angle_pi(&self) -> AnglePi;
     fn to_norm_dir(&self) -> Vec2;
     fn to_mat3(&self) -> Mat3;
-    fn perp_to_left(&self) -> Angle;
-    fn perp_to_right(&self) -> Angle;
+    fn perp_to_left(&self) -> Self;
+    fn perp_to_right(&self) -> Self;
+    fn scale(&self, s: f32) -> Self;
+
+    fn flip(&self) -> Self {
+        self.perp_to_left().perp_to_left()
+    }
+
+    fn reflect_x(&self) -> Self {
+        self.scale(-1.0)
+    }
+
+    fn reflect_y(&self) -> Self {
+        self.perp_to_left().scale(-1.0).perp_to_right()
+    }
 }
 
 impl<A> IsAngle for A
 where
     Angle: From<A>,
+    A: From<Angle>,
     A: Copy,
 {
-    fn to_norm_dir(&self) -> Vec2 {
-        Angle::from(*self)._to_norm_dir()
-    }
-
-    fn perp_to_left(&self) -> Angle {
-        Angle::from(*self)._perp_to_left()
-    }
-
-    fn perp_to_right(&self) -> Angle {
-        Angle::from(*self)._perp_to_right()
-    }
-
-    fn to_mat3(&self) -> Mat3 {
-        Mat3::from_angle(Angle::from(*self).angle())
-    }
-
     fn angle_pi(&self) -> f32 {
         Angle::from(*self)._angle_pi()
     }
@@ -290,6 +288,26 @@ where
 
     fn as_angle(&self) -> Angle {
         (*self).into()
+    }
+
+    fn to_norm_dir(&self) -> Vec2 {
+        Angle::from(*self)._to_norm_dir()
+    }
+
+    fn perp_to_left(&self) -> Self {
+        Angle::from(*self)._perp_to_left().into()
+    }
+
+    fn perp_to_right(&self) -> Self {
+        Angle::from(*self)._perp_to_right().into()
+    }
+
+    fn to_mat3(&self) -> Mat3 {
+        Mat3::from_angle(Angle::from(*self).angle())
+    }
+
+    fn scale(&self, s: f32) -> Self {
+        self.as_angle()._scale(s).into()
     }
 }
 

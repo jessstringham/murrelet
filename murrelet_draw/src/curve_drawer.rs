@@ -719,6 +719,12 @@ impl ToCurveSegment for Polyline {
     }
 }
 
+impl ToCurveSegment for Circle {
+    fn to_segment(&self) -> CurveSegment {
+        CurveSegment::new_simple_circle(self.center, self.radius)
+    }
+}
+
 pub trait ToCurveDrawer {
     fn to_segments(&self) -> Vec<CurveSegment>;
     fn to_cd_closed(&self) -> CurveDrawer {

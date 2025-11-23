@@ -2,28 +2,26 @@
 use glam::Vec2;
 use lerpable::Lerpable;
 use murrelet_common::*;
+use murrelet_gui::make_gui_angle;
 use murrelet_gui::make_gui_vec2;
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
 
-use crate::{
-    curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment},
-    livecodetypes::anglepi::*,
-};
+use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
 
 #[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
 pub struct CurveStart {
-    #[lerpable(func = "lerpify_vec2")]
     #[murrelet_gui(func = "make_gui_vec2")]
     loc: Vec2,
-    angle_pi: LivecodeAnglePi,
+    #[murrelet_gui(func = "make_gui_angle")]
+    angle_pi: AnglePi,
 }
 
 impl CurveStart {
     pub fn new<A: IsAngle>(loc: Vec2, angle: A) -> Self {
         Self {
             loc,
-            angle_pi: LivecodeAnglePi::new(angle),
+            angle_pi: angle.as_angle_pi(),
         }
     }
 }
@@ -34,7 +32,8 @@ fn empty_string() -> String {
 
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct CompassDir {
-    angle_pi: LivecodeAnglePi,
+    #[murrelet_gui(func = "make_gui_angle")]
+    angle_pi: AnglePi,
     #[livecode(serde_default = "false")]
     #[murrelet_gui(kind = "skip")]
     is_absolute: bool,
@@ -46,7 +45,7 @@ pub struct CompassDir {
 impl CompassDir {
     pub fn new<A: IsAngle>(angle: A, is_absolute: bool, label: String) -> Self {
         Self {
-            angle_pi: LivecodeAnglePi::new(angle),
+            angle_pi: angle.as_angle_pi(),
             is_absolute,
             label,
         }
@@ -56,7 +55,8 @@ impl CompassDir {
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct CompassArc {
     radius: f32,
-    arc_length: LivecodeAnglePi,
+    #[murrelet_gui(func = "make_gui_angle")]
+    arc_length: AnglePi,
     #[livecode(serde_default = "false")]
     #[murrelet_gui(kind = "skip")]
     is_absolute: bool,
@@ -106,7 +106,7 @@ impl CompassAction {
 
     pub fn angle<A: IsAngle>(angle_pi: A, is_absolute: bool, label: String) -> CompassAction {
         CompassAction::Angle(CompassDir {
-            angle_pi: LivecodeAnglePi::new(angle_pi),
+            angle_pi: angle_pi.as_angle_pi(),
             is_absolute,
             label,
         })
@@ -120,7 +120,7 @@ impl CompassAction {
     ) -> CompassAction {
         CompassAction::Arc(CompassArc {
             radius,
-            arc_length: LivecodeAnglePi::new(arc_length_pi),
+            arc_length: arc_length_pi.as_angle_pi(),
             is_absolute,
             label,
         })
@@ -137,7 +137,7 @@ impl CompassAction {
 impl Default for CompassAction {
     fn default() -> Self {
         CompassAction::Angle(CompassDir {
-            angle_pi: LivecodeAnglePi::ZERO,
+            angle_pi: AnglePi::ZERO,
             is_absolute: false,
             label: String::new(),
         })
@@ -214,7 +214,7 @@ impl InteractiveCompassBuilder {
     fn to_basic(&self) -> CurveStart {
         CurveStart {
             loc: self.curr_loc,
-            angle_pi: LivecodeAnglePi::new(self.curr_angle),
+            angle_pi: self.curr_angle.as_angle_pi(),
         }
     }
 

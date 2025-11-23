@@ -139,6 +139,11 @@ impl CanMakeGUI for MurreletColor {
 }
 
 #[cfg(feature = "murrelet")]
+pub fn make_gui_angle() -> MurreletGUISchema {
+    MurreletGUISchema::Val(ValueGUI::Angle)
+}
+
+#[cfg(feature = "murrelet")]
 pub fn make_gui_vec2() -> MurreletGUISchema {
     MurreletGUISchema::Val(ValueGUI::Vec2)
 }
