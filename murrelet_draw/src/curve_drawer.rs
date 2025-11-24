@@ -725,6 +725,12 @@ impl ToCurveSegment for Circle {
     }
 }
 
+impl ToCurveSegment for CurveArc {
+    fn to_segment(&self) -> CurveSegment {
+        CurveSegment::Arc(self.clone())
+    }
+}
+
 pub trait ToCurveDrawer {
     fn to_segments(&self) -> Vec<CurveSegment>;
     fn to_cd_closed(&self) -> CurveDrawer {
@@ -753,6 +759,18 @@ where
 impl ToCurveDrawer for Vec<CurveSegment> {
     fn to_segments(&self) -> Vec<CurveSegment> {
         self.clone()
+    }
+}
+
+impl<T> ToCurveDrawer for Option<T>
+where
+    T: ToCurveDrawer,
+{
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        match self {
+            Some(t) => t.to_segments(),
+            None => vec![],
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 use glam::{vec2, Vec2};
 
+use crate::SpotOnCurve;
+
 // todo, can i replace this with geo?
 pub fn find_intersection_inf(line0: (Vec2, Vec2), line1: (Vec2, Vec2)) -> Option<Vec2> {
     let (line0_start, line0_end) = line0;
@@ -30,6 +32,13 @@ pub fn find_intersection_inf(line0: (Vec2, Vec2), line1: (Vec2, Vec2)) -> Option
 
         Some(intersection)
     }
+}
+
+pub fn find_intersect_spots(spot0: SpotOnCurve, spot1: SpotOnCurve) -> Option<Vec2> {
+    find_intersection_inf(
+        (spot0.loc(), spot0.to_line(-100.0).to_last_point()),
+        (spot1.loc(), spot1.to_line(-100.0).to_last_point()),
+    )
 }
 
 pub fn find_intersection_segments(line0: (Vec2, Vec2), line1: (Vec2, Vec2)) -> Option<Vec2> {

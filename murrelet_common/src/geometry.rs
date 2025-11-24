@@ -475,9 +475,10 @@ impl SpotOnCurve {
             .to_last_point()
     }
 
+    // x moves along the direction, y moves left perp
     pub fn offset_amount(&self, offset: Vec2) -> Vec2 {
         let a = self.to_line(offset.x).to_last_point();
-        SpotOnCurve::new(a, self.angle).move_right_perp_dist(offset.y)
+        SpotOnCurve::new(a, self.angle).move_left_perp_dist(offset.y)
     }
 
     pub fn rotate(&self, rotate: AnglePi) -> Self {
