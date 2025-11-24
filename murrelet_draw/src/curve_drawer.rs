@@ -774,12 +774,6 @@ where
     }
 }
 
-// impl ToCurveDrawer for Vec<Vec2> {
-//     fn to_segments(&self) -> Vec<CurveSegment> {
-//         vec![CurveSegment::new_simple_points(self.clone())]
-//     }
-// }
-
 impl ToCurveDrawer for Vec<SpotOnCurve> {
     fn to_segments(&self) -> Vec<CurveSegment> {
         vec![CurveSegment::new_simple_points(
@@ -794,6 +788,49 @@ macro_rules! curve_segments {
         let mut v: Vec<murrelet_draw::curve_drawer::CurveSegment> = Vec::new();
         $(
             v.extend($expr.to_segments());
+        )*
+        v
+    }};
+}
+
+// useful for drawnshape...
+pub trait ToCurveDrawers {
+    fn to_curve_drawers(&self) -> Vec<CurveDrawer>;
+}
+
+impl ToCurveDrawers for CurveDrawer {
+    fn to_curve_drawers(&self) -> Vec<CurveDrawer> {
+        vec![self.clone()]
+    }
+}
+
+impl<T> ToCurveDrawers for Vec<T>
+where
+    T: ToCurveDrawers + Clone,
+{
+    fn to_curve_drawers(&self) -> Vec<CurveDrawer> {
+        self.iter().map(|x| x.to_curve_drawers()).concat()
+    }
+}
+
+impl<T> ToCurveDrawers for Option<T>
+where
+    T: ToCurveDrawers,
+{
+    fn to_curve_drawers(&self) -> Vec<CurveDrawer> {
+        match self {
+            Some(t) => t.to_curve_drawers(),
+            None => vec![],
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! curve_drawers {
+    ($($expr:expr),* $(,)?) => {{
+        let mut v: Vec<murrelet_draw::curve_drawer::CurveDrawer> = Vec::new();
+        $(
+            v.extend($expr.to_curve_drawers());
         )*
         v
     }};
