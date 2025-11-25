@@ -515,6 +515,13 @@ impl SpotOnCurve {
             angle: self.angle,
         }
     }
+
+    pub fn travel(&self, length: f32) -> SpotOnCurve {
+        Self {
+            loc: self.line_to_spot(length),
+            angle: self.angle,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -731,6 +731,12 @@ impl ToCurveSegment for CurveArc {
     }
 }
 
+impl ToCurveSegment for SpotOnCurve {
+    fn to_segment(&self) -> CurveSegment {
+        self.loc.to_segment()
+    }
+}
+
 pub trait ToCurveDrawer {
     fn to_segments(&self) -> Vec<CurveSegment>;
     fn to_cd_closed(&self) -> CurveDrawer {

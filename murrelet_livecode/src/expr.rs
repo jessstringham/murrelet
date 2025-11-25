@@ -28,6 +28,17 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             }
             Ok(Value::Empty)
         }),
+        "p" => Function::new(move |argument| {
+            if let Ok(a) = argument.as_float() {
+                println!("{:?} (float)", a);
+                Ok(Value::Float(a))
+            } else {
+                let a = argument.as_int()?;
+                println!("{:?} (int)", a);
+                Ok(Value::Int(a))
+            }
+        }),
+
         "manymod" => Function::new(move |argument| {
             let a = argument.as_tuple()?;
 
