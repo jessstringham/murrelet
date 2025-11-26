@@ -328,13 +328,7 @@ pub struct LazyVecElementRepeat<Source: Clone + Debug + IsLazy> {
     what: Vec<LazyControlVecElement<Source>>,
 }
 impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
-    pub fn lazy_eval_and_expand_vec<Target>(
-        &self,
-        ctx: &MixedEvalDefs,
-    ) -> LivecodeResult<Vec<Target>>
-    where
-        Source: IsLazy<Target = Target>,
-    {
+    pub fn lazy_expand_vec(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<Source>> {
         let mut result = Vec::with_capacity(self.repeat.len(ctx)? * self.what.len());
 
         let prefix = if self.prefix.is_empty() {
@@ -351,11 +345,11 @@ impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
             for src in &self.what {
                 match src {
                     LazyControlVecElement::Single(c) => {
-                        let o = c.eval_lazy(&ctx)?;
-                        result.push(o);
+                        // let o = c.eval_lazy(&ctx)?;
+                        result.push(c.clone());
                     }
                     LazyControlVecElement::Repeat(c) => {
-                        let o = c.lazy_eval_and_expand_vec(&ctx)?;
+                        let o = c.lazy_expand_vec(&ctx)?;
                         result.extend(o.into_iter());
                     }
                 }
@@ -567,15 +561,15 @@ where
     Repeat(LazyVecElementRepeat<Source>),
 }
 
-impl<Source, EvalTarget> LazyControlVecElement<Source>
+impl<Source> LazyControlVecElement<Source>
 where
-    Source: Clone + Debug + crate::lazy::IsLazy<Target = EvalTarget>,
+    Source: Clone + Debug + crate::lazy::IsLazy,
 {
-    pub fn eval_lazy_single(&self, expr: &MixedEvalDefs) -> LivecodeResult<EvalTarget> {
+    pub fn eval_lazy_single(&self, expr: &MixedEvalDefs) -> LivecodeResult<Source> {
         match self {
-            LazyControlVecElement::Single(s) => s.eval_lazy(expr).map(|x| x),
+            LazyControlVecElement::Single(s) => Ok(s.clone()),
             LazyControlVecElement::Repeat(s) => {
-                let vv = s.lazy_eval_and_expand_vec(expr)?;
+                let vv = s.lazy_expand_vec(expr)?;
                 vv.into_iter()
                     .next()
                     .ok_or(LivecodeError::raw("eval_lazy_single failed"))
@@ -584,16 +578,16 @@ where
     }
 }
 
-impl<Source, EvalTarget> IsLazy for LazyControlVecElement<Source>
+impl<Source> LazyControlVecElement<Source>
 where
-    Source: Clone + Debug + crate::lazy::IsLazy<Target = EvalTarget>,
+    Source: Clone + Debug + crate::lazy::IsLazy,
 {
-    type Target = Vec<EvalTarget>;
+    // type Target = Vec<EvalTarget>;
 
-    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Vec<Source>> {
         match self {
-            LazyControlVecElement::Single(s) => s.eval_lazy(expr).map(|x| vec![x]),
-            LazyControlVecElement::Repeat(s) => s.lazy_eval_and_expand_vec(expr),
+            LazyControlVecElement::Single(s) => Ok(vec![s.clone()]),
+            LazyControlVecElement::Repeat(s) => s.lazy_expand_vec(expr),
         }
     }
 }
@@ -647,16 +641,10 @@ impl<LazyElement> LazyControlVecElement<LazyElement>
 where
     LazyElement: Clone + Debug + IsLazy,
 {
-    pub fn lazy_eval_and_expand_vec<Element>(
-        &self,
-        ctx: &MixedEvalDefs,
-    ) -> LivecodeResult<Vec<Element>>
-    where
-        LazyElement: IsLazy<Target = Element>,
-    {
+    pub fn lazy_expand_vec(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<LazyElement>> {
         match self {
-            LazyControlVecElement::Single(c) => Ok(vec![c.eval_lazy(ctx)?]),
-            LazyControlVecElement::Repeat(c) => c.lazy_eval_and_expand_vec(ctx),
+            LazyControlVecElement::Single(c) => Ok(vec![c.clone()]),
+            LazyControlVecElement::Repeat(c) => c.lazy_expand_vec(ctx),
         }
     }
 }

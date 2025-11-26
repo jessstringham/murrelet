@@ -623,10 +623,6 @@ impl GenFinal for FieldTokensLivecode {
         let how_to_control_internal = parsed_type_info.how_to_control_internal();
         let wrapper = parsed_type_info.wrapper_type();
 
-        // Special-case: when the Vec's internal type is itself a lazy
-        // struct (e.g. Vec<LazyControlVecElement<LazyNodeF32>> inside a
-        // Lazy* struct), we want to use DeserLazyControlVecElement as the
-        // control element type instead of ControlVecElement.
         let inner_is_lazy_struct = parsed_type_info
             .second_how_to
             .map(|h| h.is_lazy())

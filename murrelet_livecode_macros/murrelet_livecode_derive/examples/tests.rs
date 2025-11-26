@@ -11,7 +11,7 @@ pub struct BasicTypes {
     a_number: f32,
     #[lerpable(func = "lerpify_vec2")]
     c_vec2: Vec2,
-    b_color: MurreletColor,
+    // b_color: MurreletColor,
     something: Vec<f32>,
     // #[lerpable(func = "lerpify_vec_vec2")]
     // list_of_vec2: Vec<Vec2>,
@@ -36,8 +36,8 @@ fn empty_string_lazy() -> String {
 //     #[lerpable(func = "lerpify_vec2")]
 //     c_vec2: Vec2,
 //     something: Vec<f32>,
-//     #[lerpable(func = "lerpify_vec_vec2")]
-//     list_of_vec2: Vec<Vec2>,
+//     // #[lerpable(func = "lerpify_vec_vec2")]
+//     // list_of_vec2: Vec<Vec2>,
 //     #[livecode(kind = "none", serde_default = "empty_string")]
 //     label: String,
 //     #[livecode(kind = "none")]
