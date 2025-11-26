@@ -158,6 +158,10 @@ impl IdxInRange {
             })
         }
     }
+
+    pub fn is_first(&self) -> bool {
+        self.i == 0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

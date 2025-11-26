@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::{
     expr::IntoExprWorldContext,
-    livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeVariable},
+    livecode::{ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeVariable},
     state::LivecodeWorldState,
     unitcells::UnitCellIdx,
 };
@@ -113,24 +113,37 @@ impl Lerpable for AdditionalContextNode {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlVecElementRepeatMethod {
-    Single(usize),
-    Rect([usize; 2]),
+    Single(ControlF32),
+    Rect([ControlF32; 2]),
 }
 impl ControlVecElementRepeatMethod {
-    fn len(&self) -> usize {
-        match self {
-            ControlVecElementRepeatMethod::Single(s) => *s,
-            ControlVecElementRepeatMethod::Rect(r) => r[0] * r[1],
-        }
+    fn len(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
+        let v = match self {
+            ControlVecElementRepeatMethod::Single(s) => {
+                let ss = s.o(w)?;
+                ss
+            }
+            ControlVecElementRepeatMethod::Rect(r) => {
+                let rr = r.o(w)?;
+                rr.x * rr.y
+            }
+        };
+        Ok(v as usize)
     }
-    fn iter(&self) -> Vec<IdxInRange2d> {
-        match self {
-            ControlVecElementRepeatMethod::Single(s) => IdxInRange::enumerate_count(*s)
-                .iter()
-                .map(|x| x.to_2d())
-                .collect_vec(),
-            ControlVecElementRepeatMethod::Rect(s) => IdxInRange2d::enumerate_counts(s[0], s[1]),
-        }
+    fn iter(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<IdxInRange2d>> {
+        let v = match self {
+            ControlVecElementRepeatMethod::Single(s) => {
+                IdxInRange::enumerate_count(s.o(w)? as usize)
+                    .iter()
+                    .map(|x| x.to_2d())
+                    .collect_vec()
+            }
+            ControlVecElementRepeatMethod::Rect(s) => {
+                let rr = s.o(w)?;
+                IdxInRange2d::enumerate_counts(rr.x as usize, rr.y as usize)
+            }
+        };
+        Ok(v)
     }
 }
 
@@ -199,7 +212,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
     where
         Source: LivecodeFromWorld<Target>,
     {
-        let mut result = Vec::with_capacity(self.repeat.len() * self.what.len());
+        let mut result = Vec::with_capacity(self.repeat.len(w)? * self.what.len());
 
         let prefix = if self.prefix.is_empty() {
             "i_".to_string()
@@ -207,7 +220,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
             format!("{}_", self.prefix)
         };
 
-        for idx in self.repeat.iter() {
+        for idx in self.repeat.iter(w)? {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             let new_w = w.clone_with_vals(expr, &prefix);
 

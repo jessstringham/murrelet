@@ -9,6 +9,10 @@ pub struct CubicBezier {
     pub to: Vec2,
 }
 impl CubicBezier {
+    pub fn from_spots_s(in_spot: SpotOnCurve, out_spot: SpotOnCurve, strength: Vec2) -> Self {
+        Self::from_spots(in_spot, strength.x, out_spot, strength.y)
+    }
+
     pub fn from_spots(
         in_spot: SpotOnCurve,
         in_strength: f32,

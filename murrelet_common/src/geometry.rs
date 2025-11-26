@@ -21,6 +21,9 @@ pub fn a_pi(a: f32) -> AnglePi {
 pub struct AnglePi(f32);
 impl AnglePi {
     pub const ZERO: Self = AnglePi(0.0);
+    pub const HALF: Self = AnglePi(0.5);
+    pub const ONE: Self = AnglePi(1.0);
+    pub const NEG_HALF: Self = AnglePi(-0.5);
 
     pub fn new(v: f32) -> AnglePi {
         AnglePi(v)
@@ -521,6 +524,35 @@ impl SpotOnCurve {
             loc: self.line_to_spot(length),
             angle: self.angle,
         }
+    }
+}
+
+pub trait ToSpotWithAngle {
+    fn to_spot_a<A: Into<Angle>>(&self, a: A) -> SpotOnCurve;
+
+    fn to_spot_forward(&self) -> SpotOnCurve {
+        self.to_spot_a(AnglePi::new(0.0))
+    }
+    fn to_spot_backward(&self) -> SpotOnCurve {
+        self.to_spot_a(AnglePi::new(1.0))
+    }
+    fn to_spot_upward(&self) -> SpotOnCurve {
+        self.to_spot_a(AnglePi::new(0.5))
+    }
+    fn to_spot_downward(&self) -> SpotOnCurve {
+        self.to_spot_a(AnglePi::new(1.5))
+    }
+}
+
+impl ToSpotWithAngle for Vec2 {
+    fn to_spot_a<A: Into<Angle>>(&self, a: A) -> SpotOnCurve {
+        SpotOnCurve::new(*self, a.into())
+    }
+}
+
+impl ToSpotWithAngle for SpotOnCurve {
+    fn to_spot_a<A: Into<Angle>>(&self, a: A) -> SpotOnCurve {
+        SpotOnCurve::new(self.loc, a.into())
     }
 }
 
