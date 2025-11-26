@@ -479,7 +479,9 @@ impl GenFinal for FieldTokensLazy {
 
             let new_ty = match wrapper {
                 VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
-                VecDepth::Vec => quote! {Vec<#internal_type>},
+                VecDepth::Vec => {
+                    quote! {Vec<murrelet_livecode::types::LazyControlVecElement<#internal_type>>}
+                }
                 VecDepth::VecVec => todo!(),
             };
             quote! {#back_to_quote #name: #new_ty}
@@ -488,13 +490,43 @@ impl GenFinal for FieldTokensLazy {
             match how_to_control_internal {
                 HowToControlThis::WithType(_, c) => {
                     // local variable...
-                    let x = syn::Ident::new("x", idents.name().span());
-                    let c =
-                        LazyFieldType(*c).for_world_func(x, idents.data.f32min, idents.data.f32max);
-                    quote! {#name: self.#name.iter().map(|x| #c).collect::<Result<Vec<_>, _>>()?}
+                    let x_ident = syn::Ident::new("x", idents.name().span());
+                    let c_expr = LazyFieldType(*c).for_world_func(
+                        x_ident.clone(),
+                        idents.data.f32min,
+                        idents.data.f32max,
+                    );
+                    quote! {
+                        #name: self.#name
+                            .iter()
+                            .map(|item| {
+                                let expanded = item.eval_and_expand_vec(ctx)?;
+                                expanded.into_iter()
+                                    .map(|#x_ident| #c_expr)
+                                    .collect::<Result<Vec<_>, _>>()
+                            })
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter()
+                            .flatten()
+                            .collect()
+                    }
                 }
                 HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                    quote! {#name: self.#name.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
+                    quote! {
+                        #name: self.#name
+                            .iter()
+                            .map(|item| {
+                                let expanded = item.eval_and_expand_vec(ctx)?;
+                                expanded
+                                    .into_iter()
+                                    .map(|x| x.eval_lazy(ctx))
+                                    .collect::<Result<Vec<_>, _>>()
+                            })
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter()
+                            .flatten()
+                            .collect()
+                    }
                 }
                 HowToControlThis::WithNone(_) => {
                     let target_type = parsed_type_info.internal_type();

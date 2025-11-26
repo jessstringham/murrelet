@@ -9,8 +9,12 @@ use serde::{Deserialize, Deserializer};
 use thiserror::Error;
 
 use crate::{
-    expr::IntoExprWorldContext,
-    livecode::{ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeVariable},
+    expr::{IntoExprWorldContext, MixedEvalDefs},
+    lazy::{ControlLazyNodeF32, IsLazy, LazyNodeF32},
+    livecode::{
+        ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeToControl, LivecodeVariable,
+    },
+    nestedit::NestEditable,
     state::LivecodeWorldState,
     unitcells::UnitCellIdx,
 };
@@ -144,6 +148,254 @@ impl ControlVecElementRepeatMethod {
             }
         };
         Ok(v)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum DeserLazyControlVecElementRepeatMethod {
+    Single(ControlLazyNodeF32),
+    Rect([ControlLazyNodeF32; 2]),
+}
+impl DeserLazyControlVecElementRepeatMethod {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyVecElementRepeatMethod> {
+        match self {
+            DeserLazyControlVecElementRepeatMethod::Single(lazy) => {
+                let v = lazy.o(w)?;
+                Ok(LazyVecElementRepeatMethod::Single(v))
+            }
+            DeserLazyControlVecElementRepeatMethod::Rect(lazy) => {
+                let x = lazy[0].o(w)?;
+                let y = lazy[1].o(w)?;
+                Ok(LazyVecElementRepeatMethod::Rect([x, y]))
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct DeserLazyControlVecElementRepeat<Source: Clone + Debug> {
+    repeat: DeserLazyControlVecElementRepeatMethod,
+    prefix: String,
+    what: Vec<DeserLazyControlVecElement<Source>>,
+}
+impl<Source: Clone + Debug> DeserLazyControlVecElementRepeat<Source> {
+    fn o<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyVecElementRepeat<Target>>
+    where
+        Source: LivecodeFromWorld<Target>,
+        Target: IsLazy + Debug + Clone,
+    {
+        let what = self
+            .what
+            .iter()
+            .map(|x| x.o(w))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(LazyVecElementRepeat {
+            repeat: self.repeat.o(w)?,
+            prefix: self.prefix.clone(),
+            what,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum DeserLazyControlVecElement<Source>
+where
+    Source: Clone + Debug,
+{
+    Single(Source),
+    Repeat(DeserLazyControlVecElementRepeat<Source>),
+}
+impl<Source: Debug + Clone> DeserLazyControlVecElement<Source> {
+    pub fn o<Target: Debug + Clone>(
+        &self,
+        w: &LivecodeWorldState,
+    ) -> LivecodeResult<LazyControlVecElement<Target>>
+    where
+        Source: LivecodeFromWorld<Target>,
+        Target: IsLazy,
+    {
+        let a = match self {
+            DeserLazyControlVecElement::Single(a) => LazyControlVecElement::Single(a.o(w)?),
+            DeserLazyControlVecElement::Repeat(r) => LazyControlVecElement::Repeat(r.o(w)?),
+        };
+        Ok(a)
+    }
+
+    // just to match the interface used by the derive macros for Vec fields
+    pub fn eval_and_expand_vec<Target: Debug + Clone>(
+        &self,
+        w: &LivecodeWorldState,
+    ) -> LivecodeResult<Vec<LazyControlVecElement<Target>>>
+    where
+        Source: LivecodeFromWorld<Target>,
+        Target: IsLazy,
+    {
+        let a = self.o(w)?;
+        Ok(vec![a])
+    }
+}
+
+// chatgpt
+impl<'de, Source> Deserialize<'de> for DeserLazyControlVecElement<Source>
+where
+    Source: Deserialize<'de> + Clone + Debug,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_yaml::Value::deserialize(deserializer)?;
+
+        let mut errors = Vec::new();
+
+        // try the simple one
+        match Source::deserialize(value.clone()) {
+            Ok(single) => return Ok(DeserLazyControlVecElement::Single(single)),
+            Err(e) => errors.push(format!("{}", e)),
+        }
+
+        match DeserLazyControlVecElementRepeat::deserialize(value.clone()) {
+            Ok(repeat) => return Ok(DeserLazyControlVecElement::Repeat(repeat)),
+            Err(e) => {
+                // it's gonna fail, so just check what
+                errors.push(format!("(repeat {})", e))
+            }
+        }
+
+        // match VecUnitCell::deserialize(value.clone()) {
+        //     Ok(repeat) => return Ok(ControlVecElement::Repeat(repeat)),
+        //     Err(e) => {
+        //         // it's gonna fail, so just check what
+        //         errors.push(format!("(repeat {})", e))
+        //     }
+        // }
+
+        // Both variants failed, return an error with detailed messages
+        Err(serde::de::Error::custom(format!(
+            "ControlVecElement {}",
+            errors.join(" ")
+        )))
+    }
+}
+
+// just an intermediate type...?
+#[derive(Debug, Clone)]
+pub enum LazyVecElementRepeatMethod {
+    Single(LazyNodeF32),
+    Rect([LazyNodeF32; 2]),
+}
+impl LazyVecElementRepeatMethod {
+    fn len(&self, ctx: &MixedEvalDefs) -> LivecodeResult<usize> {
+        let v = match self {
+            LazyVecElementRepeatMethod::Single(s) => {
+                let ss = s.eval_lazy(ctx)?;
+                ss
+            }
+            LazyVecElementRepeatMethod::Rect(r) => {
+                let rx = r[0].eval_lazy(ctx)?;
+                let ry = r[1].eval_lazy(ctx)?;
+                rx * ry
+            }
+        };
+        Ok(v as usize)
+    }
+    fn iter(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<IdxInRange2d>> {
+        let v = match self {
+            LazyVecElementRepeatMethod::Single(s) => {
+                IdxInRange::enumerate_count(s.eval_lazy(ctx)? as usize)
+                    .iter()
+                    .map(|x| x.to_2d())
+                    .collect_vec()
+            }
+            LazyVecElementRepeatMethod::Rect(s) => {
+                let rx = s[0].eval_lazy(ctx)?;
+                let ry = s[1].eval_lazy(ctx)?;
+                IdxInRange2d::enumerate_counts(rx as usize, ry as usize)
+            }
+        };
+        Ok(v)
+    }
+}
+
+// just internal method, if we realize we're looking at a lazy,
+#[derive(Debug, Clone)]
+pub struct LazyVecElementRepeat<Source: Clone + Debug + IsLazy> {
+    repeat: LazyVecElementRepeatMethod,
+    prefix: String,
+    what: Vec<LazyControlVecElement<Source>>,
+}
+impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
+    pub fn eval_and_expand_vec<Target>(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<Target>>
+    where
+        Source: IsLazy<Target = Target>,
+    {
+        let mut result = Vec::with_capacity(self.repeat.len(ctx)? * self.what.len());
+
+        let prefix = if self.prefix.is_empty() {
+            "i_".to_string()
+        } else {
+            format!("{}_", self.prefix)
+        };
+
+        for idx in self.repeat.iter(ctx)? {
+            let mut ctx = ctx.clone();
+            let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
+            ctx.set_vals(expr.with_prefix(&prefix));
+
+            for src in &self.what {
+                match src {
+                    LazyControlVecElement::Single(c) => {
+                        let o = c.eval_lazy(&ctx)?;
+                        result.push(o);
+                    }
+                    LazyControlVecElement::Repeat(c) => {
+                        let o = c.eval_and_expand_vec(&ctx)?;
+                        result.extend(o.into_iter());
+                    }
+                }
+            }
+        }
+        Ok(result)
+    }
+}
+
+impl<Source, ControlSource> LivecodeToControl<DeserLazyControlVecElement<ControlSource>>
+    for LazyControlVecElement<Source>
+where
+    Source: Debug + Clone + LivecodeToControl<ControlSource> + IsLazy,
+    ControlSource: Debug + Clone,
+{
+    fn to_control(&self) -> DeserLazyControlVecElement<ControlSource> {
+        match self {
+            LazyControlVecElement::Single(src) => {
+                DeserLazyControlVecElement::Single(src.to_control())
+            }
+            LazyControlVecElement::Repeat(rep) => {
+                let repeat = match &rep.repeat {
+                    LazyVecElementRepeatMethod::Single(l) => {
+                        DeserLazyControlVecElementRepeatMethod::Single(l.to_control())
+                    }
+                    LazyVecElementRepeatMethod::Rect([x, y]) => {
+                        DeserLazyControlVecElementRepeatMethod::Rect([
+                            x.to_control(),
+                            y.to_control(),
+                        ])
+                    }
+                };
+
+                let what = rep.what.iter().map(|e| e.to_control()).collect::<Vec<_>>();
+
+                DeserLazyControlVecElement::Repeat(DeserLazyControlVecElementRepeat {
+                    repeat,
+                    prefix: rep.prefix.clone(),
+                    what,
+                })
+            }
+        }
     }
 }
 
@@ -304,6 +556,15 @@ where
     // UnitCell(VecUnitCell<Sequencer, ControlSequencer, Source>),
 }
 
+#[derive(Debug, Clone)]
+pub enum LazyControlVecElement<Source>
+where
+    Source: Clone + Debug + crate::lazy::IsLazy,
+{
+    Single(Source),
+    Repeat(LazyVecElementRepeat<Source>),
+}
+
 // impl<Sequencer, ControlSequencer, Source> ControlVecElement<Sequencer, ControlSequencer, Source>
 impl<Source> ControlVecElement<Source>
 where
@@ -325,6 +586,28 @@ where
             // ControlVecElement::UnitCell(c) => c.eval_and_expand_vec(w),
         }
     }
+
+    // pub fn map_source<Target, F>(&self, f: F) -> LivecodeResult<ControlVecElement<Target>>
+    // where
+    //     F: Fn(&Source) -> LivecodeResult<Target>,
+    //     Target: Clone + Debug,
+    // {
+    //     match self {
+    //         ControlVecElement::Single(c) => f(c).map(|t| ControlVecElement::Single(t)),
+    //         ControlVecElement::Repeat(r) => Ok({
+    //             let mapped_what = r
+    //                 .what
+    //                 .iter()
+    //                 .map(|e| e.map_source(&f))
+    //                 .collect::<LivecodeResult<Vec<_>>>()?;
+    //             ControlVecElement::Repeat(ControlVecElementRepeat {
+    //                 repeat: r.repeat.clone(),
+    //                 prefix: r.prefix.clone(),
+    //                 what: mapped_what,
+    //             })
+    //         }),
+    //     }
+    // }
 }
 
 // chatgpt
@@ -358,6 +641,37 @@ where
             })),
             ..Default::default()
         })
+    }
+}
+
+impl<Source> GetLivecodeIdentifiers for DeserLazyControlVecElement<Source>
+where
+    Source: Clone + Debug + GetLivecodeIdentifiers,
+{
+    fn variable_identifiers(&self) -> Vec<crate::livecode::LivecodeVariable> {
+        match self {
+            DeserLazyControlVecElement::Single(c) => c.variable_identifiers(),
+            DeserLazyControlVecElement::Repeat(r) => r
+                .what
+                .iter()
+                .flat_map(|x| x.variable_identifiers())
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect_vec(),
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<crate::livecode::LivecodeFunction> {
+        match self {
+            DeserLazyControlVecElement::Single(c) => c.function_identifiers(),
+            DeserLazyControlVecElement::Repeat(r) => r
+                .what
+                .iter()
+                .flat_map(|x| x.function_identifiers())
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect_vec(),
+        }
     }
 }
 
@@ -406,5 +720,20 @@ where
             "ControlVecElement {}",
             errors.join(" ")
         )))
+    }
+}
+
+impl<LazyTarget: Debug + Clone> crate::nestedit::NestEditable for LazyControlVecElement<LazyTarget>
+where
+    LazyTarget: IsLazy,
+{
+    fn nest_update(&self, _mods: crate::nestedit::NestedMod) -> Self {
+        self.clone()
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra(
+            "LazyControlVecElement".to_owned(),
+        ))
     }
 }

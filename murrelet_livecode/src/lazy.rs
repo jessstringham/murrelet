@@ -272,6 +272,16 @@ impl IsLazy for LazyNodeF32 {
     }
 }
 
+impl<Source, VecElemTarget> IsLazy for Vec<Source>
+where
+    Source: IsLazy<Target = VecElemTarget>,
+{
+    type Target = Vec<VecElemTarget>;
+    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Vec<VecElemTarget>> {
+        self.iter().map(|x| x.eval_lazy(expr)).collect()
+    }
+}
+
 impl<T> crate::unitcells::UnitCellCreator for T
 where
     T: IsLazy,
