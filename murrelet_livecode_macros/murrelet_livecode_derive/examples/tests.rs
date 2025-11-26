@@ -9,9 +9,9 @@ use murrelet_livecode_derive::{Livecode, LivecodeOnly, NestEdit};
 #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypes {
     a_number: f32,
-    b_color: MurreletColor,
     #[lerpable(func = "lerpify_vec2")]
     c_vec2: Vec2,
+    b_color: MurreletColor,
     something: Vec<f32>,
     // #[lerpable(func = "lerpify_vec_vec2")]
     // list_of_vec2: Vec<Vec2>,
@@ -27,23 +27,23 @@ fn empty_string_lazy() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, Livecode, Lerpable, Default)]
-pub struct BasicTypesWithDefaults {
-    #[livecode(serde_default = "zeros")]
-    a_number: f32,
-    b_color: MurreletColor,
-    #[livecode(serde_default = "0")]
-    #[lerpable(func = "lerpify_vec2")]
-    c_vec2: Vec2,
-    something: Vec<f32>,
-    #[lerpable(func = "lerpify_vec_vec2")]
-    list_of_vec2: Vec<Vec2>,
-    #[livecode(kind = "none", serde_default = "empty_string")]
-    label: String,
-    #[livecode(kind = "none")]
-    #[lerpable(method = "skip")]
-    b: HashMap<String, String>,
-}
+// #[derive(Debug, Clone, Livecode, Lerpable, Default)]
+// pub struct BasicTypesWithDefaults {
+//     #[livecode(serde_default = "zeros")]
+//     a_number: f32,
+//     b_color: MurreletColor,
+//     #[livecode(serde_default = "0")]
+//     #[lerpable(func = "lerpify_vec2")]
+//     c_vec2: Vec2,
+//     something: Vec<f32>,
+//     #[lerpable(func = "lerpify_vec_vec2")]
+//     list_of_vec2: Vec<Vec2>,
+//     #[livecode(kind = "none", serde_default = "empty_string")]
+//     label: String,
+//     #[livecode(kind = "none")]
+//     #[lerpable(method = "skip")]
+//     b: HashMap<String, String>,
+// }
 
 // #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 // struct TestLazy {

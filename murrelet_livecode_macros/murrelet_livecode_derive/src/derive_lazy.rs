@@ -15,13 +15,13 @@ impl LazyFieldType {
             ControlType::Bool => quote! {murrelet_livecode::lazy::LazyNodeF32}, // we'll just check if it's above 0
             ControlType::F32 => quote! {murrelet_livecode::lazy::LazyNodeF32},
             ControlType::F32_2 => {
-                quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
+                quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::LazyNodeF32>>}
             }
             ControlType::F32_3 => {
-                quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
+                quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::LazyNodeF32>>}
             }
             ControlType::Color => {
-                quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
+                quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::LazyNodeF32>>}
             }
             ControlType::LazyNodeF32 => {
                 // already lazy...
@@ -76,13 +76,13 @@ impl LazyFieldType {
         let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => {
-                quote! { #name: glam::vec2(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32)}
+                quote! { #name: glam::vec2(self.#name[0].eval_lazy_single(ctx)? as f32, self.#name[1].eval_lazy_single(ctx)? as f32)}
             }
             ControlType::F32_3 => {
-                quote! {#name: glam::vec3(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32)}
+                quote! {#name: glam::vec3(self.#name[0].eval_lazy_single(ctx)? as f32, self.#name[1].eval_lazy_single(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32)}
             }
             ControlType::Color => {
-                quote! {#name: murrelet_common::MurreletColor::hsva(self.#name[0].eval_lazy(ctx)? as f32, self.#name[1].eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32, self.#name[3].eval_lazy(ctx)? as f32)}
+                quote! {#name: murrelet_common::MurreletColor::hsva(self.#name[0].eval_lazy_single(ctx)? as f32, self.#name[1].eval_lazy_single(ctx)? as f32, self.#name[2].eval_lazy_single(ctx)? as f32, self.#name[3].eval_lazy_single(ctx)? as f32)}
             }
             ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
             ControlType::LazyNodeF32 => quote! {#name: self.#name.add_more_defs(ctx)? },
@@ -500,7 +500,7 @@ impl GenFinal for FieldTokensLazy {
                         #name: self.#name
                             .iter()
                             .map(|item| {
-                                let expanded = item.eval_and_expand_vec(ctx)?;
+                                let expanded = item.lazy_eval_and_expand_vec(ctx)?;
                                 expanded.into_iter()
                                     .map(|#x_ident| #c_expr)
                                     .collect::<Result<Vec<_>, _>>()
@@ -516,7 +516,7 @@ impl GenFinal for FieldTokensLazy {
                         #name: self.#name
                             .iter()
                             .map(|item| {
-                                let expanded = item.eval_and_expand_vec(ctx)?;
+                                let expanded = item.lazy_eval_and_expand_vec(ctx)?;
                                 expanded
                                     .into_iter()
                                     .map(|x| x.eval_lazy(ctx))

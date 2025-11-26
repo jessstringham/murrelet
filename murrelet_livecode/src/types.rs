@@ -14,7 +14,6 @@ use crate::{
     livecode::{
         ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeToControl, LivecodeVariable,
     },
-    nestedit::NestEditable,
     state::LivecodeWorldState,
     unitcells::UnitCellIdx,
 };
@@ -329,7 +328,10 @@ pub struct LazyVecElementRepeat<Source: Clone + Debug + IsLazy> {
     what: Vec<LazyControlVecElement<Source>>,
 }
 impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
-    pub fn eval_and_expand_vec<Target>(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<Target>>
+    pub fn lazy_eval_and_expand_vec<Target>(
+        &self,
+        ctx: &MixedEvalDefs,
+    ) -> LivecodeResult<Vec<Target>>
     where
         Source: IsLazy<Target = Target>,
     {
@@ -353,7 +355,7 @@ impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
                         result.push(o);
                     }
                     LazyControlVecElement::Repeat(c) => {
-                        let o = c.eval_and_expand_vec(&ctx)?;
+                        let o = c.lazy_eval_and_expand_vec(&ctx)?;
                         result.extend(o.into_iter());
                     }
                 }
@@ -565,6 +567,37 @@ where
     Repeat(LazyVecElementRepeat<Source>),
 }
 
+impl<Source, EvalTarget> LazyControlVecElement<Source>
+where
+    Source: Clone + Debug + crate::lazy::IsLazy<Target = EvalTarget>,
+{
+    pub fn eval_lazy_single(&self, expr: &MixedEvalDefs) -> LivecodeResult<EvalTarget> {
+        match self {
+            LazyControlVecElement::Single(s) => s.eval_lazy(expr).map(|x| x),
+            LazyControlVecElement::Repeat(s) => {
+                let vv = s.lazy_eval_and_expand_vec(expr)?;
+                vv.into_iter()
+                    .next()
+                    .ok_or(LivecodeError::raw("eval_lazy_single failed"))
+            }
+        }
+    }
+}
+
+impl<Source, EvalTarget> IsLazy for LazyControlVecElement<Source>
+where
+    Source: Clone + Debug + crate::lazy::IsLazy<Target = EvalTarget>,
+{
+    type Target = Vec<EvalTarget>;
+
+    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+        match self {
+            LazyControlVecElement::Single(s) => s.eval_lazy(expr).map(|x| vec![x]),
+            LazyControlVecElement::Repeat(s) => s.lazy_eval_and_expand_vec(expr),
+        }
+    }
+}
+
 // impl<Sequencer, ControlSequencer, Source> ControlVecElement<Sequencer, ControlSequencer, Source>
 impl<Source> ControlVecElement<Source>
 where
@@ -608,6 +641,24 @@ where
     //         }),
     //     }
     // }
+}
+
+impl<LazyElement> LazyControlVecElement<LazyElement>
+where
+    LazyElement: Clone + Debug + IsLazy,
+{
+    pub fn lazy_eval_and_expand_vec<Element>(
+        &self,
+        ctx: &MixedEvalDefs,
+    ) -> LivecodeResult<Vec<Element>>
+    where
+        LazyElement: IsLazy<Target = Element>,
+    {
+        match self {
+            LazyControlVecElement::Single(c) => Ok(vec![c.eval_lazy(ctx)?]),
+            LazyControlVecElement::Repeat(c) => c.lazy_eval_and_expand_vec(ctx),
+        }
+    }
 }
 
 // chatgpt
