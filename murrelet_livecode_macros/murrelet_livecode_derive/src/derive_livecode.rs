@@ -759,19 +759,9 @@ impl GenFinal for FieldTokensLivecode {
                             #name: {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
-
-                                    // Vec<LazyControlVecElement>
+                                    // DeserLazyControlVecElement -> LazyControlVecElement
                                     let item = internal_row.o(w)?;
-
-                                    result.push(
-                                        item
-                                        // internal_row.iter()
-                                        //     .map(|x| x.eval_and_expand_vec(w))
-                                        //     .collect::<Result<Vec<_>, _>>()?
-                                        //     .into_iter()
-                                        //     .flatten()
-                                        //     .collect()
-                                    )
+                                    result.push(item)
                                 }
                                 result
                             }
@@ -789,10 +779,8 @@ impl GenFinal for FieldTokensLivecode {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
                         if inner_is_lazy_struct {
-                            // For Vec<LazyControlVecElement<...>> we convert
-                            // each lazy element directly into its deser control
-                            // representation.
-                            quote! { #name: self.#name.iter().map(|x| x.to_control()).collect::<Vec<_>>() }
+
+                            quote! { #name: self.#name.iter().map(|x| murrelet_livecode::types::DeserLazyControlVecElement::raw(x.to_control())).collect::<Vec<_>>() }
                         } else {
                             quote! { #name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>() }
                         }
@@ -803,12 +791,16 @@ impl GenFinal for FieldTokensLivecode {
                                 #name: {
                                     let mut result = Vec::with_capacity(self.#name.len());
                                     for internal_row in &self.#name {
-                                        result.push(
-                                            internal_row
-                                                .iter()
-                                                .map(|x| x.to_control())
-                                                .collect::<Vec<_>>()
-                                        )
+
+                                        let item = internal_row.to_control();
+
+
+                                        result.push(murrelet_livecode::types::DeserLazyControlVecElement::raw(item))
+                                            // internal_row
+                                            //     .iter()
+                                            //     .map(|x| x.to_control())
+                                            //     .collect::<Vec<_>>()
+                                        // )
                                     }
                                     result
                                 }
@@ -832,17 +824,18 @@ impl GenFinal for FieldTokensLivecode {
                     }
                     VecDepth::VecControlVec => {
                         if inner_is_lazy_struct {
-                                                            println!("HHH");
+                                                            println!("HHaH");
 
                             quote! {
                                 #name: {
                                     let mut result = Vec::with_capacity(self.#name.len());
                                     for internal_row in &self.#name {
-                                        result.push(
-                                            internal_row
-                                                .iter()
-                                                .map(|x| x.to_control())
-                                                .collect::<Vec<_>>()
+                                        let c = internal_row.to_control();
+                                        result.push(c
+                                            // internal_row
+                                            //     .iter()
+                                            //     .map(|x| x.to_control())
+                                            //     .collect::<Vec<_>>()
                                         )
                                     }
                                     result
@@ -898,8 +891,10 @@ impl GenFinal for FieldTokensLivecode {
                             {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
+                                    let items = internal_row.variable_identifiers();
                                     result.extend(
-                                        internal_row.iter().map(|x| x.variable_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
+                                        items
+                                        // internal_row.iter().map(|x| x.variable_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
                                     );
                                 }
                                 result
@@ -937,8 +932,9 @@ impl GenFinal for FieldTokensLivecode {
                             {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
-                                    result.extend(
-                                        internal_row.iter().map(|x| x.function_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
+                                    let item = internal_row.function_identifiers();
+                                    result.extend(item
+                                        // internal_row.iter().map(|x| x.function_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
                                     );
                                 }
                                 result

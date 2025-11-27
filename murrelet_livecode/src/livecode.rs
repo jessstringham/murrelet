@@ -157,6 +157,12 @@ impl LivecodeToControl<ControlF32> for u64 {
     }
 }
 
+impl<Source, Target> LivecodeToControl<Vec<Target>> for Vec<Source> where Source: LivecodeToControl<Target> {
+    fn to_control(&self) -> Vec<Target> {
+        self.iter().map(|x| x.to_control()).collect_vec()
+    }
+}
+
 impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
     fn to_control(&self) -> ControlLazyNodeF32 {
         ControlLazyNodeF32::new(self.n().cloned().unwrap())
@@ -313,6 +319,16 @@ impl GetLivecodeIdentifiers for [ControlF32; 4] {
         .collect::<HashSet<LivecodeFunction>>()
         .into_iter()
         .collect_vec()
+    }
+}
+
+impl<T> GetLivecodeIdentifiers for Vec<T> where T: GetLivecodeIdentifiers {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        self.iter().map(|x| x.variable_identifiers()).flatten().collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        self.iter().map(|x| x.function_identifiers()).flatten().collect_vec()
     }
 }
 
