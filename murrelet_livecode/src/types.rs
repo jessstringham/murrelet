@@ -208,6 +208,15 @@ where
     Single(Source),
     Repeat(DeserLazyControlVecElementRepeat<Source>),
 }
+
+impl<Source> DeserLazyControlVecElement<Source>
+where
+    Source: Clone + Debug,
+{
+    pub fn raw(c: Source) -> Self {
+        Self::Single(c)
+    }
+}
 impl<Source: Debug + Clone> DeserLazyControlVecElement<Source> {
     pub fn o<Target: Debug + Clone>(
         &self,
@@ -559,6 +568,22 @@ where
 {
     Single(Source),
     Repeat(LazyVecElementRepeat<Source>),
+}
+
+impl<Source> IsLazy for LazyControlVecElement<Source>
+where
+    Source: Clone + Debug + IsLazy,
+{
+    // A single lazy control element expands to a vector of evaluated items.
+    type Target = Vec<Source::Target>;
+
+    fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+        // First expand structure (repeats) to Vec<Source>, still lazy
+        let expanded: Vec<Source> = self.lazy_expand_vec(ctx)?;
+
+        // Then evaluate each inner lazy to its final type
+        expanded.into_iter().map(|s| s.eval_lazy(ctx)).collect()
+    }
 }
 
 impl<Source> LazyControlVecElement<Source>

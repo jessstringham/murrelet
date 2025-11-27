@@ -641,11 +641,18 @@ impl GenFinal for FieldTokensLivecode {
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
                 }
+                // HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                //     // for things like Lazy Vec2...
+                //     println!("parsed_type_info {:?}", parsed_type_info);
+                //     let original_internal_type = parsed_type_info.internal_type();
+                //     let lazy_inner = Self::new_ident(original_internal_type.clone());
+                //     quote! { Vec<#lazy_inner> }
+                // }
                 HowToControlThis::WithNone(_) => {
                     let target_type = parsed_type_info.internal_type();
                     quote! {#target_type}
                 }
-                e => panic!("need vec something {:?}", e),
+                e => panic!("(livecode, recurse_struct_vec) need vec something {:?}", e),
             };
 
             let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
@@ -995,7 +1002,10 @@ impl GenFinal for FieldTokensLivecode {
                     let original_internal_type = parsed_type_info.internal_type();
                     quote! {#original_internal_type}
                 }
-                e => panic!("need vec something {:?}", e),
+                e => panic!(
+                    "(livecode, newtype_recurse_struct_vec) need vec something {:?}",
+                    e
+                ),
             };
 
             let new_ty = match wrapper {

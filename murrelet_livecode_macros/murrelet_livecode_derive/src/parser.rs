@@ -757,10 +757,12 @@ pub(crate) struct DataFromType {
     pub(crate) main_type: syn::Ident,
     pub(crate) second_type: Option<syn::Ident>,
     pub(crate) third_type: Option<syn::Ident>, // so we coulddd use a vec her
+    pub(crate) fourth_type: Option<syn::Ident>, // so we coulddd use a vec her
 
     pub(crate) main_how_to: HowToControlThis,
     pub(crate) second_how_to: Option<HowToControlThis>,
     pub(crate) third_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
+    pub(crate) fourth_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
 }
 impl DataFromType {
     fn new_from_list(types: Vec<syn::Ident>) -> DataFromType {
@@ -769,6 +771,7 @@ impl DataFromType {
         let main_type = types[0].clone();
         let second_type = types.get(1).cloned();
         let third_type = types.get(2).cloned();
+        let fourth_type = types.get(3).cloned();
 
         let main_how_to = HowToControlThis::from_type_str(&main_type.to_string());
         let second_how_to = second_type
@@ -777,19 +780,26 @@ impl DataFromType {
         let third_how_to = third_type
             .as_ref()
             .map(|x| HowToControlThis::from_type_str(&x.to_string()));
+        let fourth_how_to = fourth_type
+            .as_ref()
+            .map(|x| HowToControlThis::from_type_str(&x.to_string()));
 
         Self {
             main_type,
             second_type,
             third_type,
+            fourth_type,
             main_how_to,
             second_how_to,
             third_how_to,
+            fourth_how_to
         }
     }
 
     pub(crate) fn how_to_control_internal(&self) -> &HowToControlThis {
-        if let Some(third) = &self.third_how_to {
+        if let Some(fourth) = &self.fourth_how_to {
+            fourth
+        } else if let Some(third) = &self.third_how_to {
             third
         } else if let Some(second) = &self.second_how_to {
             second

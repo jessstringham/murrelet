@@ -15,13 +15,13 @@ impl LazyFieldType {
             ControlType::Bool => quote! {murrelet_livecode::lazy::LazyNodeF32}, // we'll just check if it's above 0
             ControlType::F32 => quote! {murrelet_livecode::lazy::LazyNodeF32},
             ControlType::F32_2 => {
-                quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::LazyNodeF32>>}
+                quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
             }
             ControlType::F32_3 => {
-                quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::LazyNodeF32>>}
+                quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
             }
             ControlType::Color => {
-                quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::LazyNodeF32>>}
+                quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
             }
             ControlType::LazyNodeF32 => {
                 // already lazy...
@@ -43,13 +43,13 @@ impl LazyFieldType {
     ) -> TokenStream2 {
         match self.0 {
             ControlType::F32_2 => {
-                quote! { murrelet_livecode::lazy::eval_lazy_vec2(#ident, ctx) }
+                quote! { murrelet_livecode::lazy::eval_lazy_vec2(&#ident, ctx) }
             }
             ControlType::F32_3 => {
-                quote! { murrelet_livecode::lazy::eval_lazy_vec3(#ident, ctx) }
+                quote! { murrelet_livecode::lazy::eval_lazy_vec3(&#ident, ctx) }
             }
             ControlType::Color => {
-                quote! { murrelet_livecode::lazy::eval_lazy_color(#ident, ctx) }
+                quote! { murrelet_livecode::lazy::eval_lazy_color(&#ident, ctx) }
             }
             ControlType::Bool => quote! {#ident.eval_lazy(ctx)? > 0.0},
             ControlType::AnglePi => {
@@ -76,13 +76,27 @@ impl LazyFieldType {
         let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => {
-                quote! { #name: glam::vec2(self.#name[0].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32, self.#name[1].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32)}
+                quote! { #name: glam::vec2(
+                    self.#name[0].eval_lazy(ctx)? as f32,
+                    self.#name[1].eval_lazy(ctx)? as f32
+                )}
             }
             ControlType::F32_3 => {
-                quote! {#name: glam::vec3(self.#name[0].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32, self.#name[1].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32, self.#name[2].eval_lazy(ctx)? as f32)}
+                quote! {
+                    #name: glam::vec3(
+                        self.#name[0].eval_lazy(ctx)? as f32,
+                        self.#name[1].eval_lazy(ctx)? as f32,
+                        self.#name[2].eval_lazy(ctx)? as f32
+                    )
+                }
             }
             ControlType::Color => {
-                quote! {#name: murrelet_common::MurreletColor::hsva(self.#name[0].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32, self.#name[1].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32, self.#name[2].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32, self.#name[3].eval_lazy_single(ctx)?.eval_lazy(ctx)? as f32)}
+                quote! {#name: murrelet_common::MurreletColor::hsva(
+                    self.#name[0].eval_lazy(ctx)? as f32,
+                    self.#name[1].eval_lazy(ctx)? as f32,
+                    self.#name[2].eval_lazy(ctx)? as f32,
+                    self.#name[3].eval_lazy(ctx)? as f32
+                )}
             }
             ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
             ControlType::LazyNodeF32 => quote! {#name: self.#name.add_more_defs(ctx)? },
@@ -474,7 +488,7 @@ impl GenFinal for FieldTokensLazy {
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
-                e => panic!("need vec something {:?}", e),
+                e => panic!("lazy1 need vec something {:?}", e),
             };
 
             let new_ty = match wrapper {
@@ -533,7 +547,7 @@ impl GenFinal for FieldTokensLazy {
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name: self.#name.clone()}
                 }
-                e => panic!("need vec something {:?}", e),
+                e => panic!("lazy2 need vec something {:?}", e),
             }
 
             // match wrapper {
@@ -570,7 +584,7 @@ impl GenFinal for FieldTokensLazy {
                     let name = Self::new_ident(internal_type);
                     quote! {#name}
                 }
-                e => panic!("need vec something {:?}", e),
+                e => panic!("lazy3 need vec something {:?}", e),
             };
 
             quote! {Vec<#new_ty>}

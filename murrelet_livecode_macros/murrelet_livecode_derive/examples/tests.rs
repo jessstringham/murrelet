@@ -11,21 +11,23 @@ pub struct BasicTypes {
     a_number: f32,
     #[lerpable(func = "lerpify_vec2")]
     c_vec2: Vec2,
-    // b_color: MurreletColor,
+    #[lerpable(func = "lerpify_vec3")]
+    c_vec3: Vec3,
+    b_color: MurreletColor,
     something: Vec<f32>,
-    // #[lerpable(func = "lerpify_vec_vec2")]
-    // list_of_vec2: Vec<Vec2>,
+    #[lerpable(func = "lerpify_vec_vec2")]
+    list_of_vec2: Vec<Vec2>,
     // option_f32: Option<f32>,
     // option_vec2: Option<Vec2>,
 }
 
-fn empty_string() -> String {
-    String::new()
-}
+// fn empty_string() -> String {
+//     String::new()
+// }
 
-fn empty_string_lazy() -> String {
-    String::new()
-}
+// fn empty_string_lazy() -> String {
+//     String::new()
+// }
 
 // #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 // pub struct BasicTypesWithDefaults {
@@ -36,8 +38,8 @@ fn empty_string_lazy() -> String {
 //     #[lerpable(func = "lerpify_vec2")]
 //     c_vec2: Vec2,
 //     something: Vec<f32>,
-//     // #[lerpable(func = "lerpify_vec_vec2")]
-//     // list_of_vec2: Vec<Vec2>,
+//     // // #[lerpable(func = "lerpify_vec_vec2")]
+//     // // list_of_vec2: Vec<Vec2>,
 //     #[livecode(kind = "none", serde_default = "empty_string")]
 //     label: String,
 //     #[livecode(kind = "none")]
@@ -137,6 +139,9 @@ fn empty_string_lazy() -> String {
 
 // #[derive(Clone, Debug, Default, Livecode, Lerpable)]
 // pub struct NewTypeWithType(f32);
+
+// #[derive(Clone, Debug, Default, Livecode, Lerpable)]
+// pub struct NewTypeWithTypeVec2(#[lerpable(func = "lerpify_vec2")] Vec2);
 
 // #[derive(Clone, Debug, Default, Livecode, Lerpable)]
 // pub struct NewTypeWithVec(Vec<f32>);
