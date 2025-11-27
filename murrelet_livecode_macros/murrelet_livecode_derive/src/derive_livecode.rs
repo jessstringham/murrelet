@@ -7,6 +7,7 @@ pub(crate) fn update_to_control_ident(name: syn::Ident) -> syn::Ident {
     prefix_ident("Control", name)
 }
 
+#[derive(Debug)]
 pub(crate) struct LivecodeFieldType(pub ControlType);
 
 impl LivecodeFieldType {
@@ -18,6 +19,24 @@ impl LivecodeFieldType {
             ControlType::F32_3 => quote! {[murrelet_livecode::livecode::ControlF32; 3]},
             ControlType::Color => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
+            ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
+            // ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
+            ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
+        }
+    }
+
+    pub fn to_token_lazy(&self) -> TokenStream2 {
+        println!("laz");
+        println!("self {:?}", self.0);
+        match self.0 {
+            ControlType::F32_2 => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
+            ControlType::F32_3 => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
+            ControlType::Color => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
+            ControlType::ColorUnclamped => {
+                quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> }
+            }
+            ControlType::F32 => quote! {murrelet_livecode::livecode::ControlF32},
+            ControlType::Bool => quote! {murrelet_livecode::livecode::ControlBool},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
             // ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
@@ -615,6 +634,7 @@ impl GenFinal for FieldTokensLivecode {
 
     // Vec<CurveSegment>, Vec<f32>
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensLivecode {
+        println!("idents {:?}", idents);
         let serde = idents.serde();
         let name = idents.name();
         let orig_ty = idents.orig_ty();
@@ -622,21 +642,34 @@ impl GenFinal for FieldTokensLivecode {
         let parsed_type_info = ident_from_type(&orig_ty);
         let how_to_control_internal = parsed_type_info.how_to_control_internal();
         let wrapper = parsed_type_info.wrapper_type();
+        println!("wrapper {:?}", wrapper);
 
         let inner_is_lazy_struct = parsed_type_info
             .second_how_to
             .map(|h| h.is_lazy())
             .unwrap_or(false);
 
+        println!("inner_is_lazy_struct {:?}", inner_is_lazy_struct);
+
         let for_struct: TokenStream2 = {
             let src_type = match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => LivecodeFieldType(*c).to_token(),
+                HowToControlThis::WithType(_, c) => {
+                    println!("c");
+                    if inner_is_lazy_struct {
+                        LivecodeFieldType(*c).to_token_lazy()
+                    } else {
+                        LivecodeFieldType(*c).to_token()
+                    }
+                }
                 HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    println!("rs");
                     let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
                 HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    println!("rsl");
+
                     let original_internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
@@ -649,11 +682,15 @@ impl GenFinal for FieldTokensLivecode {
                 //     quote! { Vec<#lazy_inner> }
                 // }
                 HowToControlThis::WithNone(_) => {
+
+
                     let target_type = parsed_type_info.internal_type();
                     quote! {#target_type}
                 }
                 e => panic!("(livecode, recurse_struct_vec) need vec something {:?}", e),
             };
+
+            println!("src_type {:?}", src_type);
 
             let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
                 quote! {murrelet_livecode::types::DeserLazyControlVecElement}
@@ -669,6 +706,10 @@ impl GenFinal for FieldTokensLivecode {
                 VecDepth::VecVec => {
                     quote! { Vec<Vec<#vec_elem_type<#src_type>>> }
                 }
+                VecDepth::VecControlVec => {
+                    quote! { Vec<#vec_elem_type<Vec<#src_type>>> }
+
+                },
             };
 
             quote! {#serde #name: #new_ty}
@@ -705,6 +746,27 @@ impl GenFinal for FieldTokensLivecode {
                                             .into_iter()
                                             .flatten()
                                             .collect()
+                                    )
+                                }
+                                result
+                            }
+                        }
+                    }
+
+                    VecDepth::VecControlVec => {
+                        println!("HHHHHHH");
+                        quote! {
+                            #name: {
+                                let mut result = Vec::with_capacity(self.#name.len());
+                                for internal_row in &self.#name {
+                                    result.push(
+                                        internal_row.eval_and_expand_vec(w)
+                                        // internal_row.iter()
+                                        //     .map(|x| x.eval_and_expand_vec(w))
+                                        //     .collect::<Result<Vec<_>, _>>()?
+                                        //     .into_iter()
+                                        //     .flatten()
+                                        //     .collect()
                                     )
                                 }
                                 result
@@ -764,6 +826,41 @@ impl GenFinal for FieldTokensLivecode {
                             }
                         }
                     }
+                    VecDepth::VecControlVec => {
+                        if inner_is_lazy_struct {
+                                                            println!("HHH");
+
+                            quote! {
+                                #name: {
+                                    let mut result = Vec::with_capacity(self.#name.len());
+                                    for internal_row in &self.#name {
+                                        result.push(
+                                            internal_row
+                                                .iter()
+                                                .map(|x| x.to_control())
+                                                .collect::<Vec<_>>()
+                                        )
+                                    }
+                                    result
+                                }
+                            }
+                        } else {
+                            quote! {
+                                #name: {
+                                    let mut result = Vec::with_capacity(self.#name.len());
+                                    for internal_row in &self.#name {
+                                        result.push(
+                                            internal_row
+                                                .iter()
+                                                .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
+                                                .collect::<Vec<_>>()
+                                        )
+                                    }
+                                    result
+                                }
+                            }
+                        }
+                    }
                 }
             } else {
                 quote! {#name: self.#name.clone()}
@@ -790,6 +887,21 @@ impl GenFinal for FieldTokensLivecode {
                             }
                         }
                     }
+                    VecDepth::VecControlVec => {
+                                                        println!("HHHHH");
+
+                        quote! {
+                            {
+                                let mut result = Vec::with_capacity(self.#name.len());
+                                for internal_row in &self.#name {
+                                    result.extend(
+                                        internal_row.iter().map(|x| x.variable_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
+                                    );
+                                }
+                                result
+                            }
+                        }
+                    }
                 }
             } else {
                 quote! {vec![]}
@@ -804,6 +916,19 @@ impl GenFinal for FieldTokensLivecode {
                         quote! {self.#name.iter().map(|x| x.function_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter().collect::<Vec<_>>()}
                     }
                     VecDepth::VecVec => {
+                        quote! {
+                            {
+                                let mut result = Vec::with_capacity(self.#name.len());
+                                for internal_row in &self.#name {
+                                    result.extend(
+                                        internal_row.iter().map(|x| x.function_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
+                                    );
+                                }
+                                result
+                            }
+                        }
+                    }
+                    VecDepth::VecControlVec => {
                         quote! {
                             {
                                 let mut result = Vec::with_capacity(self.#name.len());
@@ -1008,10 +1133,24 @@ impl GenFinal for FieldTokensLivecode {
                 ),
             };
 
+            let inner_is_lazy_struct = parsed_type_info
+                .second_how_to
+                .map(|h| h.is_lazy())
+                .unwrap_or(false);
+
+
+            let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
+                quote! {murrelet_livecode::types::DeserLazyControlVecElement}
+            } else {
+                quote! {murrelet_livecode::types::ControlVecElement}
+            };
+
             let new_ty = match wrapper {
                 VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
                 VecDepth::Vec => quote! {Vec<#internal_type>},
                 VecDepth::VecVec => quote! {Vec<Vec<#internal_type>>},
+                VecDepth::VecControlVec => quote! { Vec<#vec_elem_type<Vec<#internal_type>>> }
+,
             };
             quote! {#serde #new_ty}
         };
@@ -1023,6 +1162,7 @@ impl GenFinal for FieldTokensLivecode {
                         quote! {self.0.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
                     }
                     VecDepth::VecVec => unimplemented!(),
+                    VecDepth::VecControlVec => unimplemented!()
                 }
             } else {
                 quote! {self.0.clone()}

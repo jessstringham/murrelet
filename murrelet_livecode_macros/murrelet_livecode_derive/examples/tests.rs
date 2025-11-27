@@ -8,13 +8,13 @@ use murrelet_livecode_derive::{Livecode, LivecodeOnly, NestEdit};
 
 #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypes {
-    a_number: f32,
-    #[lerpable(func = "lerpify_vec2")]
-    c_vec2: Vec2,
-    #[lerpable(func = "lerpify_vec3")]
-    c_vec3: Vec3,
-    b_color: MurreletColor,
-    something: Vec<f32>,
+    // a_number: f32,
+    // #[lerpable(func = "lerpify_vec2")]
+    // c_vec2: Vec2,
+    // #[lerpable(func = "lerpify_vec3")]
+    // c_vec3: Vec3,
+    // b_color: MurreletColor,
+    // something: Vec<f32>,
     #[lerpable(func = "lerpify_vec_vec2")]
     list_of_vec2: Vec<Vec2>,
     // option_f32: Option<f32>,

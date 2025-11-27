@@ -497,6 +497,11 @@ impl GenFinal for FieldTokensLazy {
                     quote! {Vec<murrelet_livecode::types::LazyControlVecElement<#internal_type>>}
                 }
                 VecDepth::VecVec => todo!(),
+                VecDepth::VecControlVec => {
+                    quote! { Vec<murrelet_livecode::types::LazyControlVecElement<Vec<#internal_type>>> }
+
+                },
+
             };
             quote! {#back_to_quote #name: #new_ty}
         };

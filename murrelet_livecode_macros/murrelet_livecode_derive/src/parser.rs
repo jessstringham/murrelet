@@ -826,7 +826,22 @@ impl DataFromType {
                     Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec)) => {
                         VecDepth::VecVec
                     }
-                    Some(_) => VecDepth::Vec,
+                    Some(_) => {
+
+                        let s = self.second_type.as_ref().map(|x| x.to_string()).clone();
+                        if s.unwrap().starts_with("LazyControlVecElement") {
+                            VecDepth::VecControlVec
+                        } else if matches!(self.third_how_to, Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec))) {
+                            VecDepth::VecControlVec
+                        }  else {
+
+
+                            println!("self.second {:?}", self.second_type);
+
+                            VecDepth::Vec
+                        }
+
+                    },
                     None => unreachable!("vec should have a type??"),
                 }
             }
@@ -835,9 +850,11 @@ impl DataFromType {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum VecDepth {
     NotAVec,
     Vec,
+    VecControlVec, // nested vec, but outside is a control vec
     VecVec,
 }
 

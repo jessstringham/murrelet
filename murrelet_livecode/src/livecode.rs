@@ -67,6 +67,16 @@ impl LivecodeFromWorld<MurreletColor> for [ControlF32; 4] {
     }
 }
 
+impl<Source, Target> LivecodeFromWorld<Vec<Target>> for Vec<Source>
+where
+    Source: LivecodeFromWorld<Target>,
+{
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>> {
+        self.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()
+    }
+
+}
+
 pub trait LivecodeToControl<ControlT> {
     fn to_control(&self) -> ControlT;
 }
