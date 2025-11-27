@@ -37,32 +37,32 @@ pub struct BasicTypesWithDefaults {
     #[livecode(serde_default = "0")]
     #[lerpable(func = "lerpify_vec2")]
     c_vec2_serde_default: Vec2,
-//     something: Vec<f32>,
+    something: Vec<f32>,
 //     // // #[lerpable(func = "lerpify_vec_vec2")]
 //     // // list_of_vec2: Vec<Vec2>,
-//     #[livecode(kind = "none", serde_default = "empty_string")]
-//     label: String,
-//     #[livecode(kind = "none")]
-//     #[lerpable(method = "skip")]
-//     b: HashMap<String, String>,
+    #[livecode(kind = "none", serde_default = "empty_string")]
+    label: String,
+    #[livecode(kind = "none")]
+    #[lerpable(method = "skip")]
+    b: HashMap<String, String>,
 }
 
-// #[derive(Debug, Clone, Livecode, Lerpable, Default)]
-// struct TestLazy {
-//     #[lerpable(method = "skip")]
-//     lazy: LazyBasicTypes,
-// }
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
+struct TestLazy {
+    #[lerpable(method = "skip")]
+    lazy: LazyBasicTypes,
+}
 
-// #[derive(Debug, Clone, Livecode, Lerpable, Default)]
-// enum EnumTest {
-//     #[default]
-//     A,
-//     B(TestLazy),
-//     C(#[lerpable(method = "skip")] LazyTestLazy),
-// }
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
+enum EnumTest {
+    #[default]
+    A,
+    B(TestLazy),
+    C(#[lerpable(method = "skip")] LazyTestLazy),
+}
 
-// #[derive(Debug, Clone, Livecode, Lerpable, Default)]
-// struct TestNewType(Vec<EnumTest>);
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
+struct TestNewType(Vec<EnumTest>);
 
 // #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 // struct SequencerTest {
@@ -137,16 +137,16 @@ pub struct BasicTypesWithDefaults {
 
 // // new type
 
-// #[derive(Clone, Debug, Default, Livecode, Lerpable)]
-// pub struct NewTypeWithType(f32);
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
+pub struct NewTypeWithType(f32);
 
-// #[derive(Clone, Debug, Default, Livecode, Lerpable)]
-// pub struct NewTypeWithTypeVec2(#[lerpable(func = "lerpify_vec2")] Vec2);
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
+pub struct NewTypeWithTypeVec2(#[lerpable(func = "lerpify_vec2")] Vec2);
 
-// #[derive(Clone, Debug, Default, Livecode, Lerpable)]
-// pub struct NewTypeWithVec(Vec<f32>);
+#[derive(Clone, Debug, Default, Livecode, Lerpable)]
+pub struct NewTypeWithVec(Vec<f32>);
 
-// #[derive(Clone, Debug, Default, LivecodeOnly)]
-// pub struct NewTypeWithStruct(BasicTypes);
+#[derive(Clone, Debug, Default, LivecodeOnly)]
+pub struct NewTypeWithStruct(BasicTypes);
 
 fn main() {}
