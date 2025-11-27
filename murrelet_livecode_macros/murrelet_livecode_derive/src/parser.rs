@@ -828,10 +828,8 @@ impl DataFromType {
                     }
                     Some(_) => {
 
-                        let s = self.second_type.as_ref().map(|x| x.to_string()).clone();
-                        if s.unwrap().starts_with("LazyControlVecElement") {
-                            VecDepth::VecControlVec
-                        } else if matches!(self.third_how_to, Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec))) {
+                        // let s = self.second_type.as_ref().map(|x| x.to_string()).clone();
+                        if matches!(self.third_how_to, Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec))) {
                             VecDepth::VecControlVec
                         }  else {
 

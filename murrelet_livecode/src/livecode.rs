@@ -422,20 +422,20 @@ pub fn _auto_default_f32_1_lazy() -> ControlLazyNodeF32 {
 
 // this is to handle the Vec<Lazy> ones, which goes up to length 4 for color
 // and doesn't care if there are too many
-pub fn _auto_default_f32_vec0_lazy() -> Vec<DeserLazyControlVecElement<ControlLazyNodeF32>> {
+pub fn _auto_default_f32_vec0_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
     vec![
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
     ]
 }
-pub fn _auto_default_f32_vec1_lazy() -> Vec<DeserLazyControlVecElement<ControlLazyNodeF32>> {
+pub fn _auto_default_f32_vec1_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
     vec![
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
-        DeserLazyControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
     ]
 }
 

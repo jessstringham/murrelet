@@ -682,8 +682,6 @@ impl GenFinal for FieldTokensLivecode {
                 //     quote! { Vec<#lazy_inner> }
                 // }
                 HowToControlThis::WithNone(_) => {
-
-
                     let target_type = parsed_type_info.internal_type();
                     quote! {#target_type}
                 }
@@ -708,8 +706,7 @@ impl GenFinal for FieldTokensLivecode {
                 }
                 VecDepth::VecControlVec => {
                     quote! { Vec<#vec_elem_type<Vec<#src_type>>> }
-
-                },
+                }
             };
 
             quote! {#serde #name: #new_ty}
@@ -720,13 +717,23 @@ impl GenFinal for FieldTokensLivecode {
                 match wrapper {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
-                        quote! {
-                        #name: self.#name.iter()
+                        // println!("HIII");
+                        if inner_is_lazy_struct {
+                            quote! {
+                                #name: self.#name.iter()
+                                    .map(|x| x.o(w))
+                                    .collect::<Result<Vec<_>, _>>()?
+
+                            }
+                        } else {
+                            quote! {
+                            #name: self.#name.iter()
                             .map(|x| x.eval_and_expand_vec(w))
                             .collect::<Result<Vec<_>, _>>()?
                             .into_iter()
                             .flatten()
                             .collect()}
+                        }
 
                         // quote! {
                         //     #name: self.#name.iter()
@@ -779,8 +786,9 @@ impl GenFinal for FieldTokensLivecode {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
                         if inner_is_lazy_struct {
+                            println!("SSS");
 
-                            quote! { #name: self.#name.iter().map(|x| murrelet_livecode::types::DeserLazyControlVecElement::raw(x.to_control())).collect::<Vec<_>>() }
+                            quote! { #name: self.#name.iter().map(|x| x.to_control()).collect::<Vec<_>>() }
                         } else {
                             quote! { #name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>() }
                         }
@@ -824,7 +832,7 @@ impl GenFinal for FieldTokensLivecode {
                     }
                     VecDepth::VecControlVec => {
                         if inner_is_lazy_struct {
-                                                            println!("HHaH");
+                            println!("HHaH");
 
                             quote! {
                                 #name: {
@@ -885,7 +893,7 @@ impl GenFinal for FieldTokensLivecode {
                         }
                     }
                     VecDepth::VecControlVec => {
-                                                        println!("HHHHH");
+                        println!("HHHHH");
 
                         quote! {
                             {
@@ -1138,7 +1146,6 @@ impl GenFinal for FieldTokensLivecode {
                 .map(|h| h.is_lazy())
                 .unwrap_or(false);
 
-
             let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
                 quote! {murrelet_livecode::types::DeserLazyControlVecElement}
             } else {
@@ -1149,8 +1156,7 @@ impl GenFinal for FieldTokensLivecode {
                 VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
                 VecDepth::Vec => quote! {Vec<#internal_type>},
                 VecDepth::VecVec => quote! {Vec<Vec<#internal_type>>},
-                VecDepth::VecControlVec => quote! { Vec<#vec_elem_type<Vec<#internal_type>>> }
-,
+                VecDepth::VecControlVec => quote! { Vec<#vec_elem_type<Vec<#internal_type>>> },
             };
             quote! {#serde #new_ty}
         };
@@ -1162,7 +1168,7 @@ impl GenFinal for FieldTokensLivecode {
                         quote! {self.0.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
                     }
                     VecDepth::VecVec => unimplemented!(),
-                    VecDepth::VecControlVec => unimplemented!()
+                    VecDepth::VecControlVec => unimplemented!(),
                 }
             } else {
                 quote! {self.0.clone()}
