@@ -232,19 +232,6 @@ impl<Source: Debug + Clone> DeserLazyControlVecElement<Source> {
         };
         Ok(a)
     }
-
-    // just to match the interface used by the derive macros for Vec fields
-    pub fn eval_and_expand_vec<Target: Debug + Clone>(
-        &self,
-        w: &LivecodeWorldState,
-    ) -> LivecodeResult<Vec<LazyControlVecElement<Target>>>
-    where
-        Source: LivecodeFromWorld<Target>,
-        Target: IsLazy,
-    {
-        let a = self.o(w)?;
-        Ok(vec![a])
-    }
 }
 
 // chatgpt

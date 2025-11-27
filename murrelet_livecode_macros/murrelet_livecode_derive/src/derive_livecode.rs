@@ -759,8 +759,12 @@ impl GenFinal for FieldTokensLivecode {
                             #name: {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
+
+                                    // Vec<LazyControlVecElement>
+                                    let item = internal_row.o(w)?;
+
                                     result.push(
-                                        internal_row.eval_and_expand_vec(w)
+                                        item
                                         // internal_row.iter()
                                         //     .map(|x| x.eval_and_expand_vec(w))
                                         //     .collect::<Result<Vec<_>, _>>()?
