@@ -38,13 +38,15 @@ pub struct BasicTypesWithDefaults {
     #[lerpable(func = "lerpify_vec2")]
     c_vec2_serde_default: Vec2,
     something: Vec<f32>,
-//     // // #[lerpable(func = "lerpify_vec_vec2")]
-//     // // list_of_vec2: Vec<Vec2>,
+    #[lerpable(func = "lerpify_vec_vec2")]
+    list_of_vec2: Vec<Vec2>,
     #[livecode(kind = "none", serde_default = "empty_string")]
     label: String,
     #[livecode(kind = "none")]
     #[lerpable(method = "skip")]
     b: HashMap<String, String>,
+    list_test: Vec<BasicTypes>
+
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable, Default)]

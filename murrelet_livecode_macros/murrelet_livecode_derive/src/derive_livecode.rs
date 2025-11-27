@@ -26,8 +26,6 @@ impl LivecodeFieldType {
     }
 
     pub fn to_token_lazy(&self) -> TokenStream2 {
-        println!("laz");
-        println!("self {:?}", self.0);
         match self.0 {
             ControlType::F32_2 => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
             ControlType::F32_3 => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
@@ -634,7 +632,6 @@ impl GenFinal for FieldTokensLivecode {
 
     // Vec<CurveSegment>, Vec<f32>
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensLivecode {
-        println!("idents {:?}", idents);
         let serde = idents.serde();
         let name = idents.name();
         let orig_ty = idents.orig_ty();
@@ -642,19 +639,15 @@ impl GenFinal for FieldTokensLivecode {
         let parsed_type_info = ident_from_type(&orig_ty);
         let how_to_control_internal = parsed_type_info.how_to_control_internal();
         let wrapper = parsed_type_info.wrapper_type();
-        println!("wrapper {:?}", wrapper);
 
         let inner_is_lazy_struct = parsed_type_info
             .second_how_to
             .map(|h| h.is_lazy())
             .unwrap_or(false);
 
-        println!("inner_is_lazy_struct {:?}", inner_is_lazy_struct);
-
         let for_struct: TokenStream2 = {
             let src_type = match how_to_control_internal {
                 HowToControlThis::WithType(_, c) => {
-                    println!("c");
                     if inner_is_lazy_struct {
                         LivecodeFieldType(*c).to_token_lazy()
                     } else {
@@ -662,14 +655,11 @@ impl GenFinal for FieldTokensLivecode {
                     }
                 }
                 HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
-                    println!("rs");
                     let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
                 HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
-                    println!("rsl");
-
                     let original_internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
@@ -688,7 +678,6 @@ impl GenFinal for FieldTokensLivecode {
                 e => panic!("(livecode, recurse_struct_vec) need vec something {:?}", e),
             };
 
-            println!("src_type {:?}", src_type);
 
             let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
                 quote! {murrelet_livecode::types::DeserLazyControlVecElement}
@@ -761,7 +750,6 @@ impl GenFinal for FieldTokensLivecode {
                     }
 
                     VecDepth::VecControlVec => {
-                        println!("HHHHHHH");
                         quote! {
                             #name: {
                                 let mut result = Vec::with_capacity(self.#name.len());
@@ -786,8 +774,6 @@ impl GenFinal for FieldTokensLivecode {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
                         if inner_is_lazy_struct {
-                            println!("SSS");
-
                             quote! { #name: self.#name.iter().map(|x| x.to_control()).collect::<Vec<_>>() }
                         } else {
                             quote! { #name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>() }
@@ -832,8 +818,6 @@ impl GenFinal for FieldTokensLivecode {
                     }
                     VecDepth::VecControlVec => {
                         if inner_is_lazy_struct {
-                            println!("HHaH");
-
                             quote! {
                                 #name: {
                                     let mut result = Vec::with_capacity(self.#name.len());
@@ -893,8 +877,6 @@ impl GenFinal for FieldTokensLivecode {
                         }
                     }
                     VecDepth::VecControlVec => {
-                        println!("HHHHH");
-
                         quote! {
                             {
                                 let mut result = Vec::with_capacity(self.#name.len());

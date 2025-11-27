@@ -14,7 +14,7 @@ use murrelet_gui::{CanMakeGUI, MurreletGUI};
 use murrelet_livecode::{
     lazy::ControlLazyNodeF32,
     livecode::ControlF32,
-    types::{ControlVecElement, DeserLazyControlVecElement},
+    types::ControlVecElement,
 };
 use murrelet_livecode_derive::Livecode;
 use styleconf::StyleConf;
@@ -28,12 +28,12 @@ fn _black() -> [ControlF32; 4] {
     ]
 }
 
-fn _black_lazy() -> Vec<DeserLazyControlVecElement<ControlLazyNodeF32>> {
+fn _black_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
     vec![
-        DeserLazyControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
-        DeserLazyControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
-        DeserLazyControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
-        DeserLazyControlVecElement::Single(ControlLazyNodeF32::Float(1.0)),
+        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
+        ControlVecElement::Single(ControlLazyNodeF32::Float(1.0)),
     ]
 }
 

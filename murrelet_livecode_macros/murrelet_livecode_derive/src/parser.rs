@@ -792,7 +792,7 @@ impl DataFromType {
             main_how_to,
             second_how_to,
             third_how_to,
-            fourth_how_to
+            fourth_how_to,
         }
     }
 
@@ -827,19 +827,16 @@ impl DataFromType {
                         VecDepth::VecVec
                     }
                     Some(_) => {
-
                         // let s = self.second_type.as_ref().map(|x| x.to_string()).clone();
-                        if matches!(self.third_how_to, Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec))) {
+                        if matches!(
+                            self.third_how_to,
+                            Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec))
+                        ) {
                             VecDepth::VecControlVec
-                        }  else {
-
-
-                            println!("self.second {:?}", self.second_type);
-
+                        } else {
                             VecDepth::Vec
                         }
-
-                    },
+                    }
                     None => unreachable!("vec should have a type??"),
                 }
             }

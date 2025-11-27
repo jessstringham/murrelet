@@ -200,7 +200,6 @@ impl<Source: Clone + Debug> DeserLazyControlVecElementRepeat<Source> {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum DeserLazyControlVecElement<Source>
 where
     Source: Clone + Debug,
@@ -274,6 +273,40 @@ where
             "ControlVecElement {}",
             errors.join(" ")
         )))
+    }
+}
+
+
+#[cfg(feature = "schemars")]
+impl<Source> schemars::JsonSchema for DeserLazyControlVecElement<Source>
+where
+    Source: schemars::JsonSchema + Clone + Debug,
+{
+    fn schema_name() -> String {
+        format!("LazyControlVecElement_{}", Source::schema_name())
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::{Schema, SchemaObject, SubschemaValidation};
+        // Variant 1: plain Source (your Single case without a wrapper key)
+        let single_schema = Source::json_schema(gen);
+        // Variant 2: the repeat object
+        let repeat_schema = <DeserLazyControlVecElementRepeat<Source>>::json_schema(gen);
+
+        Schema::Object(SchemaObject {
+            subschemas: Some(Box::new(SubschemaValidation {
+                one_of: Some(vec![single_schema, repeat_schema]),
+                ..Default::default()
+            })),
+            metadata: Some(Box::new(schemars::schema::Metadata {
+                description: Some(
+                    "Either a single element (inline) OR a repeat object { repeat, prefix?, what }"
+                        .to_string(),
+                ),
+                ..Default::default()
+            })),
+            ..Default::default()
+        })
     }
 }
 
