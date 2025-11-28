@@ -220,6 +220,10 @@ impl LivecodeWorldState {
             builtins_disabled: false,
         }
     }
+
+    // pub(crate) fn set_val(&mut self, name: &str, val: LivecodeValue) {
+    //     self.update_with_defs(MixedEvalDefs::new_simple(name, val));
+    // }
 }
 
 #[derive(Debug, Clone)]

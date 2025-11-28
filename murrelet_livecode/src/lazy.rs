@@ -95,6 +95,7 @@ impl LazyNodeF32Inner {
         let c = self.clone();
         c.add_expr_values(more_defs.expr_vals())
 
+
         // println!("dropping contexts...");
         // c.world
         //     .update_with_defs(MixedEvalDefsRef::new(more_defs.clone()));

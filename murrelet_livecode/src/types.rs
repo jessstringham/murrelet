@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, IdxInRange2d};
+use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -72,6 +72,14 @@ pub type LivecodeResult<T> = Result<T, LivecodeError>;
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct AdditionalContextNode(#[cfg_attr(feature = "schemars", schemars(with = "String"))] Node);
+
+fn _default_ctx() -> AdditionalContextNode {
+    AdditionalContextNode::new_dummy()
+}
+
+fn _default_ctx_lazy() -> AdditionalContextNode {
+    AdditionalContextNode::new_dummy()
+}
 
 impl Default for AdditionalContextNode {
     fn default() -> Self {
@@ -177,6 +185,8 @@ impl DeserLazyControlVecElementRepeatMethod {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct DeserLazyControlVecElementRepeat<Source: Clone + Debug> {
     repeat: DeserLazyControlVecElementRepeatMethod,
+    #[serde(default = "_default_ctx")]
+    ctx: AdditionalContextNode,
     prefix: String,
     what: Vec<DeserLazyControlVecElement<Source>>,
 }
@@ -193,6 +203,7 @@ impl<Source: Clone + Debug> DeserLazyControlVecElementRepeat<Source> {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(LazyVecElementRepeat {
             repeat: self.repeat.o(w)?,
+            ctx: self.ctx.clone(),
             prefix: self.prefix.clone(),
             what,
         })
@@ -276,7 +287,6 @@ where
     }
 }
 
-
 #[cfg(feature = "schemars")]
 impl<Source> schemars::JsonSchema for DeserLazyControlVecElement<Source>
 where
@@ -353,6 +363,7 @@ impl LazyVecElementRepeatMethod {
 #[derive(Debug, Clone)]
 pub struct LazyVecElementRepeat<Source: Clone + Debug + IsLazy> {
     repeat: LazyVecElementRepeatMethod,
+    ctx: AdditionalContextNode,
     prefix: String,
     what: Vec<LazyControlVecElement<Source>>,
 }
@@ -368,6 +379,7 @@ impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
 
         for idx in self.repeat.iter(ctx)? {
             let mut ctx = ctx.clone();
+            ctx.add_node(self.ctx.clone());
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             ctx.set_vals(expr.with_prefix(&prefix));
 
@@ -418,6 +430,7 @@ where
                     repeat,
                     prefix: rep.prefix.clone(),
                     what,
+                    ctx: rep.ctx.clone(),
                 })
             }
         }
@@ -485,7 +498,11 @@ where
 }
 
 impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
-    pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
+    pub fn _eval_and_expand_vec<Target>(
+        &self,
+        w: &LivecodeWorldState,
+        offset: usize,
+    ) -> LivecodeResult<(usize, Vec<Target>)>
     where
         Source: LivecodeFromWorld<Target>,
     {
@@ -497,24 +514,38 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
             format!("{}_", self.prefix)
         };
 
+        let mut offset = offset;
+
         for idx in self.repeat.iter(w)? {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
-            let new_w = w.clone_with_vals(expr, &prefix);
+            let mut new_w = w.clone_with_vals(expr, &prefix);
 
             for src in &self.what {
                 match src {
                     ControlVecElement::Single(c) => {
+                        // just update it and overwrite it...
+                        // new_w.set_val("vseed", LivecodeValue::float(offset as f32));
                         let o = c.o(&new_w)?;
                         result.push(o);
+                        offset += 1;
                     }
                     ControlVecElement::Repeat(c) => {
-                        let o = c.eval_and_expand_vec(&new_w)?;
+                        let (new_offset, o) = c._eval_and_expand_vec(&new_w, offset)?;
                         result.extend(o.into_iter());
+                        offset += new_offset;
                     }
                 }
             }
         }
-        Ok(result)
+        Ok((offset, result))
+    }
+
+    pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
+    where
+        Source: LivecodeFromWorld<Target>,
+    {
+        let (_, a) = self._eval_and_expand_vec(w, 0)?;
+        Ok(a)
     }
 }
 
