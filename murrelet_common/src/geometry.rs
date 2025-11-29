@@ -708,6 +708,10 @@ impl PointToPoint {
     pub fn end_spot(&self) -> SpotOnCurve {
         SpotOnCurve::new(self.end, self.angle())
     }
+
+    pub fn flip(&self) -> PointToPoint {
+        PointToPoint::new(self.end, self.start)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
