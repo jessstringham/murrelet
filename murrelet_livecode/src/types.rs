@@ -378,25 +378,57 @@ impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
         };
 
         for idx in self.repeat.iter(ctx)? {
-            let mut ctx = ctx.clone();
-            ctx.add_node(self.ctx.clone());
+            let mut scoped_ctx = ctx.clone();
+            scoped_ctx.add_node(self.ctx.clone());
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
-            ctx.set_vals(expr.with_prefix(&prefix));
+            scoped_ctx.set_vals(expr.with_prefix(&prefix));
 
             for src in &self.what {
                 match src {
                     LazyControlVecElement::Single(c) => {
-                        // let o = c.eval_lazy(&ctx)?;
-                        result.push(c.clone());
+                        result.push(c.with_more_defs(&scoped_ctx)?);
                     }
                     LazyControlVecElement::Repeat(c) => {
-                        let o = c.lazy_expand_vec(&ctx)?;
-                        result.extend(o.into_iter());
+                        let mut nested = c.lazy_expand_vec(&scoped_ctx)?;
+                        result.append(&mut nested);
                     }
                 }
             }
         }
+
+        // for idx in self.repeat.iter(ctx)? {
+        //     let mut ctx = ctx.clone();
+        //     ctx.add_node(self.ctx.clone());
+        //     let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
+        //     ctx.set_vals(expr.with_prefix(&prefix));
+
+        //     for src in &self.what {
+        //         match src {
+        //             LazyControlVecElement::Single(c) => {
+        //                 // let o = c.eval_lazy(&ctx)?;
+        //                 result.push(c.clone());
+        //             }
+        //             LazyControlVecElement::Repeat(c) => {
+        //                 let o = c.lazy_expand_vec(&ctx)?;
+        //                 result.extend(o.into_iter());
+        //             }
+        //         }
+        //     }
+        // }
         Ok(result)
+    }
+
+    pub fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
+        Ok(Self {
+            repeat: self.repeat.clone(),
+            ctx: self.ctx.clone(),
+            prefix: self.prefix.clone(),
+            what: self
+                .what
+                .iter()
+                .map(|elem| elem.with_more_defs(ctx))
+                .collect::<LivecodeResult<Vec<_>>>()?,
+        })
     }
 }
 
@@ -634,6 +666,17 @@ where
 
         // Then evaluate each inner lazy to its final type
         expanded.into_iter().map(|s| s.eval_lazy(ctx)).collect()
+    }
+
+    fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
+        Ok(match self {
+            LazyControlVecElement::Single(s) => {
+                LazyControlVecElement::Single(s.with_more_defs(ctx)?)
+            }
+            LazyControlVecElement::Repeat(rep) => {
+                LazyControlVecElement::Repeat(rep.with_more_defs(ctx)?)
+            }
+        })
     }
 }
 

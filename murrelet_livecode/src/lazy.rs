@@ -95,7 +95,6 @@ impl LazyNodeF32Inner {
         let c = self.clone();
         c.add_expr_values(more_defs.expr_vals())
 
-
         // println!("dropping contexts...");
         // c.world
         //     .update_with_defs(MixedEvalDefsRef::new(more_defs.clone()));
@@ -247,11 +246,13 @@ impl Lerpable for LazyNodeF32 {
 
 pub trait IsLazy
 where
-    Self: Sized,
+    Self: Sized + Clone,
 {
     type Target;
 
     fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target>;
+
+    fn with_more_defs(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<Self>;
 
     // without a _, like unitcell..
     fn eval_idx_(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<Self::Target> {
@@ -271,6 +272,10 @@ impl IsLazy for LazyNodeF32 {
     fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<f32> {
         self.eval_with_ctx(expr)
     }
+
+    fn with_more_defs(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<Self> {
+        self.add_more_defs(more_defs)
+    }
 }
 
 impl<Source, VecElemTarget> IsLazy for Vec<Source>
@@ -280,6 +285,12 @@ where
     type Target = Vec<VecElemTarget>;
     fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Vec<VecElemTarget>> {
         self.iter().map(|x| x.eval_lazy(expr)).collect()
+    }
+
+    fn with_more_defs(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<Self> {
+        self.iter()
+            .map(|item| item.with_more_defs(more_defs))
+            .collect::<LivecodeResult<Vec<_>>>()
     }
 }
 

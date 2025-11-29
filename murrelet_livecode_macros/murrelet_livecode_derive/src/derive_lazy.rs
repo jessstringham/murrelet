@@ -206,6 +206,7 @@ impl LazyFieldType {
 pub(crate) struct FieldTokensLazy {
     pub(crate) for_struct: TokenStream2,
     pub(crate) for_world: TokenStream2,
+    pub(crate) for_more_defs: TokenStream2,
 }
 impl GenFinal for FieldTokensLazy {
     fn make_newtype_struct_final(
@@ -218,6 +219,7 @@ impl GenFinal for FieldTokensLazy {
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
+        let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
 
         quote! {
             #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
@@ -227,6 +229,9 @@ impl GenFinal for FieldTokensLazy {
                 type Target = #name;
                 fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
+                }
+                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<Self> {
+                    Ok(Self(#(#for_more_defs,)*))
                 }
             }
 
@@ -240,6 +245,7 @@ impl GenFinal for FieldTokensLazy {
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
+        let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
 
         quote! {
             #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
@@ -254,6 +260,12 @@ impl GenFinal for FieldTokensLazy {
                         #(#for_world,)*
                     })
                 }
+
+                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<Self> {
+                    Ok(Self {
+                        #(#for_more_defs,)*
+                    })
+                }
             }
         }
     }
@@ -266,6 +278,7 @@ impl GenFinal for FieldTokensLazy {
 
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
+        let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
 
         quote! {
             #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
@@ -283,6 +296,13 @@ impl GenFinal for FieldTokensLazy {
                     Ok(match self {
                         #new_enum_ident::DefaultNoop => panic!("fell back to default"), // can i just remove default?
                         #(#for_world,)*
+                    })
+                }
+
+                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<Self> {
+                    Ok(match self {
+                        #new_enum_ident::DefaultNoop => #new_enum_ident::DefaultNoop,
+                        #(#for_more_defs,)*
                     })
                 }
             }
@@ -303,9 +323,14 @@ impl GenFinal for FieldTokensLazy {
             quote! { self.0.clone() }
         };
 
+        let for_more_defs = {
+            quote! { self.0.with_more_defs(ctx)? }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -326,9 +351,14 @@ impl GenFinal for FieldTokensLazy {
             quote! { self.0.eval_lazy(ctx)? }
         };
 
+        let for_more_defs = {
+            quote! { self.0.for_more_defs(ctx)? }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -342,9 +372,14 @@ impl GenFinal for FieldTokensLazy {
 
         let for_world = LazyFieldType(ctrl).for_newtype_world(idents.clone());
 
+        let for_more_defs = {
+            quote! { self.0.with_more_defs(ctx)? }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -383,9 +418,16 @@ impl GenFinal for FieldTokensLazy {
             quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.eval_lazy(ctx)?) }
         };
 
+        let for_more_defs = if is_lazy {
+            quote! { #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.clone()) }
+        } else {
+            quote! { #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.with_more_defs(ctx)?) }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -401,9 +443,14 @@ impl GenFinal for FieldTokensLazy {
             quote! { #new_enum_ident::#variant_ident => #name::#variant_ident }
         };
 
+        let for_more_defs: TokenStream2 = {
+            quote! { #new_enum_ident::#variant_ident => #new_enum_ident::#variant_ident }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -419,9 +466,14 @@ impl GenFinal for FieldTokensLazy {
             quote! {#name: self.#name.clone()}
         };
 
+        let for_more_defs: TokenStream2 = {
+            quote! { #name: self.#name.clone() }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -438,9 +490,15 @@ impl GenFinal for FieldTokensLazy {
 
         let for_world = LazyFieldType(ctrl).for_world(idents.clone());
 
+        let for_world = LazyFieldType(ctrl).for_world(idents.clone());
+        let for_more_defs = {
+            quote! { #name: self.#name.with_more_defs(ctx)? }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -458,10 +516,14 @@ impl GenFinal for FieldTokensLazy {
         };
 
         let for_world = LazyFieldType(ctrl).for_world_option(idents.clone());
+        let for_more_defs = {
+            quote! { #name: if let Some(value) = &self.#name { Some(value.with_more_defs(ctx)?) } else { None } }
+        };
 
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -499,9 +561,7 @@ impl GenFinal for FieldTokensLazy {
                 VecDepth::VecVec => todo!(),
                 VecDepth::VecControlVec => {
                     quote! { Vec<murrelet_livecode::types::LazyControlVecElement<Vec<#internal_type>>> }
-
-                },
-
+                }
             };
             quote! {#back_to_quote #name: #new_ty}
         };
@@ -564,9 +624,17 @@ impl GenFinal for FieldTokensLazy {
             // }
         };
 
+        let for_more_defs = quote! {
+            #name: self.#name
+                .iter()
+                .map(|item| item.with_more_defs(ctx))
+                .collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -597,10 +665,14 @@ impl GenFinal for FieldTokensLazy {
         let for_world = {
             quote! {self.0.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
         };
+        let for_more_defs = {
+            quote! { self.0.iter().map(|x| x.with_more_defs(ctx)).collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()? }
+        };
 
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -646,9 +718,14 @@ impl GenFinal for FieldTokensLazy {
             }
         };
 
+        let for_more_defs = {
+            quote! { #name: self.#name.clone() }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
@@ -671,9 +748,14 @@ impl GenFinal for FieldTokensLazy {
             quote! {#name: self.#name.eval_lazy(ctx)?}
         };
 
+        let for_more_defs = {
+            quote! { #name: self.#name.with_more_defs(ctx)? }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
+            for_more_defs,
         }
     }
 
