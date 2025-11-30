@@ -418,6 +418,13 @@ impl Rect {
     pub fn xy(&self) -> Vec2 {
         self.xy
     }
+
+    pub fn pos(&self, s: Vec2) -> Vec2 {
+        vec2(
+            (s.x - self.left()) / self.w(),
+            (s.y - self.bottom()) / self.h(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

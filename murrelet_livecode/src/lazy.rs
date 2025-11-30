@@ -3,7 +3,7 @@ use std::sync::Arc;
 use evalexpr::Node;
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, MurreletColor};
+use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
 use serde::Deserialize;
 
 use crate::{
@@ -235,6 +235,16 @@ impl LazyNodeF32 {
             LazyNodeF32::Node(c) => Ok(c.build_ctx().variable_names()),
             LazyNodeF32::NoCtxNode(_) => Err(LivecodeError::Raw("no ctx".to_owned())),
         }
+    }
+
+    pub fn eval_with_xy(&self, xy: glam::Vec2) -> LivecodeResult<f32> {
+        let expr =
+            ExprWorldContextValues::new(vec![
+                ("x".to_string(), LivecodeValue::float(xy.x)),
+                ("y".to_string(), LivecodeValue::float(xy.y)),
+            ]);
+
+        self.eval_with_ctx(&expr.to_mixed_defs())
     }
 }
 
