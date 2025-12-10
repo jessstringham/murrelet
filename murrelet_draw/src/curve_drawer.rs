@@ -3,6 +3,7 @@ use itertools::Itertools;
 use lerpable::Lerpable;
 use lyon::{geom::CubicBezierSegment, path::Path};
 use murrelet_common::*;
+use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 use murrelet_livecode_derive::*;
 use serde::{Deserialize, Serialize};
 use svg::node::element::path::Data;
@@ -12,9 +13,8 @@ use crate::{
     newtypes::*,
     svg::glam_to_lyon,
     tesselate::{
-        cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
-        flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, ToVecVec2,
-    },
+        ToVecVec2, cubic_bezier_path_to_lyon, flatten_cubic_bezier_path, flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2
+    }, transform2d::Transform2d,
 };
 
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
@@ -289,6 +289,21 @@ impl CurveDrawer {
             })
             .sum()
     }
+
+    pub(crate) fn maybe_transform(&self, transform: &Transform2d) -> LivecodeResult<Self> {
+        let mut segments = vec![];
+
+        if !transform.is_similarity_transform() {
+            return Err(LivecodeError::raw("not a similarity transform"))
+        }
+
+        for cd in &self.segments {
+            // we've ran our check, so we can just do it now..
+            segments.push(cd.force_transform(transform)?);
+        }
+
+        Ok(Self::new(segments, self.closed))
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -455,6 +470,20 @@ impl CurveSegment {
     fn cubic(c: CubicBezier) -> CurveSegment {
         Self::CubicBezier(CurveCubicBezier::from_cubic(c))
     }
+
+    fn force_transform(&self, transform: &Transform2d) -> Self {
+        match self {
+            CurveSegment::Arc(curve_arc) => {
+                curve_arc.force_transform(transform)
+            },
+            CurveSegment::Points(curve_points) => {
+                curve_points.force_transform(transform)
+            },
+            CurveSegment::CubicBezier(curve_cubic_bezier) => {
+                curve_cubic_bezier.force_transform(transform)
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -596,6 +625,16 @@ impl CurveArc {
             Some((semi_circle1, semi_circle2))
         } else {
             None
+        }
+    }
+
+    // you should make sure that it's a similarity trnasform before you do this!
+    fn force_transform(&self, transform: &Transform2d) -> Self {
+        Self {
+            loc: transform.transform_vec2(self.loc),
+            radius: transform.approx_scale() * self.radius,
+            start_pi: transform.approx_rotate() + self.start_pi,
+            end_pi: transform.approx_rotate() + self.end_pi,
         }
     }
 }
@@ -837,6 +876,17 @@ macro_rules! curve_drawers {
         let mut v: Vec<murrelet_draw::curve_drawer::CurveDrawer> = Vec::new();
         $(
             v.extend($expr.to_curve_drawers());
+        )*
+        v
+    }};
+}
+
+#[macro_export]
+macro_rules! mixed_drawable {
+    ($($expr:expr),* $(,)?) => {{
+        let mut v: Vec<murrelet_draw::drawable::MixedDrawableShape> = Vec::new();
+        $(
+            v.extend($expr.to_mixed_drawables());
         )*
         v
     }};

@@ -145,4 +145,13 @@ impl CubicBezier {
             self.tangent_at_pct(pct)
         }
     }
+
+    pub fn apply_vec2_tranform(&self, f: impl Fn(Vec2) -> Vec2) -> Self {
+        Self {
+            from: f(self.from),
+            ctrl1: f(self.ctrl1),
+            ctrl2: f(self.ctrl2),
+            to: f(self.to),
+        }
+    }
 }

@@ -321,7 +321,13 @@ impl GetSvgAttributes for MurreletStyle {
                     v.add("stroke-linejoin", "round");
                     v.add("stroke-linecap", "round");
 
-                    let sc = self.color.as_color();
+                    // let sc = self.color.as_color();
+                    let sc = match self.stroke_color {
+                        MurreletColorStyle::Color(_) | MurreletColorStyle::RgbaFill(_) => {
+                            self.stroke_color.as_color()
+                        }
+                        _ => self.color.as_color(),
+                    };
                     v.add("stroke", &sc.hex());
                     if sc.alpha() < 1.0 {
                         v.add("stroke-opacity", &format!("{}", sc.alpha()));
@@ -336,7 +342,13 @@ impl GetSvgAttributes for MurreletStyle {
                     v.add("stroke-linejoin", "round");
                     v.add("stroke-linecap", "round");
 
-                    let sc = self.color.as_color();
+                    // let sc = self.color.as_color();
+                    let sc = match self.stroke_color {
+                        MurreletColorStyle::Color(_) | MurreletColorStyle::RgbaFill(_) => {
+                            self.stroke_color.as_color()
+                        }
+                        _ => self.color.as_color(),
+                    };
                     v.add("stroke", &sc.hex());
                     if sc.alpha() < 1.0 {
                         v.add("stroke-opacity", &format!("{}", sc.alpha()));

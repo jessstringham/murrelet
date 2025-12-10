@@ -275,6 +275,7 @@ impl MurreletStyleOutlined {
             closed: true,
             filled: false,
             color: MurreletColorStyle::color(self.color),
+            stroke_color: MurreletColorStyle::color(self.color), // should this be stroke color?
             stroke_weight: self.stroke_weight,
             ..Default::default()
         }
@@ -364,6 +365,7 @@ impl MurreletStyleLined {
             closed: false,
             filled: false,
             color: MurreletColorStyle::color(self.color),
+            stroke_color: MurreletColorStyle::color(self.color),
             stroke_weight: self.stroke_weight,
             ..Default::default()
         }
