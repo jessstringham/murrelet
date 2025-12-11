@@ -13,8 +13,10 @@ use crate::{
     newtypes::*,
     svg::glam_to_lyon,
     tesselate::{
-        ToVecVec2, cubic_bezier_path_to_lyon, flatten_cubic_bezier_path, flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2
-    }, transform2d::Transform2d,
+        cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
+        flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, ToVecVec2,
+    },
+    transform2d::Transform2d,
 };
 
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
@@ -294,12 +296,12 @@ impl CurveDrawer {
         let mut segments = vec![];
 
         if !transform.is_similarity_transform() {
-            return Err(LivecodeError::raw("not a similarity transform"))
+            return Err(LivecodeError::raw("not a similarity transform"));
         }
 
         for cd in &self.segments {
             // we've ran our check, so we can just do it now..
-            segments.push(cd.force_transform(transform)?);
+            segments.push(cd.force_transform(transform));
         }
 
         Ok(Self::new(segments, self.closed))
@@ -473,15 +475,13 @@ impl CurveSegment {
 
     fn force_transform(&self, transform: &Transform2d) -> Self {
         match self {
-            CurveSegment::Arc(curve_arc) => {
-                curve_arc.force_transform(transform)
-            },
+            CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.force_transform(transform)),
             CurveSegment::Points(curve_points) => {
-                curve_points.force_transform(transform)
-            },
+                CurveSegment::Points(curve_points.force_transform(transform))
+            }
             CurveSegment::CubicBezier(curve_cubic_bezier) => {
-                curve_cubic_bezier.force_transform(transform)
-            },
+                CurveSegment::CubicBezier(curve_cubic_bezier.force_transform(transform))
+            }
         }
     }
 }
@@ -700,6 +700,13 @@ impl CurveCubicBezier {
     pub fn to_pts(&self, tolerance: f32) -> CurveSegment {
         CurveSegment::new_simple_points(self.flatten(tolerance))
     }
+
+    fn force_transform(&self, transform: &Transform2d) -> CurveCubicBezier {
+        CurveCubicBezier::from_cubic(
+            self.to_cubic()
+                .apply_vec2_tranform(|x| transform.transform_vec2(x)),
+        )
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -727,6 +734,12 @@ impl CurvePoints {
 
     pub fn reverse(&self) -> Self {
         CurvePoints::new(self.points.iter().cloned().rev().collect_vec())
+    }
+
+    fn force_transform(&self, transform: &Transform2d) -> CurvePoints {
+        CurvePoints {
+            points: transform.transform_many_vec2(self.points()).clone_to_vec(),
+        }
     }
 }
 

@@ -249,6 +249,8 @@ where
     }
 }
 
+
+
 pub fn cubic_bezier(start: Vec2, ctrl1: Vec2, ctrl2: Vec2, to: Vec2, t: f32) -> Vec2 {
     let a = lerp(start, ctrl1, t);
     let b = lerp(ctrl1, ctrl2, t);

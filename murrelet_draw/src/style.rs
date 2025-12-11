@@ -11,11 +11,7 @@ use lerpable::Lerpable;
 use md5::{Digest, Md5};
 use murrelet_common::*;
 use murrelet_gui::{CanMakeGUI, MurreletGUI};
-use murrelet_livecode::{
-    lazy::ControlLazyNodeF32,
-    livecode::ControlF32,
-    types::ControlVecElement,
-};
+use murrelet_livecode::{lazy::ControlLazyNodeF32, livecode::ControlF32, types::ControlVecElement};
 use murrelet_livecode_derive::Livecode;
 use styleconf::StyleConf;
 

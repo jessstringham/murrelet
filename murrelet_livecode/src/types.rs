@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue};
+use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, print_expect};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -42,6 +42,23 @@ impl LivecodeError {
         Self::Raw(s.to_string())
     }
 }
+
+pub trait IterUnwrapOrPrint<T> {
+    fn iter_unwrap<U, F>(&self, err: &str, f: F) -> Vec<U>
+    where
+        F: Fn(&T) -> LivecodeResult<U>;
+}
+
+impl<T> IterUnwrapOrPrint<T> for Vec<T> {
+    fn iter_unwrap<U, F>(&self, err: &str, f: F) -> Vec<U>
+    where
+        F: Fn(&T) -> LivecodeResult<U>,
+    {
+        let res: LivecodeResult<Vec<U>> = self.iter().map(|d| f(d)).collect();
+        print_expect(res, err).unwrap_or(vec![])
+    }
+}
+
 // impl std::fmt::Display for LivecodeError {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         match self {
