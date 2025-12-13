@@ -729,6 +729,11 @@ impl LineFromVecAndLen {
         }
     }
 
+    pub fn new_centered<L: IsLength>(start: Vec2, angle: Angle, length: L) -> Self {
+        let first_pt = Self::new(start, angle, -0.5 * length.len()).to_last_point();
+        Self::new(first_pt, angle, length)
+    }
+
     pub fn to_last_point(&self) -> Vec2 {
         self.start + self.length.len() * self.angle.to_norm_dir()
     }

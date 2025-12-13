@@ -14,7 +14,8 @@ use crate::{
     svg::glam_to_lyon,
     tesselate::{
         cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
-        flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, ToVecVec2,
+        flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, segment_arc, segment_vec,
+        ToVecVec2,
     },
     transform2d::Transform2d,
 };
@@ -484,9 +485,41 @@ impl CurveSegment {
             }
         }
     }
+
+    pub fn extend_before(&self, before_amount: f32) -> Self {
+        let mut c = self.clone();
+        match &mut c {
+            CurveSegment::Arc(curve_arc) => {
+                let rads = Angle::new(before_amount / curve_arc.radius);
+                curve_arc.start_pi = curve_arc.start_pi - rads;
+            }
+            CurveSegment::Points(curve_points) => todo!(),
+            CurveSegment::CubicBezier(curve_cubic_bezier) => todo!(),
+        }
+
+        c
+    }
+
+    pub fn extend_after(&self, after_amount: f32) -> Self {
+        let mut c = self.clone();
+        match &mut c {
+            CurveSegment::Arc(curve_arc) => {
+                let rads = Angle::new(after_amount / curve_arc.radius);
+                curve_arc.end_pi = curve_arc.end_pi + rads;
+            }
+            CurveSegment::Points(curve_points) => todo!(),
+            CurveSegment::CubicBezier(curve_cubic_bezier) => todo!(),
+        }
+
+        c
+    }
+
+    pub fn extend_both(&self, before_amount: f32, after_amount: f32) -> Self {
+        self.extend_before(before_amount).extend_after(after_amount)
+    }
 }
 
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Copy, Livecode, Lerpable)]
 pub struct CurveArc {
     #[livecode(serde_default = "zeros")]
     pub loc: Vec2, // center of circle
@@ -636,6 +669,14 @@ impl CurveArc {
             start_pi: transform.approx_rotate() + self.start_pi,
             end_pi: transform.approx_rotate() + self.end_pi,
         }
+    }
+
+    pub fn length(&self) -> f32 {
+        self.radius * (self.end_pi - self.start_pi).angle()
+    }
+
+    pub fn start_pi(&self) -> AnglePi {
+        self.start_pi
     }
 }
 
@@ -789,6 +830,12 @@ impl ToCurveSegment for SpotOnCurve {
     }
 }
 
+impl ToCurveSegment for PointToPoint {
+    fn to_segment(&self) -> CurveSegment {
+        CurveSegment::new_simple_points(vec![self.start(), self.end()])
+    }
+}
+
 pub trait ToCurveDrawer {
     fn to_segments(&self) -> Vec<CurveSegment>;
     fn to_cd_closed(&self) -> CurveDrawer {
@@ -796,6 +843,51 @@ pub trait ToCurveDrawer {
     }
     fn to_cd_open(&self) -> CurveDrawer {
         CurveDrawer::new(self.to_segments(), false)
+    }
+
+    // trying out utility functions
+    fn to_approx_center(&self) -> Vec2 {
+        // turn it into rough points and then find the center.
+        // i'm not sure how to deal with tiny/big things..
+        // i think we can assume it's not closed, because closing it won't
+        // change the bounds
+        let pts = self.to_rough_points(10.0);
+        let bm = BoundMetric::new_from_points(&pts);
+        bm.center()
+    }
+
+    fn to_approx_point(&self) -> Vec2 {
+        let pts = self.to_rough_points(10.0);
+        if pts.is_empty() {
+            return vec2(0.0, 0.0);
+        }
+        pts[pts.len() / 2]
+    }
+
+    // this one isn't evenly spaced
+    fn to_rough_points(&self, approx_spacing: f32) -> Vec<Vec2> {
+        let mut result = vec![];
+        for s in &self.to_segments() {
+            let pts = match s {
+                CurveSegment::Arc(curve_arc) => {
+                    let (s, _) = segment_arc(curve_arc, 0.0, approx_spacing, 0.0);
+                    s.iter().map(|x| x.loc).collect_vec()
+                }
+                CurveSegment::Points(curve_points) => {
+                    let mut v = vec![];
+                    for (curr, next) in curr_next_no_loop_iter(curve_points.points()) {
+                        let (s, _) = segment_vec(*curr, *next, approx_spacing, 0.0);
+                        v.extend(s);
+                    }
+                    v
+                }
+                CurveSegment::CubicBezier(curve_cubic_bezier) => curve_cubic_bezier
+                    .to_cubic()
+                    .to_vec2_line_space(approx_spacing),
+            };
+            result.extend(pts)
+        }
+        result
     }
 }
 
@@ -900,6 +992,51 @@ macro_rules! mixed_drawable {
         let mut v: Vec<murrelet_draw::drawable::MixedDrawableShape> = Vec::new();
         $(
             v.extend($expr.to_mixed_drawables());
+        )*
+        v
+    }};
+}
+
+// i get by with a little help from chatgpt
+pub trait IntoIterOf<T> {
+    type Iter: Iterator<Item = T>;
+    fn into_iter_of(self) -> Self::Iter;
+}
+
+impl<T> IntoIterOf<T> for Vec<T> {
+    type Iter = std::vec::IntoIter<T>;
+    fn into_iter_of(self) -> Self::Iter {
+        self.into_iter()
+    }
+}
+
+impl<T> IntoIterOf<T> for Option<T> {
+    type Iter = std::option::IntoIter<T>;
+    fn into_iter_of(self) -> Self::Iter {
+        self.into_iter()
+    }
+}
+
+impl<T> IntoIterOf<T> for T {
+    type Iter = std::iter::Once<T>;
+    fn into_iter_of(self) -> Self::Iter {
+        std::iter::once(self)
+    }
+}
+
+pub fn extend_flat<A, X>(out: &mut Vec<A>, x: X)
+where
+    X: IntoIterOf<A>,
+{
+    out.extend(x.into_iter_of());
+}
+
+#[macro_export]
+macro_rules! flatten {
+    ($($expr:expr),* $(,)?) => {{
+        let mut v = Vec::new();
+        $(
+            extend_flat(&mut v, $expr);
         )*
         v
     }};

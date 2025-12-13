@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops};
 
-use crate::{cubic::CubicBezier, curve_drawer::CubicBezierPath, svg::SvgPathDef};
+use crate::{cubic::CubicBezier, curve_drawer::{CubicBezierPath, CurveArc}, svg::SvgPathDef};
 use delaunator::Triangulation;
 use glam::{vec2, Vec2, Vec2Swizzles};
 use itertools::Itertools;
@@ -14,7 +14,7 @@ use lyon::{
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
-    curr_next_no_loop_iter, triangulate::DefaultVertex, PointToPoint, Polyline, SpotOnCurve, ToVec2,
+    AnglePi, IsAngle, PointToPoint, Polyline, SpotOnCurve, ToVec2, curr_next_no_loop_iter, triangulate::DefaultVertex
 };
 
 pub trait ToVecVec2 {
@@ -59,6 +59,7 @@ impl ToVecVec2 for CubicBezier {
 
         path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
     }
+
     fn to_vec2(&self) -> Vec<Vec2> {
         self.to_vec2_line_space(1.0)
     }
@@ -156,6 +157,67 @@ pub fn segment_vec(from: Vec2, to: Vec2, line_space: f32, offset: f32) -> (Vec<V
     (lines, dist_since_last)
 }
 
+pub fn segment_arc(
+    curve: &CurveArc,
+    height: f32,
+    line_space: f32,
+    offset: f32,
+) -> (Vec<SpotOnCurve>, f32) {
+    // going into this curve, we should be all caught up
+    let multi = if curve.is_ccw() { 1.0 } else { -1.0 };
+    let radius = curve.radius.abs();
+
+    let increase_ratio = (radius + 0.5 * height) / radius;
+    let mut line_space = line_space / increase_ratio;
+
+    // make sure we always have at least a few points
+    let max_delta_angle = AnglePi::new(0.1);
+    line_space = line_space.min(radius * max_delta_angle._angle());
+
+    // expect line_space to be > 0
+    if line_space <= 0.0 {
+        return (vec![], offset);
+    }
+
+    // okay! now if we already traveled some distance along this curve (e.g. dist_since_last > 0)
+    // we need to remove some of it
+    let diameter = AnglePi::new(2.0).scale(radius).angle();
+
+    let estimated_size = (diameter / line_space) as usize;
+    let mut vs = Vec::with_capacity(estimated_size);
+    //vec![];
+
+    let mut residual = offset + curve.length();
+
+    // the last point was shifted back
+    let mut loc_on_arc = -offset;
+
+    while residual >= line_space {
+        residual -= line_space;
+        loc_on_arc += line_space;
+
+        let central_angle_from_start = AnglePi::new(2.0).scale(multi * loc_on_arc / diameter);
+        let curr_angle = curve.start_pi() + central_angle_from_start;
+
+        let norm_vec = curr_angle.to_norm_dir();
+        let curr_point = norm_vec * radius + curve.loc;
+
+        let a = if curve.is_ccw() {
+            curr_angle.perp_to_right()
+        } else {
+            curr_angle.perp_to_left()
+        };
+
+        // println!("central_angle_from_start {:?}", central_angle_from_start);
+        // println!("curr_angle {:?}", curr_angle);
+        let s = SpotOnCurve::new(curr_point, a);
+        // println!("s {:?}", s);
+        vs.push(s);
+    }
+
+    (vs, residual / increase_ratio)
+}
+
 pub fn evenly_split_cubic_bezier(c: &CubicBezier, count: usize) -> Vec<SpotOnCurve> {
     // always include the start (and end)
     let v = flatten_cubic_bezier_path_with_tolerance(&vec![c.clone()], false, 0.1);
@@ -197,18 +259,7 @@ pub fn evenly_split_cubic_bezier(c: &CubicBezier, count: usize) -> Vec<SpotOnCur
             dist = a;
 
             last_angle = Some(angle);
-            // if let Some(last) = new.last() {
-            //     last_point = Some(last.loc);
-            // }
         }
-
-        // if let Some(last) = last_point {
-        //     // skip this spike or reuse previous direction
-        //     continue;
-        // } else {
-        //     // v.push(SpotOnCurve::new(c.from, last_angle.unwrap()));
-
-        // }
 
         v
     } else {
