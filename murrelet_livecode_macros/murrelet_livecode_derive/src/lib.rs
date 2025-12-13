@@ -11,6 +11,7 @@ mod derive_livecode;
 mod derive_nestedit;
 mod parser;
 mod toplevel;
+mod derive_cached;
 
 use darling::FromDeriveInput;
 // use derive_boop::FieldTokensBoop;
@@ -25,6 +26,8 @@ use syn::parse_macro_input;
 use toplevel::{impl_all_the_traits, top_level_livecode, top_level_livecode_json};
 
 use quote::quote;
+
+use crate::derive_cached::impl_cache_traits;
 
 fn livecode_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensLivecode::from_ast(rec)
@@ -115,4 +118,11 @@ pub fn murrelet_livecode_livecoder_traits(input: TokenStream) -> TokenStream {
 pub fn murrelet_livecode_graphics(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     impl_graphics_trait(ast).into()
+}
+
+
+#[proc_macro_derive(Cached, attributes(cached))]
+pub fn murrelet_cache_compute(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    impl_cache_traits(ast).into()
 }

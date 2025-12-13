@@ -5,6 +5,8 @@ use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode::{types::AdditionalContextNode, unitcells::*};
 use murrelet_livecode_derive::{Livecode, LivecodeOnly, NestEdit};
+use murrelet_livecode::cachedcompute::CachedCompute;
+use murrelet_livecode_derive::Cached;
 
 #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 pub struct BasicTypes {
@@ -152,3 +154,14 @@ pub struct NewTypeWithVec(Vec<f32>);
 pub struct NewTypeWithStruct(BasicTypes);
 
 fn main() {}
+
+
+
+
+#[derive(Debug, Clone, Cached)]
+pub struct BirdOutline {
+
+    back: CachedCompute<f32>,
+    neck_back: CachedCompute<Vec<Vec2>>,
+
+}

@@ -7,3 +7,4 @@ pub mod nestedit;
 pub mod state;
 pub mod types;
 pub mod unitcells;
+pub mod cachedcompute;

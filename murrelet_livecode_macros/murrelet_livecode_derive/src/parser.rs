@@ -843,6 +843,30 @@ impl DataFromType {
             _ => VecDepth::NotAVec,
         }
     }
+
+    pub(crate) fn inside_type(&self) -> Self {
+        Self {
+            main_type: self.second_type.clone().unwrap(),
+            second_type: self.third_type.clone(),
+            third_type: self.fourth_type.clone(),
+            fourth_type: None,
+            main_how_to: self.second_how_to.unwrap(),
+            second_how_to: self.third_how_to,
+            third_how_to: self.fourth_how_to,
+            fourth_how_to: None,
+        }
+    }
+
+    pub(crate) fn to_quote(&self) -> TokenStream2 {
+        let main_type = self.main_type.clone();
+        match (&self.second_type, &self.third_type, &self.fourth_type) {
+            (None, None, None) => quote!{ #main_type },
+            (Some(second_type), None, None) => quote!{ #main_type<#second_type> },
+            (Some(second_type), Some(third_type), None) =>  quote!{ #main_type<#second_type<#third_type>> },
+            (Some(second_type), Some(third_type), Some(fourth_type)) =>  quote!{ #main_type<#second_type<#third_type<#fourth_type>>> },
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Debug)]
