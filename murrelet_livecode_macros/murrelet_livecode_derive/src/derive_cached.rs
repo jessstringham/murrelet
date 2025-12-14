@@ -107,11 +107,11 @@ fn parse_cache(name: &syn::Ident, fields: &[LivecodeFieldReceiver]) -> TokenStre
                 true #( && #check_funcs )*
             }
 
-            fn init_all_cached(&self) -> bool {
+            fn init_all_cached(&self) {
                 #(#init_funcs;)*
             }
 
-            fn new(&self, #(#conf_arguments,)*) -> Self {
+            fn new(#(#conf_arguments,)*) -> Self {
                 #name {
                     #(#to_be_filled_funcs,)*
                 }
