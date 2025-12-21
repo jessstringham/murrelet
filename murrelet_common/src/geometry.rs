@@ -712,6 +712,10 @@ impl PointToPoint {
     pub fn flip(&self) -> PointToPoint {
         PointToPoint::new(self.end, self.start)
     }
+
+    pub fn pct_spot(&self, x: f32) -> SpotOnCurve {
+        SpotOnCurve::new(self.pct(x), self.angle())
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -816,4 +820,8 @@ impl ToVec2 for DefaultVertex {
     fn to_vec2(&self) -> Vec2 {
         self.pos2d()
     }
+}
+
+pub fn sagitta_from_arc_len(radius: f32, central_angle: AnglePi) -> f32 {
+    radius * (1.0 - (0.5 * central_angle.angle()).cos())
 }
