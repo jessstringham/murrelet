@@ -20,7 +20,6 @@ use crate::lazy::LazyNodeF32;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
 use crate::types::ControlVecElement;
-use crate::types::DeserLazyControlVecElement;
 use crate::types::LivecodeError;
 use crate::types::LivecodeResult;
 

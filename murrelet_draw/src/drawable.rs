@@ -145,7 +145,7 @@ impl PositionedText {
         }
     }
 
-    fn with_style(&self, style: &StyleConf) -> MixedDrawableShape {
+    pub fn with_style(&self, style: &StyleConf) -> MixedDrawableShape {
         MixedDrawableShape::Text(DrawnTextShape {
             text: vec![self.clone()],
             style: style.clone(),

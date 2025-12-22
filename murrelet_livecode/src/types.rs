@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, print_expect};
+use murrelet_common::{IdxInRange, IdxInRange2d, print_expect};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -567,7 +567,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
 
         for idx in self.repeat.iter(w)? {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
-            let mut new_w = w.clone_with_vals(expr, &prefix);
+            let new_w = w.clone_with_vals(expr, &prefix);
 
             for src in &self.what {
                 match src {
@@ -720,7 +720,7 @@ where
 {
     // type Target = Vec<EvalTarget>;
 
-    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Vec<Source>> {
+    pub fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Vec<Source>> {
         match self {
             LazyControlVecElement::Single(s) => Ok(vec![s.clone()]),
             LazyControlVecElement::Repeat(s) => s.lazy_expand_vec(expr),

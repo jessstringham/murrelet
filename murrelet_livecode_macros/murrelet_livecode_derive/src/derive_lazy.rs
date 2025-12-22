@@ -488,7 +488,7 @@ impl GenFinal for FieldTokensLazy {
             quote! {#back_to_quote #name: #t}
         };
 
-        let for_world = LazyFieldType(ctrl).for_world(idents.clone());
+        let _for_world = LazyFieldType(ctrl).for_world(idents.clone());
 
         let for_world = LazyFieldType(ctrl).for_world(idents.clone());
         let for_more_defs = {

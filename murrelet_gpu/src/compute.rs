@@ -18,7 +18,7 @@ use crate::{
     window::GraphicsWindowConf,
 };
 
-struct ComputeBindings {
+pub struct ComputeBindings {
     input: wgpu::Buffer,
     cell_offsets: wgpu::Buffer,
     cell_indices: wgpu::Buffer,
@@ -163,6 +163,7 @@ pub struct ComputeGraphicsToTexture {
     // render_pipeline: wgpu::RenderPipeline,
     pub uniforms: BasicUniform,
     pub buffers: ComputeBindings,
+    #[allow(dead_code)]
     texture: TextureAndDesc,
 
     bind_group_layout: wgpu::BindGroupLayout,

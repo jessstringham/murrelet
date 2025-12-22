@@ -664,7 +664,7 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
         graphics_rc.update_uniforms_other_tuple(c, more_info)
     }
 
-    #[deprecated(note = "Use render_to_view instead")]
+    #[deprecated(note = "Use render instead")]
     pub fn render_to_view(&self, device: &DeviceState, view: &wgpu::TextureView) {
         // self.graphics.borrow_mut().render(device, view)
         self.render(device, view)

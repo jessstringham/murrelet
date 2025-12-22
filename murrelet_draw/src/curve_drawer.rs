@@ -307,6 +307,20 @@ impl CurveDrawer {
 
         Ok(Self::new(segments, self.closed))
     }
+
+    pub fn segments_pseudo_closed(&self) -> Vec<CurveSegment> {
+        let mut segments = self.segments().to_vec();
+        // if it's closed, then add the first point, otherwise same as rest
+        if !self.closed {
+            return segments;
+        } else {
+            // if there's no first point, just return itself (which is empty...)
+            if let Some(first_point) = self.first_point() {
+                segments.push(CurveSegment::new_simple_point(first_point));
+            }
+            segments
+        }
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -493,8 +507,8 @@ impl CurveSegment {
                 let rads = Angle::new(before_amount / curve_arc.radius);
                 curve_arc.start_pi = curve_arc.start_pi - rads;
             }
-            CurveSegment::Points(curve_points) => todo!(),
-            CurveSegment::CubicBezier(curve_cubic_bezier) => todo!(),
+            CurveSegment::Points(_) => todo!(),
+            CurveSegment::CubicBezier(_) => todo!(),
         }
 
         c
@@ -507,8 +521,8 @@ impl CurveSegment {
                 let rads = Angle::new(after_amount / curve_arc.radius);
                 curve_arc.end_pi = curve_arc.end_pi + rads;
             }
-            CurveSegment::Points(curve_points) => todo!(),
-            CurveSegment::CubicBezier(curve_cubic_bezier) => todo!(),
+            CurveSegment::Points(_) => todo!(),
+            CurveSegment::CubicBezier(_) => todo!(),
         }
 
         c
@@ -672,7 +686,7 @@ impl CurveArc {
     }
 
     pub fn length(&self) -> f32 {
-        self.radius * (self.end_pi - self.start_pi).angle()
+        self.radius.abs() * (self.end_pi - self.start_pi).angle()
     }
 
     pub fn start_pi(&self) -> AnglePi {
@@ -838,11 +852,17 @@ impl ToCurveSegment for PointToPoint {
 
 pub trait ToCurveDrawer {
     fn to_segments(&self) -> Vec<CurveSegment>;
+    fn to_cd(&self, is_closed: bool) -> CurveDrawer {
+        CurveDrawer::new(self.to_segments(), is_closed)
+    }
+
     fn to_cd_closed(&self) -> CurveDrawer {
-        CurveDrawer::new(self.to_segments(), true)
+        // CurveDrawer::new(self.to_segments(), true)
+        self.to_cd(true)
     }
     fn to_cd_open(&self) -> CurveDrawer {
-        CurveDrawer::new(self.to_segments(), false)
+        // CurveDrawer::new(self.to_segments(), false)
+        self.to_cd(false)
     }
 
     // trying out utility functions
@@ -856,6 +876,7 @@ pub trait ToCurveDrawer {
         bm.center()
     }
 
+    // chooses an arbitrary point on the path, like for a label
     fn to_approx_point(&self) -> Vec2 {
         let pts = self.to_rough_points(10.0);
         if pts.is_empty() {
@@ -864,7 +885,7 @@ pub trait ToCurveDrawer {
         pts[pts.len() / 2]
     }
 
-    // this one isn't evenly spaced
+    // this one isn't evenly spaced yet
     fn to_rough_points(&self, approx_spacing: f32) -> Vec<Vec2> {
         let mut result = vec![];
         for s in &self.to_segments() {
@@ -884,6 +905,49 @@ pub trait ToCurveDrawer {
                 CurveSegment::CubicBezier(curve_cubic_bezier) => curve_cubic_bezier
                     .to_cubic()
                     .to_vec2_line_space(approx_spacing),
+            };
+            result.extend(pts)
+        }
+        result
+    }
+
+    fn to_rough_spots(&self, approx_spacing: f32) -> Vec<SpotOnCurve> {
+        let mut result = vec![];
+        let mut curr_offset = 0.0;
+        for s in &self.to_segments() {
+            let pts = match s {
+                CurveSegment::Arc(curve_arc) => {
+                    let (s, new_offset) = segment_arc(curve_arc, 0.0, approx_spacing, curr_offset);
+                    curr_offset = new_offset;
+                    s
+                }
+                CurveSegment::Points(curve_points) => {
+                    let mut v = vec![];
+                    for (curr, next) in curr_next_no_loop_iter(curve_points.points()) {
+                        let (s, new_offset) =
+                            segment_vec(*curr, *next, approx_spacing, curr_offset);
+                        let angle = PointToPoint::new(*curr, *next).angle();
+                        v.extend(s.iter().map(|x| SpotOnCurve::new(*x, angle)));
+                        curr_offset = new_offset;
+                    }
+                    v
+                }
+                CurveSegment::CubicBezier(curve_cubic_bezier) => {
+                    let curve_points = curve_cubic_bezier
+                        .to_cubic()
+                        .to_vec2_line_space(approx_spacing);
+
+                    // now treat it like a point, so we can get the offset and angle.
+                    let mut v = vec![];
+                    for (curr, next) in curr_next_no_loop_iter(&curve_points) {
+                        let (s, new_offset) =
+                            segment_vec(*curr, *next, approx_spacing, curr_offset);
+                        let angle = PointToPoint::new(*curr, *next).angle();
+                        v.extend(s.iter().map(|x| SpotOnCurve::new(*x, angle)));
+                        curr_offset = new_offset;
+                    }
+                    v
+                }
             };
             result.extend(pts)
         }
@@ -909,6 +973,12 @@ where
 impl ToCurveDrawer for Vec<CurveSegment> {
     fn to_segments(&self) -> Vec<CurveSegment> {
         self.clone()
+    }
+}
+
+impl ToCurveDrawer for CurveDrawer {
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        self.segments_pseudo_closed()
     }
 }
 

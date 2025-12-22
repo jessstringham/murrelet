@@ -8,8 +8,8 @@ use murrelet_common::*;
 
 use crate::{
     expr::{
-        init_evalexpr_func_ctx, lc_val_to_expr, ExprWorldContextValues, IntoExprWorldContext,
-        MixedEvalDefs, MixedEvalDefsRef,
+        init_evalexpr_func_ctx, ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs,
+        MixedEvalDefsRef,
     },
     types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,
@@ -200,7 +200,7 @@ impl LivecodeWorldState {
         self.state.asset_layers_in_key(key)
     }
 
-    pub(crate) fn update_with_simple_defs(
+    pub fn update_with_simple_defs(
         &self,
         more_vals: ExprWorldContextValues,
     ) -> WorldWithLocalVariables {
@@ -255,7 +255,7 @@ impl WorldWithLocalVariables {
 impl Context for WorldWithLocalVariables {
     fn get_value(&self, identifier: &str) -> Option<&Value> {
         // locals win
-        if let Some((_, v)) = self.locals.iter().find(|(k, v)| k == identifier) {
+        if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k == identifier) {
             return Some(v);
         }
         // otherwise fallback to global
