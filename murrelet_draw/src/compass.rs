@@ -1,10 +1,15 @@
 #![allow(dead_code)]
+use std::collections::HashMap;
+
 use glam::Vec2;
+use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_gui::make_gui_angle;
 use murrelet_gui::make_gui_vec2;
 use murrelet_gui::MurreletGUI;
+use murrelet_gui::MurreletGUISchema;
+use murrelet_gui::ValueGUI;
 use murrelet_livecode_derive::Livecode;
 
 use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
@@ -33,13 +38,13 @@ fn empty_string() -> String {
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct CompassDir {
     #[murrelet_gui(func = "make_gui_angle")]
-    angle_pi: AnglePi,
+    pub angle_pi: AnglePi,
     #[livecode(serde_default = "false")]
     #[murrelet_gui(kind = "skip")]
-    is_absolute: bool,
+    pub is_absolute: bool,
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
     #[murrelet_gui(kind = "skip")]
-    label: String,
+    pub label: String,
 }
 
 impl CompassDir {
@@ -54,15 +59,15 @@ impl CompassDir {
 
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct CompassArc {
-    radius: f32,
+    pub radius: f32,
     #[murrelet_gui(func = "make_gui_angle")]
-    arc_length: AnglePi,
+    pub arc_length: AnglePi,
     #[livecode(serde_default = "false")]
     #[murrelet_gui(kind = "skip")]
-    is_absolute: bool,
+    pub is_absolute: bool,
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
     #[murrelet_gui(kind = "skip")]
-    label: String,
+    pub label: String,
 }
 
 // impl CompassArc {
@@ -71,16 +76,30 @@ pub struct CompassArc {
 
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct CompassLine {
-    length: f32, // how far should we head in the current direction
+    pub length: f32, // how far should we head in the current direction
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
     #[murrelet_gui(kind = "skip")]
-    label: String,
+    pub label: String,
+}
+
+// #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+// pub struct CompassRepeat {
+//     times: usize,
+//     what: Vec<CompassAction>,
+// }
+
+pub fn make_gui_vec_vec2() -> MurreletGUISchema {
+    MurreletGUISchema::list(MurreletGUISchema::Val(ValueGUI::Vec2))
 }
 
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
-pub struct CompassRepeat {
-    times: usize,
-    what: Vec<CompassAction>,
+pub struct CompassAbsPoints {
+    #[lerpable(func = "lerpify_vec_vec2")]
+    #[murrelet_gui(func = "make_gui_vec_vec2")]
+    pts: Vec<Vec2>,
+    #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
+    #[murrelet_gui(kind = "skip")]
+    label: String,
 }
 
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
@@ -88,10 +107,21 @@ pub enum CompassAction {
     Angle(CompassDir), // abs
     Arc(CompassArc),
     Line(CompassLine),
-    // Repeat(CompassRepeat), // now this is in the control vec!
+    AbsPoints(CompassAbsPoints), // Repeat(CompassRepeat), // now this is in the control vec!
 }
 
 impl CompassAction {
+    pub fn qabspts(pts: &[Vec2]) -> CompassAction {
+        CompassAction::abspts(pts, "".to_string())
+    }
+
+    pub fn abspts(pts: &[Vec2], label: String) -> CompassAction {
+        CompassAction::AbsPoints(CompassAbsPoints {
+            pts: pts.to_vec(),
+            label,
+        })
+    }
+
     pub fn qangle<A: IsAngle>(angle_pi: A) -> CompassAction {
         CompassAction::angle(angle_pi, false, "".to_string())
     }
@@ -149,6 +179,7 @@ pub struct InteractiveCompassBuilder {
     curr_loc: Vec2,
     curr_angle: AnglePi,
     so_far: Vec<CurveSegment>,
+    references: HashMap<String, CurveStart>,
 }
 
 impl InteractiveCompassBuilder {
@@ -158,6 +189,7 @@ impl InteractiveCompassBuilder {
             curr_loc: Vec2::ZERO,
             curr_angle: AnglePi::new(0.0),
             so_far: Vec::new(),
+            references: HashMap::new(),
         }
     }
 
@@ -183,6 +215,10 @@ impl InteractiveCompassBuilder {
             CompassAction::Arc(x) => {
                 vec![self.add_arc(x)]
             }
+            CompassAction::AbsPoints(x) => match self.add_abs_pts(x) {
+                Some(x) => vec![x],
+                None => vec![],
+            },
         }
     }
 
@@ -233,6 +269,10 @@ impl InteractiveCompassBuilder {
 
         self.pen_down = true;
 
+        if x.label.len() > 0 {
+            self.references.insert(x.label.clone(), self.to_basic());
+        }
+
         // know there's at least one point so we can unwrap
         CurveSegment::Points(CurvePoints::new(points))
     }
@@ -278,7 +318,43 @@ impl InteractiveCompassBuilder {
         self.curr_angle = AnglePi::new(next_angle.angle_pi() % 2.0);
         self.pen_down = true;
 
+        if x.label.len() > 0 {
+            self.references.insert(x.label.clone(), self.to_basic());
+        }
+
         CurveSegment::Arc(a)
+    }
+
+    fn add_abs_pts(&mut self, x: &CompassAbsPoints) -> Option<CurveSegment> {
+        match x.pts.as_slice() {
+            [.., penultimate, last] => {
+                let pt = PointToPoint::new(*penultimate, *last).angle().as_angle_pi();
+                self.curr_angle = pt;
+                self.curr_loc = last.clone();
+            }
+            [last] => {
+                if last.distance(self.curr_loc) > 0.001 {
+                    let penultimate = self.curr_loc;
+                    let pt = PointToPoint::new(penultimate, *last).angle().as_angle_pi();
+                    self.curr_angle = pt;
+                    self.curr_loc = last.clone();
+                } else {
+                    // not enough points to update the angle...
+                    self.curr_loc = last.clone();
+                }
+            }
+            _ => {
+                return None; // not enough items
+            }
+        };
+
+        self.pen_down = true;
+
+        if x.label.len() > 0 {
+            self.references.insert(x.label.clone(), self.to_basic());
+        }
+
+        Some(CurveSegment::Points(CurvePoints::new(x.pts.clone())))
     }
 
     pub fn results(&self) -> Vec<CurveSegment> {
@@ -289,8 +365,8 @@ impl InteractiveCompassBuilder {
         self.curr_loc
     }
 
-    pub fn curr_angle(&self) -> f32 {
-        self.curr_angle.angle_pi()
+    pub fn curr_angle(&self) -> AnglePi {
+        self.curr_angle
     }
 
     pub fn set_curr_loc(&mut self, curr_loc: Vec2) {
@@ -304,6 +380,10 @@ impl InteractiveCompassBuilder {
     pub fn add_absolute_point(&mut self, loc: Vec2) {
         self.so_far
             .push(CurveSegment::Points(CurvePoints { points: vec![loc] }))
+    }
+
+    pub fn references(&self) -> Vec<(String, CurveStart)> {
+        self.references.clone().into_iter().collect_vec()
     }
 }
 

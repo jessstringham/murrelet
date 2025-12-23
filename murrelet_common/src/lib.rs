@@ -249,8 +249,6 @@ where
     }
 }
 
-
-
 pub fn cubic_bezier(start: Vec2, ctrl1: Vec2, ctrl2: Vec2, to: Vec2, t: f32) -> Vec2 {
     let a = lerp(start, ctrl1, t);
     let b = lerp(ctrl1, ctrl2, t);
@@ -1087,4 +1085,52 @@ pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
     let b = (b * 255.0) as u8;
 
     format!("#{:02X}{:02X}{:02X}", r, g, b)
+}
+
+pub trait MurreletIterHelpers {
+    type T;
+    fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, Self::T>;
+    fn as_vec_ref<'a>(&'a self) -> &'a Vec<Self::T>;
+
+    fn map_iter_collect<F, U>(&self, f: F) -> Vec<U>
+    where
+        F: Fn(&Self::T) -> U,
+    {
+        self.to_iter().map(f).collect_vec()
+    }
+
+    fn prev_curr_next_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T, &'a Self::T)> + 'a> {
+        prev_curr_next_loop_iter(&self.as_vec_ref())
+    }
+
+    fn prev_curr_next_no_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T, &'a Self::T)> + 'a> {
+        prev_curr_next_no_loop_iter(&self.as_vec_ref())
+    }
+
+    fn curr_next_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
+        curr_next_loop_iter(&self.as_vec_ref())
+    }
+
+    fn curr_next_no_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
+        curr_next_no_loop_iter(&self.as_vec_ref())
+    }
+}
+
+impl<T> MurreletIterHelpers for Vec<T> {
+    type T = T;
+    fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
+        self.iter()
+    }
+
+    fn as_vec_ref<'a>(&'a self) -> &'a Vec<Self::T> {
+        &self
+    }
 }

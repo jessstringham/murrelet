@@ -686,7 +686,7 @@ impl CurveArc {
     }
 
     pub fn length(&self) -> f32 {
-        self.radius.abs() * (self.end_pi - self.start_pi).angle()
+        (self.radius * (self.end_pi - self.start_pi).angle()).abs()
     }
 
     pub fn start_pi(&self) -> AnglePi {
