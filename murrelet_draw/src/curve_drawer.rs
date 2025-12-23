@@ -266,6 +266,16 @@ impl CurveDrawer {
         Some(last_command.last_point())
     }
 
+    // pub fn first_spot(&self) -> Option<SpotOnCurve> {
+    //     let first_command = self.segments().first()?;
+    //     Some(first_command.first_spot())
+    // }
+
+    // pub fn last_spot(&self) -> Option<SpotOnCurve> {
+    //     let last_command = self.segments().last()?;
+    //     Some(last_command.last_spot())
+    // }
+
     pub fn length(&self) -> f32 {
         self.segments
             .iter()
@@ -429,14 +439,19 @@ impl CurveSegment {
     }
 
     pub fn first_angle(&self) -> Option<AnglePi> {
-        Some(self.first_spot().angle().into()) // todo, return none if it's one point
+        self.first_spot().map(|x| x.angle().into()) // todo, return none if it's one point
     }
 
-    pub fn first_spot(&self) -> SpotOnCurve {
+    // pub fn first_spot(&self) -> SpotOnCurve {
+    //     self.first_spot_cd().unwrap()
+    // }
+
+    // if we have only one point, this is None
+    pub fn first_spot(&self) -> Option<SpotOnCurve> {
         match self {
             CurveSegment::Arc(arc) => {
                 let a = CurveArc::new(arc.loc, arc.radius, arc.start_pi, arc.end_pi);
-                SpotOnCurve::new(a.first_point(), a.start_tangent_angle())
+                Some(SpotOnCurve::new(a.first_point(), a.start_tangent_angle()))
             }
             CurveSegment::Points(points) => {
                 let vec2s = points.points();
@@ -445,20 +460,26 @@ impl CurveSegment {
                     let second = vec2s[1];
 
                     let angle = PointToPoint::new(first, second).angle().perp_to_left();
-                    SpotOnCurve::new(first, angle)
+                    Some(SpotOnCurve::new(first, angle))
                 } else {
-                    todo!()
+                    None
                 }
             }
-            CurveSegment::CubicBezier(cubic_bezier) => cubic_bezier.to_cubic().start_to_tangent().0,
+            CurveSegment::CubicBezier(cubic_bezier) => {
+                Some(cubic_bezier.to_cubic().start_to_tangent().0)
+            }
         }
     }
 
-    pub fn last_spot(&self) -> SpotOnCurve {
+    // pub fn last_spot(&self) -> SpotOnCurve {
+    //     self.last_spot_cd().unwrap()
+    // }
+
+    pub fn last_spot(&self) -> Option<SpotOnCurve> {
         match self {
             CurveSegment::Arc(arc) => {
                 let a = CurveArc::new(arc.loc, arc.radius, arc.start_pi, arc.end_pi);
-                SpotOnCurve::new(a.last_point(), a.end_tangent_angle())
+                Some(SpotOnCurve::new(a.last_point(), a.end_tangent_angle()))
             }
             CurveSegment::Points(p) => {
                 if p.points().len() >= 2 {
@@ -466,12 +487,12 @@ impl CurveSegment {
                     let end = *points.last().unwrap();
                     let prev = *points.get(points.len() - 2).unwrap();
                     let angle = PointToPoint::new(prev, end).angle().perp_to_left();
-                    SpotOnCurve::new(end, angle)
+                    Some(SpotOnCurve::new(end, angle))
                 } else {
-                    unimplemented!() // need to look at the val before...
+                    None
                 }
             }
-            CurveSegment::CubicBezier(c) => c.to_cubic().end_to_tangent().0,
+            CurveSegment::CubicBezier(c) => Some(c.to_cubic().end_to_tangent().0),
         }
     }
 
@@ -850,10 +871,85 @@ impl ToCurveSegment for PointToPoint {
     }
 }
 
+pub fn simplify_curve_segments(segments: &[CurveSegment]) -> Vec<CurveSegment> {
+    let mut cleaned_segments = vec![];
+
+    // combine our points together..
+    let mut curr_points = vec![];
+    for segment in segments {
+        match segment {
+            CurveSegment::Arc(_) => {
+                if !curr_points.is_empty() {
+                    cleaned_segments
+                        .push(CurveSegment::Points(CurvePoints::new(curr_points.clone())));
+                    curr_points = vec![];
+                }
+                cleaned_segments.push(segment.clone())
+            }
+            CurveSegment::Points(c) => curr_points.extend(c.points.iter()),
+            CurveSegment::CubicBezier(_) => cleaned_segments.push(segment.clone()),
+        }
+    }
+    if !curr_points.is_empty() {
+        cleaned_segments.push(CurveSegment::Points(CurvePoints::new(curr_points.clone())));
+    }
+
+    cleaned_segments
+}
+
 pub trait ToCurveDrawer {
     fn to_segments(&self) -> Vec<CurveSegment>;
     fn to_cd(&self, is_closed: bool) -> CurveDrawer {
-        CurveDrawer::new(self.to_segments(), is_closed)
+        CurveDrawer::new(simplify_curve_segments(&self.to_segments()), is_closed)
+    }
+
+    // assume open
+    fn last_spot_cd(&self) -> Option<SpotOnCurve> {
+        let cdo = self.to_cd_open();
+        let cd = cdo.segments();
+
+        if let Some(cd_last) = cd.last() {
+            if let Some(a) = cd_last.last_spot() {
+                return Some(a);
+            } else {
+                let last_point = cd_last.last_point();
+                // if there's a second-from-last
+                if cd.len() >= 2 {
+                    let second_from_last = cd[cd.len() - 2].last_point();
+
+                    if last_point.distance(second_from_last) > 1.0e-6 {
+                        return Some(PointToPoint::new(second_from_last, last_point).end_spot());
+                    } else {
+                        // last test.. try to grab the last spot
+                        return cd[cd.len() - 2].last_spot();
+                    }
+                }
+            }
+        }
+        return None;
+    }
+
+    fn first_spot_cd(&self) -> Option<SpotOnCurve> {
+        let cdo = self.to_cd_open();
+        let cd = cdo.segments();
+
+        if let Some(cd_first) = cd.first() {
+            if let Some(a) = cd_first.first_spot() {
+                return Some(a);
+            } else {
+                let first_point = cd_first.first_point();
+                // if there's a second-from-first
+                if cd.len() >= 2 {
+                    let second_spot = cd[1].first_point();
+                    if first_point.distance(second_spot) > 1.0e-6 {
+                        return Some(PointToPoint::new(first_point, second_spot).start_spot());
+                    } else {
+                        return cd[1].first_spot();
+                    }
+                }
+            }
+        }
+        return None;
     }
 
     fn to_cd_closed(&self) -> CurveDrawer {

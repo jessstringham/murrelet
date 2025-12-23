@@ -58,7 +58,7 @@ fn parse_cache(name: &syn::Ident, fields: &[LivecodeFieldReceiver]) -> TokenStre
 
 
                 let func = quote! {
-                    fn #ident(&self) -> &#inside_type {
+                    pub fn #ident(&self) -> &#inside_type {
                         self.#ident.get_or_init(|| self.#expected_compute_ident())
                     }
                 };
