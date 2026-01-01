@@ -552,6 +552,20 @@ impl UnitCellContext {
         }
     }
 
+    pub fn new_full(
+        idx: UnitCellIdx,
+        ctx: ExprWorldContextValues,
+        transform: SimpleTransform2d,
+        adjust_transform: SimpleTransform2d,
+    ) -> UnitCellContext {
+        UnitCellContext {
+            idx,
+            ctx: Some(ctx),
+            detail: UnitCellDetails::new_fancy(transform, adjust_transform, true),
+            tile_info: None,
+        }
+    }
+
     pub fn new_with_base(ctx: UnitCellIdx, detail: UnitCellDetails) -> UnitCellContext {
         UnitCellContext {
             idx: ctx,

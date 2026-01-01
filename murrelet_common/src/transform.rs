@@ -116,6 +116,14 @@ impl SimpleTransform2dStep {
         Self::Scale(Vec2::ONE * v)
     }
 
+    pub fn reflect_x() -> Self {
+        Self::Scale(vec2(-1.0, 1.0))
+    }
+
+    pub fn reflect_y() -> Self {
+        Self::Scale(vec2(1.0, -1.0))
+    }
+
     pub fn transform(&self) -> Mat3 {
         match self {
             Self::Translate(v) => Mat3::from_translation(*v),
