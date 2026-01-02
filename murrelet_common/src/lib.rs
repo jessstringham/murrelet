@@ -1088,7 +1088,7 @@ pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
 }
 
 pub trait MurreletIterHelpers {
-    type T;
+    type T: Clone;
     fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, Self::T>;
     fn as_vec_ref<'a>(&'a self) -> &'a Vec<Self::T>;
 
@@ -1097,6 +1097,14 @@ pub trait MurreletIterHelpers {
         F: Fn(&Self::T) -> U,
     {
         self.to_iter().map(f).collect_vec()
+    }
+
+    fn owned_iter(&self) -> std::vec::IntoIter<Self::T> {
+        self.to_iter().map(|x| x.clone()).collect_vec().into_iter()
+    }
+
+    fn take_count(&self, amount: usize) -> Vec<Self::T> {
+        self.owned_iter().take(amount).collect::<Vec<Self::T>>()
     }
 
     fn prev_curr_next_loop_iter<'a>(
@@ -1124,7 +1132,7 @@ pub trait MurreletIterHelpers {
     }
 }
 
-impl<T> MurreletIterHelpers for Vec<T> {
+impl<T: Clone> MurreletIterHelpers for Vec<T> {
     type T = T;
     fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
         self.iter()

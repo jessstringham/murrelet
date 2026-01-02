@@ -1,6 +1,10 @@
 use std::{collections::HashMap, ops};
 
-use crate::{cubic::CubicBezier, curve_drawer::{CubicBezierPath, CurveArc}, svg::SvgPathDef};
+use crate::{
+    cubic::CubicBezier,
+    curve_drawer::{CubicBezierPath, CurveArc},
+    svg::SvgPathDef,
+};
 use delaunator::Triangulation;
 use glam::{vec2, Vec2, Vec2Swizzles};
 use itertools::Itertools;
@@ -14,7 +18,8 @@ use lyon::{
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
-    AnglePi, IsAngle, PointToPoint, Polyline, SpotOnCurve, ToVec2, curr_next_no_loop_iter, triangulate::DefaultVertex
+    curr_next_no_loop_iter, triangulate::DefaultVertex, AnglePi, IsAngle, PointToPoint, Polyline,
+    SpotOnCurve, ToVec2,
 };
 
 pub trait ToVecVec2 {
@@ -107,15 +112,6 @@ fn point_from_param3(params: &Vec<&f32>) -> (Pt, Pt, Pt) {
         _point_from_params(params, 2),
     )
 }
-
-// fn point_from_param4(params: &Vec<&f32>) -> (Pt, Pt, Pt, Pt) {
-//     (
-//         _point_from_params(params, 0),
-//         _point_from_params(params, 1),
-//         _point_from_params(params, 2),
-//         _point_from_params(params, 3),
-//     )
-// }
 
 pub fn many_pt2_to_vec2(ps: &Vec<Pt>) -> Vec<Vec2> {
     ps.iter().map(|p| p.as_vec2()).collect_vec()

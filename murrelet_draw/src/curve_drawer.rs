@@ -1,7 +1,7 @@
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
-use lyon::{geom::CubicBezierSegment, path::Path};
+use lyon::path::Path;
 use murrelet_common::*;
 use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 use murrelet_livecode_derive::*;
@@ -11,7 +11,6 @@ use svg::node::element::path::Data;
 use crate::{
     cubic::CubicBezier,
     newtypes::*,
-    svg::glam_to_lyon,
     tesselate::{
         cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
         flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, segment_arc, segment_vec,
@@ -277,30 +276,7 @@ impl CurveDrawer {
     // }
 
     pub fn length(&self) -> f32 {
-        self.segments
-            .iter()
-            .map(|segment| match segment {
-                CurveSegment::CubicBezier(c) => {
-                    let lyon_cubic = CubicBezierSegment {
-                        from: glam_to_lyon(c.from),
-                        ctrl1: glam_to_lyon(c.ctrl1),
-                        ctrl2: glam_to_lyon(c.ctrl2),
-                        to: glam_to_lyon(c.to),
-                    };
-                    lyon_cubic.approximate_length(0.1)
-                }
-                CurveSegment::Points(p) => p
-                    .points()
-                    .windows(2)
-                    .map(|pts| pts[0].distance(pts[1]))
-                    .sum(),
-                CurveSegment::Arc(a) => {
-                    let angle_diff = (a.end_pi.angle_pi() - a.start_pi.angle_pi()).rem_euclid(2.0);
-                    let sweep_angle_rads = angle_diff * std::f32::consts::PI;
-                    a.radius * sweep_angle_rads
-                }
-            })
-            .sum()
+        self.segments.iter().map(|segment| segment.length()).sum()
     }
 
     pub(crate) fn maybe_transform(&self, transform: &Transform2d) -> LivecodeResult<Self> {
@@ -386,29 +362,6 @@ impl CurveSegment {
         CurveSegment::Arc(CurveArc::new(loc, radius.len(), start, end))
     }
 
-    // pub fn new_simple_arc_from<Rad: IsLength, A1: IsAngle, A2: IsAngle>(
-    //     start: Vec2,
-    //     radius: Rad,
-    //     in_angle: A1,
-    //     angle_length: A2,
-    //     ccw: bool,
-    // ) -> Self {
-    //     // calculate the center
-    //     let (loc, end_pi) = if ccw {
-    //         (
-    //             start + in_angle.to_norm_dir() * radius.len(),
-    //             in_angle.as_angle() - angle_length.as_angle(),
-    //         )
-    //     } else {
-    //         (
-    //             start - in_angle.to_norm_dir() * radius.len(),
-    //             in_angle.as_angle() + angle_length.as_angle(),
-    //         )
-    //     };
-
-    //     CurveSegment::Arc(CurveArc::new(loc, radius.len(), in_angle, end_pi))
-    // }
-
     pub fn new_simple_circle(loc: Vec2, radius: f32) -> Self {
         CurveSegment::Arc(CurveArc::new(
             loc,
@@ -442,10 +395,6 @@ impl CurveSegment {
         self.first_spot().map(|x| x.angle().into()) // todo, return none if it's one point
     }
 
-    // pub fn first_spot(&self) -> SpotOnCurve {
-    //     self.first_spot_cd().unwrap()
-    // }
-
     // if we have only one point, this is None
     pub fn first_spot(&self) -> Option<SpotOnCurve> {
         match self {
@@ -470,10 +419,6 @@ impl CurveSegment {
             }
         }
     }
-
-    // pub fn last_spot(&self) -> SpotOnCurve {
-    //     self.last_spot_cd().unwrap()
-    // }
 
     pub fn last_spot(&self) -> Option<SpotOnCurve> {
         match self {
@@ -551,6 +496,22 @@ impl CurveSegment {
 
     pub fn extend_both(&self, before_amount: f32, after_amount: f32) -> Self {
         self.extend_before(before_amount).extend_after(after_amount)
+    }
+
+    fn length(&self) -> f32 {
+        match self {
+            CurveSegment::CubicBezier(c) => c.length(),
+            CurveSegment::Points(p) => p.length(),
+            CurveSegment::Arc(a) => a.length(),
+        }
+    }
+
+    fn split_segment(&self, pct: f32) -> (CurveSegment, CurveSegment) {
+        match self {
+            CurveSegment::CubicBezier(c) => c.split_segment(pct),
+            CurveSegment::Points(p) => p.split_segment(pct),
+            CurveSegment::Arc(a) => a.split_segment(pct),
+        }
     }
 }
 
@@ -708,10 +669,30 @@ impl CurveArc {
 
     pub fn length(&self) -> f32 {
         (self.radius * (self.end_pi - self.start_pi).angle()).abs()
+        // let angle_diff = (self.end_pi.angle_pi() - self.start_pi.angle_pi()).rem_euclid(2.0);
+        // let sweep_angle_rads = angle_diff * std::f32::consts::PI;
+        // self.radius * sweep_angle_rads
     }
 
     pub fn start_pi(&self) -> AnglePi {
         self.start_pi
+    }
+
+    fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
+        // find out how far around the arc this pct is
+        let target_pct = target_dist / self.length();
+        let split_pi = self.start_pi.lerpify(&self.end_pi, &target_pct);
+        let first_arc = CurveArc {
+            end_pi: split_pi,
+            ..self.clone()
+        };
+
+        let second_arc = CurveArc {
+            start_pi: split_pi,
+            ..self.clone()
+        };
+
+        (first_arc.to_segment(), second_arc.to_segment())
     }
 }
 
@@ -739,6 +720,10 @@ impl CurveCubicBezier {
             ctrl2: c.ctrl2,
             to: c.to,
         }
+    }
+
+    pub fn length(&self) -> f32 {
+        self.to_cubic().approx_length()
     }
 
     pub fn first_point(&self) -> Vec2 {
@@ -783,6 +768,11 @@ impl CurveCubicBezier {
                 .apply_vec2_tranform(|x| transform.transform_vec2(x)),
         )
     }
+
+    fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
+        let v = self.to_cubic().to_vec2_line_space(1.0); // todo, figure out how to manage that
+        CurvePoints::new(v).split_segment(target_dist)
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -794,6 +784,13 @@ impl CurvePoints {
     pub fn new(points: Vec<Vec2>) -> Self {
         assert!(!points.is_empty());
         Self { points }
+    }
+
+    pub fn length(&self) -> f32 {
+        self.points()
+            .windows(2)
+            .map(|pts| pts[0].distance(pts[1]))
+            .sum()
     }
 
     pub fn first_point(&self) -> Vec2 {
@@ -816,6 +813,33 @@ impl CurvePoints {
         CurvePoints {
             points: transform.transform_many_vec2(self.points()).clone_to_vec(),
         }
+    }
+
+    fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
+        let mut add_left = true;
+        let mut so_far = 0.0;
+        let mut left = vec![self.first_point()];
+        let mut right = vec![];
+        for (curr, next) in self.points().curr_next_no_loop_iter() {
+            if add_left {
+                let dist = curr.distance(*next);
+                let dist_after_this_jump = so_far + dist;
+                if dist_after_this_jump > target_dist {
+                    // split this one!
+                    let split_pct = (dist_after_this_jump - target_dist) / dist;
+                    let lerp_point = PointToPoint::new(*curr, *next).pct(split_pct);
+                    left.push(lerp_point);
+                    right.push(lerp_point);
+                    add_left = false;
+                } else {
+                    so_far = dist_after_this_jump;
+                    left.push(*next)
+                }
+            } else {
+                right.push(*next)
+            }
+        }
+        (left.to_segment(), right.to_segment())
     }
 }
 
@@ -981,6 +1005,13 @@ pub trait ToCurveDrawer {
         pts[pts.len() / 2]
     }
 
+    fn to_rough_pct(&self, pct: f32) -> Option<SpotOnCurve> {
+        let length = self.to_cd_open().length();
+        let dist = pct * length;
+
+        self.to_rough_spots_count(dist, Some(1)).first().copied()
+    }
+
     // this one isn't evenly spaced yet
     fn to_rough_points(&self, approx_spacing: f32) -> Vec<Vec2> {
         let mut result = vec![];
@@ -1008,6 +1039,55 @@ pub trait ToCurveDrawer {
     }
 
     fn to_rough_spots(&self, approx_spacing: f32) -> Vec<SpotOnCurve> {
+        self.to_rough_spots_count(approx_spacing, None)
+    }
+
+    fn split(&self, pct: f32) -> (Vec<CurveSegment>, Vec<CurveSegment>) {
+        if pct <= 0.0 {
+            return (self.to_segments(), vec![]);
+        } else if pct >= 1.0 {
+            return (vec![], self.to_segments());
+        }
+
+        let cd = self.to_cd_open();
+        let length = cd.length();
+
+        let target_dist = length * pct;
+
+        let mut left = vec![];
+        let mut right = vec![];
+        let mut dist_traveled = 0.0;
+        let mut add_left = true;
+        for segment in cd.segments() {
+            if add_left {
+                let segment_len = segment.length();
+                let dist_traveled_after_this_segment = dist_traveled + segment_len;
+                if dist_traveled_after_this_segment > target_dist {
+                    // we need to split this next one!
+                    let overshot_pct =
+                        (dist_traveled_after_this_segment - target_dist) / segment_len;
+                    let (left_s, right_s) = segment.split_segment(overshot_pct);
+
+                    left.push(left_s);
+                    right.push(right_s);
+                    add_left = false;
+                } else {
+                    dist_traveled = dist_traveled_after_this_segment;
+                    left.push(segment.clone())
+                }
+            } else {
+                right.push(segment.clone())
+            }
+        }
+
+        (left, right)
+    }
+
+    fn to_rough_spots_count(
+        &self,
+        approx_spacing: f32,
+        max_count: Option<usize>,
+    ) -> Vec<SpotOnCurve> {
         let mut result = vec![];
         let mut curr_offset = 0.0;
         for s in &self.to_segments() {
@@ -1045,7 +1125,13 @@ pub trait ToCurveDrawer {
                     v
                 }
             };
-            result.extend(pts)
+            result.extend(pts);
+
+            if let Some(mc) = max_count {
+                if result.len() > mc {
+                    return result.take_count(mc);
+                }
+            }
         }
         result
     }

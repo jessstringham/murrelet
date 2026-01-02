@@ -1,6 +1,8 @@
 use glam::Vec2;
 use murrelet_common::{Angle, IsAngle, SpotOnCurve};
 
+use crate::svg::glam_to_lyon;
+
 #[derive(Debug, Clone, Copy)]
 pub struct CubicBezier {
     pub from: Vec2,
@@ -9,6 +11,18 @@ pub struct CubicBezier {
     pub to: Vec2,
 }
 impl CubicBezier {
+    pub fn safe_from_spots_s(
+        in_spot: SpotOnCurve,
+        out_spot: SpotOnCurve,
+        strength: Vec2,
+    ) -> Option<Self> {
+        if in_spot.loc.distance(out_spot.loc) < 1.0e-3 {
+            None
+        } else {
+            Some(Self::from_spots_s(in_spot, out_spot, strength))
+        }
+    }
+
     pub fn from_spots_s(in_spot: SpotOnCurve, out_spot: SpotOnCurve, strength: Vec2) -> Self {
         Self::from_spots(in_spot, strength.x, out_spot, strength.y)
     }
@@ -155,5 +169,13 @@ impl CubicBezier {
         }
     }
 
-
+    pub fn approx_length(&self) -> f32 {
+        let lyon_cubic = lyon::geom::CubicBezierSegment {
+            from: glam_to_lyon(self.from),
+            ctrl1: glam_to_lyon(self.ctrl1),
+            ctrl2: glam_to_lyon(self.ctrl2),
+            to: glam_to_lyon(self.to),
+        };
+        lyon_cubic.approximate_length(0.1)
+    }
 }
