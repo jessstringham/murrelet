@@ -419,11 +419,28 @@ impl Rect {
         self.xy
     }
 
+    pub fn center(&self) -> Vec2 {
+        self.xy()
+    }
+
     pub fn pos(&self, s: Vec2) -> Vec2 {
         vec2(
             (s.x - self.left()) / self.w(),
             (s.y - self.bottom()) / self.h(),
         )
+    }
+
+    pub fn transform_to_other_rect(&self, target_rect: Rect) -> SimpleTransform2d {
+        let scale = target_rect.w() / self.w();
+
+        SimpleTransform2d::new(vec![
+            // first move to center
+            SimpleTransform2dStep::translate(-self.center()),
+            // scale
+            SimpleTransform2dStep::scale_both(scale),
+            // then move to target
+            SimpleTransform2dStep::translate(target_rect.center()),
+        ])
     }
 }
 

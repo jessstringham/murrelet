@@ -4,7 +4,7 @@ use std::f32::consts::PI;
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
-use murrelet_common::lerpify_vec2;
+use murrelet_common::{Rect, lerpify_vec2};
 use murrelet_common::{
     a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
     SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2,

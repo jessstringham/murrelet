@@ -279,7 +279,7 @@ impl CurveDrawer {
         self.segments.iter().map(|segment| segment.length()).sum()
     }
 
-    pub(crate) fn maybe_transform(&self, transform: &Transform2d) -> LivecodeResult<Self> {
+    pub fn maybe_transform(&self, transform: &Transform2d) -> LivecodeResult<Self> {
         let mut segments = vec![];
 
         if !transform.is_similarity_transform() {

@@ -525,6 +525,12 @@ impl SpotOnCurve {
             angle: self.angle,
         }
     }
+
+    pub fn travel_2d(&self, dist: Vec2) -> SpotOnCurve {
+        let a = Angle::new(dist.to_angle());
+        let loc = self.travel(dist.x).turn_right_perp().travel(dist.y).loc;
+        SpotOnCurve::new(loc, a)
+    }
 }
 
 pub trait ToSpotWithAngle {

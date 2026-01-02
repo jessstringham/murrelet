@@ -12,6 +12,8 @@ use murrelet_gui::MurreletGUISchema;
 use murrelet_gui::ValueGUI;
 use murrelet_livecode_derive::Livecode;
 
+use crate::cubic::CubicBezier;
+use crate::curve_drawer::ToCurveSegment;
 use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
 
 #[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
@@ -70,9 +72,17 @@ pub struct CompassArc {
     pub label: String,
 }
 
-// impl CompassArc {
-//     pub fn new(radius: f32, arc_length: f32, is_absolute: bool) -> Self { Self { radius, arc_length, is_absolute } }
-// }
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+pub struct CompassBezier {
+    dist: f32,
+    #[murrelet_gui(func = "make_gui_angle")]
+    angle: AnglePi,
+    #[murrelet_gui(func = "make_gui_vec2")]
+    strengths: Vec2,
+    #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
+    #[murrelet_gui(kind = "skip")]
+    pub label: String,
+}
 
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct CompassLine {
@@ -81,12 +91,6 @@ pub struct CompassLine {
     #[murrelet_gui(kind = "skip")]
     pub label: String,
 }
-
-// #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
-// pub struct CompassRepeat {
-//     times: usize,
-//     what: Vec<CompassAction>,
-// }
 
 pub fn make_gui_vec_vec2() -> MurreletGUISchema {
     MurreletGUISchema::list(MurreletGUISchema::Val(ValueGUI::Vec2))
@@ -107,6 +111,7 @@ pub enum CompassAction {
     Angle(CompassDir), // abs
     Arc(CompassArc),
     Line(CompassLine),
+    Bezier(CompassBezier),
     AbsPoints(CompassAbsPoints), // Repeat(CompassRepeat), // now this is in the control vec!
 }
 
@@ -215,6 +220,9 @@ impl InteractiveCompassBuilder {
             CompassAction::Arc(x) => {
                 vec![self.add_arc(x)]
             }
+            CompassAction::Bezier(x) => {
+                vec![self.add_bezier(x)]
+            }
             CompassAction::AbsPoints(x) => match self.add_abs_pts(x) {
                 Some(x) => vec![x],
                 None => vec![],
@@ -275,6 +283,29 @@ impl InteractiveCompassBuilder {
 
         // know there's at least one point so we can unwrap
         CurveSegment::Points(CurvePoints::new(points))
+    }
+
+    fn curr_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.curr_loc, self.curr_angle)
+    }
+
+    fn add_bezier(&mut self, x: &CompassBezier) -> CurveSegment {
+        let first_spot = self.curr_spot();
+
+        // next point is going to take the current angle, and move in that direction
+        let last_spot = first_spot.rotate(x.angle).travel(x.dist);
+
+        let bezier = CubicBezier::from_spots_s(first_spot, last_spot, x.strengths);
+
+        self.curr_loc = last_spot.loc;
+        self.curr_angle = last_spot.angle().as_angle_pi();
+
+        self.pen_down = true;
+
+        if x.label.len() > 0 {
+            self.references.insert(x.label.clone(), self.to_basic());
+        }
+        bezier.to_segment()
     }
 
     fn use_angle_and_length<A: IsAngle>(&self, angle: A, length: f32) -> Vec2 {
