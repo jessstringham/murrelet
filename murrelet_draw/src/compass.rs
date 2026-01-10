@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
+use glam::vec2;
 use glam::Vec2;
 use itertools::Itertools;
 use lerpable::Lerpable;
@@ -179,12 +180,30 @@ impl Default for CompassAction {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum LastActionNames {
+    Arc,
+    Line,
+    Bezier,
+    Start,
+}
+impl LastActionNames {
+    pub fn from_segment(c: &CurveSegment) -> LastActionNames {
+        match c {
+            CurveSegment::Arc(_) => LastActionNames::Arc,
+            CurveSegment::Points(_) => LastActionNames::Line,
+            CurveSegment::CubicBezier(_) => LastActionNames::Bezier,
+        }
+    }
+}
+
 pub struct InteractiveCompassBuilder {
     pen_down: bool, // if we've drawn one
     curr_loc: Vec2,
     curr_angle: AnglePi,
     so_far: Vec<CurveSegment>,
     references: HashMap<String, CurveStart>,
+    last_action: LastActionNames,
 }
 
 impl InteractiveCompassBuilder {
@@ -195,6 +214,7 @@ impl InteractiveCompassBuilder {
             curr_angle: AnglePi::new(0.0),
             so_far: Vec::new(),
             references: HashMap::new(),
+            last_action: LastActionNames::Start,
         }
     }
 
@@ -209,7 +229,7 @@ impl InteractiveCompassBuilder {
 
     pub fn new_segments(&mut self, dir: &CompassAction) -> Vec<CurveSegment> {
         // here we go!
-        match dir {
+        let r = match dir {
             CompassAction::Angle(x) => {
                 self.set_angle(x);
                 vec![]
@@ -227,7 +247,9 @@ impl InteractiveCompassBuilder {
                 Some(x) => vec![x],
                 None => vec![],
             },
-        }
+        };
+
+        r
     }
 
     pub fn add_qline(&mut self, length: f32) {
@@ -243,8 +265,16 @@ impl InteractiveCompassBuilder {
     }
 
     pub fn add_segment(&mut self, dir: &CompassAction) {
-        let r = { self.new_segments(dir) };
+        let r = self.new_segments(dir);
         self.so_far.extend(r);
+
+        self.last_action = match dir {
+            CompassAction::Angle(_) => self.last_action.clone(), // don't change the action
+            CompassAction::Arc(_) => LastActionNames::Arc,
+            CompassAction::Line(_) => LastActionNames::Line,
+            CompassAction::Bezier(_) => LastActionNames::Bezier,
+            CompassAction::AbsPoints(_) => LastActionNames::Line,
+        }
     }
 
     fn set_angle(&mut self, dir: &CompassDir) {
@@ -266,6 +296,8 @@ impl InteractiveCompassBuilder {
         // if the pen is not down, add the current spot
         let mut points = vec![];
         if !self.pen_down {
+            points.push(self.curr_loc)
+        } else if !matches!(self.last_action, LastActionNames::Line) {
             points.push(self.curr_loc)
         }
 
@@ -295,7 +327,8 @@ impl InteractiveCompassBuilder {
         // next point is going to take the current angle, and move in that direction
         let last_spot = first_spot.rotate(x.angle).travel(x.dist);
 
-        let bezier = CubicBezier::from_spots_s(first_spot, last_spot, x.strengths);
+        let bezier =
+            CubicBezier::from_spots_s(first_spot, last_spot, x.strengths * vec2(1.0, -1.0));
 
         self.curr_loc = last_spot.loc;
         self.curr_angle = last_spot.angle().as_angle_pi();

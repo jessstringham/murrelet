@@ -431,7 +431,7 @@ impl CurveSegment {
                     let points = p.points();
                     let end = *points.last().unwrap();
                     let prev = *points.get(points.len() - 2).unwrap();
-                    let angle = PointToPoint::new(prev, end).angle().perp_to_left();
+                    let angle = PointToPoint::new(prev, end).angle(); //.perp_to_left();
                     Some(SpotOnCurve::new(end, angle))
                 } else {
                     None
@@ -506,11 +506,11 @@ impl CurveSegment {
         }
     }
 
-    fn split_segment(&self, pct: f32) -> (CurveSegment, CurveSegment) {
+    fn split_segment(&self, dist: f32) -> (CurveSegment, CurveSegment) {
         match self {
-            CurveSegment::CubicBezier(c) => c.split_segment(pct),
-            CurveSegment::Points(p) => p.split_segment(pct),
-            CurveSegment::Arc(a) => a.split_segment(pct),
+            CurveSegment::CubicBezier(c) => c.split_segment(dist),
+            CurveSegment::Points(p) => p.split_segment(dist),
+            CurveSegment::Arc(a) => a.split_segment(dist),
         }
     }
 }
@@ -826,10 +826,11 @@ impl CurvePoints {
                 let dist_after_this_jump = so_far + dist;
                 if dist_after_this_jump > target_dist {
                     // split this one!
-                    let split_pct = (dist_after_this_jump - target_dist) / dist;
+                    let split_pct = 1.0 - ((dist_after_this_jump - target_dist) / dist);
                     let lerp_point = PointToPoint::new(*curr, *next).pct(split_pct);
                     left.push(lerp_point);
                     right.push(lerp_point);
+                    right.push(*next);
                     add_left = false;
                 } else {
                     so_far = dist_after_this_jump;
@@ -840,6 +841,14 @@ impl CurvePoints {
             }
         }
         (left.to_segment(), right.to_segment())
+    }
+
+    fn push_pt_beginning(&mut self, pt: Vec2) {
+        self.points.insert(0, pt);
+    }
+
+    fn extend_pts(&mut self, points: &[Vec2]) {
+        self.points.extend_from_slice(points);
     }
 }
 
@@ -899,23 +908,26 @@ pub fn simplify_curve_segments(segments: &[CurveSegment]) -> Vec<CurveSegment> {
     let mut cleaned_segments = vec![];
 
     // combine our points together..
-    let mut curr_points = vec![];
     for segment in segments {
-        match segment {
-            CurveSegment::Arc(_) => {
-                if !curr_points.is_empty() {
-                    cleaned_segments
-                        .push(CurveSegment::Points(CurvePoints::new(curr_points.clone())));
-                    curr_points = vec![];
+        let segment_first_point = segment.first_point();
+        let mut segment = segment.clone();
+        if let CurveSegment::Points(curve_points) = &mut segment {
+            match cleaned_segments.last_mut() {
+                Some(CurveSegment::Points(pts)) => pts.extend_pts(curve_points.points()),
+                Some(s) => {
+                    // make sure that the line starts where this one ends or else things
+                    // like segmentation breaks down
+                    if s.last_point().distance(segment_first_point) > 1e-2f32 {
+                        curve_points.push_pt_beginning(s.last_point());
+                    }
+
+                    cleaned_segments.push(segment.clone())
                 }
-                cleaned_segments.push(segment.clone())
+                None => cleaned_segments.push(segment.clone()),
             }
-            CurveSegment::Points(c) => curr_points.extend(c.points.iter()),
-            CurveSegment::CubicBezier(_) => cleaned_segments.push(segment.clone()),
+        } else {
+            cleaned_segments.push(segment.clone())
         }
-    }
-    if !curr_points.is_empty() {
-        cleaned_segments.push(CurveSegment::Points(CurvePoints::new(curr_points.clone())));
     }
 
     cleaned_segments
@@ -1042,11 +1054,21 @@ pub trait ToCurveDrawer {
         self.to_rough_spots_count(approx_spacing, None)
     }
 
+    fn even_split(&self, target_size: f32) -> (Vec<CurveSegment>, Vec<CurveSegment>) {
+        let cd = self.to_cd_open();
+        let length = cd.length();
+
+        let how_many = (length / target_size).floor();
+        let new_size = length / how_many;
+
+        self.split(new_size)
+    }
+
     fn split(&self, pct: f32) -> (Vec<CurveSegment>, Vec<CurveSegment>) {
         if pct <= 0.0 {
-            return (self.to_segments(), vec![]);
-        } else if pct >= 1.0 {
             return (vec![], self.to_segments());
+        } else if pct >= 1.0 {
+            return (self.to_segments(), vec![]);
         }
 
         let cd = self.to_cd_open();
@@ -1058,15 +1080,22 @@ pub trait ToCurveDrawer {
         let mut right = vec![];
         let mut dist_traveled = 0.0;
         let mut add_left = true;
+
+        let mut last_pt = None;
         for segment in cd.segments() {
             if add_left {
                 let segment_len = segment.length();
                 let dist_traveled_after_this_segment = dist_traveled + segment_len;
+
                 if dist_traveled_after_this_segment > target_dist {
                     // we need to split this next one!
                     let overshot_pct =
                         (dist_traveled_after_this_segment - target_dist) / segment_len;
-                    let (left_s, right_s) = segment.split_segment(overshot_pct);
+                    let split_loc = (1.0 - overshot_pct) * segment_len;
+
+                    // points might not know about their starting place, so check for that
+
+                    let (left_s, right_s) = segment.split_segment(split_loc);
 
                     left.push(left_s);
                     right.push(right_s);
@@ -1078,6 +1107,7 @@ pub trait ToCurveDrawer {
             } else {
                 right.push(segment.clone())
             }
+            last_pt = Some(segment.last_point());
         }
 
         (left, right)
