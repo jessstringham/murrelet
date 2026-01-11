@@ -38,7 +38,6 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                 Ok(Value::Int(a))
             }
         }),
-
         "manymod" => Function::new(move |argument| {
             let a = argument.as_tuple()?;
 
@@ -53,6 +52,12 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                 offset *= mod_thing;
             }
             Ok(Value::Int(result))
+        }),
+        "trigger" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(3)?;
+            let (val, last_val, rate) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
+            let f = (val / rate).floor() > (last_val / rate).floor();
+            Ok(Value::Boolean(f))
         }),
 
         "clamp" => Function::new(move |argument| {
