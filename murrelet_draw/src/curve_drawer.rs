@@ -422,10 +422,7 @@ impl CurveSegment {
 
     pub fn last_spot(&self) -> Option<SpotOnCurve> {
         match self {
-            CurveSegment::Arc(arc) => {
-                let a = CurveArc::new(arc.loc, arc.radius, arc.start_pi, arc.end_pi);
-                Some(SpotOnCurve::new(a.last_point(), a.end_tangent_angle()))
-            }
+            CurveSegment::Arc(arc) => Some(arc.last_spot()),
             CurveSegment::Points(p) => {
                 if p.points().len() >= 2 {
                     let points = p.points();
@@ -533,6 +530,43 @@ impl CurveArc {
         }
     }
 
+    pub fn from_spot<A: IsAngle>(
+        start_spot: SpotOnCurve,
+        raw_radius: f32,
+        raw_arc_length: A,
+    ) -> CurveArc {
+        let angle_pi = raw_arc_length.as_angle_pi();
+        let (arc_length, radius) = if angle_pi.is_neg() {
+            (-angle_pi, -raw_radius)
+        } else {
+            (angle_pi, raw_radius)
+        };
+
+        // starting at our current location, move at a right angle to our current angle
+        // negative goes to the left of the line
+        let loc = start_spot.loc + start_spot.angle().perp_to_left().to_norm_dir() * radius;
+
+        // if radius is negative, go backwards
+        // end_angle is what we'll update curr angle to, it's always assuming positive radius
+        let (start, end): (AnglePi, AnglePi) = if radius < 0.0 {
+            let next_angle = start_spot.angle - arc_length;
+            (
+                AnglePi::new(1.0) + start_spot.angle - AnglePi::new(0.5),
+                AnglePi::new(1.0) + next_angle - AnglePi::new(0.5),
+                // next_angle.into(),
+            )
+        } else {
+            let next_angle = start_spot.angle + arc_length;
+            (
+                (start_spot.angle - AnglePi::new(0.5)).into(),
+                (next_angle - AnglePi::new(0.5)).into(),
+                // next_angle.into(),
+            )
+        };
+
+        CurveArc::new(loc, radius.abs(), start, end)
+    }
+
     pub fn is_in_arc(&self, angle: AnglePi) -> bool {
         let start_pi = self.start_pi.angle_pi();
         let end_pi = self.end_pi.angle_pi();
@@ -603,6 +637,10 @@ impl CurveArc {
     fn end_angle(&self) -> Angle {
         self.end_pi.as_angle()
         // AnglePi::new(self.end_pi).into()
+    }
+
+    pub fn last_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.last_point(), self.end_tangent_angle())
     }
 
     fn start_angle(&self) -> Angle {
@@ -694,6 +732,8 @@ impl CurveArc {
 
         (first_arc.to_segment(), second_arc.to_segment())
     }
+
+
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -1081,7 +1121,7 @@ pub trait ToCurveDrawer {
         let mut dist_traveled = 0.0;
         let mut add_left = true;
 
-        let mut last_pt = None;
+        // let mut last_pt = None;
         for segment in cd.segments() {
             if add_left {
                 let segment_len = segment.length();
@@ -1107,7 +1147,7 @@ pub trait ToCurveDrawer {
             } else {
                 right.push(segment.clone())
             }
-            last_pt = Some(segment.last_point());
+            // last_pt = Some(segment.last_point());
         }
 
         (left, right)

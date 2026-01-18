@@ -17,6 +17,7 @@ use crate::cubic::CubicBezier;
 use crate::curve_drawer::ToCurveSegment;
 use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
 
+
 #[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
 pub struct CurveStart {
     #[murrelet_gui(func = "make_gui_vec2")]
@@ -227,6 +228,10 @@ impl InteractiveCompassBuilder {
         self.add_curve_start_simple(start.loc, start.angle_pi);
     }
 
+    pub fn add_curve_start_spot(&mut self, spot: SpotOnCurve) {
+        self.add_curve_start_simple(spot.loc, spot.angle);
+    }
+
     pub fn new_segments(&mut self, dir: &CompassAction) -> Vec<CurveSegment> {
         // here we go!
         let r = match dir {
@@ -302,7 +307,7 @@ impl InteractiveCompassBuilder {
         }
 
         // next point is going to take the current angle, and move in that direction
-        let movement = self.use_angle_and_length(self.curr_angle, x.length);
+        let movement = self.curr_angle.to_norm_dir() * x.length;
         self.curr_loc += movement;
 
         points.push(self.curr_loc);
@@ -341,52 +346,54 @@ impl InteractiveCompassBuilder {
         bezier.to_segment()
     }
 
-    fn use_angle_and_length<A: IsAngle>(&self, angle: A, length: f32) -> Vec2 {
-        angle.as_angle_pi().to_norm_dir() * length
-    }
-
     fn add_arc(&mut self, x: &CompassArc) -> CurveSegment {
-        let angle_pi = x.arc_length.as_angle_pi();
-        let (arc_length, radius) = if angle_pi.is_neg() {
-            (-angle_pi, -x.radius)
-        } else {
-            (angle_pi, x.radius)
-        };
+        // let angle_pi = x.arc_length.as_angle_pi();
+        // let (arc_length, radius) = if angle_pi.is_neg() {
+        //     (-angle_pi, -x.radius)
+        // } else {
+        //     (angle_pi, x.radius)
+        // };
 
-        // starting at our current location, move at a right angle to our current angle
-        // negative goes to the left of the line
-        let loc =
-            self.curr_loc + self.use_angle_and_length(self.curr_angle + AnglePi::new(0.5), radius);
+        // // starting at our current location, move at a right angle to our current angle
+        // // negative goes to the left of the line
+        // let loc = self.curr_loc + radius * self.curr_angle.perp_to_left().to_norm_dir();
 
-        // if radius is negative, go backwards
-        // end_angle is what we'll update curr angle to, it's always assuming positive radius
-        let (start, end, next_angle) = if radius < 0.0 {
-            let next_angle = self.curr_angle - arc_length;
-            (
-                AnglePi::new(1.0) + self.curr_angle - AnglePi::new(0.5),
-                AnglePi::new(1.0) + next_angle - AnglePi::new(0.5),
-                next_angle,
-            )
-        } else {
-            let next_angle = self.curr_angle + arc_length;
-            (
-                self.curr_angle - AnglePi::new(0.5),
-                next_angle - AnglePi::new(0.5),
-                next_angle,
-            )
-        };
+        // // if radius is negative, go backwards
+        // // end_angle is what we'll update curr angle to, it's always assuming positive radius
+        // let (start, end, next_angle) = if radius < 0.0 {
+        //     let next_angle = self.curr_angle - arc_length;
+        //     (
+        //         AnglePi::new(1.0) + self.curr_angle - AnglePi::new(0.5),
+        //         AnglePi::new(1.0) + next_angle - AnglePi::new(0.5),
+        //         next_angle,
+        //     )
+        // } else {
+        //     let next_angle = self.curr_angle + arc_length;
+        //     (
+        //         self.curr_angle - AnglePi::new(0.5),
+        //         next_angle - AnglePi::new(0.5),
+        //         next_angle,
+        //     )
+        // };
 
-        let a = CurveArc::new(loc, radius.abs(), start, end);
+        // let a = CurveArc::new(loc, radius.abs(), start, end);
 
-        self.curr_loc = a.last_point();
-        self.curr_angle = AnglePi::new(next_angle.angle_pi() % 2.0);
+        let arc = CurveArc::from_spot(
+            SpotOnCurve::new(self.curr_loc, self.curr_angle),
+            x.radius,
+            x.arc_length,
+        );
+        let new_spot = arc.last_spot();
+
+        self.curr_loc = new_spot.loc;
+        self.curr_angle = new_spot.angle().mod2();
         self.pen_down = true;
 
         if x.label.len() > 0 {
             self.references.insert(x.label.clone(), self.to_basic());
         }
 
-        CurveSegment::Arc(a)
+        CurveSegment::Arc(arc)
     }
 
     fn add_abs_pts(&mut self, x: &CompassAbsPoints) -> Option<CurveSegment> {

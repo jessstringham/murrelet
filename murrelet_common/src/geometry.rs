@@ -258,6 +258,10 @@ pub trait IsAngle: Sized {
     fn perp_to_right(&self) -> Self;
     fn scale(&self, s: f32) -> Self;
 
+    fn mod2(&self) -> AnglePi {
+        AnglePi::new(self.angle_pi() % 2.0)
+    }
+
     fn flip(&self) -> Self {
         self.perp_to_left().perp_to_left()
     }
