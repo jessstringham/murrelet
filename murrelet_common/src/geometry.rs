@@ -406,7 +406,7 @@ impl IsLength for PointToPoint {
 
 // should combine this with Tangent...
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SpotOnCurve {
     pub loc: Vec2,
     pub angle: Angle,
