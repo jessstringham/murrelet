@@ -1,7 +1,7 @@
 #![allow(dead_code)]
-use glam::{vec3, Mat4, Vec2};
+use glam::{Vec2, vec2};
 use lerpable::Lerpable;
-use murrelet_common::{Assets, AssetsRef, LivecodeUsage, LivecodeValue};
+use murrelet_common::{Assets, AssetsRef, LivecodeUsage, LivecodeValue, SimpleTransform2d, SimpleTransform2dStep};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_gui::MurreletGUI;
@@ -104,21 +104,25 @@ impl SvgDrawConfig {
         self.capture_path.clone()
     }
 
-    pub fn transform_for_size(&self) -> Mat4 {
+    pub fn transform_for_size(&self) -> SimpleTransform2d {
         if self.should_resize {
             // okay so we take the width, since that's what looked okay on the screen
             let size = self.size();
             let full_target_width = self.full_target_width() * 1.0;
 
-            let translation_to_final = vec3(full_target_width, full_target_width, 0.0);
+            let translation_to_final = vec2(full_target_width, full_target_width);
             let s = self.target_size / size;
-            let scale = vec3(s, s, 1.0);
+            // let scale = vec3(s, s, 1.0);
 
             // aiming for 100mm by 100mm, going from 0 to 10
             // operations go right to left!
-            Mat4::from_translation(translation_to_final) * Mat4::from_scale(scale)
+            // Mat4::from_translation(translation_to_final) * Mat4::from_scale(scale)
+            SimpleTransform2d::new(vec![
+                SimpleTransform2dStep::translate(translation_to_final),
+                SimpleTransform2dStep::scale_both(s)
+            ])
         } else {
-            Mat4::IDENTITY
+            SimpleTransform2d::noop()
         }
     }
 

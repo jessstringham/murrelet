@@ -7,7 +7,7 @@ use lerpable::Lerpable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    intersection::{find_intersection_inf, within_segment},
+    intersection::{find_intersection_inf, find_intersection_segments, within_segment},
     transform::TransformVec2,
     triangulate::DefaultVertex,
     SimpleTransform2d, SimpleTransform2dStep,
@@ -27,6 +27,12 @@ impl AnglePi {
 
     pub fn new(v: f32) -> AnglePi {
         AnglePi(v)
+    }
+
+    pub fn from_three_vec2(v1: Vec2, v2: Vec2, v3: Vec2) -> AnglePi {
+        let a = v1 - v2;
+        let b = v3 - v2;
+        Angle::new(a.angle_to(b)).into()
     }
 
     pub fn to_transform(&self) -> SimpleTransform2d {
@@ -476,6 +482,14 @@ impl SpotOnCurve {
             .to_last_point()
     }
 
+    pub fn move_left_perp_dist_spot<L: IsLength>(&self, length: L) -> SpotOnCurve {
+        SpotOnCurve::new(self.move_left_perp_dist(length), self.angle())
+    }
+
+    pub fn move_right_perp_dist_spot<L: IsLength>(&self, length: L) -> SpotOnCurve {
+        SpotOnCurve::new(self.move_right_perp_dist(length), self.angle())
+    }
+
     pub fn move_right_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
         self.turn_right_perp()
             .to_line(length.to_length())
@@ -534,6 +548,10 @@ impl SpotOnCurve {
         let a = Angle::new(dist.to_angle());
         let loc = self.travel(dist.x).turn_right_perp().travel(dist.y).loc;
         SpotOnCurve::new(loc, a)
+    }
+
+    pub fn move_back(&self, dist: f32) -> SpotOnCurve {
+        self.flip().travel(dist).flip()
     }
 }
 
@@ -680,6 +698,10 @@ impl PointToPoint {
         find_intersection_inf(self.to_tuple(), other.to_tuple())
     }
 
+    pub fn find_intersection(&self, other: PointToPoint) -> Option<Vec2> {
+        find_intersection_segments(self.to_tuple(), other.to_tuple())
+    }
+
     pub fn within_segment(self, intersection: Vec2, eps: f32) -> bool {
         within_segment(self.to_tuple(), intersection, eps)
     }
@@ -711,6 +733,10 @@ impl PointToPoint {
         self.start + loc * (self.end - self.start)
     }
 
+    pub fn pct_spot(&self, pct: f32) -> SpotOnCurve {
+        SpotOnCurve::new(self.pct(pct), self.angle())
+    }
+
     pub fn start_spot(&self) -> SpotOnCurve {
         SpotOnCurve::new(self.start, self.angle())
     }
@@ -723,8 +749,18 @@ impl PointToPoint {
         PointToPoint::new(self.end, self.start)
     }
 
-    pub fn pct_spot(&self, x: f32) -> SpotOnCurve {
-        SpotOnCurve::new(self.pct(x), self.angle())
+    pub fn shift_right_perp(&self, dist: f32) -> PointToPoint {
+        Self::new(
+            self.start_spot().turn_right_perp().travel(dist).loc,
+            self.end_spot().turn_right_perp().travel(dist).loc,
+        )
+    }
+
+    pub fn shift_left_perp(&self, dist: f32) -> PointToPoint {
+        Self::new(
+            self.start_spot().turn_left_perp().travel(dist).loc,
+            self.end_spot().turn_left_perp().travel(dist).loc,
+        )
     }
 }
 

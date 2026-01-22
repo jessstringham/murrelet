@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 use crate::{
-    curve_drawer::CurveDrawer,
+    curve_drawer::{CurveDrawer, ToCurveDrawer},
     draw::*,
     svg::{SvgPathDef, SvgShape, TransformedSvgShape},
-    tesselate::parse_svg_path_as_vec2,
+    tesselate::{parse_svg_path_as_vec2, ToLyonPath},
     transform2d::*,
 };
 use glam::*;
@@ -491,33 +491,47 @@ pub enum MurreletCurveKinds {
 #[derive(Debug, Clone)]
 pub struct MurreletCurve {
     cd: MurreletCurveKinds,
-    t: Mat4,
+    t: SimpleTransform2d,
 }
 
 impl MurreletCurve {
     pub fn new(cd: CurveDrawer) -> Self {
         Self {
             cd: MurreletCurveKinds::CD(cd),
-            t: Mat4::IDENTITY,
+            t: SimpleTransform2d::noop(),
         }
     }
 
-    pub fn transform_with_mat4_after(&self, t: Mat4) -> MurreletCurve {
+    pub fn transform_after<T: ToSimpleTransform>(&self, t: &T) -> MurreletCurve {
         Self {
             cd: self.cd.clone(),
-            t: t * self.t,
+            t: self.t.add_transform_after(t),
         }
     }
 
-    pub fn transform_with_mat4_before(&self, t: Mat4) -> MurreletCurve {
+    pub fn transform_before<T: ToSimpleTransform>(&self, t: &T) -> MurreletCurve {
         Self {
             cd: self.cd.clone(),
-            t: self.t * t,
+            t: self.t.add_transform_before(t),
         }
     }
+
+    // pub fn transform_with_mat4_after(&self, t: Mat4) -> MurreletCurve {
+    //     Self {
+    //         cd: self.cd.clone(),
+    //         t: t * self.t,
+    //     }
+    // }
+
+    // pub fn transform_with_mat4_before(&self, t: Mat4) -> MurreletCurve {
+    //     Self {
+    //         cd: self.cd.clone(),
+    //         t: self.t * t,
+    //     }
+    // }
 
     pub fn mat4(&self) -> Mat4 {
-        self.t
+        self.t.to_mat4()
     }
 
     pub fn curve(&self) -> CurveDrawer {
@@ -533,7 +547,7 @@ impl MurreletCurve {
     fn new_transformed_svg(svg: &TransformedSvgShape) -> MurreletCurve {
         Self {
             cd: MurreletCurveKinds::Svg(svg.shape.as_path()),
-            t: svg.t,
+            t: svg.t.clone(),
         }
     }
 
@@ -548,7 +562,11 @@ impl MurreletCurve {
                 TransformedSvgShape::from_shape(crate::svg::SvgShape::Path(pts.clone()))
             }
         };
-        c.transform_with_mat4_after(self.mat4())
+        c.transform_after(&self.t)
+    }
+
+    pub fn transform(&self) -> SimpleTransform2d {
+        self.t.clone()
     }
 }
 
@@ -576,7 +594,7 @@ impl MurreletPath {
         match self {
             MurreletPath::Polyline(c) => MurreletCurve {
                 cd: MurreletCurveKinds::CD(CurveDrawer::new_simple_points(c.clone_to_vec(), false)),
-                t: Mat4::IDENTITY,
+                t: SimpleTransform2d::noop(),
             },
             MurreletPath::Curve(c) => c.clone(),
             MurreletPath::Svg(svg) => MurreletCurve::new_transformed_svg(svg),
@@ -584,49 +602,46 @@ impl MurreletPath {
         }
     }
 
-    pub fn transform_with<T: TransformVec2 + ToMat4>(&self, t: &T) -> Self {
+    pub fn transform_with<T: TransformVec2 + ToSimpleTransform>(&self, t: &T) -> Self {
         match self {
             MurreletPath::Polyline(x) => MurreletPath::Polyline(x.transform_with(t)),
-            MurreletPath::Curve(cd) => {
-                MurreletPath::Svg(cd.to_svg().transform_with_mat4_after(t.change_to_mat4()))
-            }
-            MurreletPath::Svg(svg) => {
-                MurreletPath::Svg(svg.transform_with_mat4_after(t.change_to_mat4()))
-            }
+            MurreletPath::Curve(cd) => MurreletPath::Svg(cd.to_svg().transform_after(t)),
+            MurreletPath::Svg(svg) => MurreletPath::Svg(svg.transform_after(t)),
             MurreletPath::MaskedCurve(_, _) => todo!(),
         }
     }
 
-    pub fn transform_with_mat4_after(&self, t: Mat4) -> MurreletPath {
+    pub fn transform_with_mat4_after<T: ToSimpleTransform + TransformVec2>(
+        &self,
+        t: T,
+    ) -> MurreletPath {
         match self {
             MurreletPath::Polyline(_) => self.transform_with(&t),
-            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_after(t)),
-            MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_with_mat4_after(t)),
-            MurreletPath::MaskedCurve(mask, curve) => MurreletPath::MaskedCurve(
-                mask.transform_with_mat4_after(t),
-                curve.transform_with_mat4_after(t),
-            ),
+            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_after(&t)),
+            MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_after(&t)),
+            MurreletPath::MaskedCurve(mask, curve) => {
+                MurreletPath::MaskedCurve(mask.transform_after(&t), curve.transform_after(&t))
+            }
         }
     }
 
-    pub fn transform_with_mat4_before(&self, t: Mat4) -> MurreletPath {
+    pub fn transform_with_mat4_before<T: ToSimpleTransform>(&self, t: &T) -> MurreletPath {
         match self {
-            MurreletPath::Polyline(_) => self.transform_with(&t),
-            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_with_mat4_before(t)),
-            MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_with_mat4_before(t)),
-            MurreletPath::MaskedCurve(mask, curve) => MurreletPath::MaskedCurve(
-                mask.transform_with_mat4_before(t),
-                curve.transform_with_mat4_before(t),
-            ),
+            MurreletPath::Polyline(_) => self.transform_with(t),
+            MurreletPath::Curve(c) => MurreletPath::Curve(c.transform_before(t)),
+            MurreletPath::Svg(c) => MurreletPath::Svg(c.transform_before(t)),
+            MurreletPath::MaskedCurve(mask, curve) => {
+                MurreletPath::MaskedCurve(mask.transform_before(t), curve.transform_before(t))
+            }
         }
     }
 
     pub fn transform(&self) -> Option<Mat4> {
         match self {
             MurreletPath::Polyline(_) => None,
-            MurreletPath::Curve(c) => Some(c.t),
-            MurreletPath::Svg(c) => Some(c.t),
-            MurreletPath::MaskedCurve(_mask, c) => Some(c.t),
+            MurreletPath::Curve(c) => Some(c.t.to_mat4()),
+            MurreletPath::Svg(c) => Some(c.t.to_mat4()),
+            MurreletPath::MaskedCurve(_mask, c) => Some(c.t.to_mat4()),
         }
     }
 }
@@ -648,6 +663,69 @@ impl MurreletPathAnnotation {
 
     fn new_many(annotations: Vec<(String, String)>) -> MurreletPathAnnotation {
         Self(annotations)
+    }
+}
+
+pub trait ShapeToStyledPath {
+    fn from_mstyle(&self, style: &MurreletStyle) -> StyledPath;
+    fn from_style(&self, style: &StyleConf) -> StyledPath {
+        self.from_mstyle(&style.to_style())
+    }
+}
+
+impl ShapeToStyledPath for Polyline {
+    fn from_mstyle(&self, style: &MurreletStyle) -> StyledPath {
+        StyledPath::new_from_path(MurreletPath::Polyline(self.clone()), *style)
+    }
+}
+
+impl ShapeToStyledPath for CurveDrawer {
+    fn from_mstyle(&self, style: &MurreletStyle) -> StyledPath {
+        StyledPath::new_from_path(
+            MurreletPath::Curve(MurreletCurve::new(self.clone())),
+            *style,
+        )
+    }
+}
+
+impl ToLyonPath for MurreletPath {
+    fn approx_vertex_count(&self) -> usize {
+        match self {
+            MurreletPath::Polyline(p) => p.len(),
+            MurreletPath::Curve(cd) => match &cd.cd {
+                MurreletCurveKinds::CD(curve_drawer) => curve_drawer.approx_vertex_count(),
+                MurreletCurveKinds::Svg(_) => todo!(),
+            },
+            MurreletPath::Svg(_) => todo!(),
+            MurreletPath::MaskedCurve(_, _) => todo!(),
+        }
+    }
+
+    fn start(&self) -> Vec2 {
+        match self {
+            MurreletPath::Polyline(p) => *p.first().unwrap_or(&Vec2::ZERO),
+            MurreletPath::Curve(cd) => match &cd.cd {
+                MurreletCurveKinds::CD(curve_drawer) => curve_drawer.start(),
+                MurreletCurveKinds::Svg(_) => todo!(),
+            },
+            MurreletPath::Svg(_) => todo!(),
+            MurreletPath::MaskedCurve(_, _) => todo!(),
+        }
+    }
+
+    fn add_to_lyon<B: lyon::path::traits::PathBuilder>(
+        &self,
+        builder: &mut B,
+    ) -> murrelet_livecode::types::LivecodeResult<bool> {
+        match self {
+            MurreletPath::Polyline(p) => p.to_cd_open().add_to_lyon(builder),
+            MurreletPath::Curve(cd) => match &cd.cd {
+                MurreletCurveKinds::CD(curve_drawer) => curve_drawer.add_to_lyon(builder),
+                MurreletCurveKinds::Svg(_) => todo!(),
+            },
+            MurreletPath::Svg(_) => todo!(),
+            MurreletPath::MaskedCurve(_, _) => todo!(),
+        }
     }
 }
 
@@ -698,22 +776,22 @@ impl StyledPath {
         }
     }
 
-    pub fn from_path<P: IsPolyline>(path: P) -> StyledPath {
+    pub fn from_path<P: ToCurveDrawer>(path: P) -> StyledPath {
         StyledPath {
-            path: MurreletPath::Polyline(path.as_polyline()),
+            path: MurreletPath::Curve(MurreletCurve::new(path.to_cd_open())),
             style: MurreletStyle::default(),
             annotations: MurreletPathAnnotation::noop(),
         }
     }
 
-    pub fn transform_path<T: TransformVec2 + ToMat4>(&self, t: &T) -> Self {
+    pub fn transform_path<T: TransformVec2 + ToSimpleTransform>(&self, t: &T) -> Self {
         StyledPath {
             path: self.path.transform_with(t),
             ..self.clone()
         }
     }
 
-    pub fn transform_with_mat4_after(&self, t: Mat4) -> Self {
+    pub fn transform_with_mat4_after<T: ToSimpleTransform>(&self, t: T) -> Self {
         StyledPath {
             path: self.path.transform_with_mat4_after(t),
             ..self.clone()

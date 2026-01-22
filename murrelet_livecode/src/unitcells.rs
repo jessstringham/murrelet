@@ -681,12 +681,13 @@ impl UnitCellContext {
         self.detail.transform_with_skew_mat4()
     }
 
-    pub fn transform_with_skew<F: IsPolyline>(&self, v: &F) -> Polyline {
-        self.detail.transform_with_skew(v)
+    pub fn transform_with_skew<F: Transformable>(&self, v: &F) -> F {
+        v.transform_with(&self.detail.transform_with_skew_mat4())
     }
 
     pub fn transform_one_point_with_skew(&self, v: Vec2) -> Vec2 {
-        self.detail.transform_with_skew(&vec![v]).clone_to_vec()[0]
+        // self.detail.transform_with_skew(&vec![v]).clone_to_vec()[0]
+        v.transform_with(&self.detail.transform_with_skew_mat4())
     }
 
     pub fn transform_no_skew_one_point(&self, v: Vec2) -> Vec2 {
@@ -694,9 +695,9 @@ impl UnitCellContext {
         self.detail.transform_no_skew_one_point(v)
     }
 
-    pub fn transform_no_skew<F: IsPolyline>(&self, v: &F) -> Polyline {
+    pub fn transform_no_skew<F: Transformable>(&self, v: &F) -> F {
         // also does adjust shape..
-        self.detail.transform_no_skew(v)
+        v.transform_with(&self.detail.transform_no_skew_mat4())
     }
 
     pub fn transform_no_skew_mat4(&self) -> SimpleTransform2d {
@@ -712,12 +713,11 @@ impl IntoExprWorldContext for UnitCellContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
         let mut ctx_vals = self.idx.as_expr_world_context_values();
 
-        let loc = self.detail.transform_with_skew(&vec![
-            vec2(-50.0, -50.0),
-            vec2(50.0, -50.0),
-            vec2(50.0, 50.0),
-        ]);
-        let locs = loc.into_iter_vec2().collect_vec();
+        let locs = vec![vec2(-50.0, -50.0), vec2(50.0, -50.0), vec2(50.0, 50.0)]
+            .into_iter()
+            .map(|x| self.detail.transform_with_skew_mat4().transform_vec2(x))
+            .collect_vec();
+
         let width = locs[1].distance(locs[0]);
         let height = locs[1].distance(locs[2]);
 
@@ -977,22 +977,22 @@ impl UnitCellDetails {
         }
     }
 
-    fn transform_with_skew<F: IsPolyline>(&self, face: &F) -> Polyline {
-        let vs = face
-            .into_iter_vec2()
-            .map(|x| match self {
-                UnitCellDetails::Wallpaper(d) => d.transform_with_skew(x),
-                UnitCellDetails::Function(d) => d.transform_with_skew(x),
-            })
-            .collect_vec();
-        Polyline::new(vs)
-    }
+    // fn transform_with_skew<F: Transformable>(&self, face: &F) -> Polyline {
+    //     let vs = face
+    //         .into_iter_vec2()
+    //         .map(|x| match self {
+    //             UnitCellDetails::Wallpaper(d) => d.transform_with_skew(x),
+    //             UnitCellDetails::Function(d) => d.transform_with_skew(x),
+    //         })
+    //         .collect_vec();
+    //     Polyline::new(vs)
+    // }
 
     pub fn transform_no_skew_one_point(&self, v: Vec2) -> Vec2 {
         self.transform_no_skew(&vec![v]).clone_to_vec()[0]
     }
 
-    pub fn transform_no_skew<F: IsPolyline>(&self, v: &F) -> Polyline {
+    pub fn transform_no_skew<F: Transformable>(&self, v: &F) -> F {
         match self {
             UnitCellDetails::Wallpaper(w) => w.transform_no_skew(v),
             UnitCellDetails::Function(_) => todo!(),
@@ -1076,16 +1076,17 @@ impl UnitCellDetailsWallpaper {
         // adjust the shape (symmetry, rotation), translate the center
         let offset = self.offset();
         let new_center = SimpleTransform2d::translate(offset);
-        self.adjust_shape.add_after(&new_center)
+        self.adjust_shape.add_transform_after(&new_center)
     }
 
-    pub fn transform_no_skew<F: IsPolyline>(&self, v: &F) -> Polyline {
+    pub fn transform_no_skew<F: Transformable>(&self, v: &F) -> F {
         let m = self.transform_no_skew_mat();
-        Polyline::new(
-            v.into_iter_vec2()
-                .map(|x| m.transform_vec2(x))
-                .collect_vec(),
-        )
+        v.transform_with(&m)
+        // Polyline::new(
+        //     v.into_iter_vec2()
+        //         .map(|x| m.transform_vec2(x))
+        //         .collect_vec(),
+        // )
     }
 
     // how to move the location of something
@@ -1108,12 +1109,12 @@ impl UnitCellDetailsWallpaper {
                 .as_wallpaper()
                 .unwrap()
                 .transform_vertex
-                .add_after(&self.transform_vertex),
+                .add_transform_after(&self.transform_vertex),
             adjust_shape: detail
                 .as_wallpaper()
                 .unwrap()
                 .adjust_shape
-                .add_after(&self.adjust_shape),
+                .add_transform_after(&self.adjust_shape),
             is_base: self.is_base && detail.as_wallpaper().unwrap().is_base,
         })
     }

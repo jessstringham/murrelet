@@ -1,9 +1,12 @@
 // traits, that you can connect to things like Nannou draw
 
-use glam::{vec2, Mat4, Vec2, Vec3};
-use itertools::Itertools;
+use glam::{vec2, Vec2, Vec3};
+
 use lerpable::Lerpable;
-use murrelet_common::{IsPolyline, MurreletColor, Polyline, SimpleTransform2d, TransformVec2};
+use murrelet_common::{
+    IsPolyline, MurreletColor, Polyline, SimpleTransform2d, ToSimpleTransform, TransformVec2,
+    Transformable,
+};
 use murrelet_livecode::unitcells::UnitCellContext;
 use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
@@ -11,7 +14,7 @@ use palette::{named::AQUAMARINE, LinSrgba, Srgb};
 use crate::{
     newtypes::RGBandANewtype,
     style::{styleconf::*, StyledPathSvgFill},
-    transform2d::ToMat4,
+    tesselate::{AsLyonTransform, ToLyonPath},
 };
 
 #[derive(Debug, Clone, Copy, Livecode, Lerpable, Default)]
@@ -344,28 +347,28 @@ pub trait Sdraw: Sized {
         self.with_svg_style(svg_style)
     }
 
-    fn transform(&self) -> Mat4;
+    fn transform(&self) -> SimpleTransform2d;
 
-    fn set_transform<M: ToMat4>(&self, m: M) -> Self;
+    fn set_transform<M: ToSimpleTransform>(&self, m: &M) -> Self;
 
-    fn add_transform_after(&self, t: Mat4) -> Self {
-        let m = t * self.transform();
-        self.set_transform(m)
+    fn add_transform_after<M: ToSimpleTransform>(&self, t: &M) -> Self {
+        let m = self
+            .transform()
+            .add_transform_after(&t.to_simple_transform());
+        self.set_transform(&m)
     }
 
-    fn add_transform_before<M: ToMat4>(&self, t: M) -> Self {
-        let m = self.transform() * t.change_to_mat4();
-        self.set_transform(m)
+    fn add_transform_before<M: ToSimpleTransform>(&self, t: &M) -> Self {
+        let m = self
+            .transform()
+            .add_transform_before(&t.to_simple_transform());
+        self.set_transform(&m)
     }
 
-    fn transform_points<F: IsPolyline>(&self, face: &F) -> Polyline;
+    fn transform_points<F: Transformable>(&self, face: &F) -> F;
 
     fn maybe_transform_vec2(&self, v: Vec2) -> Option<Vec2> {
-        self.transform_points(&vec![v])
-            .into_iter_vec2()
-            .collect_vec()
-            .first()
-            .cloned()
+        Some(v.transform_with(&self.transform()))
     }
 
     fn line_space_multi(&self) -> f32;
@@ -378,10 +381,10 @@ pub struct CoreSDrawCtxUnitCell {
     sdraw: CoreSDrawCtx,
 }
 impl Sdraw for CoreSDrawCtxUnitCell {
-    fn transform_points<F: IsPolyline>(&self, face: &F) -> Polyline {
+    fn transform_points<F: Transformable>(&self, face: &F) -> F {
         // let mut points = face.clone();
 
-        let mut points = self.sdraw.transform.transform_many_vec2(face);
+        let mut points = face.transform_with(&self.sdraw.transform);
 
         // main difference! apply the unit cell transform
         points = if self.unit_cell_skew {
@@ -409,13 +412,13 @@ impl Sdraw for CoreSDrawCtxUnitCell {
     }
 
     // this only changes the global transform, the unitcell one will still happen
-    fn transform(&self) -> Mat4 {
-        self.sdraw.transform
+    fn transform(&self) -> SimpleTransform2d {
+        self.sdraw.transform.clone()
     }
 
-    fn set_transform<M: ToMat4>(&self, m: M) -> Self {
+    fn set_transform<M: ToSimpleTransform>(&self, m: &M) -> Self {
         let mut ctx = self.clone();
-        ctx.sdraw.transform = m.change_to_mat4();
+        ctx.sdraw.transform = m.to_simple_transform();
         ctx
     }
 }
@@ -477,11 +480,11 @@ impl CoreSDrawCtxUnitCell {
 pub struct CoreSDrawCtx {
     svg_style: MurreletStyle,
     pub frame: f32,
-    transform: Mat4, // happens before the others
+    transform: SimpleTransform2d, // happens before the others
 }
 impl Sdraw for CoreSDrawCtx {
-    fn transform_points<F: IsPolyline>(&self, face: &F) -> Polyline {
-        self.transform.transform_many_vec2(face)
+    fn transform_points<F: Transformable>(&self, face: &F) -> F {
+        face.transform_with(&self.transform)
     }
 
     fn with_svg_style(&self, svg_style: MurreletStyle) -> Self {
@@ -490,24 +493,24 @@ impl Sdraw for CoreSDrawCtx {
         ctx
     }
 
-    fn transform(&self) -> Mat4 {
-        self.transform
+    fn transform(&self) -> SimpleTransform2d {
+        self.transform.clone()
     }
-    fn set_transform<M: ToMat4>(&self, m: M) -> Self {
+    fn set_transform<M: ToSimpleTransform>(&self, m: &M) -> Self {
         let mut sdraw = self.clone();
-        sdraw.transform = m.change_to_mat4();
+        sdraw.transform = m.to_simple_transform();
         sdraw
     }
 
-    fn add_transform_after(&self, t: Mat4) -> Self {
+    fn add_transform_after<M: ToSimpleTransform>(&self, t: &M) -> Self {
         let mut ctx = self.clone();
-        ctx.transform = t * ctx.transform;
+        ctx.transform = ctx.transform.add_transform_after(&t.to_simple_transform());
         ctx
     }
 
-    fn add_transform_before<M: ToMat4>(&self, t: M) -> Self {
+    fn add_transform_before<M: ToSimpleTransform>(&self, t: &M) -> Self {
         let mut ctx = self.clone();
-        ctx.transform *= t.change_to_mat4();
+        ctx.transform = ctx.transform.add_transform_before(&t.to_simple_transform());
         ctx
     }
 
@@ -531,7 +534,7 @@ impl Sdraw for CoreSDrawCtx {
 }
 
 impl CoreSDrawCtx {
-    pub fn new(svg_style: MurreletStyle, frame: f32, transform: Mat4) -> Self {
+    pub fn new(svg_style: MurreletStyle, frame: f32, transform: SimpleTransform2d) -> Self {
         Self {
             svg_style,
             frame,

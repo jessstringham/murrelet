@@ -1,26 +1,33 @@
-use std::{collections::HashMap, ops};
+use std::{collections::HashMap, f32::consts::PI, ops};
 
 use crate::{
     cubic::CubicBezier,
-    curve_drawer::{CubicBezierPath, CurveArc},
+    curve_drawer::{
+        CubicBezierPath, CurveArc, CurveCubicBezier, CurveDrawer, CurvePoints, CurveSegment,
+        ToCurveDrawer,
+    },
     svg::SvgPathDef,
 };
 use delaunator::Triangulation;
 use glam::{vec2, Vec2, Vec2Swizzles};
 use itertools::Itertools;
 use kurbo::BezPath;
+use lyon::geom::vector;
+use lyon::{geom::arc::Arc, math::Transform};
+use lyon::{geom::Angle, path::traits::Build};
 use lyon::{
     geom::{
         euclid::{Point2D, UnknownUnit},
-        point,
+        point, Point,
     },
-    path::{FillRule, Path},
+    path::{traits::PathBuilder, FillRule, Path},
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
     curr_next_no_loop_iter, triangulate::DefaultVertex, AnglePi, IsAngle, PointToPoint, Polyline,
-    SpotOnCurve, ToVec2,
+    SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, ToVec2,
 };
+use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 
 pub trait ToVecVec2 {
     fn to_vec2(&self) -> Vec<Vec2>;
@@ -82,6 +89,251 @@ impl ToVecVec2 for CubicBezierPath {
         // }
 
         path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
+    }
+}
+
+pub trait AsLyonTransform {
+    fn to_lyon_transform(&self) -> Transform {
+        self.update_lyon_transform(Transform::identity())
+    }
+
+    fn update_lyon_transform(&self, t: Transform) -> Transform;
+}
+
+impl AsLyonTransform for SimpleTransform2d {
+    fn update_lyon_transform(&self, t: Transform) -> Transform {
+        let mut aa = t;
+        for t in self.steps() {
+            aa = t.update_lyon_transform(aa);
+        }
+        aa
+    }
+}
+
+impl AsLyonTransform for SimpleTransform2dStep {
+    fn update_lyon_transform(&self, t: Transform) -> Transform {
+        match self {
+            SimpleTransform2dStep::Translate(v) => t.then_translate(vector(v.x, v.y)),
+            SimpleTransform2dStep::Rotate(v, a) => {
+                let vv = vector(v.x, v.y);
+                let t = t.then_translate(-vv);
+                let t = t.then_rotate(Angle::radians(a.angle()));
+                let t = t.then_translate(vv);
+                t
+            }
+            SimpleTransform2dStep::Scale(v) => t.then_scale(v.x, v.y),
+            SimpleTransform2dStep::Skew(_, _) => unreachable!(),
+        }
+    }
+}
+
+pub trait ToLyonPath {
+    const EPS: f32 = 1e-6f32;
+
+    fn approx_vertex_count(&self) -> usize;
+
+    fn to_lyon_with_transform<T: AsLyonTransform>(
+        &self,
+        t: &T,
+    ) -> LivecodeResult<lyon::path::Path> {
+        let transform = t.to_lyon_transform();
+
+        let mut lyon_builder = lyon::path::Path::builder().transformed(transform);
+
+        let start = self.start();
+
+        lyon_builder.begin(v2p(start));
+        let is_closed = self._add_to_lyon(start, &mut lyon_builder)?;
+        lyon_builder.end(is_closed);
+
+        Ok(lyon_builder.build())
+    }
+
+    fn to_lyon(&self) -> LivecodeResult<lyon::path::Path> {
+        self.to_lyon_with_transform(&SimpleTransform2d::ident())
+    }
+
+    fn start(&self) -> Vec2;
+
+    fn _start(&self) -> Point<f32> {
+        v2p(self.start())
+    }
+
+    fn _add_to_lyon<B: PathBuilder>(&self, start: Vec2, builder: &mut B) -> LivecodeResult<bool> {
+        // handles when "start" is too far away
+        if start.distance(self.start()) > Self::EPS {
+            builder.line_to(self._start());
+        }
+
+        self.add_to_lyon(builder)
+    }
+
+    fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool>;
+}
+
+fn v2p(v: Vec2) -> Point<f32> {
+    point(v.x, v.y)
+}
+
+impl ToLyonPath for CurvePoints {
+    fn start(&self) -> Vec2 {
+        self.first_point()
+    }
+
+    fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool> {
+        for p in self.points() {
+            if p.x.is_nan() || p.y.is_nan() {
+                return LivecodeError::rawr("nan in CurvePoints");
+            }
+
+            builder.line_to(v2p(*p));
+        }
+
+        Ok(false)
+    }
+
+    fn approx_vertex_count(&self) -> usize {
+        self.points.len()
+    }
+}
+
+impl ToLyonPath for CubicBezier {
+    fn start(&self) -> Vec2 {
+        self.from
+    }
+
+    fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool> {
+        if self.ctrl1.is_nan() || self.ctrl2.is_nan() || self.to.is_nan() || self.from.is_nan() {
+            return LivecodeError::rawr("nan in Bezier");
+        }
+
+        builder.cubic_bezier_to(v2p(self.ctrl1), v2p(self.ctrl2), v2p(self.to));
+
+        Ok(false)
+    }
+
+    fn approx_vertex_count(&self) -> usize {
+        4
+    }
+}
+
+impl ToLyonPath for CurveCubicBezier {
+    fn start(&self) -> Vec2 {
+        self.to_cubic().start()
+    }
+
+    fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool> {
+        self.to_cubic().add_to_lyon(builder)?;
+
+        Ok(false)
+    }
+
+    fn approx_vertex_count(&self) -> usize {
+        self.to_cubic().approx_vertex_count()
+    }
+}
+
+// chatgpt
+fn add_circular_arc<B: PathBuilder>(builder: &mut B, c: &CurveArc) {
+    let cx = c.loc.x;
+    let cy = c.loc.y;
+    let r = c.radius;
+    let start = c.start_pi().angle();
+    let end: f32 = c.end_pi().angle();
+
+    // Angles are in radians.
+    let mut sweep = end - start;
+
+
+    if c.is_ccw() {
+        if sweep < 0.0 { sweep += 2.0 * PI; }
+    } else {
+        if sweep > 0.0 { sweep -= 2.0 * PI; }
+    }
+
+    let arc = Arc {
+        center: point(cx, cy),
+        radii: vector(r, r),
+        start_angle: Angle::radians(start),
+        sweep_angle: Angle::radians(sweep),
+        x_rotation: Angle::radians(0.0),
+    };
+
+    // Make sure the current point is at the arc's start.
+    // builder.line_to(arc.from()); // handled already
+
+    arc.for_each_cubic_bezier(&mut |c| {
+        builder.cubic_bezier_to(c.ctrl1, c.ctrl2, c.to);
+    });
+
+    // builder.end(false);
+}
+
+impl ToLyonPath for CurveArc {
+    fn start(&self) -> Vec2 {
+        self.first_point()
+    }
+
+    fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool> {
+        if self.end_pi.angle_pi().is_nan()
+            || self.start_pi.angle_pi().is_nan()
+            || self.radius.is_nan()
+            || self.loc.x.is_nan()
+            || self.loc.y.is_nan()
+        {
+            return LivecodeError::rawr("nan in CurveArc");
+        }
+
+        add_circular_arc(builder, self);
+
+        Ok(false)
+    }
+
+    fn approx_vertex_count(&self) -> usize {
+        4
+    }
+}
+
+impl ToLyonPath for CurveSegment {
+    fn start(&self) -> Vec2 {
+        self.first_point()
+    }
+
+    fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool> {
+        match self {
+            CurveSegment::Arc(c) => c.add_to_lyon(builder),
+            CurveSegment::Points(c) => c.add_to_lyon(builder),
+            CurveSegment::CubicBezier(c) => c.add_to_lyon(builder),
+        }
+    }
+
+    fn approx_vertex_count(&self) -> usize {
+        match self {
+            CurveSegment::Arc(c) => c.approx_vertex_count(),
+            CurveSegment::Points(c) => c.approx_vertex_count(),
+            CurveSegment::CubicBezier(c) => c.approx_vertex_count(),
+        }
+    }
+}
+
+impl ToLyonPath for CurveDrawer {
+    fn start(&self) -> Vec2 {
+        self.first_point().unwrap_or_default() //???
+    }
+
+    fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool> {
+        for s in self.segments() {
+            s.add_to_lyon(builder)?;
+        }
+        Ok(self.closed)
+    }
+
+    fn approx_vertex_count(&self) -> usize {
+        let mut c = 0;
+        for s in self.segments() {
+            c += s.approx_vertex_count();
+        }
+        c
     }
 }
 

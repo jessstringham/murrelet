@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, IdxInRange2d, print_expect};
+use murrelet_common::{print_expect, IdxInRange, IdxInRange2d};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -40,6 +40,10 @@ pub enum LivecodeError {
 impl LivecodeError {
     pub fn raw(s: &str) -> Self {
         Self::Raw(s.to_string())
+    }
+
+    pub fn rawr<T>(s: &str) -> LivecodeResult<T> {
+        LivecodeResult::Err(Self::raw(s))
     }
 }
 

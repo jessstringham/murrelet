@@ -3,6 +3,7 @@
 use glam::{Mat4, Vec2};
 use lerpable::Lerpable;
 use lyon::geom::{euclid::Point2D, Point};
+use murrelet_common::{SimpleTransform2d, ToSimpleTransform};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
 
@@ -295,17 +296,17 @@ impl SvgShape {
         })
     }
 
-    pub fn transform(&self, t: Mat4) -> TransformedSvgShape {
+    pub fn transform<F: ToSimpleTransform>(&self, t: &F) -> TransformedSvgShape {
         TransformedSvgShape {
             shape: self.clone(),
-            t,
+            t: t.to_simple_transform(),
         }
     }
 
     pub fn as_transform(&self) -> TransformedSvgShape {
         TransformedSvgShape {
             shape: self.clone(),
-            t: Mat4::IDENTITY,
+            t: SimpleTransform2d::noop(),
         }
     }
 
@@ -329,13 +330,13 @@ impl SvgShape {
 #[derive(Clone, Debug)]
 pub struct TransformedSvgShape {
     pub shape: SvgShape,
-    pub t: Mat4,
+    pub t: SimpleTransform2d,
 }
 impl TransformedSvgShape {
     pub fn from_shape(shape: SvgShape) -> Self {
         Self {
             shape,
-            t: Mat4::IDENTITY,
+            t: SimpleTransform2d::noop(),
         }
     }
 
@@ -344,21 +345,21 @@ impl TransformedSvgShape {
 
         Self {
             shape,
-            t: Mat4::IDENTITY,
+            t: SimpleTransform2d::noop(),
         }
     }
 
-    pub fn transform_with_mat4_after(&self, t: Mat4) -> Self {
+    pub fn transform_after<F: ToSimpleTransform>(&self, t: &F) -> Self {
         Self {
             shape: self.shape.clone(),
-            t: t * self.t,
+            t: self.t.add_transform_after(t),
         }
     }
 
-    pub fn transform_with_mat4_before(&self, t: Mat4) -> Self {
+    pub fn transform_before<F: ToSimpleTransform>(&self, t: &F) -> Self {
         Self {
             shape: self.shape.clone(),
-            t: self.t * t,
+            t: self.t.add_transform_before(t),
         }
     }
 }

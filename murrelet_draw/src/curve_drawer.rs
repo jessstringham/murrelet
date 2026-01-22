@@ -716,6 +716,10 @@ impl CurveArc {
         self.start_pi
     }
 
+    pub fn end_pi(&self) -> AnglePi {
+        self.end_pi
+    }
+
     fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
         // find out how far around the arc this pct is
         let target_pct = target_dist / self.length();

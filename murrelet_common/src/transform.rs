@@ -169,6 +169,24 @@ impl Lerpable for SimpleTransform2dStep {
     }
 }
 
+pub trait Transformable {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self;
+}
+
+impl Transformable for Vec2 {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        t.to_simple_transform().transform_vec2(*self)
+    }
+}
+
+impl Transformable for Vec<Vec2> {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        self.into_iter()
+            .map(|x| t.to_simple_transform().transform_vec2(*x))
+            .collect_vec()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SimpleTransform2d(Vec<SimpleTransform2dStep>);
 impl SimpleTransform2d {
@@ -190,16 +208,20 @@ impl SimpleTransform2d {
         &self.0
     }
 
-    pub fn add_after(&self, transform_vertex: &SimpleTransform2d) -> SimpleTransform2d {
+    pub fn add_transform_after<F: ToSimpleTransform>(&self, other: &F) -> SimpleTransform2d {
         // just append
         let v = self
             .0
             .iter()
-            .chain(transform_vertex.0.iter())
+            .chain(other.to_simple_transform().0.iter())
             .cloned()
             .collect();
 
         SimpleTransform2d(v)
+    }
+
+    pub fn add_transform_before<F: ToSimpleTransform>(&self, other: &F) -> SimpleTransform2d {
+        other.to_simple_transform().add_transform_after(self)
     }
 
     pub fn ident() -> SimpleTransform2d {
@@ -221,15 +243,40 @@ impl SimpleTransform2d {
     }
 }
 
-impl TransformVec2 for SimpleTransform2d {
+pub trait ToSimpleTransform {
+    fn to_simple_transform(&self) -> SimpleTransform2d;
+}
+
+impl ToSimpleTransform for SimpleTransform2d {
+    fn to_simple_transform(&self) -> SimpleTransform2d {
+        self.clone()
+    }
+}
+
+impl<T> TransformVec2 for T
+where
+    T: ToSimpleTransform,
+{
     fn transform_vec2(&self, v: Vec2) -> Vec2 {
+        let s = self.to_simple_transform();
+
         let mut v = v;
-        for step in &self.0 {
+        for step in &s.0 {
             v = step.transform().transform_vec2(v);
         }
         v
     }
 }
+
+// impl TransformVec2 for SimpleTransform2d {
+//     fn transform_vec2(&self, v: Vec2) -> Vec2 {
+//         let mut v = v;
+//         for step in &self.0 {
+//             v = step.transform().transform_vec2(v);
+//         }
+//         v
+//     }
+// }
 
 impl Lerpable for SimpleTransform2d {
     fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {

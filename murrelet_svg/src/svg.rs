@@ -146,7 +146,7 @@ impl ToSvgData for MurreletCurve {
 impl ToStyledGroup for TransformedSvgShape {
     fn to_group(&self, style: &MurreletStyle) -> Option<Group> {
         let mut g = Group::new();
-        g = g.set("transform", self.t.to_svg_matrix());
+        g = g.set("transform", self.t.to_mat4().to_svg_matrix());
         match &self.shape {
             SvgShape::Rect(s) => {
                 let mut rect = svg::node::element::Rectangle::new()
