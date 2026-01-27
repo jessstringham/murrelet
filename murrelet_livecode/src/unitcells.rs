@@ -1082,11 +1082,7 @@ impl UnitCellDetailsWallpaper {
     pub fn transform_no_skew<F: Transformable>(&self, v: &F) -> F {
         let m = self.transform_no_skew_mat();
         v.transform_with(&m)
-        // Polyline::new(
-        //     v.into_iter_vec2()
-        //         .map(|x| m.transform_vec2(x))
-        //         .collect_vec(),
-        // )
+
     }
 
     // how to move the location of something

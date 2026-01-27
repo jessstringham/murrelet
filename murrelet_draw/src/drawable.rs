@@ -1,5 +1,6 @@
 use glam::Vec2;
 use itertools::Itertools;
+use murrelet_common::{ToSimpleTransform, Transformable};
 use murrelet_livecode::types::LivecodeResult;
 
 use crate::{
@@ -129,6 +130,18 @@ impl ToDrawnShape for CurveDrawer {
 impl ToDrawnShape for Vec<CurveDrawer> {
     fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
         DrawnShape::new_cds(self, style)
+    }
+}
+
+impl Transformable for CurveDrawer {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        self.maybe_transform(t).unwrap_or_else(|_| self.clone())
+    }
+}
+
+impl Transformable for DrawnShape {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        DrawnShape::new_cds(&self.cds.transform_with(t), self.style.clone())
     }
 }
 

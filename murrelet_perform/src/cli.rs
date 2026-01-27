@@ -41,10 +41,10 @@ impl Default for TextureDimensions {
         Self {
             // width: 3000,
             // height: 2000,
-            width: 1080,
-            height: 1080,
-            // width: 2000,
-            // height: 2000,
+            // width: 3840,
+            // height: 1646,
+            width: 800,
+            height: 800,
             // width: 2000,
             // height: 2000,
             // width: 750,
@@ -63,7 +63,7 @@ pub struct BaseConfigArgs {
 
     #[arg(short, long, default_value_t = Default::default())]
     pub resolution: TextureDimensions, // window resolution
-    #[arg(long, default_value_t = 4, value_parser = clap::value_parser!(u32).range(1..=8))]
+    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=8))]
     pub texture_multiplier: u32, // controls number of pixels the shaders work on
 
     #[arg(long)]

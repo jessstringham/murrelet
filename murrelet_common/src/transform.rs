@@ -6,7 +6,7 @@ use itertools::Itertools;
 use lerpable::Lerpable;
 
 use crate::{
-    lerp,
+    approx_eq_eps, lerp,
     polyline::{IsPolyline, Polyline},
     vec_lerp, AnglePi, IsAngle,
 };
@@ -179,11 +179,20 @@ impl Transformable for Vec2 {
     }
 }
 
-impl Transformable for Vec<Vec2> {
+// impl Transformable for Vec<Vec2> {
+//     fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+//         self.into_iter()
+//             .map(|x| t.to_simple_transform().transform_vec2(*x))
+//             .collect_vec()
+//     }
+// }
+
+impl<A> Transformable for Vec<A>
+where
+    A: Transformable,
+{
     fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
-        self.into_iter()
-            .map(|x| t.to_simple_transform().transform_vec2(*x))
-            .collect_vec()
+        self.into_iter().map(|x| x.transform_with(t)).collect_vec()
     }
 }
 
@@ -192,6 +201,10 @@ pub struct SimpleTransform2d(Vec<SimpleTransform2dStep>);
 impl SimpleTransform2d {
     pub fn new(v: Vec<SimpleTransform2dStep>) -> Self {
         Self(v)
+    }
+
+    pub fn rotate(angle_pi: AnglePi) -> Self {
+        Self(vec![SimpleTransform2dStep::rotate_pi(angle_pi)])
     }
 
     pub fn rotate_pi(angle_pi: f32) -> Self {
@@ -240,6 +253,48 @@ impl SimpleTransform2d {
 
     pub fn to_mat4(&self) -> Mat4 {
         mat4_from_mat3_transform(self.to_mat3())
+    }
+
+    pub fn is_similarity_transform(&self) -> bool {
+        for s in &self.0 {
+            match s {
+                SimpleTransform2dStep::Scale(v2) => {
+                    if !approx_eq_eps(v2.x.abs(), v2.y.abs(), 1.0e-3) {
+                        return false;
+                    }
+                }
+                SimpleTransform2dStep::Skew(_, _) => return false,
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    // experimental
+    pub fn approx_scale(&self) -> f32 {
+        let mut scale = 1.0;
+        for a in &self.0 {
+            match a {
+                SimpleTransform2dStep::Translate(_) => {}
+                SimpleTransform2dStep::Rotate(_, _) => {}
+                SimpleTransform2dStep::Scale(s) => scale *= s.x.max(s.y),
+                SimpleTransform2dStep::Skew(_, _) => todo!(),
+            }
+        }
+        scale
+    }
+
+    pub fn approx_rotate(&self) -> AnglePi {
+        let mut rotate = AnglePi::new(0.0);
+        for a in &self.0 {
+            match a {
+                SimpleTransform2dStep::Translate(_) => {}
+                SimpleTransform2dStep::Rotate(_, s) => rotate = rotate + *s,
+                SimpleTransform2dStep::Scale(_) => {}
+                SimpleTransform2dStep::Skew(_, _) => todo!(),
+            }
+        }
+        rotate
     }
 }
 

@@ -281,20 +281,7 @@ impl Transform2d {
         c
     }
 
-    pub fn is_similarity_transform(&self) -> bool {
-        for s in &self.0 {
-            match s {
-                Transform2dStep::Scale(v2) => {
-                    if !approx_eq_eps(v2.v.x.abs(), v2.v.y.abs(), 1.0e-3) {
-                        return false;
-                    }
-                }
-                Transform2dStep::Skew(_) => return false,
-                _ => {}
-            }
-        }
-        return true;
-    }
+
 }
 
 impl ToSimpleTransform for Transform2d {

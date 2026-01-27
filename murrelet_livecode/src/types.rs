@@ -657,8 +657,6 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
 pub enum ControlVecElement<Source>
 where
     Source: Clone + Debug,
-    // Sequencer: UnitCellCreator,
-    // ControlSequencer: LivecodeFromWorld<Sequencer>,
 {
     Single(Source),
     Repeat(ControlVecElementRepeat<Source>),

@@ -279,8 +279,10 @@ impl CurveDrawer {
         self.segments.iter().map(|segment| segment.length()).sum()
     }
 
-    pub fn maybe_transform(&self, transform: &Transform2d) -> LivecodeResult<Self> {
+    pub fn maybe_transform<T: ToSimpleTransform>(&self, transform: &T) -> LivecodeResult<Self> {
         let mut segments = vec![];
+
+        let transform = transform.to_simple_transform();
 
         if !transform.is_similarity_transform() {
             return Err(LivecodeError::raw("not a similarity transform"));
@@ -288,7 +290,7 @@ impl CurveDrawer {
 
         for cd in &self.segments {
             // we've ran our check, so we can just do it now..
-            segments.push(cd.force_transform(transform));
+            segments.push(cd.force_transform(&transform));
         }
 
         Ok(Self::new(segments, self.closed))
@@ -451,14 +453,15 @@ impl CurveSegment {
         Self::CubicBezier(CurveCubicBezier::from_cubic(c))
     }
 
-    fn force_transform(&self, transform: &Transform2d) -> Self {
+    fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
+        let transform = transform.to_simple_transform();
         match self {
-            CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.force_transform(transform)),
+            CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.force_transform(&transform)),
             CurveSegment::Points(curve_points) => {
-                CurveSegment::Points(curve_points.force_transform(transform))
+                CurveSegment::Points(curve_points.force_transform(&transform))
             }
             CurveSegment::CubicBezier(curve_cubic_bezier) => {
-                CurveSegment::CubicBezier(curve_cubic_bezier.force_transform(transform))
+                CurveSegment::CubicBezier(curve_cubic_bezier.force_transform(&transform))
             }
         }
     }
@@ -696,7 +699,8 @@ impl CurveArc {
     }
 
     // you should make sure that it's a similarity trnasform before you do this!
-    fn force_transform(&self, transform: &Transform2d) -> Self {
+    fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
+        let transform = transform.to_simple_transform();
         Self {
             loc: transform.transform_vec2(self.loc),
             radius: transform.approx_scale() * self.radius,
@@ -806,12 +810,14 @@ impl CurveCubicBezier {
         CurveSegment::new_simple_points(self.flatten(tolerance))
     }
 
-    fn force_transform(&self, transform: &Transform2d) -> CurveCubicBezier {
+    fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> CurveCubicBezier {
         CurveCubicBezier::from_cubic(
             self.to_cubic()
                 .apply_vec2_tranform(|x| transform.transform_vec2(x)),
         )
     }
+
+
 
     fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
         let v = self.to_cubic().to_vec2_line_space(1.0); // todo, figure out how to manage that
@@ -853,7 +859,7 @@ impl CurvePoints {
         CurvePoints::new(self.points.iter().cloned().rev().collect_vec())
     }
 
-    fn force_transform(&self, transform: &Transform2d) -> CurvePoints {
+    fn force_transform(&self, transform: &SimpleTransform2d) -> CurvePoints {
         CurvePoints {
             points: transform.transform_many_vec2(self.points()).clone_to_vec(),
         }

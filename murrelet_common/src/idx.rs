@@ -164,6 +164,16 @@ impl IdxInRange {
     }
 }
 
+pub trait IdxInRangeEnum<'a, T> {
+    fn iter_enum_idx(&'a self) -> Vec<(IdxInRange, &'a T)>;
+}
+
+impl<'a, T> IdxInRangeEnum<'a, T> for &[T] {
+    fn iter_enum_idx(&'a self) -> Vec<(IdxInRange, &'a T)> {
+        IdxInRange::enumerate(self.iter())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdxInRange2d {
     pub i: IdxInRange,

@@ -4,7 +4,7 @@ use glam::{vec2, Vec2, Vec3};
 
 use lerpable::Lerpable;
 use murrelet_common::{
-    IsPolyline, MurreletColor, Polyline, SimpleTransform2d, ToSimpleTransform, TransformVec2,
+    MurreletColor, SimpleTransform2d, ToSimpleTransform,
     Transformable,
 };
 use murrelet_livecode::unitcells::UnitCellContext;
@@ -14,7 +14,6 @@ use palette::{named::AQUAMARINE, LinSrgba, Srgb};
 use crate::{
     newtypes::RGBandANewtype,
     style::{styleconf::*, StyledPathSvgFill},
-    tesselate::{AsLyonTransform, ToLyonPath},
 };
 
 #[derive(Debug, Clone, Copy, Livecode, Lerpable, Default)]
