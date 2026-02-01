@@ -16,7 +16,6 @@ use crate::{
         flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, segment_arc, segment_vec,
         ToVecVec2,
     },
-    transform2d::Transform2d,
 };
 
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
