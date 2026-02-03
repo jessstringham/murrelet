@@ -1,4 +1,4 @@
-use glam::{vec2, Vec2};
+use glam::Vec2;
 
 use crate::SpotOnCurve;
 
@@ -22,7 +22,7 @@ pub fn find_intersection_inf(line0: (Vec2, Vec2), line1: (Vec2, Vec2)) -> Option
     if d.abs() < epsilon {
         None // parallel, we're done
     } else {
-        let intersection_point_f32: Vec2;
+        // let intersection_point_f32: Vec2;
 
         let self_is_vertical = (x1 - x2).abs() < epsilon;
         let other_is_vertical = (x3 - x4).abs() < epsilon;

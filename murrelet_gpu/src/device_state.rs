@@ -286,7 +286,7 @@ impl<'a> DeviceStateForRender<'a> {
         }
     }
 
-    pub fn device_state(&self) -> &DeviceState {
+    pub fn device_state(&self) -> &DeviceState<'_> {
         &self.device_state
     }
 

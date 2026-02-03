@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs},
     livecode::{
-        ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
+        GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
         LivecodeVariable,
     },
     nestedit::{NestEditable, NestedMod},
@@ -11,11 +11,11 @@ use crate::{
     types::{LivecodeError, LivecodeResult},
 };
 use evalexpr::Node;
-use glam::Vec2;
+
 use itertools::Itertools;
 use lerpable::IsLerpingMethod;
 use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor, MurreletIterHelpers};
+use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -34,6 +34,10 @@ impl ControlLazyNodeF32 {
 
     pub fn new(n: Node) -> Self {
         Self::Expr(n)
+    }
+
+    pub fn new_f32(n: f32) -> Self {
+        Self::Float(n)
     }
 
     fn result(&self) -> Result<f32, LivecodeError> {
@@ -364,6 +368,12 @@ impl NestEditable for LazyVec2 {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyVec2(Vec<ControlLazyNodeF32>);
+
+impl ControlLazyVec2 {
+    pub fn new(x: ControlLazyNodeF32, y: ControlLazyNodeF32) -> Self {
+        Self(vec![x, y])
+    }
+}
 impl LivecodeFromWorld<LazyVec2> for ControlLazyVec2 {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyVec2> {
         Ok(LazyVec2::new(self.0[0].o(w)?, self.0[1].o(w)?))
@@ -500,6 +510,18 @@ impl LazyMurreletColor {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyMurreletColor(Vec<ControlLazyNodeF32>);
+
+impl ControlLazyMurreletColor {
+    pub fn new_default(h: f32, s: f32, v: f32, a: f32) -> Self {
+        ControlLazyMurreletColor(vec![
+            ControlLazyNodeF32::new_f32(h),
+            ControlLazyNodeF32::new_f32(s),
+            ControlLazyNodeF32::new_f32(v),
+            ControlLazyNodeF32::new_f32(a),
+        ])
+    }
+}
+
 impl LivecodeFromWorld<LazyMurreletColor> for ControlLazyMurreletColor {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyMurreletColor> {
         Ok(LazyMurreletColor::new(

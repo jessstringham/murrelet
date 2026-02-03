@@ -1,14 +1,16 @@
 #![allow(dead_code)]
-use glam::{Vec2, vec2};
+use glam::{vec2, Vec2};
 use lerpable::Lerpable;
-use murrelet_common::{Assets, AssetsRef, LivecodeUsage, LivecodeValue, SimpleTransform2d, SimpleTransform2dStep};
+use murrelet_common::{
+    Assets, AssetsRef, LivecodeUsage, LivecodeValue, SimpleTransform2d, SimpleTransform2dStep,
+};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode::expr::{MixedEvalDefs, MixedEvalDefsRef};
-use murrelet_livecode::lazy::{ControlLazyNodeF32, LazyNodeF32};
+use murrelet_livecode::lazy::{ControlLazyMurreletColor, ControlLazyNodeF32, LazyNodeF32};
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
-use murrelet_livecode::types::{AdditionalContextNode, ControlVecElement, LivecodeResult};
+use murrelet_livecode::types::{AdditionalContextNode, LivecodeResult};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
@@ -119,7 +121,7 @@ impl SvgDrawConfig {
             // Mat4::from_translation(translation_to_final) * Mat4::from_scale(scale)
             SimpleTransform2d::new(vec![
                 SimpleTransform2dStep::translate(translation_to_final),
-                SimpleTransform2dStep::scale_both(s)
+                SimpleTransform2dStep::scale_both(s),
             ])
         } else {
             SimpleTransform2d::noop()
@@ -243,13 +245,8 @@ fn _default_bg_color() -> [ControlF32; 4] {
     ]
 }
 
-fn _default_bg_color_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
-    vec![
-        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
-    ]
+fn _default_bg_color_lazy() -> ControlLazyMurreletColor {
+    ControlLazyMurreletColor::new_default(0.0, 0.0, 0.0, 1.0)
 }
 
 fn _default_svg_size() -> ControlF32 {
@@ -846,7 +843,7 @@ where
         self.svg_save_path_with_prefix("")
     }
 
-    pub fn to_lil_liveconfig(&self) -> LivecodeResult<LilLiveConfig> {
+    pub fn to_lil_liveconfig(&self) -> LivecodeResult<LilLiveConfig<'_>> {
         Ok(LilLiveConfig {
             save_path: self.save_path.as_ref(),
             run_id: self.run_id,
@@ -1171,6 +1168,4 @@ where
     pub fn run_id(&self) -> u64 {
         self.run_id
     }
-
-
 }

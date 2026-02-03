@@ -419,7 +419,7 @@ impl ShaderOptions {
         }
     }
 
-    fn as_sampler_desc(&self) -> wgpu::SamplerDescriptor {
+    fn as_sampler_desc(&self) -> wgpu::SamplerDescriptor<'_> {
         wgpu::SamplerDescriptor {
             address_mode_u: self.sampler_address_mode_u,
             address_mode_v: self.sampler_address_mode_v,
@@ -1513,7 +1513,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         )
     }
 
-    pub fn depth_stencil_attachment(&self) -> Option<wgpu::RenderPassDepthStencilAttachment> {
+    pub fn depth_stencil_attachment(&self) -> Option<wgpu::RenderPassDepthStencilAttachment<'_>> {
         if let Some(TextureFor3d { depth_view, .. }) = &self.textures_for_3d {
             Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_view,

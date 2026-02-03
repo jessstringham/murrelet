@@ -11,7 +11,10 @@ use lerpable::Lerpable;
 use md5::{Digest, Md5};
 use murrelet_common::*;
 use murrelet_gui::{CanMakeGUI, MurreletGUI};
-use murrelet_livecode::{lazy::ControlLazyNodeF32, livecode::ControlF32, types::ControlVecElement};
+use murrelet_livecode::{
+    lazy::ControlLazyMurreletColor,
+    livecode::ControlF32,
+};
 use murrelet_livecode_derive::Livecode;
 use styleconf::StyleConf;
 
@@ -24,13 +27,8 @@ fn _black() -> [ControlF32; 4] {
     ]
 }
 
-fn _black_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
-    vec![
-        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::Single(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::Single(ControlLazyNodeF32::Float(1.0)),
-    ]
+fn _black_lazy() -> ControlLazyMurreletColor {
+    ControlLazyMurreletColor::new_default(0.0, 0.0, 0.0, 1.0)
 }
 
 #[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]

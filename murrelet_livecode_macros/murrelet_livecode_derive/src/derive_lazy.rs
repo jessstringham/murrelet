@@ -47,10 +47,14 @@ impl LazyFieldType {
                 quote! { #ident.eval_lazy(ctx) }
             }
             ControlType::F32_3 => {
-                quote! { murrelet_livecode::lazy::eval_lazy_vec3(&#ident, ctx) }
+                quote! { #ident.eval_lazy(ctx) }
+
+                // quote! { murrelet_livecode::lazy::eval_lazy_vec3(&#ident, ctx) }
             }
             ControlType::Color => {
-                quote! { murrelet_livecode::lazy::eval_lazy_color(&#ident, ctx) }
+                quote! { #ident.eval_lazy(ctx) }
+
+                // quote! { murrelet_livecode::lazy::eval_lazy_color(&#ident, ctx) }
             }
             ControlType::Bool => quote! {#ident.eval_lazy(ctx)? > 0.0},
             ControlType::AnglePi => {

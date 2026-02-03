@@ -213,7 +213,7 @@ impl<Target: std::fmt::Debug + Clone + Default> UnitCells<Target> {
         Self { items }
     }
 
-    pub fn iter(&self) -> std::slice::Iter<UnitCell<Target>> {
+    pub fn iter(&self) -> std::slice::Iter<'_, UnitCell<Target>> {
         self.items.iter()
     }
 
@@ -1055,7 +1055,7 @@ impl Clone for UnitCellDetailsFunction {
 }
 
 impl UnitCellDetailsFunction {
-    fn transform_with_skew(&self, x: Vec2) -> Vec2 {
+    pub fn transform_with_skew(&self, x: Vec2) -> Vec2 {
         (self.func)(x)
     }
 }

@@ -26,7 +26,7 @@ impl<'a> GraphicsWindowConf<'a> {
         }
     }
 
-    pub fn multi(&self, multiplier: f32) -> GraphicsWindowConf {
+    pub fn multi(&self, multiplier: f32) -> GraphicsWindowConf<'_> {
         let [x, y] = self.dims;
         GraphicsWindowConf {
             device: self.device,

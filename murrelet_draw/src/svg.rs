@@ -1,6 +1,6 @@
 // defines the SVG basic shapes
 
-use glam::{Mat4, Vec2};
+use glam::Vec2;
 use lerpable::Lerpable;
 use lyon::geom::{euclid::Point2D, Point};
 use murrelet_common::{SimpleTransform2d, ToSimpleTransform};

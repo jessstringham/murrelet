@@ -2,7 +2,7 @@ use darling::{ast, FromDeriveInput, FromField, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-const DEBUG_THIS: bool = true;
+const DEBUG_THIS: bool = false;
 
 pub(crate) fn prefix_ident(prefix: &str, name: syn::Ident) -> syn::Ident {
     let lc_name = format!("{}{}", prefix, name);

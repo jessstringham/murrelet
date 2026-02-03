@@ -4,7 +4,6 @@ use crate::{
     cubic::CubicBezier,
     curve_drawer::{
         CubicBezierPath, CurveArc, CurveCubicBezier, CurveDrawer, CurvePoints, CurveSegment,
-        ToCurveDrawer,
     },
     svg::SvgPathDef,
 };
@@ -244,11 +243,14 @@ fn add_circular_arc<B: PathBuilder>(builder: &mut B, c: &CurveArc) {
     // Angles are in radians.
     let mut sweep = end - start;
 
-
     if c.is_ccw() {
-        if sweep < 0.0 { sweep += 2.0 * PI; }
+        if sweep < 0.0 {
+            sweep += 2.0 * PI;
+        }
     } else {
-        if sweep > 0.0 { sweep -= 2.0 * PI; }
+        if sweep > 0.0 {
+            sweep -= 2.0 * PI;
+        }
     }
 
     let arc = Arc {
