@@ -314,10 +314,6 @@ impl ExprWorldContextValues {
         Self::new(vec![])
     }
 
-    pub fn to_mixed_defs(&self) -> MixedEvalDefs {
-        MixedEvalDefs::new_from_expr(self.clone())
-    }
-
     pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         for (identifier, value) in &self.0 {
             // todo, maybe handle the result here to help dev
@@ -485,6 +481,34 @@ impl GuideType {
     }
 }
 
+pub trait ToMixedDefs {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef;
+}
+
+impl ToMixedDefs for ExprWorldContextValues {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefs::new_from_expr(self.clone()).to_mixed_def()
+    }
+}
+
+impl ToMixedDefs for Arc<MixedEvalDefs> {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefsRef(self.clone())
+    }
+}
+
+impl ToMixedDefs for MixedEvalDefs {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefsRef::new(self.clone())
+    }
+}
+
+impl<'a> ToMixedDefs for (&'a str, LivecodeValue) {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefs::new_simple(self.0, self.1.clone()).to_mixed_def()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MixedEvalDefsRef(Arc<MixedEvalDefs>);
 impl MixedEvalDefsRef {
@@ -504,6 +528,10 @@ impl MixedEvalDefsRef {
 
     pub(crate) fn new_from_expr(more_vals: ExprWorldContextValues) -> MixedEvalDefsRef {
         Self::new(MixedEvalDefs::new_from_expr(more_vals))
+    }
+
+    pub(crate) fn expr_vals(&self) -> &ExprWorldContextValues {
+        self.0.expr_vals()
     }
 }
 

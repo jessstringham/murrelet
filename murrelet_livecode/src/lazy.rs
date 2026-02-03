@@ -1,17 +1,21 @@
 use std::sync::Arc;
 
-use evalexpr::Node;
-use itertools::Itertools;
-use lerpable::{step, Lerpable};
-use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
-use serde::Deserialize;
-
 use crate::{
-    expr::{ExprWorldContextValues, MixedEvalDefs},
-    livecode::{GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeVariable},
+    expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs},
+    livecode::{
+        ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
+        LivecodeVariable,
+    },
     state::{LivecodeWorldState, WorldWithLocalVariables},
     types::{LivecodeError, LivecodeResult},
 };
+use evalexpr::Node;
+use glam::Vec2;
+use itertools::Itertools;
+use lerpable::IsLerpingMethod;
+use lerpable::{step, Lerpable};
+use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor, MurreletIterHelpers};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -90,10 +94,10 @@ impl LazyNodeF32Inner {
     }
 
     // options to add more details...
-    pub fn add_more_defs(&self, more_defs: &MixedEvalDefs) -> Self {
+    pub fn add_more_defs<M: ToMixedDefs>(&self, more_defs: &M) -> Self {
         // unreachable!();
         let c = self.clone();
-        c.add_expr_values(more_defs.expr_vals())
+        c.add_expr_values(more_defs.to_mixed_def().expr_vals())
 
         // println!("dropping contexts...");
         // c.world
@@ -180,7 +184,7 @@ impl LazyNodeF32 {
         }
     }
 
-    pub fn eval_with_ctx(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<f32> {
+    pub fn eval_with_ctx<M: ToMixedDefs>(&self, more_defs: &M) -> LivecodeResult<f32> {
         // update ctx
         let with_more_ctx = self.add_more_defs(more_defs)?;
 
@@ -193,7 +197,7 @@ impl LazyNodeF32 {
         }
     }
 
-    pub fn add_more_defs(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<Self> {
+    pub fn add_more_defs<M: ToMixedDefs>(&self, more_defs: &M) -> LivecodeResult<Self> {
         match self {
             LazyNodeF32::Uninitialized => {
                 Err(LivecodeError::Raw("uninitialized lazy node".to_owned()))
@@ -238,13 +242,12 @@ impl LazyNodeF32 {
     }
 
     pub fn eval_with_xy(&self, xy: glam::Vec2) -> LivecodeResult<f32> {
-        let expr =
-            ExprWorldContextValues::new(vec![
-                ("x".to_string(), LivecodeValue::float(xy.x)),
-                ("y".to_string(), LivecodeValue::float(xy.y)),
-            ]);
+        let expr = ExprWorldContextValues::new(vec![
+            ("x".to_string(), LivecodeValue::float(xy.x)),
+            ("y".to_string(), LivecodeValue::float(xy.y)),
+        ]);
 
-        self.eval_with_ctx(&expr.to_mixed_defs())
+        self.eval_with_ctx(&expr)
     }
 }
 
@@ -331,8 +334,59 @@ pub fn eval_lazy_vec3(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<
     ))
 }
 
-pub fn eval_lazy_vec2(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec2> {
-    Ok(glam::vec2(v[0].eval_lazy(ctx)?, v[1].eval_lazy(ctx)?))
+// pub fn eval_lazy_vec2(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec2> {
+//     Ok(glam::vec2(v[0].eval_lazy(ctx)?, v[1].eval_lazy(ctx)?))
+// }
+
+#[derive(Clone, Debug, Default)]
+pub struct LazyVec2 {
+    x: LazyNodeF32,
+    y: LazyNodeF32,
+}
+
+impl LazyVec2 {
+    pub fn new(x: LazyNodeF32, y: LazyNodeF32) -> Self {
+        Self { x, y }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct ControlLazyVec2(Vec<ControlLazyNodeF32>);
+impl LivecodeFromWorld<LazyVec2> for ControlLazyVec2 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyVec2> {
+        Ok(LazyVec2::new(self.0[0].o(w)?, self.0[1].o(w)?))
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlLazyVec2 {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        self.0.iter().map(|f| f.variable_identifiers()).flatten().collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        self.0.iter().map(|f| f.function_identifiers()).flatten().collect_vec()
+    }
+}
+
+impl LivecodeToControl<ControlLazyVec2> for LazyVec2 {
+    fn to_control(&self) -> ControlLazyVec2 {
+        ControlLazyVec2(vec![self.x.to_control(), self.y.to_control()])
+    }
+}
+
+impl IsLazy for LazyVec2 {
+    type Target = glam::Vec2;
+
+    fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+        Ok(glam::vec2(self.x.eval_lazy(ctx)?, self.y.eval_lazy(ctx)?))
+    }
+
+    fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
+        Ok(LazyVec2::new(
+            self.x.with_more_defs(ctx)?,
+            self.y.with_more_defs(ctx)?,
+        ))
+    }
 }
 
 pub fn eval_lazy_f32(
@@ -348,4 +402,106 @@ pub fn eval_lazy_f32(
         (Some(min), Some(max)) => f32::min(f32::max(min, v.eval_lazy(ctx)?), max),
     };
     Ok(result)
+}
+
+// can lerp between lazy items, by gathering the pairs + pct, and then evaluating them
+
+#[derive(Clone, Debug)]
+pub struct LazyLerp<T: IsLazy> {
+    left: WrappedLazyType<T>,
+    right: WrappedLazyType<T>,
+    pct: f32, // hm, just convert to the pct...
+}
+
+impl<T: IsLazy> LazyLerp<T> {
+    fn new(left: WrappedLazyType<T>, right: WrappedLazyType<T>, pct: f32) -> Self {
+        Self { left, right, pct }
+    }
+}
+
+// newtype to avoid orphan
+#[derive(Clone, Debug)]
+pub enum WrappedLazyType<T: IsLazy> {
+    Single(T),
+    Lerp(Box<LazyLerp<T>>),
+}
+impl<T> WrappedLazyType<T>
+where
+    T: IsLazy + std::fmt::Debug + Clone,
+{
+    pub(crate) fn new(x: T) -> Self {
+        Self::Single(x)
+    }
+
+    pub(crate) fn new_lerp(left: WrappedLazyType<T>, right: WrappedLazyType<T>, pct: f32) -> Self {
+        WrappedLazyType::Lerp(Box::new(LazyLerp::new(left, right, pct)))
+    }
+}
+
+impl<T> IsLazy for LazyLerp<T>
+where
+    T: IsLazy,
+    T::Target: Lerpable,
+{
+    type Target = T::Target;
+    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+        let left = self.left.eval_lazy(expr)?;
+        let right = self.right.eval_lazy(expr)?;
+        let r = left.lerpify(&right, &self.pct);
+
+        Ok(r)
+    }
+
+    fn with_more_defs(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<Self> {
+        Ok(Self {
+            left: self.left.with_more_defs(more_defs)?,
+            right: self.right.with_more_defs(more_defs)?,
+            pct: self.pct,
+        })
+    }
+}
+
+impl<T> IsLazy for WrappedLazyType<T>
+where
+    T: IsLazy,
+    T::Target: Lerpable,
+{
+    type Target = T::Target;
+    fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+        match self {
+            WrappedLazyType::Single(s) => s.eval_lazy(expr),
+            WrappedLazyType::Lerp(s) => s.eval_lazy(expr),
+        }
+    }
+
+    fn with_more_defs(&self, more_defs: &MixedEvalDefs) -> LivecodeResult<Self> {
+        Ok(match self {
+            WrappedLazyType::Single(s) => WrappedLazyType::Single(s.with_more_defs(more_defs)?),
+            WrappedLazyType::Lerp(s) => {
+                WrappedLazyType::Lerp(Box::new(s.with_more_defs(more_defs)?))
+            }
+        })
+    }
+}
+
+impl<T> Lerpable for WrappedLazyType<T>
+where
+    T: IsLazy + Clone + std::fmt::Debug,
+{
+    fn lerpify<M: IsLerpingMethod>(&self, other: &Self, pct: &M) -> Self {
+        WrappedLazyType::new_lerp(self.clone(), other.clone(), pct.lerp_pct() as f32)
+    }
+}
+
+impl<T, ControlT> LivecodeToControl<ControlT> for WrappedLazyType<T>
+where
+    T: LivecodeToControl<ControlT> + IsLazy,
+{
+    fn to_control(&self) -> ControlT {
+        match self {
+            WrappedLazyType::Single(inner) => inner.to_control(),
+            // hax because it's just to control...
+            WrappedLazyType::Lerp(lerp) => lerp.left.to_control(),
+        }
+    }
 }

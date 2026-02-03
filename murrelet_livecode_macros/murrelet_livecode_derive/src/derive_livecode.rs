@@ -27,7 +27,7 @@ impl LivecodeFieldType {
 
     pub fn to_token_lazy(&self) -> TokenStream2 {
         match self.0 {
-            ControlType::F32_2 => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
+            ControlType::F32_2 => quote! { murrelet_livecode::lazy::ControlLazyVec2 },
             ControlType::F32_3 => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
             ControlType::Color => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
             ControlType::ColorUnclamped => {
@@ -678,7 +678,6 @@ impl GenFinal for FieldTokensLivecode {
                 e => panic!("(livecode, recurse_struct_vec) need vec something {:?}", e),
             };
 
-
             let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
                 quote! {murrelet_livecode::types::DeserLazyControlVecElement}
             } else {
@@ -1191,6 +1190,42 @@ impl GenFinal for FieldTokensLivecode {
     }
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
-        Self::from_recurse_struct_struct(idents)
+        let serde = idents.serde();
+        let name = idents.name();
+        let orig_ty = idents.orig_ty();
+
+        let for_struct = {
+            let new_ty = {
+                let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
+
+                println!("main_type.to_string() {:?}", main_type.to_string());
+                if main_type.to_string() == "LazyVec2" {
+                    quote! { murrelet_livecode::lazy::ControlLazyVec2 }
+                } else {
+                    let ref_lc_ident = Self::new_ident(main_type.clone());
+                    quote! {#ref_lc_ident}
+                }
+                // let ref_lc_ident = idents.config.new_ident(main_type.clone());
+            };
+
+            quote! {#serde #name: #new_ty}
+        };
+        let for_world = {
+            quote! {#name: self.#name.o(w)?}
+        };
+        let for_to_control = {
+            quote! {#name: self.#name.to_control()}
+        };
+
+        let for_variable_idents = quote! { self.#name.variable_identifiers() };
+        let for_function_idents = quote! { self.#name.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
     }
 }

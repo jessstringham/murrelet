@@ -3,14 +3,14 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
 use itertools::Itertools;
 use lerpable::{step, Lerpable};
-use murrelet_common::{print_expect, IdxInRange, IdxInRange2d};
+use murrelet_common::{print_expect, IdxInRange, IdxInRange2d, LivecodeValue};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
 
 use crate::{
-    expr::{IntoExprWorldContext, MixedEvalDefs},
-    lazy::{ControlLazyNodeF32, IsLazy, LazyNodeF32},
+    expr::{IntoExprWorldContext, MixedEvalDefs, ToMixedDefs},
+    lazy::{ControlLazyNodeF32, IsLazy, LazyNodeF32, WrappedLazyType},
     livecode::{
         ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeToControl, LivecodeVariable,
     },
@@ -204,29 +204,37 @@ impl DeserLazyControlVecElementRepeatMethod {
 
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct DeserLazyControlVecElementRepeat<Source: Clone + Debug> {
+pub struct DeserLazyControlVecElementRepeat<DeserSource: Clone + Debug> {
     repeat: DeserLazyControlVecElementRepeatMethod,
     #[serde(default = "_default_ctx")]
     ctx: AdditionalContextNode,
     prefix: String,
-    what: Vec<DeserLazyControlVecElement<Source>>,
+    what: Vec<DeserLazyControlVecElement<DeserSource>>,
+    #[serde(default)]
+    blend_with_next: usize,
 }
-impl<Source: Clone + Debug> DeserLazyControlVecElementRepeat<Source> {
-    fn o<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyVecElementRepeat<Target>>
+impl<DeserSource: Clone + Debug> DeserLazyControlVecElementRepeat<DeserSource> {
+    fn o<LazySource, Target>(
+        &self,
+        w: &LivecodeWorldState,
+    ) -> LivecodeResult<LazyVecElementRepeat<WrappedLazyType<LazySource>>>
     where
-        Source: LivecodeFromWorld<Target>,
-        Target: IsLazy + Debug + Clone,
+        DeserSource: LivecodeFromWorld<LazySource>,
+        LazySource: IsLazy<Target = Target> + Debug + Clone,
+        Target: Lerpable,
     {
         let what = self
             .what
             .iter()
-            .map(|x| x.o(w))
+            .map(|x| x.o::<LazySource, Target>(w))
             .collect::<Result<Vec<_>, _>>()?;
+
         Ok(LazyVecElementRepeat {
             repeat: self.repeat.o(w)?,
             ctx: self.ctx.clone(),
             prefix: self.prefix.clone(),
             what,
+            blend_with_next: self.blend_with_next,
         })
     }
 }
@@ -248,18 +256,23 @@ where
         Self::Single(c)
     }
 }
-impl<Source: Debug + Clone> DeserLazyControlVecElement<Source> {
-    pub fn o<Target: Debug + Clone>(
+impl<DeserSource: Debug + Clone> DeserLazyControlVecElement<DeserSource> {
+    pub fn o<LazySource, Target>(
         &self,
         w: &LivecodeWorldState,
-    ) -> LivecodeResult<LazyControlVecElement<Target>>
+    ) -> LivecodeResult<LazyControlVecElement<WrappedLazyType<LazySource>>>
     where
-        Source: LivecodeFromWorld<Target>,
-        Target: IsLazy,
+        DeserSource: LivecodeFromWorld<LazySource>,
+        LazySource: Debug + Clone + IsLazy<Target = Target>,
+        Target: Lerpable,
     {
         let a = match self {
-            DeserLazyControlVecElement::Single(a) => LazyControlVecElement::Single(a.o(w)?),
-            DeserLazyControlVecElement::Repeat(r) => LazyControlVecElement::Repeat(r.o(w)?),
+            DeserLazyControlVecElement::Single(a) => {
+                LazyControlVecElement::Single(WrappedLazyType::new(a.o(w)?))
+            }
+            DeserLazyControlVecElement::Repeat(r) => {
+                LazyControlVecElement::Repeat(r.o::<LazySource, Target>(w)?)
+            }
         };
         Ok(a)
     }
@@ -387,10 +400,24 @@ pub struct LazyVecElementRepeat<Source: Clone + Debug + IsLazy> {
     ctx: AdditionalContextNode,
     prefix: String,
     what: Vec<LazyControlVecElement<Source>>,
+    blend_with_next: usize,
 }
-impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
-    pub fn lazy_expand_vec(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<Source>> {
-        let mut result = Vec::with_capacity(self.repeat.len(ctx)? * self.what.len());
+
+impl<Inner> LazyVecElementRepeat<WrappedLazyType<Inner>>
+where
+    Inner: Clone + Debug + IsLazy,
+    Inner::Target: Lerpable,
+{
+    // expands repeats + applies defs, while preserving WrappedLazyType nodes for blending
+    pub fn lazy_expand_vec_repeat_element(
+        &self,
+        ctx: &MixedEvalDefs,
+    ) -> LivecodeResult<Vec<WrappedLazyType<Inner>>>
+    where
+        Inner::Target: Lerpable,
+    {
+        let mut result: Vec<WrappedLazyType<Inner>> =
+            Vec::with_capacity(self.repeat.len(ctx)? * self.what.len());
 
         let prefix = if self.prefix.is_empty() {
             "i_".to_string()
@@ -404,42 +431,36 @@ impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             scoped_ctx.set_vals(expr.with_prefix(&prefix));
 
+            let mut is_blending: Option<IdxInRange> = None;
+
             for src in &self.what {
                 match src {
                     LazyControlVecElement::Single(c) => {
-                        result.push(c.with_more_defs(&scoped_ctx)?);
+                        let item = c.with_more_defs(&scoped_ctx)?;
+                        blend_with_list(&mut result, item, &mut is_blending);
                     }
                     LazyControlVecElement::Repeat(c) => {
-                        let mut nested = c.lazy_expand_vec(&scoped_ctx)?;
-                        result.append(&mut nested);
+                        let nested = c.lazy_expand_vec_repeat_element(&scoped_ctx)?;
+                        for item in nested {
+                            blend_with_list(&mut result, item, &mut is_blending);
+                        }
+
+                        if c.blend_with_next > 0 {
+                            // blend_with_next is a COUNT (1 => only last item)
+                            is_blending = Some(IdxInRange::new_last(c.blend_with_next - 1));
+                        }
                     }
                 }
             }
         }
 
-        // for idx in self.repeat.iter(ctx)? {
-        //     let mut ctx = ctx.clone();
-        //     ctx.add_node(self.ctx.clone());
-        //     let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
-        //     ctx.set_vals(expr.with_prefix(&prefix));
-
-        //     for src in &self.what {
-        //         match src {
-        //             LazyControlVecElement::Single(c) => {
-        //                 // let o = c.eval_lazy(&ctx)?;
-        //                 result.push(c.clone());
-        //             }
-        //             LazyControlVecElement::Repeat(c) => {
-        //                 let o = c.lazy_expand_vec(&ctx)?;
-        //                 result.extend(o.into_iter());
-        //             }
-        //         }
-        //     }
-        // }
         Ok(result)
     }
 
-    pub fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
+    pub fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self>
+    where
+        Inner::Target: Lerpable,
+    {
         Ok(Self {
             repeat: self.repeat.clone(),
             ctx: self.ctx.clone(),
@@ -449,9 +470,73 @@ impl<Source: Clone + Debug + IsLazy> LazyVecElementRepeat<Source> {
                 .iter()
                 .map(|elem| elem.with_more_defs(ctx))
                 .collect::<LivecodeResult<Vec<_>>>()?,
+            blend_with_next: self.blend_with_next,
         })
     }
 }
+
+// impl<Source: Clone + Debug + IsLazy + Lerpable> LazyVecElementRepeat<Source> {
+//     // this one has mixed evals, so it can evaluate the wrapped items too!
+//     pub fn lazy_expand_vec_repeat_element(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<Source>>
+//     where
+//         Source::Target: Lerpable,
+//     {
+//         let mut result: Vec<Source> = Vec::with_capacity(self.repeat.len(ctx)? * self.what.len());
+
+//         let prefix = if self.prefix.is_empty() {
+//             "i_".to_string()
+//         } else {
+//             format!("{}_", self.prefix)
+//         };
+
+//         for idx in self.repeat.iter(ctx)? {
+//             let mut scoped_ctx = ctx.clone();
+//             scoped_ctx.add_node(self.ctx.clone());
+//             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
+//             scoped_ctx.set_vals(expr.with_prefix(&prefix));
+
+//             let mut is_blending: Option<IdxInRange> = None;
+
+//             for src in &self.what {
+//                 match src {
+//                     LazyControlVecElement::Single(c) => {
+//                         let item = c.with_more_defs(&scoped_ctx)?;
+//                         blend_with_list(&mut result, item, &mut is_blending);
+//                     }
+//                     LazyControlVecElement::Repeat(c) => {
+//                         let nested = c.lazy_expand_vec_repeat_element(&scoped_ctx)?;
+//                         for item in nested.into_iter() {
+//                             blend_with_list(&mut result, item, &mut is_blending);
+//                         }
+
+//                         if c.blend_with_next > 0 {
+//                             is_blending = Some(IdxInRange::new_last(c.blend_with_next - 1));
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+
+//         Ok(result)
+//     }
+
+//     pub fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self>
+//     where
+//         Source::Target: Lerpable,
+//     {
+//         Ok(Self {
+//             repeat: self.repeat.clone(),
+//             ctx: self.ctx.clone(),
+//             prefix: self.prefix.clone(),
+//             what: self
+//                 .what
+//                 .iter()
+//                 .map(|elem| elem.with_more_defs(ctx))
+//                 .collect::<LivecodeResult<Vec<_>>>()?,
+//             blend_with_next: self.blend_with_next,
+//         })
+//     }
+// }
 
 impl<Source, ControlSource> LivecodeToControl<DeserLazyControlVecElement<ControlSource>>
     for LazyControlVecElement<Source>
@@ -484,6 +569,7 @@ where
                     prefix: rep.prefix.clone(),
                     what,
                     ctx: rep.ctx.clone(),
+                    blend_with_next: rep.blend_with_next,
                 })
             }
         }
@@ -497,6 +583,8 @@ pub struct ControlVecElementRepeat<Source: Clone + Debug> {
     // #[serde(default)]
     prefix: String,
     what: Vec<ControlVecElement<Source>>,
+    #[serde(default)]
+    blend_with_next: usize,
 }
 
 // impl<Sequencer, Source> GetLivecodeIdentifiers for ControlVecElement<Sequencer, Source>
@@ -550,6 +638,27 @@ where
     }
 }
 
+fn blend_with_list<Target: Lerpable>(
+    result: &mut Vec<Target>,
+    new: Target,
+    is_blending: &mut Option<IdxInRange>,
+) {
+    if let Some(curr_offset) = is_blending {
+        // otherwise, too far back, skip
+        if curr_offset.i_usize() < result.len() {
+            let i = result.len() - 1 - curr_offset.i_usize();
+
+            result[i] = new.lerpify(&result[i], &curr_offset.pct());
+
+            // if we can subtract 1, that's the next one to check.
+            // otherwise, set to none.
+            *is_blending = curr_offset.prev_i();
+        }
+    } else {
+        result.push(new);
+    }
+}
+
 impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
     pub fn _eval_and_expand_vec<Target>(
         &self,
@@ -558,6 +667,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
     ) -> LivecodeResult<(usize, Vec<Target>)>
     where
         Source: LivecodeFromWorld<Target>,
+        Target: Lerpable,
     {
         let mut result = Vec::with_capacity(self.repeat.len(w)? * self.what.len());
 
@@ -571,21 +681,36 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
 
         for idx in self.repeat.iter(w)? {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
-            let new_w = w.clone_with_vals(expr, &prefix);
+            let mut new_w = w.clone_with_vals(expr, &prefix);
+
+            let mut is_blending: Option<IdxInRange> = None;
 
             for src in &self.what {
                 match src {
                     ControlVecElement::Single(c) => {
                         // just update it and overwrite it...
-                        // new_w.set_val("vseed", LivecodeValue::float(offset as f32));
+                        new_w.update_with_defs(
+                            ("vseed", LivecodeValue::float(offset as f32)).to_mixed_def(),
+                        );
                         let o = c.o(&new_w)?;
-                        result.push(o);
+
+                        blend_with_list(&mut result, o, &mut is_blending);
+
                         offset += 1;
                     }
                     ControlVecElement::Repeat(c) => {
                         let (new_offset, o) = c._eval_and_expand_vec(&new_w, offset)?;
-                        result.extend(o.into_iter());
-                        offset += new_offset;
+
+                        for item in o.into_iter() {
+                            blend_with_list(&mut result, item, &mut is_blending);
+                        }
+
+                        if c.blend_with_next > 0 {
+                            is_blending = Some(IdxInRange::new_last(c.blend_with_next - 1));
+                        }
+
+                        // result.extend(o.into_iter());
+                        offset = new_offset;
                     }
                 }
             }
@@ -596,6 +721,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
     pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
     where
         Source: LivecodeFromWorld<Target>,
+        Target: Lerpable,
     {
         let (_, a) = self._eval_and_expand_vec(w, 0)?;
         Ok(a)
@@ -672,18 +798,15 @@ where
     Repeat(LazyVecElementRepeat<Source>),
 }
 
-impl<Source> IsLazy for LazyControlVecElement<Source>
+impl<Inner> IsLazy for LazyControlVecElement<WrappedLazyType<Inner>>
 where
-    Source: Clone + Debug + IsLazy,
+    Inner: Clone + Debug + IsLazy,
+    Inner::Target: Lerpable,
 {
-    // A single lazy control element expands to a vector of evaluated items.
-    type Target = Vec<Source::Target>;
+    type Target = Vec<Inner::Target>;
 
     fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
-        // First expand structure (repeats) to Vec<Source>, still lazy
-        let expanded: Vec<Source> = self.lazy_expand_vec(ctx)?;
-
-        // Then evaluate each inner lazy to its final type
+        let expanded: Vec<WrappedLazyType<Inner>> = self.lazy_expand_vec(ctx)?;
         expanded.into_iter().map(|s| s.eval_lazy(ctx)).collect()
     }
 
@@ -699,36 +822,78 @@ where
     }
 }
 
-impl<Source> LazyControlVecElement<Source>
+impl<Inner> LazyControlVecElement<WrappedLazyType<Inner>>
 where
-    Source: Clone + Debug + crate::lazy::IsLazy,
+    Inner: Clone + Debug + IsLazy,
+    Inner::Target: Lerpable,
 {
-    pub fn eval_lazy_single(&self, expr: &MixedEvalDefs) -> LivecodeResult<Source> {
+    pub fn lazy_expand_vec(
+        &self,
+        ctx: &MixedEvalDefs,
+    ) -> LivecodeResult<Vec<WrappedLazyType<Inner>>> {
         match self {
-            LazyControlVecElement::Single(s) => Ok(s.clone()),
-            LazyControlVecElement::Repeat(s) => {
-                let vv = s.lazy_expand_vec(expr)?;
-                vv.into_iter()
-                    .next()
-                    .ok_or(LivecodeError::raw("eval_lazy_single failed"))
-            }
+            LazyControlVecElement::Single(c) => Ok(vec![c.clone()]),
+            LazyControlVecElement::Repeat(c) => c.lazy_expand_vec_repeat_element(ctx),
         }
     }
 }
 
-impl<Source> LazyControlVecElement<Source>
-where
-    Source: Clone + Debug + crate::lazy::IsLazy,
-{
-    // type Target = Vec<EvalTarget>;
+// impl<Source> IsLazy for LazyControlVecElement<Source>
+// where
+//     Source: Clone + Debug + IsLazy + Lerpable,
+//     Source::Target: Lerpable,
+// {
+//     type Target = Vec<Source::Target>;
 
-    pub fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Vec<Source>> {
-        match self {
-            LazyControlVecElement::Single(s) => Ok(vec![s.clone()]),
-            LazyControlVecElement::Repeat(s) => s.lazy_expand_vec(expr),
-        }
-    }
-}
+//     fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+//         let expanded: Vec<Source> = self.lazy_expand_vec(ctx)?;
+//         expanded.into_iter().map(|s| s.eval_lazy(ctx)).collect()
+//     }
+
+//     fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
+//         Ok(match self {
+//             LazyControlVecElement::Single(s) => {
+//                 LazyControlVecElement::Single(s.with_more_defs(ctx)?)
+//             }
+//             LazyControlVecElement::Repeat(rep) => {
+//                 LazyControlVecElement::Repeat(rep.with_more_defs(ctx)?)
+//             }
+//         })
+//     }
+// }
+
+// impl<Source> LazyControlVecElement<Source>
+// where
+//     Source: Clone + Debug + crate::lazy::IsLazy + Lerpable,
+// {
+//     pub fn eval_lazy_single(&self, expr: &MixedEvalDefs) -> LivecodeResult<Source>
+//     where
+//         Source::Target: Lerpable,
+//     {
+//         match self {
+//             LazyControlVecElement::Single(s) => Ok(s.clone()),
+//             LazyControlVecElement::Repeat(s) => {
+//                 let vv = s.lazy_expand_vec_repeat_element(expr)?;
+//                 vv.into_iter()
+//                     .next()
+//                     .ok_or(LivecodeError::raw("eval_lazy_single failed"))
+//             }
+//         }
+//     }
+// }
+
+// impl<Source, Target> LazyControlVecElement<Source>
+// where
+//     Source: Clone + Debug + crate::lazy::IsLazy<Target = Target> + Lerpable,
+//     Target: Lerpable,
+// {
+//     pub fn eval_lazy(&self, expr: &MixedEvalDefs) -> LivecodeResult<Vec<Source>> {
+//         match self {
+//             LazyControlVecElement::Single(s) => Ok(vec![s.clone()]),
+//             LazyControlVecElement::Repeat(s) => s.lazy_expand_vec_repeat_element(expr),
+//         }
+//     }
+// }
 
 // impl<Sequencer, ControlSequencer, Source> ControlVecElement<Sequencer, ControlSequencer, Source>
 impl<Source> ControlVecElement<Source>
@@ -744,6 +909,7 @@ where
     pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
     where
         Source: LivecodeFromWorld<Target>,
+        Target: Lerpable,
     {
         match self {
             ControlVecElement::Single(c) => Ok(vec![c.o(w)?]),
@@ -775,17 +941,38 @@ where
     // }
 }
 
-impl<LazyElement> LazyControlVecElement<LazyElement>
-where
-    LazyElement: Clone + Debug + IsLazy,
-{
-    pub fn lazy_expand_vec(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<LazyElement>> {
-        match self {
-            LazyControlVecElement::Single(c) => Ok(vec![c.clone()]),
-            LazyControlVecElement::Repeat(c) => c.lazy_expand_vec(ctx),
-        }
-    }
-}
+// impl<Inner> LazyControlVecElement<WrappedLazyType<Inner>>
+// where
+//     Inner: Clone + Debug + IsLazy,
+// {
+//     pub fn lazy_expand_vec(
+//         &self,
+//         ctx: &MixedEvalDefs,
+//     ) -> LivecodeResult<Vec<WrappedLazyType<Inner>>>
+//     where
+//         Inner::Target: Lerpable,
+//     {
+//         match self {
+//             LazyControlVecElement::Single(c) => Ok(vec![c.clone()]),
+//             LazyControlVecElement::Repeat(c) => c.lazy_expand_vec_repeat_element(ctx),
+//         }
+//     }
+// }
+
+// impl<LazyElement> LazyControlVecElement<LazyElement>
+// where
+//     LazyElement: Clone + Debug + IsLazy + Lerpable,
+// {
+//     pub fn lazy_expand_vec(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<LazyElement>>
+//     where
+//         LazyElement::Target: Lerpable,
+//     {
+//         match self {
+//             LazyControlVecElement::Single(c) => Ok(vec![c.clone()]),
+//             LazyControlVecElement::Repeat(c) => c.lazy_expand_vec_repeat_element(ctx),
+//         }
+//     }
+// }
 
 // chatgpt
 #[cfg(feature = "schemars")]

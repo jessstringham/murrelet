@@ -15,7 +15,7 @@ impl LazyFieldType {
             ControlType::Bool => quote! {murrelet_livecode::lazy::LazyNodeF32}, // we'll just check if it's above 0
             ControlType::F32 => quote! {murrelet_livecode::lazy::LazyNodeF32},
             ControlType::F32_2 => {
-                quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
+                quote! {murrelet_livecode::lazy::LazyVec2}
             }
             ControlType::F32_3 => {
                 quote! {Vec<murrelet_livecode::lazy::LazyNodeF32>}
@@ -43,7 +43,8 @@ impl LazyFieldType {
     ) -> TokenStream2 {
         match self.0 {
             ControlType::F32_2 => {
-                quote! { murrelet_livecode::lazy::eval_lazy_vec2(&#ident, ctx) }
+                // quote! { murrelet_livecode::lazy::eval_lazy_vec2(&#ident, ctx) }
+                quote! { #ident.eval_lazy(ctx)? }
             }
             ControlType::F32_3 => {
                 quote! { murrelet_livecode::lazy::eval_lazy_vec3(&#ident, ctx) }
@@ -76,10 +77,12 @@ impl LazyFieldType {
         let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => {
-                quote! { #name: glam::vec2(
-                    self.#name[0].eval_lazy(ctx)? as f32,
-                    self.#name[1].eval_lazy(ctx)? as f32
-                )}
+                quote! { #name: self.#name.eval_lazy(ctx)? }
+
+                //     glam::vec2(
+                //     self.#name[0].eval_lazy(ctx)? as f32,
+                //     self.#name[1].eval_lazy(ctx)? as f32
+                // )}
             }
             ControlType::F32_3 => {
                 quote! {
@@ -556,11 +559,11 @@ impl GenFinal for FieldTokensLazy {
             let new_ty = match wrapper {
                 VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
                 VecDepth::Vec => {
-                    quote! {Vec<murrelet_livecode::types::LazyControlVecElement<#internal_type>>}
+                    quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::WrappedLazyType<#internal_type>>>}
                 }
                 VecDepth::VecVec => todo!(),
                 VecDepth::VecControlVec => {
-                    quote! { Vec<murrelet_livecode::types::LazyControlVecElement<Vec<#internal_type>>> }
+                    quote! { Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::WrappedLazyType<Vec<#internal_type>>>> }
                 }
             };
             quote! {#back_to_quote #name: #new_ty}

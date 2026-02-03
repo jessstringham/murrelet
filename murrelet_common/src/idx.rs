@@ -31,6 +31,17 @@ impl IdxInRange {
         }
     }
 
+    pub fn new_last<U: TryInto<u64>>(total: U) -> IdxInRange
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        IdxInRange {
+            i: 0,
+            total: total.try_into().expect("can't convert to u64"),
+        }
+        .last_i()
+    }
+
     pub fn enumerate<'a, T, I>(iter: I) -> Vec<(IdxInRange, T)>
     where
         I: ExactSizeIterator<Item = T>,
@@ -161,6 +172,10 @@ impl IdxInRange {
 
     pub fn is_first(&self) -> bool {
         self.i == 0
+    }
+
+    pub fn i_usize(&self) -> usize {
+        self.i() as usize
     }
 }
 
