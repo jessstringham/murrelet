@@ -28,10 +28,10 @@ impl LivecodeFieldType {
     pub fn to_token_lazy(&self) -> TokenStream2 {
         match self.0 {
             ControlType::F32_2 => quote! { murrelet_livecode::lazy::ControlLazyVec2 },
-            ControlType::F32_3 => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
-            ControlType::Color => quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> },
+            ControlType::F32_3 => quote! { murrelet_livecode::lazy::ControlLazyVec3 },
+            ControlType::Color => quote! { murrelet_livecode::lazy::ControlMurreletColor },
             ControlType::ColorUnclamped => {
-                quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> }
+                todo!() //quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> }
             }
             ControlType::F32 => quote! {murrelet_livecode::livecode::ControlF32},
             ControlType::Bool => quote! {murrelet_livecode::livecode::ControlBool},
@@ -439,8 +439,12 @@ impl GenFinal for FieldTokensLivecode {
         let internal_type = parsed_type_info.main_type;
 
         let for_struct = {
-            let t = Self::new_ident(internal_type);
-            quote! {#t}
+            if internal_type.to_string().starts_with("Lazy") {
+                catch_special_types(internal_type)
+            } else {
+                let t = Self::new_ident(internal_type);
+                quote! {#t}
+            }
         };
         let for_world = {
             quote! { self.0.o(w)? }
@@ -661,8 +665,8 @@ impl GenFinal for FieldTokensLivecode {
                 }
                 HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
                     let original_internal_type = parsed_type_info.internal_type();
-                    let name = Self::new_ident(original_internal_type.clone());
-                    quote! {#name}
+
+                    catch_special_types(original_internal_type)
                 }
                 // HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
                 //     // for things like Lazy Vec2...
@@ -705,7 +709,6 @@ impl GenFinal for FieldTokensLivecode {
                 match wrapper {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
-                        // println!("HIII");
                         if inner_is_lazy_struct {
                             quote! {
                                 #name: self.#name.iter()
@@ -1198,13 +1201,13 @@ impl GenFinal for FieldTokensLivecode {
             let new_ty = {
                 let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
 
-                println!("main_type.to_string() {:?}", main_type.to_string());
-                if main_type.to_string() == "LazyVec2" {
-                    quote! { murrelet_livecode::lazy::ControlLazyVec2 }
-                } else {
-                    let ref_lc_ident = Self::new_ident(main_type.clone());
-                    quote! {#ref_lc_ident}
-                }
+                // if main_type.to_string() == "LazyVec2" {
+                //     quote! { murrelet_livecode::lazy::ControlLazyVec2 }
+                // } else {
+                // let ref_lc_ident = Self::new_ident(main_type.clone());
+                // quote! {#ref_lc_ident}
+                catch_special_types(main_type.clone())
+                // }
                 // let ref_lc_ident = idents.config.new_ident(main_type.clone());
             };
 
@@ -1227,5 +1230,17 @@ impl GenFinal for FieldTokensLivecode {
             for_variable_idents,
             for_function_idents,
         }
+    }
+}
+
+fn catch_special_types(original_internal_type: syn::Ident) -> TokenStream2 {
+    let ctrl_ident = update_to_control_ident(original_internal_type.clone());
+
+    match original_internal_type.to_string().as_str() {
+        "LazyVec2" => quote! { murrelet_livecode::lazy::ControlLazyVec2 },
+        "LazyNodeF32" => quote! { murrelet_livecode::lazy::ControlLazyNodeF32 },
+        "LazyVec3" => quote! { murrelet_livecode::lazy::ControlLazyVec3 },
+        "LazyMurreletColor" => quote! { murrelet_livecode::lazy::ControlLazyMurreletColor },
+        _ => quote! { #ctrl_ident },
     }
 }

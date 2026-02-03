@@ -2,7 +2,7 @@ use darling::{ast, FromDeriveInput, FromField, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-const DEBUG_THIS: bool = false;
+const DEBUG_THIS: bool = true;
 
 pub(crate) fn prefix_ident(prefix: &str, name: syn::Ident) -> syn::Ident {
     let lc_name = format!("{}{}", prefix, name);
@@ -374,7 +374,7 @@ impl LivecodeFieldReceiver {
                 }
                 SerdeDefault::DefaultImpl => quote! {#[serde(default)]},
                 SerdeDefault::Empty => {
-                    // nace and general
+                    // nice and general
                     quote! {#[serde(default="murrelet_livecode::livecode::empty_vec")]}
                 }
                 _ => {
@@ -382,18 +382,26 @@ impl LivecodeFieldReceiver {
                     let how = self.how_to_control_this();
 
                     if is_lazy {
-                        let serde_func = match &how {
-                            HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
-                                // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
-                                serde.from_control_type(ControlType::LazyNodeF32, true)
-                            }
-                            _ => serde.from_control_type(how.get_control_type(), false),
-                        };
-                        let r = lazy_version_of_default_serde(&serde_func);
+                        if matches!(
+                            how,
+                            HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy)
+                        ) {
+                            quote! { #[serde(default)] }
+                        } else {
+                            let serde_func = match &how {
+                                HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                                    // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
+                                    serde.from_control_type(ControlType::LazyNodeF32, true)
+                                }
+                                _ => serde.from_control_type(how.get_control_type(), false),
+                            };
+                            let r = lazy_version_of_default_serde(&serde_func);
 
-                        quote! {#[serde(default=#r)]}
+                            quote! {#[serde(default=#r)]}
+                        }
                     } else {
                         let r = serde.from_control_type(how.get_control_type(), false);
+
                         quote! {#[serde(default=#r)]}
                     }
                 }
@@ -860,10 +868,14 @@ impl DataFromType {
     pub(crate) fn to_quote(&self) -> TokenStream2 {
         let main_type = self.main_type.clone();
         match (&self.second_type, &self.third_type, &self.fourth_type) {
-            (None, None, None) => quote!{ #main_type },
-            (Some(second_type), None, None) => quote!{ #main_type<#second_type> },
-            (Some(second_type), Some(third_type), None) =>  quote!{ #main_type<#second_type<#third_type>> },
-            (Some(second_type), Some(third_type), Some(fourth_type)) =>  quote!{ #main_type<#second_type<#third_type<#fourth_type>>> },
+            (None, None, None) => quote! { #main_type },
+            (Some(second_type), None, None) => quote! { #main_type<#second_type> },
+            (Some(second_type), Some(third_type), None) => {
+                quote! { #main_type<#second_type<#third_type>> }
+            }
+            (Some(second_type), Some(third_type), Some(fourth_type)) => {
+                quote! { #main_type<#second_type<#third_type<#fourth_type>>> }
+            }
             _ => unreachable!(),
         }
     }
@@ -882,9 +894,6 @@ pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
         syn::Type::Path(syn::TypePath { path, .. }) => {
             let s = path.segments.last().unwrap();
             let main_type = s.ident.clone();
-
-
-            println!("main_type {:?}", main_type);
 
             if main_type.to_string() != "WrappedLazyType" {
                 acc.push(main_type);
