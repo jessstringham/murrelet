@@ -718,12 +718,8 @@ impl GenFinal for FieldTokensLivecode {
                             }
                         } else {
                             quote! {
-                            #name: self.#name.iter()
-                            .map(|x| x.eval_and_expand_vec(w))
-                            .collect::<Result<Vec<_>, _>>()?
-                            .into_iter()
-                            .flatten()
-                            .collect()}
+                                #name: murrelet_livecode::types::eval_and_expand_vec_list(&self.#name, w)?
+                            }
                         }
 
                         // quote! {
@@ -738,12 +734,7 @@ impl GenFinal for FieldTokensLivecode {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
                                     result.push(
-                                        internal_row.iter()
-                                            .map(|x| x.eval_and_expand_vec(w))
-                                            .collect::<Result<Vec<_>, _>>()?
-                                            .into_iter()
-                                            .flatten()
-                                            .collect()
+                                        murrelet_livecode::types::eval_and_expand_vec_list(internal_row, w)?
                                     )
                                 }
                                 result

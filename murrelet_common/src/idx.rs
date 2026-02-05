@@ -35,11 +35,9 @@ impl IdxInRange {
     where
         <U as TryInto<u64>>::Error: core::fmt::Debug,
     {
-        IdxInRange {
-            i: 0,
-            total: total.try_into().expect("can't convert to u64"),
-        }
-        .last_i()
+        let total = total.try_into().expect("can't convert to u64");
+        assert!(total > 0, "IdxInRange::new_last requires total > 0");
+        IdxInRange { i: total - 1, total }
     }
 
     pub fn enumerate<'a, T, I>(iter: I) -> Vec<(IdxInRange, T)>

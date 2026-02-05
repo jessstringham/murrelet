@@ -596,35 +596,24 @@ impl GenFinal for FieldTokensLazy {
                         idents.data.f32max,
                     );
                     quote! {
-                        #name: self.#name
-                            .iter()
-                            .map(|item| {
-                                let expanded = item.lazy_expand_vec(ctx)?;
-                                expanded.into_iter()
-                                    .map(|#x_ident| #c_expr)
-                                    .collect::<Result<Vec<_>, _>>()
-                            })
-                            .collect::<Result<Vec<_>, _>>()?
-                            .into_iter()
-                            .flatten()
-                            .collect()
+                        #name: {
+                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.#name, ctx)?;
+                            expanded
+                                .into_iter()
+                                .map(|#x_ident| #c_expr)
+                                .collect::<Result<Vec<_>, _>>()?
+                        }
                     }
                 }
                 HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
                     quote! {
-                        #name: self.#name
-                            .iter()
-                            .map(|item| {
-                                let expanded = item.lazy_expand_vec(ctx)?;
-                                expanded
-                                    .into_iter()
-                                    .map(|x| x.eval_lazy(ctx))
-                                    .collect::<Result<Vec<_>, _>>()
-                            })
-                            .collect::<Result<Vec<_>, _>>()?
-                            .into_iter()
-                            .flatten()
-                            .collect()
+                        #name: {
+                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.#name, ctx)?;
+                            expanded
+                                .into_iter()
+                                .map(|x| x.eval_lazy(ctx))
+                                .collect::<Result<Vec<_>, _>>()?
+                        }
                     }
                 }
                 HowToControlThis::WithNone(_) => {

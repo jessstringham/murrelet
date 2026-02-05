@@ -181,8 +181,16 @@ impl ControlVecElementRepeatMethod {
 
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct ControlLazyBlendRepeatMethod {
+    count: ControlLazyNodeF32,
+    blend: ControlLazyNodeF32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum DeserLazyControlVecElementRepeatMethod {
+    Blend(ControlLazyBlendRepeatMethod),
     Single(ControlLazyNodeF32),
     Rect([ControlLazyNodeF32; 2]),
 }
@@ -198,6 +206,15 @@ impl DeserLazyControlVecElementRepeatMethod {
                 let y = lazy[1].o(w)?;
                 Ok(LazyVecElementRepeatMethod::Rect([x, y]))
             }
+            DeserLazyControlVecElementRepeatMethod::Blend(b) => {
+                let count = b.count.o(w)?;
+                let blend = b.blend.o(w)?;
+
+                Ok(LazyVecElementRepeatMethod::Blend(LazyBlendRepeatMethod {
+                    count,
+                    blend,
+                }))
+            }
         }
     }
 }
@@ -210,8 +227,6 @@ pub struct DeserLazyControlVecElementRepeat<DeserSource: Clone + Debug> {
     ctx: AdditionalContextNode,
     prefix: String,
     what: Vec<DeserLazyControlVecElement<DeserSource>>,
-    #[serde(default)]
-    blend_with_next: usize,
 }
 impl<DeserSource: Clone + Debug> DeserLazyControlVecElementRepeat<DeserSource> {
     fn o<LazySource, Target>(
@@ -234,7 +249,6 @@ impl<DeserSource: Clone + Debug> DeserLazyControlVecElementRepeat<DeserSource> {
             ctx: self.ctx.clone(),
             prefix: self.prefix.clone(),
             what,
-            blend_with_next: self.blend_with_next,
         })
     }
 }
@@ -354,9 +368,16 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct LazyBlendRepeatMethod {
+    count: LazyNodeF32,
+    blend: LazyNodeF32,
+}
+
 // just an intermediate type...?
 #[derive(Debug, Clone)]
 pub enum LazyVecElementRepeatMethod {
+    Blend(LazyBlendRepeatMethod),
     Single(LazyNodeF32),
     Rect([LazyNodeF32; 2]),
 }
@@ -371,6 +392,10 @@ impl LazyVecElementRepeatMethod {
                 let rx = r[0].eval_lazy(ctx)?;
                 let ry = r[1].eval_lazy(ctx)?;
                 rx * ry
+            }
+            LazyVecElementRepeatMethod::Blend(b) => {
+                let ss = b.count.eval_lazy(ctx)?;
+                ss
             }
         };
         Ok(v as usize)
@@ -388,8 +413,29 @@ impl LazyVecElementRepeatMethod {
                 let ry = s[1].eval_lazy(ctx)?;
                 IdxInRange2d::enumerate_counts(rx as usize, ry as usize)
             }
+            LazyVecElementRepeatMethod::Blend(b) => IdxInRange::enumerate_count(
+                b.count.eval_lazy(ctx)? as usize + b.blend.eval_lazy(ctx)? as usize,
+            )
+            .iter()
+            .map(|x| x.to_2d())
+            .collect_vec(),
         };
         Ok(v)
+    }
+
+    fn next_blend(&self, ctx: &MixedEvalDefs) -> Option<BlendWith> {
+        match self {
+            LazyVecElementRepeatMethod::Blend(b) => {
+                let blend = b.blend.eval_with_ctx(ctx).unwrap_or_default() as usize;
+                if blend > 0 {
+                    Some(BlendWith::new(blend))
+                } else {
+                    None
+                }
+            }
+            LazyVecElementRepeatMethod::Single(_) => None,
+            LazyVecElementRepeatMethod::Rect(_) => None,
+        }
     }
 }
 
@@ -400,7 +446,6 @@ pub struct LazyVecElementRepeat<Source: Clone + Debug + IsLazy> {
     ctx: AdditionalContextNode,
     prefix: String,
     what: Vec<LazyControlVecElement<Source>>,
-    blend_with_next: usize,
 }
 
 impl<Inner> LazyVecElementRepeat<WrappedLazyType<Inner>>
@@ -431,7 +476,7 @@ where
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             scoped_ctx.set_vals(expr.with_prefix(&prefix));
 
-            let mut is_blending: Option<IdxInRange> = None;
+            let mut is_blending: Option<BlendWith> = None;
 
             for src in &self.what {
                 match src {
@@ -445,9 +490,8 @@ where
                             blend_with_list(&mut result, item, &mut is_blending);
                         }
 
-                        if c.blend_with_next > 0 {
-                            // blend_with_next is a COUNT (1 => only last item)
-                            is_blending = Some(IdxInRange::new_last(c.blend_with_next - 1));
+                        if let Some(new_blend) = c.repeat.next_blend(&scoped_ctx) {
+                            is_blending = Some(new_blend);
                         }
                     }
                 }
@@ -470,7 +514,6 @@ where
                 .iter()
                 .map(|elem| elem.with_more_defs(ctx))
                 .collect::<LivecodeResult<Vec<_>>>()?,
-            blend_with_next: self.blend_with_next,
         })
     }
 }
@@ -560,6 +603,14 @@ where
                             y.to_control(),
                         ])
                     }
+                    LazyVecElementRepeatMethod::Blend(b) => {
+                        DeserLazyControlVecElementRepeatMethod::Blend(
+                            ControlLazyBlendRepeatMethod {
+                                count: b.count.to_control(),
+                                blend: b.blend.to_control(),
+                            },
+                        )
+                    }
                 };
 
                 let what = rep.what.iter().map(|e| e.to_control()).collect::<Vec<_>>();
@@ -569,7 +620,6 @@ where
                     prefix: rep.prefix.clone(),
                     what,
                     ctx: rep.ctx.clone(),
-                    blend_with_next: rep.blend_with_next,
                 })
             }
         }
@@ -638,25 +688,109 @@ where
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct BlendWith {
+    offset: usize, // 0 = last item
+    count: usize,  // number of items to blend
+}
+
+impl BlendWith {
+    fn new(count: usize) -> Self {
+        assert!(count > 0, "blend_with_next requires count > 0");
+        Self {
+            offset: count - 1,
+            count,
+        }
+    }
+
+    fn pct(&self) -> f32 {
+        // Exclusive endpoints: (0, 1) spread across count items.
+        // Higher pct for items closer to the end (offset larger).
+        (self.offset + 1) as f32 / (self.count + 1) as f32
+    }
+
+    fn prev(self) -> Option<Self> {
+        if self.offset == 0 {
+            None
+        } else {
+            Some(Self {
+                offset: self.offset - 1,
+                count: self.count,
+            })
+        }
+    }
+}
+
 fn blend_with_list<Target: Lerpable>(
     result: &mut Vec<Target>,
     new: Target,
-    is_blending: &mut Option<IdxInRange>,
+    is_blending: &mut Option<BlendWith>,
 ) {
     if let Some(curr_offset) = is_blending {
         // otherwise, too far back, skip
-        if curr_offset.i_usize() < result.len() {
-            let i = result.len() - 1 - curr_offset.i_usize();
+        if curr_offset.offset < result.len() {
+            let i = result.len() - 1 - curr_offset.offset;
 
             result[i] = new.lerpify(&result[i], &curr_offset.pct());
 
             // if we can subtract 1, that's the next one to check.
             // otherwise, set to none.
-            *is_blending = curr_offset.prev_i();
+            *is_blending = curr_offset.prev();
         }
     } else {
         result.push(new);
     }
+}
+
+pub fn eval_and_expand_vec_list<Source, Target>(
+    items: &[ControlVecElement<Source>],
+    w: &LivecodeWorldState,
+) -> LivecodeResult<Vec<Target>>
+where
+    Source: LivecodeFromWorld<Target> + Clone + Debug,
+    Target: Lerpable,
+{
+    let mut result: Vec<Target> = Vec::new();
+    let mut is_blending: Option<BlendWith> = None;
+
+    for item in items {
+        let expanded = item.eval_and_expand_vec(w)?;
+        for elem in expanded {
+            blend_with_list(&mut result, elem, &mut is_blending);
+        }
+
+        let blend_count = item.blend_with_next();
+        if blend_count > 0 {
+            is_blending = Some(BlendWith::new(blend_count));
+        }
+    }
+
+    Ok(result)
+}
+
+pub fn lazy_expand_vec_list<Inner>(
+    items: &[LazyControlVecElement<WrappedLazyType<Inner>>],
+    ctx: &MixedEvalDefs,
+) -> LivecodeResult<Vec<WrappedLazyType<Inner>>>
+where
+    Inner: Clone + Debug + IsLazy,
+    Inner::Target: Lerpable,
+{
+    let mut result: Vec<WrappedLazyType<Inner>> = Vec::new();
+    let mut is_blending: Option<BlendWith> = None;
+
+    for item in items {
+        let expanded = item.lazy_expand_vec(ctx)?;
+        for elem in expanded {
+            blend_with_list(&mut result, elem, &mut is_blending);
+        }
+
+        if let Some(blend_count) = item.blend_with_next(ctx) {
+            is_blending = Some(blend_count);
+        }
+    }
+
+    Ok(result)
 }
 
 impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
@@ -683,7 +817,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             let mut new_w = w.clone_with_vals(expr, &prefix);
 
-            let mut is_blending: Option<IdxInRange> = None;
+            let mut is_blending: Option<BlendWith> = None;
 
             for src in &self.what {
                 match src {
@@ -706,7 +840,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
                         }
 
                         if c.blend_with_next > 0 {
-                            is_blending = Some(IdxInRange::new_last(c.blend_with_next - 1));
+                            is_blending = Some(BlendWith::new(c.blend_with_next));
                         }
 
                         // result.extend(o.into_iter());
@@ -836,6 +970,13 @@ where
             LazyControlVecElement::Repeat(c) => c.lazy_expand_vec_repeat_element(ctx),
         }
     }
+
+    fn blend_with_next(&self, ctx: &MixedEvalDefs) -> Option<BlendWith> {
+        match self {
+            LazyControlVecElement::Single(_) => None,
+            LazyControlVecElement::Repeat(r) => r.repeat.next_blend(ctx),
+        }
+    }
 }
 
 // impl<Source> IsLazy for LazyControlVecElement<Source>
@@ -902,6 +1043,13 @@ where
     // Sequencer: UnitCellCreator,
     // ControlSequencer: LivecodeFromWorld<Sequencer>,
 {
+    fn blend_with_next(&self) -> usize {
+        match self {
+            ControlVecElement::Single(_) => 0,
+            ControlVecElement::Repeat(r) => r.blend_with_next,
+        }
+    }
+
     pub fn raw(c: Source) -> Self {
         Self::Single(c)
     }

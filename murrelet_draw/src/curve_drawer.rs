@@ -348,8 +348,8 @@ impl CurveSegment {
             CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.reverse()),
             CurveSegment::Points(curve_points) => CurveSegment::Points(curve_points.reverse()),
             CurveSegment::CubicBezier(c) => {
-                // CurveSegment::CubicBezier(c.reverse())
-                CurveSegment::Points(c.as_points().reverse())
+                CurveSegment::CubicBezier(c.reverse())
+                //CurveSegment::Points(c.as_points().reverse())
             }
         }
     }
@@ -1260,6 +1260,12 @@ impl ToCurveDrawer for Vec<SpotOnCurve> {
         vec![CurveSegment::new_simple_points(
             self.iter().map(|x| x.loc()).collect_vec(),
         )]
+    }
+}
+
+impl ToCurveDrawer for Vec<CubicBezier> {
+    fn to_segments(&self) -> Vec<CurveSegment> {
+        self.map_iter_collect(|x| x.to_segment())
     }
 }
 
