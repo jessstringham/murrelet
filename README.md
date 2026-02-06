@@ -4,12 +4,12 @@
 ![status alpha](https://img.shields.io/badge/status-alpha-red)
 [![crates.io](https://img.shields.io/crates/v/murrelet.svg)](https://crates.io/crates/murrelet)
 
-*Along with this repo, this README is a work in progress!*
+*As with the rest of this repo, this README is a work in progress!*
 
 
 The crates here are part of the livecode engine that I've been building and using to make nearly all the art as [this.xor.that](http://thisxorthat.art).
 
-A demo of this (should be) running [here](https://www.thisxorthat.art/live/foolish-guillemot/). The code for creating the WASM for the website is in `examples/foolish-guillemot`, and the main.js is [here](https://gist.github.com/jessstringham/0654a13257f7aff4912affa5df95e36b).
+A demo of this (should be) running [here](https://www.thisxorthat.art/live/foolish-guillemot/).
 
 A high-level overview of the software is [published here](https://alpaca.pubpub.org/pub/dpdnf8lw/release/1?readingCollection=1def0192).
 
@@ -33,9 +33,12 @@ This repo can be broken down into a few parts:
      - general code for parsing and evaluating livecode expressions: *murrelet_livecode, murrelet_livecode_derive*
      - specific code for livecoding (hot-swapping configs, some generic parameters): *murrelet_perform*
      - platform-specific packages for adding more sources: *murrelet_src_audio, murrelet_src_audio*
- - *murrelet_gpu*: some cute little macros for managing and chaining shaders. (this is _not_ live at the moment)
- - *murrelet_svg, murrelet_draw*: drawing logic. tbh, mostly included out of necessity for the demo.
-
+ - *murrelet_gpu*: some cute little macros for managing and chaining shaders.
+ - *murrelet_svg, murrelet_draw*: drawing logic.
+ - *murrelet_src_*, connections to to audio or osc or midi, etc
+ - *murrelet_gen*, backs (demos like this)[https://www.media.mit.edu/projects/silverspot-parameter-space/], turns arbitrary algebraic data types into vectors!
+ - *murrelet_gui*, helps with automatically generating a web gui
+ - *murrelet_perform*, other management for livecoding, like setting the bpm, managing configuration, setting the capture speed, etc.
 
 ## livecode macros
 
@@ -54,14 +57,6 @@ Unitcells can be used to dynamically create a list of things.
 The number of things and the arrangement (grid, symmetry) is 
 controlled by sequencers (see murrelet_draw/sequencers for examples).
 
-### Experimental: Boop
-
-**This is.. not working. But I haven't wanted to delete the code yet nor have had a reason to get it to work, so it's broken for now. I do want to fix it or reimagine eventually!**
-
-Boop is a funny not-quite-working bit of code that's meant to help interpolate values and avoid hard jumps when you update a value.
-
-The one implemented right now are ODEs, which let you to use some features from animation, like anticipation 
-(going a little in the opposite direction before going in the intended direction).
 
 ### Experimental: NestEdit
 
