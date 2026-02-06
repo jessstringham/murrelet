@@ -27,7 +27,6 @@ naga = { version = "0.20.0", features = ["wgsl-in"] }
 murrelet_common = { workspace = true }
 murrelet_livecode = { workspace = true, default-features = false }
 murrelet_draw = { workspace = true, default-features = false }
-murrelet_livecode_macros = { workspace = true }
 murrelet_livecode_derive = { workspace = true }
 murrelet_perform = { workspace = true, default-features = false }
 

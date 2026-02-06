@@ -13,14 +13,12 @@ description = "Murrelet the live coding framework for visuals"
 schemars = [
     "murrelet_draw/schemars",
     "murrelet_livecode/schemars",
-    "murrelet_livecode_macros/schemars",
     "murrelet_livecode_derive/schemars",
     "murrelet_perform/schemars",
 ]
 # murrelet_gui = [
 #     "murrelet_draw/murrelet_gui",
 #     "murrelet_livecode/murrelet_gui",
-#     "murrelet_livecode_macros/murrelet_gui",
 #     "murrelet_livecode_derive/murrelet_gui",
 #     "murrelet_perform/murrelet_gui",
 # ]
@@ -35,6 +33,5 @@ serde_yaml = "0.9.17"
 murrelet_common = { workspace = true }
 murrelet_draw = { workspace = true, default-features = false }
 murrelet_livecode = { workspace = true, default-features = false }
-murrelet_livecode_macros = { workspace = true, default-features = false }
 murrelet_livecode_derive = { workspace = true, default-features = false }
 murrelet_perform = { workspace = true, default-features = false }

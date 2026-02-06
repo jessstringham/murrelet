@@ -11,7 +11,6 @@ license = "AGPL-3.0-or-later"
 schemars = [
     "dep:schemars",
     "murrelet_livecode/schemars",
-    "murrelet_livecode_macros/schemars",
     "murrelet_livecode_derive/schemars",
 ]
 
@@ -20,7 +19,6 @@ schemars = [
 murrelet_common = { workspace = true }
 
 murrelet_livecode = { workspace = true, default-features = false }
-murrelet_livecode_macros = { workspace = true, default-features = false }
 murrelet_livecode_derive = { workspace = true, default-features = false }
 
 lerpable = { version = "0.0.3", features = ["glam"] }
