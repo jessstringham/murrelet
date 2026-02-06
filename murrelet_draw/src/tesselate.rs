@@ -63,10 +63,10 @@ impl ToVecVec2 for CubicBezier {
 
         let mut path = parse_svg_data_as_vec2(&svg, line_space);
 
-        if let Some(a) = path.last() {
-            if a.distance(self.to.yx()) > 1.0e-3 {
-                path.push(self.to.yx())
-            }
+        if let Some(a) = path.last()
+            && a.distance(self.to.yx()) > 1.0e-3
+        {
+            path.push(self.to.yx())
         }
 
         path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()

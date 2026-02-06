@@ -442,10 +442,10 @@ impl SpotOnCurve {
         let tangent_segment = self.to_right_vector(10.0);
         let intersection = tangent_segment.find_intersection_inf(segment);
 
-        if let Some(i) = intersection {
-            if segment.within_segment(i, 1.0e-4) {
-                return intersection;
-            }
+        if let Some(i) = intersection
+            && segment.within_segment(i, 1.0e-4)
+        {
+            return intersection;
         }
         None
     }

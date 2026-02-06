@@ -427,16 +427,14 @@ impl SvgDocCreator {
         let text_size =
             text.size * self.svg_draw_config.full_target_width() / self.svg_draw_config.size();
 
-        let text = svg::node::element::Text::new()
+        svg::node::element::Text::new()
             .set("x", text.loc.x)
             .set("y", text.loc.y)
             .set("text-anchor", "middle")
             .set("font-family", "monospace".to_string())
             .set("font-size", format!("{}px", text_size))
             .set("fill", text.style.color.as_color().hex())
-            .add(svg::node::Text::new(text.text.clone()));
-
-        text
+            .add(svg::node::Text::new(text.text.clone()))
     }
 
     fn make_layer(

@@ -1168,10 +1168,10 @@ pub trait ToCurveDrawer {
             };
             result.extend(pts);
 
-            if let Some(mc) = max_count {
-                if result.len() > mc {
-                    return result.take_count(mc);
-                }
+            if let Some(mc) = max_count
+                && result.len() > mc
+            {
+                return result.take_count(mc);
             }
         }
         result
