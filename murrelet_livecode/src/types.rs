@@ -333,12 +333,12 @@ where
         format!("LazyControlVecElement_{}", Source::schema_name())
     }
 
-    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(schema_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
         use schemars::schema::{Schema, SchemaObject, SubschemaValidation};
         // Variant 1: plain Source (your Single case without a wrapper key)
-        let single_schema = Source::json_schema(gen);
+        let single_schema = Source::json_schema(schema_gen);
         // Variant 2: the repeat object
-        let repeat_schema = <DeserLazyControlVecElementRepeat<Source>>::json_schema(gen);
+        let repeat_schema = <DeserLazyControlVecElementRepeat<Source>>::json_schema(schema_gen);
 
         Schema::Object(SchemaObject {
             subschemas: Some(Box::new(SubschemaValidation {
@@ -920,12 +920,12 @@ where
         format!("ControlVecElement_{}", Source::schema_name())
     }
 
-    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(schema_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
         use schemars::schema::{Schema, SchemaObject, SubschemaValidation};
         // Variant 1: plain Source (your Single case without a wrapper key)
-        let single_schema = Source::json_schema(gen);
+        let single_schema = Source::json_schema(schema_gen);
         // Variant 2: the repeat object
-        let repeat_schema = <ControlVecElementRepeat<Source>>::json_schema(gen);
+        let repeat_schema = <ControlVecElementRepeat<Source>>::json_schema(schema_gen);
 
         Schema::Object(SchemaObject {
             subschemas: Some(Box::new(SubschemaValidation {

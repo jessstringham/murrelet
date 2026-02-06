@@ -20,7 +20,7 @@ pub trait CanSampleFromDist: Sized {
     fn gen_from_seed(seed: u64) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);
 
-        let rns: Vec<f32> = (0..Self::rn_count()).map(|_| rng.gen()).collect();
+        let rns: Vec<f32> = (0..Self::rn_count()).map(|_| rng.gen_range(0.0..1.0)).collect();
 
         Self::sample_dist(&rns, 0)
     }

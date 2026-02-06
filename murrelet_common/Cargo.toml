@@ -1,7 +1,7 @@
 [package]
 name = "murrelet_common"
 version = "0.1.3"
-edition = "2021"
+edition = "2024"
 authors = ["Jessica Stringham <jessica@thisxorthat.art>"]
 repository = "https://github.com/jessstringham/murrelet.git"
 description = "common functions for murrelet, a livecode framework"
