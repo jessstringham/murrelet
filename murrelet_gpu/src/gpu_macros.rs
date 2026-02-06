@@ -349,8 +349,6 @@ impl<VertexKind: GraphicsVertex> TwoSourcesRender<VertexKind> {
 }
 
 impl<VertexKind: GraphicsVertex> RenderTrait for TwoSourcesRender<VertexKind> {
-    // type VertexKind = VertexKind;
-
     fn render(&self, device: &DeviceStateForRender) {
         self.source_main
             .render(device.device_state(), &self.dest_view().unwrap());
@@ -378,10 +376,6 @@ impl<VertexKind: GraphicsVertex> RenderTrait for TwoSourcesRender<VertexKind> {
     fn dest_view_other(&self) -> Option<wgpu::TextureView> {
         self.dest.texture_view_other()
     }
-
-    // fn dest(&self) -> Option<GraphicsRef<VertexKind>> {
-    //     Some(self.dest.clone())
-    // }
 }
 
 // holds a gpu pipeline :O
@@ -413,8 +407,6 @@ impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex
 impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex> RenderTrait
     for PipelineRender<GraphicsConf, VertexKindSrc, VertexKindDest>
 {
-    // type VertexKind = VertexKind;
-
     fn render(&self, device_state_for_render: &DeviceStateForRender) {
         // write source to pipeline source
         self.source.render(
@@ -436,9 +428,6 @@ impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex
         self.dest.texture_view_other()
     }
 
-    // fn dest(&self) -> Option<GraphicsRef<VertexKind>> {
-    //     Some(self.dest.clone())
-    // }
 }
 
 // given a list of inputs, choose which one to use
@@ -461,8 +450,6 @@ impl<VertexKind: GraphicsVertex> ChoiceRender<VertexKind> {
 }
 
 impl<VertexKind: GraphicsVertex> RenderTrait for ChoiceRender<VertexKind> {
-    // type VertexKind = VertexKind;
-
     fn render(&self, device: &DeviceStateForRender) {
         let source = &self.sources[self.choice % self.sources.len()];
         let dest = &self.dest;
@@ -475,10 +462,6 @@ impl<VertexKind: GraphicsVertex> RenderTrait for ChoiceRender<VertexKind> {
         // vec![RenderDebugPrint{src: source_main.name.clone(), dest: dest.name.clone()}, RenderDebugPrint{src: source_other.name.clone(), dest: dest.name.clone()}]
         todo!()
     }
-
-    // fn dest(&self) -> Option<GraphicsRef<VertexKind>> {
-    //     Some(self.dest.clone())
-    // }
 
     fn is_choice(&self) -> bool {
         true
@@ -515,8 +498,6 @@ impl<VertexKind: GraphicsVertex> PingPongRender<VertexKind> {
 }
 
 impl<VertexKind: GraphicsVertex> RenderTrait for PingPongRender<VertexKind> {
-    // type VertexKind = VertexKind;
-
     fn render(&self, device: &DeviceStateForRender) {
         let ping_texture = &self.ping.texture_view();
         let pong_texture = &self.pong.texture_view();
@@ -560,59 +541,7 @@ impl<VertexKind: GraphicsVertex> RenderTrait for PingPongRender<VertexKind> {
     fn dest_view_other(&self) -> Option<wgpu::TextureView> {
         None
     }
-
-    // fn dest(&self) -> Option<GraphicsRef<VertexKind>> {
-    //     Some(self.pong.clone())
-    // }
 }
-
-// pub struct TextureViewRender<VertexKind: GraphicsVertex> {
-//     pub source: GraphicsRef<VertexKind>,
-//     pub dest: TextureAndDesc,
-// }
-
-// impl<VertexKind: GraphicsVertex> TextureViewRender<VertexKind> {
-//     pub fn new_box(
-//         source: GraphicsRef<VertexKind>,
-//         dest: wgpu::TextureView,
-//     ) -> Box<TextureViewRender<VertexKind>> {
-//         Box::new(TextureViewRender {
-//             source,
-//             dest: Arc::new(dest),
-//         })
-//     }
-// }
-
-// impl<VertexKind: GraphicsVertex> RenderTrait
-//     for TextureViewRender<VertexKind>
-// {
-//     // type VertexKind = VertexKind;
-
-//     fn render(&self, device: &DeviceStateForRender) {
-//         let source = &self.source;
-//         source.render_to_texture(device.device_state(), &self.dest);
-//     }
-//     fn debug_print(&self) -> Vec<RenderDebugPrint> {
-//         let source = &self.source;
-//         vec![RenderDebugPrint {
-//             src: source.name(),
-//             dest: "texture view!".to_string(),
-//         }]
-//     }
-
-//     fn dest_view(&self) -> Option<wgpu::TextureView> {
-//         self.dest
-//     }
-
-//     fn dest_view_other(&self) -> Option<wgpu::TextureView> {
-//         None
-//     }
-
-//     // fn dest(&self) -> Option<GraphicsRef<VertexKind>> {
-//     //     None
-//     // }
-// }
-
 pub struct ComputeTextureRender<VertexKind: GraphicsVertex> {
     pub source: ComputeGraphicsToTextureRef,
     pub dest: GraphicsRefCustom<VertexKind>,
@@ -628,8 +557,6 @@ impl<VertexKind: GraphicsVertex> ComputeTextureRender<VertexKind> {
 }
 
 impl<VertexKind: GraphicsVertex> RenderTrait for ComputeTextureRender<VertexKind> {
-    // type VertexKind = VertexKind;
-
     // whenver it's called, it'll increment! check if it's overdue before rendering!
     fn render(&self, device_state_for_render: &DeviceStateForRender) {
         let source_texture = &self.source;
@@ -654,10 +581,6 @@ impl<VertexKind: GraphicsVertex> RenderTrait for ComputeTextureRender<VertexKind
         // todo!()
         None
     }
-
-    // fn dest(&self) -> Option<GraphicsRef<VertexKind>> {
-    //     Some(self.dest.clone())
-    // }
 }
 
 pub struct DisplayRender<VertexKind> {
@@ -671,8 +594,6 @@ impl<VertexKind: GraphicsVertex> DisplayRender<VertexKind> {
 }
 
 impl<VertexKind: GraphicsVertex> RenderTrait for DisplayRender<VertexKind> {
-    // type VertexKind = VertexKind;
-
     fn render(&self, device: &DeviceStateForRender) {
         let source = &self.source;
         source.render_to_texture(device.device_state(), device.display_view());
@@ -692,10 +613,6 @@ impl<VertexKind: GraphicsVertex> RenderTrait for DisplayRender<VertexKind> {
     fn dest_view_other(&self) -> Option<wgpu::TextureView> {
         None
     }
-
-    // fn dest(&self) -> Option<GraphicsRef<VertexKind>> {
-    //     None
-    // }
 }
 
 pub struct GPUPipeline<GraphicConf> {
@@ -731,21 +648,6 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
         }
         out
     }
-    // pub fn add_control_graphics(
-    //     &mut self,
-    //     _label: &str,
-    //     control_graphics_fn: GraphicsRefWithControlFn<GraphicConf>,
-    // ) {
-    //     self.ctrl.push(control_graphics_fn)
-    // }
-
-    // pub fn control_graphics(&self, t: &GraphicConf) -> Vec<ControlGraphicsRef<VertexKind>> {
-    //     let mut v = vec![];
-    //     for c in &self.ctrl {
-    //         v.extend(c.control_graphics(t).into_iter());
-    //     }
-    //     v
-    // }
 
     pub fn set_source(&mut self, src: &str) {
         self.source = Some(src.to_string());
@@ -831,15 +733,7 @@ impl<GraphicsConf> GPUPipelineRef<GraphicsConf> {
         self.0.borrow().source()
     }
 
-    // pub fn get_graphic(&self, name: &str) -> Option<&dyn AnyGraphicsRef> {
-    //     // self.0.borrow().get_graphic(name)
-    //     let pipeline = self.0.borrow();
-    //     pipeline.get_graphic(name).map(f)
-    // }
-
     pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<Box<dyn AnyControlRef>> {
-        //Vec<ControlGraphicsRef<VertexKind>> {
-        // self.0.borrow().control_graphics(conf)
         self.0.borrow().control_graphics(conf)
     }
 }
@@ -882,10 +776,6 @@ impl RenderTrait for SingleTextureRender {
     fn dest_view_other(&self) -> Option<wgpu::TextureView> {
         None
     }
-
-    // fn dest(&self) -> Option<GraphicsRef<DefaultVertex>> {
-    //     Some(self.dest.clone())
-    // }
 }
 
 // makes it easier to ad control grpahics
@@ -940,7 +830,6 @@ macro_rules! build_shader_pipeline {
                     $dest.graphics(),
                 )
             );
-            // pipeline_add_label!($pipeline, $source);
             pipeline_add_label!($pipeline, $dest);
 
             build_shader_pipeline!(@parse $pipeline ($($tail)*));

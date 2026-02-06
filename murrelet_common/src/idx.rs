@@ -35,9 +35,7 @@ impl IdxInRange {
     where
         <U as TryInto<u64>>::Error: core::fmt::Debug,
     {
-        let total = total.try_into().expect("can't convert to u64");
-        assert!(total > 0, "IdxInRange::new_last requires total > 0");
-        IdxInRange { i: total - 1, total }
+        IdxInRange::new(0, total).last_i()
     }
 
     pub fn enumerate<'a, T, I>(iter: I) -> Vec<(IdxInRange, T)>
@@ -50,8 +48,22 @@ impl IdxInRange {
             .collect_vec()
     }
 
-    pub fn enumerate_count(total: usize) -> Vec<IdxInRange> {
+    pub fn enumerate_count<U: TryInto<u64>>(total: U) -> Vec<IdxInRange>
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let total = total.try_into().expect("can't convert to u64");
         (0..total).map(|i| IdxInRange::new(i, total)).collect_vec()
+    }
+
+    pub fn idx_rep(&self) -> IdxMatch {
+        if self.is_first() {
+            IdxMatch::First
+        } else if self.is_last() {
+            IdxMatch::Last
+        } else {
+            IdxMatch::Idx(self.i())
+        }
     }
 
     pub fn matches(&self, m: &IdxMatch) -> bool {
@@ -141,10 +153,10 @@ impl IdxInRange {
         self.total - self.i - 1
     }
 
-    // scale
     pub fn s(&self, range: Vec2) -> f32 {
-        lerp(range.x, range.y, self.pct())
+        self.scale(range.x, range.y)
     }
+
     pub fn scale(&self, start: f32, end: f32) -> f32 {
         lerp(start, end, self.pct())
     }
@@ -204,7 +216,12 @@ impl IdxInRange2d {
         }
     }
 
-    pub fn enumerate_counts(ii: usize, jj: usize) -> Vec<IdxInRange2d> {
+    pub fn enumerate_counts<U: TryInto<u64> + Copy>(ii: U, jj: U) -> Vec<IdxInRange2d>
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let ii = ii.try_into().expect("can't convert to u64");
+        let jj = jj.try_into().expect("can't convert to u64");
         let mut v = vec![];
         for i in 0..ii {
             for j in 0..jj {
@@ -292,10 +309,6 @@ impl IdxInRange2d {
         vec2(self.i.half_step_pct(), self.j.half_step_pct())
     }
 
-    // pub fn lerp_idx(&self, x: f32, y: f32) -> [(usize, usize); 4] {
-    //     self.lerp_idx_u(x as usize, y as usize)
-    // }
-
     pub fn lerp_idx(&self) -> [(usize, usize); 4] {
         let x_idx = self.i.i() as usize;
         let y_idx = self.j.i() as usize;
@@ -338,11 +351,6 @@ impl IdxInRange2d {
         let x = self.i.to_range(domain.x, domain.y);
         let y = self.j.to_range(range.x, range.y);
         vec2(x, y)
-    }
-
-    #[deprecated]
-    pub fn width(&self) -> f32 {
-        self.i_total()
     }
 
     pub fn i_total(&self) -> f32 {

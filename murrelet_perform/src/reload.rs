@@ -163,11 +163,6 @@ pub trait LiveCoderLoader: Sized {
                     }
                     Err(err) => {
                         util.update_info_error();
-                        // if let Some(error) = err.location() {
-                        //     Err(LivecodeError::SerdeLoc(format!("{},{}", location.line(), location.column()), err.to_string()))
-                        // } else {
-                        //     Err(LivecodeError::Raw(err.to_string()))
-                        // }
                         Err(err)
                     }
                 }

@@ -146,8 +146,6 @@ impl GenFinal for FieldTokensNestEdit {
     }
 
     fn from_newtype_struct(_idents: StructIdents, parent_ident: syn::Ident) -> FieldTokensNestEdit {
-        // let name = idents.control_type();
-
         // these will fall to todo!()
         let for_nestedit = quote! {
             #parent_ident(self.0.nest_update(mods))
@@ -301,9 +299,6 @@ impl GenFinal for FieldTokensNestEdit {
     fn from_option(idents: StructIdents) -> Self {
         let name = idents.name();
         let yaml_name = name.to_string();
-
-        // let s = ident_from_type(&idents.orig_ty());
-        // let ctrl = s.second_how_to.unwrap().get_control_type();
 
         // we'll just use the trait! (unless it's none, then we bail
         let for_nestedit = match idents.how_to_control_this() {

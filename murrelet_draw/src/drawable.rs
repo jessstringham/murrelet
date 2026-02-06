@@ -32,10 +32,6 @@ impl DrawnShape {
         }
     }
 
-    // pub fn faces(&self) -> Vec<Polyline> {
-    //     self.cds.iter().map(|x| x.to_vec2()).collect_vec()
-    // }
-
     pub fn style(&self) -> StyleConf {
         self.style.clone()
     }
@@ -55,18 +51,6 @@ impl DrawnShape {
         }
         Ok(DrawnShape::new_cds(&new, self.style.clone()))
     }
-
-    // pub fn transform_as_vec2(&self, transform: &Transform2d) -> Self {
-    //     let face = self
-    //         .faces()
-    //         .iter()
-    //         .map(|x| {
-    //             let t = transform.transform_many_vec2(x);
-    //             t.clone_to_vec()
-    //         })
-    //         .collect_vec();
-    //     DrawnShape::new_vecvec(face, self.style())
-    // }
 }
 
 pub trait ToDrawnShapeSegments {
@@ -94,24 +78,6 @@ where
         DrawnShape::new_cds(&vec![self.to_cd_open()], style)
     }
 }
-
-// impl ToDrawnShapeSegments for Vec<Vec<Vec2>> {
-//     fn to_drawn_shape_closed(&self, style: StyleConf) -> DrawnShape {
-//         let cds = self
-//             .into_iter()
-//             .map(|x| CurveDrawer::new_simple_points(x, true))
-//             .collect_vec();
-//         DrawnShape::new_cds(&cds, style)
-//     }
-
-//     fn to_drawn_shape_open(&self, style: StyleConf) -> DrawnShape {
-//         let cds = self
-//             .into_iter()
-//             .map(|x| CurveDrawer::new_simple_points(x, false))
-//             .collect_vec();
-//         DrawnShape::new_cds(&cds, style)
-//     }
-// }
 
 pub trait ToDrawnShape {
     fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape;

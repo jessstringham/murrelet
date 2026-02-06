@@ -29,12 +29,6 @@ impl AnglePi {
         AnglePi(v)
     }
 
-    pub fn from_three_vec2(v1: Vec2, v2: Vec2, v3: Vec2) -> AnglePi {
-        let a = v1 - v2;
-        let b = v3 - v2;
-        Angle::new(a.angle_to(b)).into()
-    }
-
     pub fn to_transform(&self) -> SimpleTransform2d {
         SimpleTransform2d::rotate_pi(self.angle_pi())
     }
@@ -72,10 +66,8 @@ impl AnglePi {
         self.0 < 0.0
     }
 
-    pub fn transform_vec2(&self, v: Vec2) -> Vec2 {
-        SimpleTransform2d::rotate_pi(self.angle_pi())
-            .to_mat3()
-            .transform_vector2(v)
+    pub fn rotate_vec2(&self, v: Vec2) -> Vec2 {
+        self.to_transform().transform_vec2(v)
     }
 }
 
@@ -175,7 +167,7 @@ impl From<AnglePi> for Angle {
     }
 }
 
-// newtype
+// newtype.
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub struct Angle(f32);
 impl Angle {
@@ -227,7 +219,7 @@ impl Angle {
     }
 
     pub fn rotate_vec2(&self, v: Vec2) -> Vec2 {
-        Mat3::from_angle(self.angle()).transform_vec2(v)
+        self.as_angle_pi().rotate_vec2(v)
     }
 
     pub fn is_vertical(&self) -> bool {
@@ -682,7 +674,6 @@ impl PointToPoint {
     }
 
     pub fn midpoint(&self) -> Vec2 {
-        // 0.5 * (self.start + self.end)
         self.pct(0.5)
     }
 

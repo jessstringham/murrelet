@@ -30,7 +30,6 @@ impl LazyFieldType {
             ControlType::AnglePi => {
                 quote! { murrelet_livecode::lazy::LazyNodeF32 }
             }
-            // ControlType::LinSrgbaUnclamped => quote!{[murrelet_livecode::livecode::ControlF32; 4]},
             _ => panic!("unitcell doesn't have this one yet"),
         }
     }
@@ -43,18 +42,13 @@ impl LazyFieldType {
     ) -> TokenStream2 {
         match self.0 {
             ControlType::F32_2 => {
-                // quote! { murrelet_livecode::lazy::eval_lazy_vec2(&#ident, ctx) }
                 quote! { #ident.eval_lazy(ctx) }
             }
             ControlType::F32_3 => {
                 quote! { #ident.eval_lazy(ctx) }
-
-                // quote! { murrelet_livecode::lazy::eval_lazy_vec3(&#ident, ctx) }
             }
             ControlType::Color => {
                 quote! { #ident.eval_lazy(ctx) }
-
-                // quote! { murrelet_livecode::lazy::eval_lazy_color(&#ident, ctx) }
             }
             ControlType::Bool => quote! {#ident.eval_lazy(ctx)? > 0.0},
             ControlType::AnglePi => {
@@ -82,32 +76,12 @@ impl LazyFieldType {
         match self.0 {
             ControlType::F32_2 => {
                 quote! { #name: self.#name.eval_lazy(ctx)? }
-
-                //     glam::vec2(
-                //     self.#name[0].eval_lazy(ctx)? as f32,
-                //     self.#name[1].eval_lazy(ctx)? as f32
-                // )}
             }
             ControlType::F32_3 => {
                 quote! { #name: self.#name.eval_lazy(ctx)? }
-
-                // quote! {
-                //     #name: glam::vec3(
-                //         self.#name[0].eval_lazy(ctx)? as f32,
-                //         self.#name[1].eval_lazy(ctx)? as f32,
-                //         self.#name[2].eval_lazy(ctx)? as f32
-                //     )
-                // }
             }
             ControlType::Color => {
                 quote! { #name: self.#name.eval_lazy(ctx)? }
-
-                // quote! {#name: murrelet_common::MurreletColor::hsva(
-                //     self.#name[0].eval_lazy(ctx)? as f32,
-                //     self.#name[1].eval_lazy(ctx)? as f32,
-                //     self.#name[2].eval_lazy(ctx)? as f32,
-                //     self.#name[3].eval_lazy(ctx)? as f32
-                // )}
             }
             ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
             ControlType::LazyNodeF32 => quote! {#name: self.#name.add_more_defs(ctx)? },
@@ -195,19 +169,10 @@ impl LazyFieldType {
             ControlType::Color => {
                 quote! { self.0.eval_lazy(ctx)? }
             }
-            // ControlType::F32_2 => {
-            //     quote! {vec2(self.0[0].eval_lazy(ctx)? as f32, self.0[1].eval_lazy(ctx)? as f32)}
-            // }
-            // // ControlType::F32_3 => quote!{murrelet_livecode::livecode::ControlF32::vec3(&self.0, w)},
-            // ControlType::Color => {
-            //     quote! {MurreletColor::hsva(self.0[0].eval_lazy(ctx)? as f32, self.0[1].eval_lazy(ctx)? as f32, self.0[2].eval_lazy(ctx)? as f32, self.0[3].eval_lazy(ctx)? as f32)}
-            // }
-            // ControlType::LinSrgbaUnclamped => quote!{murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)},
             ControlType::Bool => quote! {self.0.eval_lazy(ctx)? > 0.0},
             ControlType::AnglePi => {
                 quote! {murrelet_common::AnglePi::new(self.0.eval_lazy(ctx)?)}
             }
-            // _ => quote!{self.0.eval_lazy(ctx)? as #orig_ty}
             _ => {
                 let f32_out = match (idents.data.f32min, idents.data.f32max) {
                     (None, None) => quote! {self.0.eval_lazy(ctx)?},

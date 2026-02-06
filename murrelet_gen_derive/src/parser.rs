@@ -1,6 +1,5 @@
-use darling::{ast, FromDeriveInput, FromField, FromMeta, FromVariant};
+use darling::{ast, FromDeriveInput, FromField, FromVariant};
 use proc_macro2::TokenStream as TokenStream2;
-use syn::LitStr;
 
 use crate::GenMethod;
 
@@ -17,7 +16,6 @@ where
     fn from_newtype_struct(_idents: StructIdents, parent_ident: syn::Ident) -> Self;
     fn from_unnamed_enum(idents: EnumIdents) -> Self;
     fn from_unit_enum(idents: EnumIdents) -> Self;
-    fn from_noop_struct(idents: StructIdents) -> Self;
     fn from_type_struct(idents: StructIdents, how_to_control_this_type: &GenMethod) -> Self;
     fn from_type_recurse(
         idents: StructIdents,
@@ -73,7 +71,6 @@ where
                     HowToControlThis::Type(how_to_control_this_type) => {
                         Self::from_type_struct(idents, &how_to_control_this_type)
                     }
-                    HowToControlThis::Default => todo!(),
                     HowToControlThis::Recurse(outer, inner) => {
                         Self::from_type_recurse(idents, &outer, &inner)
                     }
@@ -133,11 +130,6 @@ where
                 };
 
                 match field.how_to_control_this() {
-                    HowToControlThis::Default => {
-                        #[cfg(feature = "debug_logging")]
-                        log::info!("-> from_noop_struct");
-                        Self::from_noop_struct(idents)
-                    }
                     HowToControlThis::Type(_how_to_control_this_type) => {
                         // Self::from_type_struct(idents, &how_to_control_this_type)
                         Self::from_newtype_struct(idents, name.clone())
@@ -158,39 +150,21 @@ where
     }
 }
 
-#[derive(Debug, FromMeta, Clone)]
-pub struct OverrideFn {
-    func: String,
-    labels: Vec<LitStr>, // this must be the same length as the usages in the func
-}
-
 #[derive(Debug, FromField, Clone)]
 #[darling(attributes(murrelet_gen))]
 pub(crate) struct LivecodeFieldReceiver {
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
-    #[darling(default, rename = "override")]
-    pub(crate) override_fn: Option<OverrideFn>,
     pub(crate) method: GenMethod,
     #[darling(default)]
     pub(crate) method_inner: Option<GenMethod>,
 }
 impl LivecodeFieldReceiver {
     fn how_to_control_this(&self) -> HowToControlThis {
-        // if let Some(OverrideFn { func, labels }) = &self.override_fn {
-        //     match func.as_str() {
-        //         "default" => HowToControlThis::Default,
-        //         _ => {
-        //             let label_str: Vec<String> = labels.iter().map(|lit| lit.value()).collect();
-        //             HowToControlThis::Override(func.clone(), label_str, labels.len())
-        //         }
-        //     }
-        // } else
         if let Some(r) = &self.method_inner {
             HowToControlThis::Recurse(self.method.clone(), r.clone())
         } else if matches!(self.method, GenMethod::VecLength { .. }) {
             panic!("vec missing inner")
-            // HowToControlThis::Recurse(self.method.clone(), None)
         } else {
             HowToControlThis::Type(self.method.clone())
         }
@@ -228,32 +202,5 @@ pub struct StructIdents {
 #[derive(Clone, Debug)]
 pub(crate) enum HowToControlThis {
     Type(GenMethod),
-    Recurse(GenMethod, GenMethod), // one level... defaults to calling its func
-    Default,                       // just do the default values
-                                   // Override(String, Vec<String>, usize),
-}
-
-#[allow(dead_code)]
-pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
-    match t {
-        syn::Type::Path(syn::TypePath { path, .. }) => {
-            let s = path.segments.last().unwrap();
-            let main_type = s.ident.clone();
-
-            acc.push(main_type);
-
-            if let syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
-                args,
-                ..
-            }) = s.arguments.clone()
-            {
-                if let syn::GenericArgument::Type(other_ty) = args.first().unwrap() {
-                    recursive_ident_from_path(other_ty, acc);
-                } else {
-                    panic!("recursive ident not implemented yet {:?}", args);
-                }
-            }
-        }
-        x => panic!("no name for type {:?}", x),
-    }
+    Recurse(GenMethod, GenMethod),
 }

@@ -563,14 +563,6 @@ pub enum ControlBool {
     Expr(Node),
 }
 impl ControlBool {
-    // pub fn to_unitcell_control(&self) -> UnitCellControlExprBool {
-    //     match self {
-    //         ControlBool::Raw(x) => UnitCellControlExprBool::Bool(*x),
-    //         ControlBool::Int(x) => UnitCellControlExprBool::Int(*x),
-    //         ControlBool::Float(x) => UnitCellControlExprBool::Float(*x),
-    //         ControlBool::Expr(x) => UnitCellControlExprBool::Expr(x.clone()),
-    //     }
-    // }
 
     pub fn force_from_str(s: &str) -> ControlBool {
         match build_operator_tree(s) {
@@ -583,7 +575,6 @@ impl ControlBool {
     }
 
     pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<bool> {
-        // self.to_unitcell_control().eval(w)
         let a = w.ctx()?;
         let ctx = a.as_ref();
 

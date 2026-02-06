@@ -5,14 +5,6 @@ pub use murrelet_gui_derive::MurreletGUI;
 use murrelet_schema::{MurreletEnumVal, MurreletPrimitive, MurreletSchema};
 use serde::Serialize;
 
-// #[derive(Debug, Error)]
-// pub enum MurreletGUIErr {
-//     #[error("An error occurred decoding GUI to livecode: {0}")]
-//     GUIToLivecode(String),
-// }
-
-// pub type MurreletGUIResult<T> = Result<T, MurreletGUIErr>;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum ValueGUI {
     Bool,               // should be a ControlBool

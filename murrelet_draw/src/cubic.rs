@@ -96,40 +96,30 @@ impl CubicBezier {
     }
 
     pub fn start_to_tangent(&self) -> (SpotOnCurve, f32) {
-        // let side_len = self.from.distance(self.to);
-
         let ctrl_line = self.from - self.ctrl1;
         let dir = Angle::new(ctrl_line.to_angle())
             .as_angle_pi()
             .normalize_angle();
 
-        // let strength = ctrl_line.length() / side_len;
-
         (
             SpotOnCurve {
                 loc: self.from,
                 angle: dir.into(),
-                // strength,
             },
             ctrl_line.length(),
         )
     }
 
     pub fn end_to_tangent(&self) -> (SpotOnCurve, f32) {
-        // let side_len = self.from.distance(self.to);
-
         let ctrl_line = self.ctrl2 - self.to;
         let dir = Angle::new(ctrl_line.to_angle())
             .as_angle_pi()
             .normalize_angle();
 
-        // let strength = ctrl_line.length() / side_len;
-
         (
             SpotOnCurve {
                 loc: self.to,
                 angle: dir.into(),
-                // strength,
             },
             ctrl_line.length(),
         )

@@ -20,7 +20,6 @@ impl LivecodeFieldType {
             ControlType::Color => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
-            // ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
         }
     }
@@ -36,7 +35,6 @@ impl LivecodeFieldType {
             ControlType::F32 => quote! {murrelet_livecode::livecode::ControlF32},
             ControlType::Bool => quote! {murrelet_livecode::livecode::ControlBool},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
-            // ControlType::EvalExpr => quote! {murrelet_livecode::expr::ControlExprF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
         }
     }
@@ -84,8 +82,6 @@ impl LivecodeFieldType {
         f32min: Option<f32>,
         f32max: Option<f32>,
     ) -> TokenStream2 {
-        // let name = idents.name();
-        // let orig_ty = idents.orig_ty();
         match self.0 {
             ControlType::F32_2 => quote! {self.#name.map(|name| name.o(w)?)},
             ControlType::F32_3 => quote! {self.#name.map(|name| name.o(w)?)},
@@ -429,10 +425,6 @@ impl GenFinal for FieldTokensLivecode {
         idents: StructIdents,
         _parent_ident: syn::Ident,
     ) -> FieldTokensLivecode {
-        // let serde = idents.serde(false).clone();
-        // let name = idents.name().clone();
-        // let _orig_type = idents.orig_ty().clone();
-
         // we need to get the internal struct type
         let orig_ty = idents.orig_ty();
         let parsed_type_info = ident_from_type(&orig_ty);
@@ -602,7 +594,6 @@ impl GenFinal for FieldTokensLivecode {
     fn from_option(idents: StructIdents) -> FieldTokensLivecode {
         let serde = idents.serde().clone();
         let name = idents.name().clone();
-        // let _orig_type = idents.orig_ty().clone();
 
         let s = ident_from_type(&idents.orig_ty());
 
@@ -721,12 +712,6 @@ impl GenFinal for FieldTokensLivecode {
                                 #name: murrelet_livecode::types::eval_and_expand_vec_list(&self.#name, w)?
                             }
                         }
-
-                        // quote! {
-                        //     #name: self.#name.iter()
-                        //         .map(|elem| elem.o(|source| source.o(w)))
-                        //         .collect::<Result<Vec<_>, _>>()?
-                        // }
                     }
                     VecDepth::VecVec => {
                         quote! {
@@ -781,13 +766,7 @@ impl GenFinal for FieldTokensLivecode {
 
                                         let item = internal_row.to_control();
 
-
                                         result.push(murrelet_livecode::types::DeserLazyControlVecElement::raw(item))
-                                            // internal_row
-                                            //     .iter()
-                                            //     .map(|x| x.to_control())
-                                            //     .collect::<Vec<_>>()
-                                        // )
                                     }
                                     result
                                 }
@@ -816,12 +795,7 @@ impl GenFinal for FieldTokensLivecode {
                                     let mut result = Vec::with_capacity(self.#name.len());
                                     for internal_row in &self.#name {
                                         let c = internal_row.to_control();
-                                        result.push(c
-                                            // internal_row
-                                            //     .iter()
-                                            //     .map(|x| x.to_control())
-                                            //     .collect::<Vec<_>>()
-                                        )
+                                        result.push(c)
                                     }
                                     result
                                 }
@@ -877,7 +851,6 @@ impl GenFinal for FieldTokensLivecode {
                                     let items = internal_row.variable_identifiers();
                                     result.extend(
                                         items
-                                        // internal_row.iter().map(|x| x.variable_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
                                     );
                                 }
                                 result
@@ -916,9 +889,7 @@ impl GenFinal for FieldTokensLivecode {
                                 let mut result = Vec::with_capacity(self.#name.len());
                                 for internal_row in &self.#name {
                                     let item = internal_row.function_identifiers();
-                                    result.extend(item
-                                        // internal_row.iter().map(|x| x.function_identifiers()).into_iter().flatten().collect::<std::collections::HashSet<_>>().into_iter()
-                                    );
+                                    result.extend(item);
                                 }
                                 result
                             }
@@ -947,7 +918,6 @@ impl GenFinal for FieldTokensLivecode {
         let for_struct = {
             let new_ty = {
                 let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
-                // let ref_lc_ident = idents.config.new_ident(main_type.clone());
                 let ref_lc_ident = Self::new_ident(main_type.clone());
                 quote! {#ref_lc_ident}
             };
@@ -1191,15 +1161,8 @@ impl GenFinal for FieldTokensLivecode {
         let for_struct = {
             let new_ty = {
                 let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
-
-                // if main_type.to_string() == "LazyVec2" {
-                //     quote! { murrelet_livecode::lazy::ControlLazyVec2 }
-                // } else {
-                // let ref_lc_ident = Self::new_ident(main_type.clone());
-                // quote! {#ref_lc_ident}
+                // eh, this is hacky
                 catch_special_types(main_type.clone())
-                // }
-                // let ref_lc_ident = idents.config.new_ident(main_type.clone());
             };
 
             quote! {#serde #name: #new_ty}

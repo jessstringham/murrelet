@@ -63,94 +63,6 @@ impl GraphicsVertex for DefaultVertex {
     }
 }
 
-// for each vertex, this is what we'll pass in
-
-// #[repr(C)]
-// #[derive(Clone, Copy, Debug)]
-// pub struct DefaultVertex {
-//     position: [f32; 3],
-//     normal: [f32; 3],
-//     face_pos: [f32; 2],
-// }
-
-// impl DefaultVertex {
-//     pub fn new(position: [f32; 3], normal: [f32; 3], face_pos: [f32; 2]) -> Self {
-//         Self {
-//             position,
-//             normal,
-//             face_pos,
-//         }
-//     }
-//     pub fn pos(&self) -> [f32; 3] {
-//         self.position
-//     }
-
-//     pub fn pos_vec3(&self) -> Vec3 {
-//         glam::vec3(self.position[0], self.position[1], self.position[2])
-//     }
-
-//     // pub fn from_simple(vs: &VertexSimple) -> Self {
-//     //     Self {
-//     //         position: vs.position,
-//     //         normal: vs.normal,
-//     //         face_pos: vs.face_pos,
-//     //     }
-//     // }
-
-//     //     pub fn new(position: [f32; 3], normal: [f32; 3], face_pos: [f32; 2]) -> Self {
-//     //     Self {
-//     //         position,
-//     //         normal,
-//     //         face_pos,
-//     //     }
-//     // }
-//     // pub fn pos(&self) -> [f32; 3] {
-//     //     self.position
-//     // }
-
-//     // pub fn pos_vec3(&self) -> Vec3 {
-//     //     glam::vec3(self.position[0], self.position[1], self.position[2])
-//     // }
-
-//     pub fn pos2d(&self) -> Vec2 {
-//         vec2(self.position[0], self.position[1])
-//     }
-
-//     pub fn attrs(&self) -> Vec<f32> {
-//         vec![
-//             self.normal[0],
-//             self.normal[1],
-//             self.normal[2],
-//             self.face_pos[0],
-//             self.face_pos[1],
-//         ]
-//     }
-// }
-
-// impl Lerpable for DefaultVertex {
-//     fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
-//         VertexSimple {
-//             position: [
-//                 self.position[0].lerpify(&other.position[0], pct),
-//                 self.position[1].lerpify(&other.position[1], pct),
-//                 self.position[2].lerpify(&other.position[2], pct),
-//             ],
-//             normal: [
-//                 self.normal[0].lerpify(&other.normal[0], pct),
-//                 self.normal[1].lerpify(&other.normal[1], pct),
-//                 self.normal[2].lerpify(&other.normal[2], pct),
-//             ],
-//             face_pos: [
-//                 self.face_pos[0].lerpify(&other.face_pos[0], pct),
-//                 self.face_pos[1].lerpify(&other.face_pos[1], pct),
-//             ],
-//         }
-//     }
-// }
-
-// unsafe impl Zeroable for DefaultVertex {}
-// unsafe impl Pod for DefaultVertex {}
-
 // in the default vertex shader, z is dropped
 pub const VERTICES: [DefaultVertex; 4] = [
     DefaultVertex {
@@ -221,66 +133,6 @@ pub struct Scene {
 }
 
 // this is the conf that you'll interface with
-// #[derive(Debug, Clone)]
-// pub struct Triangulate {
-//     vertices: Vec<Vertex>,
-//     order: Vec<u32>,
-// }
-
-// impl Triangulate {
-//     pub fn new() -> Self {
-//         Triangulate {
-//             vertices: vec![],
-//             order: vec![],
-//         }
-//     }
-
-//     pub fn vertices(&self) -> &[Vertex] {
-//         &self.vertices
-//     }
-
-//     pub fn add_vertex(&mut self, v: [f32; 3], n: [f32; 3], face_pos: [f32; 2]) -> u32 {
-//         let vv = Vertex::new(v, n, face_pos);
-//         self.vertices.push(vv);
-//         (self.vertices.len() - 1) as u32
-//     }
-
-//     // alternatively can add vertices and then add teh vec
-//     pub fn add_rect(&mut self, v: &[Vec3; 4], flip: bool) {
-//         let edge1 = v[0] - v[1];
-//         let edge2 = v[3] - v[1];
-//         let normal = edge1.cross(edge2).normalize().to_array();
-
-//         let v0 = self.add_vertex(v[0].to_array(), normal, [1.0, 0.0]);
-//         let v1 = self.add_vertex(v[1].to_array(), normal, [0.0, 0.0]);
-//         let v2 = self.add_vertex(v[2].to_array(), normal, [1.0, 1.0]);
-//         let v3 = self.add_vertex(v[3].to_array(), normal, [0.0, 1.0]);
-
-//         if !flip {
-//             self.order.extend([v0, v2, v1, v1, v2, v3])
-//         } else {
-//             self.order.extend([v0, v1, v2, v1, v3, v2])
-//         }
-//     }
-
-//     pub fn set_order(&mut self, u: Vec<u32>) {
-//         self.order = u;
-//     }
-
-//     fn order(&self) -> &[u32] {
-//         &self.order
-//     }
-
-//     pub fn indices(&self) -> &[u32] {
-//         &self.order
-//     }
-
-//     pub fn add_order(&mut self, collect: &[u32]) {
-//         self.order.extend_from_slice(collect);
-//     }
-// }
-
-// this is the conf that you'll interface with
 #[derive(Debug, Clone)]
 pub struct InputVertexConf<VertexKind> {
     is_3d: bool, // todo, maybe can simplify now that i have this, e.g. vs_mod
@@ -319,12 +171,6 @@ fn main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
     }
 
     pub fn with_custom_vertices(mut self, tri: &Triangulate<VertexKind>) -> Self {
-        // self.vertices = tri
-        //     .vertices
-        //     .iter()
-        //     .map(|x| DefaultVertex::from_simple(x))
-        //     .collect_vec();
-        // self.order = tri.order.clone();
         self.tri = tri.clone();
         self.topology = wgpu::PrimitiveTopology::TriangleList;
         self
@@ -333,19 +179,6 @@ fn main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
     pub fn indices(&self) -> u32 {
         self.tri.order.len() as u32
     }
-
-    // pub fn default() -> Self {
-    //     Self {
-    //         vs_mod: VERTEX_SHADER,
-    //         view: VertexUniforms::identity(),
-    //         topology: wgpu::PrimitiveTopology::TriangleList,
-    //         tri: Triangulate::<DefaultVertex> {
-    //             vertices: VERTICES.to_vec(),
-    //             order: vec![0, 1, 2, 1, 3, 2],
-    //         },
-    //         is_3d: false,
-    //     }
-    // }
 }
 
 impl InputVertexConf<DefaultVertex> {
@@ -666,20 +499,15 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
 
     #[deprecated(note = "Use render instead")]
     pub fn render_to_view(&self, device: &DeviceState, view: &wgpu::TextureView) {
-        // self.graphics.borrow_mut().render(device, view)
         self.render(device, view)
     }
 
     pub fn render(&self, device: &DeviceState, view: &wgpu::TextureView) {
-        // let view = &other.graphics.borrow_mut().input_texture_view;
         self.graphics.borrow_mut().render(device, view)
     }
 
     #[deprecated(note = "Use render_to_view instead")]
     pub fn render_2tex(&self, device: &DeviceState, view: &wgpu::TextureView) {
-        // let binding = other.graphics.borrow_mut();
-        // let view = binding.input_texture_view_other.as_ref().unwrap();
-        // self.graphics.borrow_mut().render(device_state, view)
         self.render(device, view)
     }
 
@@ -763,11 +591,6 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
         {
             let mut g = self.graphics.borrow_mut();
             g.conf.input_vertex.tri.vertices = tri.vertices.clone();
-            // tri
-            // .vertices
-            // .iter()
-            // .map(|x| DefaultVertex::from_simple(x))
-            // .collect_vec();
             g.conf.input_vertex.tri.order = tri.order.clone();
             let queue = c.device.queue();
 
@@ -842,25 +665,15 @@ pub struct GraphicsRefWithControlFn<GraphicsConf, VertexKind> {
 }
 
 pub trait AnyGraphicsRef {
-    // fn name(&self) -> String;
     fn texture_view(&self) -> wgpu::TextureView;
-    // fn render_to_texture(&self, dev: &DeviceState, dst: &wgpu::TextureView);
 }
 impl<VertexKind> AnyGraphicsRef for GraphicsRefCustom<VertexKind>
 where
     VertexKind: GraphicsVertex + 'static,
 {
-    // fn name(&self) -> String {
-    //     self.name()
-    // }
-
     fn texture_view(&self) -> wgpu::TextureView {
         self.texture_view()
     }
-
-    // fn render_to_texture(&self, dev: &DeviceState, dst: &wgpu::TextureView) {
-    //     self.render_to_texture(dev, dst)
-    // }
 }
 
 impl<GraphicsConf, VertexKind: GraphicsVertex> GraphicsRefWithControlFn<GraphicsConf, VertexKind> {
@@ -932,7 +745,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         let queue = &c.device.queue();
         self.uniforms.more_info = more_info;
 
-        // println!("{:?}", self.uniform.more_info);
         queue.write_buffer(&self.uniforms_buffer, 0, self.uniforms.as_bytes());
     }
 
@@ -946,7 +758,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         self.uniforms.more_info = more_info;
         self.uniforms.more_info_other = more_info_other;
 
-        // println!("{:?}", self.uniform.more_info);
         queue.write_buffer(&self.uniforms_buffer, 0, self.uniforms.as_bytes());
     }
 
@@ -1095,7 +906,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
     fn _sampler(device: &wgpu::Device, details: ShaderOptions) -> wgpu::Sampler {
         let sampler_desc = details.as_sampler_desc();
         let sampler = device.create_sampler(&sampler_desc);
-        // println!("sampler: {:?}, {:?}", sampler, sampler_desc);
         sampler
     }
 
@@ -1229,7 +1039,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             multiview: None,
-            // cache: None,
         };
 
         let main_pipeline = device.create_render_pipeline(&rp_desc);

@@ -124,8 +124,6 @@ pub fn epoch_time_ms() -> u128 {
 pub fn epoch_time_us() -> u128 {
     #[cfg(target_arch = "wasm32")]
     {
-        //use wasm_bindgen::JsCast;
-
         #[wasm_bindgen]
         extern "C" {
             #[wasm_bindgen(js_namespace = Date)]
@@ -143,7 +141,7 @@ pub fn epoch_time_us() -> u128 {
             .duration_since(UNIX_EPOCH)
             .expect("wat")
             .as_micros();
-        // (s * 1_000_000.0) as u128
+
         s
     }
 }
@@ -558,7 +556,7 @@ impl CustomVars {
     }
 
     pub fn update(&mut self, new: &Self) {
-        // basically update add, you can never delete >:D
+        // basically update adds, and you can never delete >:D
         if let Some(o) = &new.0 {
             self.0
                 .get_or_insert_with(Default::default)
@@ -1020,6 +1018,8 @@ pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
     lerped.into_iter().map(|v| v.into()).collect_vec()
 }
 
+
+// todo, did i end up using this?
 #[derive(Clone, Copy, Debug)]
 pub struct Dim2d {
     x: usize, // e.g. rows

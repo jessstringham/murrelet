@@ -37,11 +37,6 @@ impl ComputeBindings {
             indices = vec![0; 2]
         };
 
-        // let queue = c.queue();
-        // queue.write_buffer(&self.cell_offsets, 0, bytemuck::cast_slice(&offsets));
-        // queue.write_buffer(&self.cell_indices, 0, bytemuck::cast_slice(&indices));
-        // queue.write_buffer(&self.input, 0, bytemuck::cast_slice(&data));
-
         self.input = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&data),
@@ -157,29 +152,13 @@ pub trait ToAABB {
 // like Graphics, what's needed to create a compute pipeline
 pub struct ComputeGraphicsToTexture {
     name: String,
-    // conf: GraphicsCreator,
-    // bind_group: wgpu::BindGroup,
-    // vertex_buffers: VertexBuffers,
-    // render_pipeline: wgpu::RenderPipeline,
     pub uniforms: BasicUniform,
     pub buffers: ComputeBindings,
     #[allow(dead_code)]
     texture: TextureAndDesc,
-
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
-    // data: Vec<T>,
     dims: [u32; 2],
-    // csr: CSR,
-    // used internally
-    // pub input_texture_view: wgpu::TextureView,
-    // pub input_texture_view_other: Option<wgpu::TextureView>,
-    // sampler: wgpu::Sampler,
-    // bind_group_layout: wgpu::BindGroupLayout,
-    // // i guess need this to create nannou texture
-    // pub texture_and_desc: TextureAndDesc,
-    // pub other_texture_and_desc: Option<TextureAndDesc>,
-    // textures_for_3d: Option<TextureFor3d>,
 }
 impl ComputeGraphicsToTexture {
     fn sync_data<T: Pod + ToAABB + Clone>(
@@ -525,10 +504,4 @@ impl ComputeGraphicsToTextureRef {
             println!("segments is empty, not doing anything");
         }
     }
-
-    // pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef> {
-    //     let ctrl_graphics = (self.control_graphic_fn)(conf);
-
-    //     ControlGraphicsRef::new(self.label, ctrl_graphics, Some(self.graphics.clone()))
-    // }
 }

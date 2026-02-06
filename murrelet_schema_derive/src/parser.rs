@@ -109,15 +109,6 @@ where
 
         let idents = ParsedFieldIdent { name: name.clone() };
 
-        // "external" => quote! {},
-        // "internal" => default,
-        // "untagged" => quote! {#[serde(untagged)]},
-        // _ => default,
-        //    let is_external =  match &e.enum_tag.map(|x| x.as_str()) {
-        //         Some("external") => true,
-        //         None => false,
-        //         _ => unimplemented!("enum type not implemented")
-        //     };
         let is_untagged = if let Some(enum_tag) = &e.enum_tag {
             if enum_tag.as_str() == "external" {
                 true

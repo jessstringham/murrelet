@@ -114,11 +114,9 @@ impl SvgDrawConfig {
 
             let translation_to_final = vec2(full_target_width, full_target_width);
             let s = self.target_size / size;
-            // let scale = vec3(s, s, 1.0);
 
             // aiming for 100mm by 100mm, going from 0 to 10
             // operations go right to left!
-            // Mat4::from_translation(translation_to_final) * Mat4::from_scale(scale)
             SimpleTransform2d::new(vec![
                 SimpleTransform2dStep::translate(translation_to_final),
                 SimpleTransform2dStep::scale_both(s),
@@ -700,13 +698,6 @@ where
         load_funcs: &AssetLoaders,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
         let controlconfig = ControlConfType::parse(&conf)?;
-        // .map_err(|err| {
-        // if let Some(error) = err.location() {
-        //     LivecodeError::SerdeLoc(error, err.to_string())
-        // } else {
-        //     LivecodeError::Raw(err.to_string())
-        // }
-        // })?;
         Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }
 
@@ -828,10 +819,6 @@ where
         if self.lerp_pct >= 1.0 {
             // todo, just move it out...
             if let Some(new_target) = &self.queued_configcontrol {
-                // self.prev_controlconfig = self.controlconfig.clone();
-                // self.controlconfig = new_target.clone();
-                // self.lerp_pct = 0.0;
-                // self.queued_configcontrol = None;
                 self.update_config_directly(new_target.clone())?;
             }
         }
@@ -897,11 +884,6 @@ where
     pub fn update_config_to(&mut self, text: &str) -> Result<(), String> {
         match ControlConfType::cb_reload_and_update_info(&mut self.util, text) {
             Ok(d) => {
-                // self.prev_controlconfig = self.controlconfig.clone();
-                // self.controlconfig = d;
-                // self.queued_configcontrol = None;
-                // self.lerp_pct = 0.0;
-                // Ok(())
                 self.update_config_directly(d).map_err(|x| x.to_string())
             }
             Err(e) => Err(e),

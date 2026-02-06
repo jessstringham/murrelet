@@ -17,12 +17,7 @@ schemars = [
     "murrelet_livecode/schemars",
     "murrelet_perform/schemars",
 ]
-# murrelet_gui = [
-#     "dep:murrelet_gui",
-#     "murrelet_draw/murrelet_gui",
-#     "murrelet_livecode/murrelet_gui",
-#     "murrelet_perform/murrelet_gui",
-# ]
+
 
 [dependencies]
 wgpu_for_latest = { package = "wgpu", version = "0.20.1", optional = true }

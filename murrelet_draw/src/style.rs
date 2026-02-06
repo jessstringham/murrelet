@@ -11,10 +11,7 @@ use lerpable::Lerpable;
 use md5::{Digest, Md5};
 use murrelet_common::*;
 use murrelet_gui::{CanMakeGUI, MurreletGUI};
-use murrelet_livecode::{
-    lazy::ControlLazyMurreletColor,
-    livecode::ControlF32,
-};
+use murrelet_livecode::{lazy::ControlLazyMurreletColor, livecode::ControlF32};
 use murrelet_livecode_derive::Livecode;
 use styleconf::StyleConf;
 
@@ -395,7 +392,6 @@ pub mod styleconf {
 
         pub fn to_style(&self) -> MurreletStyle {
             match self {
-                // StyleConf::Verbose(a) => *a,
                 StyleConf::Fill(a) => a.to_style(),
                 StyleConf::Outline(a) => a.to_style(),
                 StyleConf::Line(a) => a.to_style(),
@@ -513,20 +509,6 @@ impl MurreletCurve {
             t: self.t.add_transform_before(t),
         }
     }
-
-    // pub fn transform_with_mat4_after(&self, t: Mat4) -> MurreletCurve {
-    //     Self {
-    //         cd: self.cd.clone(),
-    //         t: t * self.t,
-    //     }
-    // }
-
-    // pub fn transform_with_mat4_before(&self, t: Mat4) -> MurreletCurve {
-    //     Self {
-    //         cd: self.cd.clone(),
-    //         t: self.t * t,
-    //     }
-    // }
 
     pub fn mat4(&self) -> Mat4 {
         self.t.to_mat4()

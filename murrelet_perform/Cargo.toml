@@ -16,13 +16,6 @@ schemars = [
     "murrelet_livecode_macros/schemars",
     "murrelet_livecode_derive/schemars",
 ]
-# murrelet_gui = [
-#     "dep:murrelet_gui",
-#     "murrelet_livecode/murrelet_gui",
-#     "murrelet_draw/murrelet_gui",
-#     "murrelet_livecode_macros/murrelet_gui",
-#     "murrelet_livecode_derive/murrelet_gui",
-# ]
 
 [dependencies]
 murrelet_common = "0.1.2"

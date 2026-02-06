@@ -3,7 +3,6 @@ use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode::unitcells::{UnitCellContext, UnitCellCreator, UnitCellIdx};
-// use murrelet_livecode_derive::*;
 use crate::transform2d::{Transform2d, Transform2dStep};
 use murrelet_livecode_derive::Livecode;
 

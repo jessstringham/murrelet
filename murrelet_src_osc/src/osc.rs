@@ -64,8 +64,6 @@ impl IsLivecodeSrc for OscMng {
                 LivecodeValue::Int(_) => {}
             }
         }
-
-        // Ok(())
     }
 }
 
@@ -128,8 +126,6 @@ pub struct OscCxn {
 impl OscCxn {
     pub fn check_and_maybe_update(&self, r: &mut OscValues) -> Result<(), mpsc::TryRecvError> {
         self.osc_rx.try_recv().map(|x| {
-            // r.msg = Some(x);
-
             // println!("osc message {:?}", x);
 
             for (name, new_val) in x.to_livecode_vals().into_iter() {

@@ -5,7 +5,6 @@ use std::{
 
 use glam::{vec3, Vec3};
 use lerpable::{IsLerpingMethod, Lerpable};
-// use murrelet_gui::CanMakeGUI;
 use palette::{rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha};
 use serde::{Deserialize, Serialize};
 
@@ -111,10 +110,6 @@ impl MurreletColor {
     // getting info out of it
 
     pub fn into_hsva_components(&self) -> [f32; 4] {
-        // let srgba: Srgba = self.0.into_format().into_color();
-        // println!("sRGBA before HSV conversion: {:?}", srgba);
-
-        // let hsva: Hsva = Hsva::from_color(srgba);
         self.0
     }
 
@@ -173,12 +168,6 @@ impl MurreletColor {
         c
     }
 }
-
-// impl CanMakeGUI for MurreletColor {
-//     fn make_gui() -> murrelet_gui::MurreletGUISchema {
-//         murrelet_gui::MurreletGUISchema::Val(murrelet_gui::ValueGUI::Color)
-//     }
-// }
 
 pub trait MurreletIntoLinSrgba {
     fn into_murrelet_color(&self) -> MurreletColor;

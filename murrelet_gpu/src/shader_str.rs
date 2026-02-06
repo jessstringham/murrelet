@@ -3,12 +3,6 @@ pub const SUFFIX: &str = r#"
 }
 "#;
 
-// struct Input {
-//   a: vec2<f32>;
-//   b: vec2<f32>;
-// };
-
-
 pub const COMPUTE_TEX: &str = r#"
 struct BasicUniform {
     dims: vec4<f32>,
@@ -453,7 +447,6 @@ pub const PREFIX: &str = r#"
 fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>, @location(3) light_space_pos: vec4<f32>, @location(4) world_pos: vec3<f32>) -> FragmentOutput {
 "#;
 
-
 pub const COMPUTE_FORMAT_STR: &str = r#"
 @compute @workgroup_size(8, 8)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -484,5 +477,3 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   textureStore(out_img, vec2<i32>(gid.xy), result);
 }
 "#;
-
-

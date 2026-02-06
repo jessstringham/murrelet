@@ -209,11 +209,6 @@ impl ToSvgMatrix for Mat4 {
     }
 }
 
-// // for a type that means something, e.g. "style fro a shape"
-// trait AddSvgAttributes {
-//     fn add_svg_attributes<T: Node>(&self, p: T) -> T;
-// }
-
 // for component types, e.g. "color"
 trait GetSvgAttributes {
     fn get_svg_attributes(&self) -> MurreletSvgAttributes;
@@ -251,15 +246,6 @@ impl GetSvgAttributes for RGBandANewtype {
     }
 }
 
-// impl AddSvgAttributes for MurreletColorStyle {
-//     // fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-//     //     let mut p = p;
-//     //     p.assign("fill-rule", "evenodd");
-//     //     update_node(&mut p, &self.get_svg_attributes());
-//     //     p
-//     // }
-// }
-
 impl GetSvgAttributes for MurreletColorStyle {
     fn get_svg_attributes(&self) -> MurreletSvgAttributes {
         match self {
@@ -270,13 +256,6 @@ impl GetSvgAttributes for MurreletColorStyle {
     }
 }
 
-// impl AddSvgAttributes for MurreletPath {
-//     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-//         let mut p = p;
-//         update_node(&mut p, &self.get_svg_attributes());
-//         p
-//     }
-// }
 impl GetSvgAttributes for MurreletPath {
     fn get_svg_attributes(&self) -> MurreletSvgAttributes {
         if let Some(t) = self.transform() {
@@ -360,53 +339,6 @@ impl GetSvgAttributes for MurreletStyle {
     }
 }
 
-// impl AddSvgAttributes for MurreletStyle {
-//     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-//         let mut p = p;
-
-// p.assign("fill-rule", "evenodd");
-
-// match self.drawing_plan() {
-//     murrelet_draw::draw::MurreletDrawPlan::Shader(fill) => {
-//         p.assign("fill", fill.get_svg_attributes())
-//     }
-//     murrelet_draw::draw::MurreletDrawPlan::DebugPoints(_) => unimplemented!(),
-//     murrelet_draw::draw::MurreletDrawPlan::FilledClosed => {
-//         p.assign("fill", self.color.get_svg_attributes());
-
-//         if self.stroke_weight > 0.0 {
-//             p.assign("stroke-width", self.stroke_weight);
-//             p.assign("stroke-linejoin", "round");
-//             p.assign("stroke-linecap", "round");
-//             p.assign("stroke", self.stroke_color.get_svg_attributes());
-//         }
-//     }
-//     murrelet_draw::draw::MurreletDrawPlan::Outline => {
-//         p.assign("fill", "none");
-
-//         if self.stroke_weight > 0.0 {
-//             p.assign("stroke-width", self.stroke_weight);
-//             p.assign("stroke-linejoin", "round");
-//             p.assign("stroke-linecap", "round");
-//             p.assign("stroke", self.color.get_svg_attributes());
-//         }
-//     }
-//     murrelet_draw::draw::MurreletDrawPlan::Line => {
-//         p.assign("fill", "none");
-
-//         if self.stroke_weight > 0.0 {
-//             p.assign("stroke-width", self.stroke_weight);
-//             p.assign("stroke-linejoin", "round");
-//             p.assign("stroke-linecap", "round");
-//             p.assign("stroke", self.color.get_svg_attributes());
-//         }
-//     }
-// }
-
-//         p
-//     }
-// }
-
 impl GetSvgAttributes for StyledPath {
     fn get_svg_attributes(&self) -> MurreletSvgAttributes {
         let mut c = self.annotations.get_svg_attributes();
@@ -414,13 +346,6 @@ impl GetSvgAttributes for StyledPath {
         c.add_other(&self.style.get_svg_attributes());
         c
     }
-    // fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-    //     let mut p = p;
-    //     p = self.annotations.add_svg_attributes(p);
-    //     p = self.path.add_svg_attributes(p);
-    //     p = self.style.add_svg_attributes(p);
-    //     p
-    // }
 }
 
 impl GetSvgAttributes for MurreletPathAnnotation {
@@ -432,16 +357,6 @@ impl GetSvgAttributes for MurreletPathAnnotation {
         a
     }
 }
-
-// impl AddSvgAttributes for MurreletPathAnnotation {
-//     fn add_svg_attributes<T: Node>(&self, p: T) -> T {
-//         let mut p = p;
-//         for (k, v) in self.vals() {
-//             p.assign(k.to_string(), v.to_string());
-//         }
-//         p
-//     }
-// }
 
 pub trait ToSvgPath {
     fn make_group(&self) -> Option<svg::node::element::Group>;
@@ -632,13 +547,6 @@ impl SvgDocCreator {
         doc = doc.add(centering_group);
 
         doc
-
-        // for (name, layer) in paths.layers.iter() {
-        //     let (g, _) = self.make_layer(name, layer, true);
-        //     doc.append(g);
-        // }
-
-        // doc
     }
 
     pub fn create_guides(&self) -> Vec<Vec<Vec2>> {
@@ -876,11 +784,6 @@ impl SvgPathCache {
     }
 }
 
-// pub trait ToSvg {
-//     fn to_svg(&self) -> Option<Data>;
-
-// }
-
 // why am i doing this again, it is a good question
 impl ToSvgData for SvgPathDef {
     fn to_svg_data(&self) -> Option<Data> {
@@ -954,29 +857,9 @@ impl ToSvgData for CurveDrawer {
 
                     // special cases for circles!
                     if let Some((hemi1, hemi2)) = a.is_full_circle_then_split() {
-                        // let params = (
-                        //     a.radius,
-                        //     a.radius, // same as other rad because it's a circle
-                        //     0.0,      // angle of ellipse doesn't matter, so 0
-                        //     if a.is_large_arc() { 1 } else { 0 }, // large arc flag
-                        //     if a.is_ccw() { 1 } else { 0 }, // sweep-flag
-                        //     last_point.x,
-                        //     last_point.y,
-                        // );
-
                         path = path.elliptical_arc_to(hemi1.svg_params().to_vec());
                         path = path.elliptical_arc_to(hemi2.svg_params().to_vec());
                     } else {
-                        // let params = (
-                        //     a.radius,
-                        //     a.radius, // same as other rad because it's a circle
-                        //     0.0,      // angle of ellipse doesn't matter, so 0
-                        //     if a.is_large_arc() { 1 } else { 0 }, // large arc flag
-                        //     if a.is_ccw() { 1 } else { 0 }, // sweep-flag
-                        //     last_point.x,
-                        //     last_point.y,
-                        // );
-
                         path = path.elliptical_arc_to(a.svg_params().to_vec());
                     }
 
@@ -1017,17 +900,5 @@ impl ToSvgData for Vec<Vec2> {
         // todo, hmmm, see if we can consolidate this.
         let cd = CurveDrawer::new_simple_points(self.clone(), false);
         cd.to_svg_data()
-
-        // // whee, flip y's so we stop drawing everything upside down
-
-        // let mut curr_item: Vec2 = *self.first().unwrap();
-
-        // let mut data = Data::new().move_to((curr_item.x, -curr_item.y));
-
-        // for loc in self[1..].iter() {
-        //     data = data.line_by((loc.x - curr_item.x, -(loc.y - curr_item.y)));
-        //     curr_item = *loc;
-        // }
-        // Some(data)
     }
 }

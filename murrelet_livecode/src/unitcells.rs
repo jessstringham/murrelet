@@ -38,27 +38,6 @@ impl<CtxSource: UnitCellCreator, Target: Default> TmpUnitCells<CtxSource, Target
     }
 }
 
-// fn create_unit_cell<'a>(
-//     world_ctx: &'a LivecodeWorldState,
-//     prefix: &'a str,
-//     unit_cell_ctx: &'a UnitCellContext,
-//     maybe_node: Option<&'a AdditionalContextNode>,
-// ) -> LivecodeResult<LivecodeWorldState> {
-//     // world_ctx is currently just the World, so first attach the unit cell world state
-
-//     let mut world_state = ;
-
-//     // let unit_cell_world_ctx = world_state.ctx_mut();
-
-//     // now update the unit_cell context to have the node
-//     // if let Some(node) = maybe_node {
-//     //     node.eval_raw(unit_cell_world_ctx)?;
-//     // }
-
-//     // great, now we have it built. return it!
-//     Ok(world_state)
-// }
-
 impl<CtxSource, Target> TmpUnitCells<CtxSource, Target>
 where
     CtxSource: UnitCellCreator,
@@ -82,9 +61,6 @@ where
                 // - app-level ctx
                 // - unit cell location
                 // it doesn't have sequencer ctx yet, we'll add that next
-
-                // let unit_cell_world_ctx_result =
-                //     create_unit_cell(world_ctx, &self.prefix, ctx, unit_cell_ctx.as_ref());
 
                 let unit_cell_world_ctx_result =
                     world_ctx.clone_to_unitcell(ctx, &self.prefix, unit_cell_ctx);
@@ -411,8 +387,6 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
         }
         None
     }
-
-    // pub fn get_vec2(&self, v: Vec2) {}
 }
 
 pub struct IdxAndOffset {
@@ -686,7 +660,6 @@ impl UnitCellContext {
     }
 
     pub fn transform_one_point_with_skew(&self, v: Vec2) -> Vec2 {
-        // self.detail.transform_with_skew(&vec![v]).clone_to_vec()[0]
         v.transform_with(&self.detail.transform_with_skew_mat4())
     }
 
@@ -977,17 +950,6 @@ impl UnitCellDetails {
         }
     }
 
-    // fn transform_with_skew<F: Transformable>(&self, face: &F) -> Polyline {
-    //     let vs = face
-    //         .into_iter_vec2()
-    //         .map(|x| match self {
-    //             UnitCellDetails::Wallpaper(d) => d.transform_with_skew(x),
-    //             UnitCellDetails::Function(d) => d.transform_with_skew(x),
-    //         })
-    //         .collect_vec();
-    //     Polyline::new(vs)
-    // }
-
     pub fn transform_no_skew_one_point(&self, v: Vec2) -> Vec2 {
         self.transform_no_skew(&vec![v]).clone_to_vec()[0]
     }
@@ -1082,7 +1044,6 @@ impl UnitCellDetailsWallpaper {
     pub fn transform_no_skew<F: Transformable>(&self, v: &F) -> F {
         let m = self.transform_no_skew_mat();
         v.transform_with(&m)
-
     }
 
     // how to move the location of something

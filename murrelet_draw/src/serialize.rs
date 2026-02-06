@@ -1,4 +1,3 @@
-// use glam::Vec2;
 use murrelet_common::MurreletColor;
 use serde::{ser::SerializeSeq, Serializer};
 
@@ -16,17 +15,3 @@ where
     }
     seq.end()
 }
-
-// just use glam's serde feature flag!
-// pub fn serialize_vec2<S>(x: &Vec2, serializer: S) -> Result<S::Ok, S::Error>
-// where
-//     S: Serializer,
-// {
-//     let xy = [x.x, x.y];
-
-//     let mut seq = serializer.serialize_seq(Some(xy.len()))?;
-//     for number in &xy {
-//         seq.serialize_element(number)?;
-//     }
-//     seq.end()
-// }

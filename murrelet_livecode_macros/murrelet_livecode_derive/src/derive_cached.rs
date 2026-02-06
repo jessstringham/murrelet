@@ -22,7 +22,6 @@ pub(crate) struct LivecodeVariantReceiver {}
 pub(crate) struct LivecodeReceiver {
     ident: syn::Ident,
     data: ast::Data<LivecodeVariantReceiver, LivecodeFieldReceiver>,
-    // ctrl: Option<String>, // this one should be the struct name...
 }
 
 pub fn impl_cache_traits(ast: DeriveInput) -> TokenStream2 {
@@ -35,8 +34,6 @@ pub fn impl_cache_traits(ast: DeriveInput) -> TokenStream2 {
 }
 
 fn parse_cache(name: &syn::Ident, fields: &[LivecodeFieldReceiver]) -> TokenStream2 {
-
-
     let mut getter_funcs: Vec<TokenStream2> = vec![];
     let mut check_funcs: Vec<TokenStream2> = vec![];
     let mut init_funcs: Vec<TokenStream2> = vec![];
@@ -56,7 +53,6 @@ fn parse_cache(name: &syn::Ident, fields: &[LivecodeFieldReceiver]) -> TokenStre
 
                 let inside_type = data.inside_type().to_quote();
 
-
                 let func = quote! {
                     pub fn #ident(&self) -> &#inside_type {
                         self.#ident.get_or_init(|| self.#expected_compute_ident())
@@ -65,36 +61,34 @@ fn parse_cache(name: &syn::Ident, fields: &[LivecodeFieldReceiver]) -> TokenStre
 
                 getter_funcs.push(func);
 
-                let check = quote!{
+                let check = quote! {
                     self.#ident.has_been_set()
                 };
 
                 check_funcs.push(check);
 
-                let init = quote!{
+                let init = quote! {
                     self.#ident()
                 };
 
                 init_funcs.push(init);
 
-                let to_be_filled = quote!{
+                let to_be_filled = quote! {
                     #ident: CachedCompute::new()
                 };
 
                 to_be_filled_funcs.push(to_be_filled);
             } else {
-
                 // they're passed in with the same name in the arguments
                 let orig_type = f.ty.clone();
-                let new_conf_argument = quote!{
+                let new_conf_argument = quote! {
                     #ident: #orig_type
                 };
                 conf_arguments.push(new_conf_argument);
-                let to_be_filled = quote!{
+                let to_be_filled = quote! {
                     #ident
                 };
                 to_be_filled_funcs.push(to_be_filled);
-
             }
         }
     }

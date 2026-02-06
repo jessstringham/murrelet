@@ -381,7 +381,6 @@ impl ExprWorldContextValues {
             new.set_val(&name, val);
         }
 
-        // Self::new([self.0.clone(), vals.0].concat())
         new
     }
 
@@ -396,24 +395,6 @@ impl ExprWorldContextValues {
             .collect_vec()
     }
 }
-
-// impl Context for ExprWorldContextValues {
-//     fn get_value(&self, identifier: &str) -> Option<&Value> {
-//         todo!()
-//     }
-
-//     fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
-//         todo!()
-//     }
-
-//     fn are_builtin_functions_disabled(&self) -> bool {
-//         true
-//     }
-
-//     fn set_builtin_functions_disabled(&mut self, disabled: bool) -> EvalexprResult<()> {
-
-//     }
-// }
 
 pub trait IntoExprWorldContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues;

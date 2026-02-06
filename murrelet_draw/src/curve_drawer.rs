@@ -44,10 +44,7 @@ impl CubicOptionVec2 {
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
 pub struct CubicBezierTo {
     pub ctrl1: CubicOptionVec2,
-
-    // #[serde(serialize_with = "serialize_vec2")]
     pub ctrl2: Vec2,
-    // #[serde(serialize_with = "serialize_vec2")]
     pub to: Vec2,
 }
 
@@ -85,12 +82,6 @@ impl CubicBezierPath {
         let svg = self.to_data();
         let path = parse_svg_data_as_vec2(&svg, line_space);
 
-        // if let Some(a) = path.last() {
-        //     if a.distance(self.to.yx()) > 1.0e-3 {
-        //         path.push(self.to.yx())
-        //     }
-        // }
-
         path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
     }
 
@@ -123,7 +114,6 @@ impl CubicBezierPath {
 
         if self.closed {
             let ctrl1 = CubicOptionVec2::none().or_last(from, last_ctrl1);
-            // let ctrl2 = CubicOptionVec2::none().or_last(self.from, self.ctrl1);
             let ctrl2_source = first_ctrl1_used.unwrap_or(self.ctrl1);
             let ctrl2 = CubicOptionVec2::none().or_last(self.from, ctrl2_source);
             svg.push(CubicBezier::new(from, ctrl1, ctrl2, self.from));
@@ -264,16 +254,6 @@ impl CurveDrawer {
         Some(last_command.last_point())
     }
 
-    // pub fn first_spot(&self) -> Option<SpotOnCurve> {
-    //     let first_command = self.segments().first()?;
-    //     Some(first_command.first_spot())
-    // }
-
-    // pub fn last_spot(&self) -> Option<SpotOnCurve> {
-    //     let last_command = self.segments().last()?;
-    //     Some(last_command.last_spot())
-    // }
-
     pub fn length(&self) -> f32 {
         self.segments.iter().map(|segment| segment.length()).sum()
     }
@@ -347,10 +327,7 @@ impl CurveSegment {
         match self {
             CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.reverse()),
             CurveSegment::Points(curve_points) => CurveSegment::Points(curve_points.reverse()),
-            CurveSegment::CubicBezier(c) => {
-                CurveSegment::CubicBezier(c.reverse())
-                //CurveSegment::Points(c.as_points().reverse())
-            }
+            CurveSegment::CubicBezier(c) => CurveSegment::CubicBezier(c.reverse()),
         }
     }
 
@@ -429,7 +406,7 @@ impl CurveSegment {
                     let points = p.points();
                     let end = *points.last().unwrap();
                     let prev = *points.get(points.len() - 2).unwrap();
-                    let angle = PointToPoint::new(prev, end).angle(); //.perp_to_left();
+                    let angle = PointToPoint::new(prev, end).angle();
                     Some(SpotOnCurve::new(end, angle))
                 } else {
                     None
@@ -455,7 +432,9 @@ impl CurveSegment {
     fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
         let transform = transform.to_simple_transform();
         match self {
-            CurveSegment::Arc(curve_arc) => CurveSegment::Arc(curve_arc.force_transform(&transform)),
+            CurveSegment::Arc(curve_arc) => {
+                CurveSegment::Arc(curve_arc.force_transform(&transform))
+            }
             CurveSegment::Points(curve_points) => {
                 CurveSegment::Points(curve_points.force_transform(&transform))
             }
@@ -555,14 +534,12 @@ impl CurveArc {
             (
                 AnglePi::new(1.0) + start_spot.angle - AnglePi::new(0.5),
                 AnglePi::new(1.0) + next_angle - AnglePi::new(0.5),
-                // next_angle.into(),
             )
         } else {
             let next_angle = start_spot.angle + arc_length;
             (
                 (start_spot.angle - AnglePi::new(0.5)).into(),
                 (next_angle - AnglePi::new(0.5)).into(),
-                // next_angle.into(),
             )
         };
 
@@ -601,16 +578,13 @@ impl CurveArc {
 
     // useful for svg
     pub fn is_large_arc(&self) -> bool {
-        // (self.end_pi.angle_pi() - self.start_pi.angle_pi()).abs() > 1.0
-        // (self.end_pi.angle_pi() - self.start_pi.angle_pi()).rem_euclid(2.0) > 1.0
-
         let ccw_angular_distance =
             (self.end_pi.angle_pi() - self.start_pi.angle_pi()).rem_euclid(2.0);
 
         if self.is_ccw() {
             ccw_angular_distance > 1.0
         } else {
-            // for CW, the distance is the other way around the circle
+            // for cw, the distance is the other way around the circle
             (2.0 - ccw_angular_distance) > 1.0
         }
     }
@@ -638,7 +612,6 @@ impl CurveArc {
 
     fn end_angle(&self) -> Angle {
         self.end_pi.as_angle()
-        // AnglePi::new(self.end_pi).into()
     }
 
     pub fn last_spot(&self) -> SpotOnCurve {
@@ -647,7 +620,6 @@ impl CurveArc {
 
     fn start_angle(&self) -> Angle {
         self.start_pi.as_angle()
-        // AnglePi::new(self.start_pi).into()
     }
 
     pub fn start_tangent_angle(&self) -> Angle {
@@ -710,9 +682,6 @@ impl CurveArc {
 
     pub fn length(&self) -> f32 {
         (self.radius * (self.end_pi - self.start_pi).angle()).abs()
-        // let angle_diff = (self.end_pi.angle_pi() - self.start_pi.angle_pi()).rem_euclid(2.0);
-        // let sweep_angle_rads = angle_diff * std::f32::consts::PI;
-        // self.radius * sweep_angle_rads
     }
 
     pub fn start_pi(&self) -> AnglePi {
@@ -739,8 +708,6 @@ impl CurveArc {
 
         (first_arc.to_segment(), second_arc.to_segment())
     }
-
-
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -815,8 +782,6 @@ impl CurveCubicBezier {
                 .apply_vec2_tranform(|x| transform.transform_vec2(x)),
         )
     }
-
-
 
     fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
         let v = self.to_cubic().to_vec2_line_space(1.0); // todo, figure out how to manage that
@@ -1130,7 +1095,6 @@ pub trait ToCurveDrawer {
         let mut dist_traveled = 0.0;
         let mut add_left = true;
 
-        // let mut last_pt = None;
         for segment in cd.segments() {
             if add_left {
                 let segment_len = segment.length();
@@ -1156,7 +1120,6 @@ pub trait ToCurveDrawer {
             } else {
                 right.push(segment.clone())
             }
-            // last_pt = Some(segment.last_point());
         }
 
         (left, right)

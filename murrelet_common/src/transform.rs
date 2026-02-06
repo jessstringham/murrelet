@@ -1,6 +1,3 @@
-//! Since I need to do so much transforms of vec2, this
-//! trait just makes it easier to use different types to
-//! do that.
 use glam::{vec2, vec3, Mat2, Mat3, Mat4, Vec2, Vec3};
 use itertools::Itertools;
 use lerpable::Lerpable;
@@ -179,14 +176,6 @@ impl Transformable for Vec2 {
     }
 }
 
-// impl Transformable for Vec<Vec2> {
-//     fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
-//         self.into_iter()
-//             .map(|x| t.to_simple_transform().transform_vec2(*x))
-//             .collect_vec()
-//     }
-// }
-
 impl<A> Transformable for Vec<A>
 where
     A: Transformable,
@@ -322,16 +311,6 @@ where
         v
     }
 }
-
-// impl TransformVec2 for SimpleTransform2d {
-//     fn transform_vec2(&self, v: Vec2) -> Vec2 {
-//         let mut v = v;
-//         for step in &self.0 {
-//             v = step.transform().transform_vec2(v);
-//         }
-//         v
-//     }
-// }
 
 impl Lerpable for SimpleTransform2d {
     fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {

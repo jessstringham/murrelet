@@ -49,12 +49,6 @@ impl CachedHM {
         }))
     }
 
-    // fn update(&mut self, hm: HashMapContext) {
-    //     // *self = CachedHM::Cached(Arc::new(hm));
-    //     self.data = Arc::new(hm);
-    //     self.flag = CacheFlag::Cached;
-    // }
-
     fn clear(&mut self) {
         self.flag = CacheFlag::NotCached;
     }
@@ -220,16 +214,13 @@ impl LivecodeWorldState {
             builtins_disabled: false,
         }
     }
-
-    // pub(crate) fn set_val(&mut self, name: &str, val: LivecodeValue) {
-    //     self.update_with_defs(MixedEvalDefs::new_simple(name, val));
-    // }
 }
 
+// some chatgpt help
 #[derive(Debug, Clone)]
 pub struct WorldWithLocalVariables {
-    base: Arc<HashMapContext>, // your cached global ctx (world.ctx()?.as_ref())
-    locals: Vec<(String, Value)>, // small slice like &[("loc_pct", 0.42.into())]
+    base: Arc<HashMapContext>,
+    locals: Vec<(String, Value)>,
     builtins_disabled: bool,
 }
 impl WorldWithLocalVariables {
@@ -237,12 +228,6 @@ impl WorldWithLocalVariables {
         let mut locals = more_vals.to_vals();
         locals.extend(self.locals.iter().cloned());
         self.locals = locals;
-
-        // WorldWithLocalVariables {
-        //     base: self.base.clone(),
-        //     locals,
-        //     builtins_disabled: true,
-        // }
     }
 
     pub(crate) fn variable_names(&self) -> Vec<String> {
@@ -254,11 +239,9 @@ impl WorldWithLocalVariables {
 
 impl Context for WorldWithLocalVariables {
     fn get_value(&self, identifier: &str) -> Option<&Value> {
-        // locals win
         if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k == identifier) {
             return Some(v);
         }
-        // otherwise fallback to global
         self.base.get_value(identifier)
     }
 
@@ -352,8 +335,6 @@ impl LivecodeWorldStateInner {
         match self.stage {
             LivecodeWorldStateStage::Timeless => panic!("checking time in a timeless world"),
             LivecodeWorldStateStage::World(t) => t,
-            // LivecodeWorldStateStage::Unit(t) => t,
-            // LivecodeWorldStateStage::Lazy(t) => t,
         }
     }
 
@@ -381,49 +362,6 @@ impl LivecodeWorldStateInner {
         more_defs.update_ctx(self.ctx_mut())
     }
 
-    // pub fn clone_with_vals(
-    //     &self,
-    //     expr: ExprWorldContextValues,
-    //     prefix: &str,
-    // ) -> LivecodeResult<LivecodeWorldStateRef> {
-    //     let mut lazy = self.clone_to_lazy(); // eh just need to clone
-    //     expr.with_prefix(prefix).update_ctx(lazy.ctx_mut())?;
-    //     Ok(lazy)
-    // }
-
-    // pub fn clone_to_unitcell(
-    //     &self,
-    //     unit_cell_ctx: &UnitCellContext,
-    //     prefix: &str,
-    // ) -> LivecodeResult<LivecodeWorldState> {
-    //     let mut context = self.context.clone();
-    //     unit_cell_ctx
-    //         .as_expr_world_context_values()
-    //         .with_prefix(prefix)
-    //         .update_ctx(&mut context)?;
-
-    //     let r = LivecodeWorldState {
-    //         context,
-    //         stage: self
-    //             .stage
-    //             .add_step(LivecodeWorldStateStage::Unit(self.time())),
-    //         assets: self.assets.clone(),
-    //     };
-
-    //     Ok(r)
-    // }
-
-    // pub fn clone_to_lazy(&self) -> Self {
-    //     let context = self.context.clone();
-    //     LivecodeWorldState {
-    //         context,
-    //         stage: self
-    //             .stage
-    //             .add_step(LivecodeWorldStateStage::Lazy(self.time())),
-    //         assets: self.assets.clone(),
-    //     }
-    // }
-
     pub fn asset_layer(&self, key: &str, layer_idx: usize) -> Option<Vec<Polyline>> {
         self.assets.asset_layer(key, layer_idx).cloned()
     }
@@ -436,9 +374,9 @@ impl LivecodeWorldStateInner {
         Self::new(
             &init_evalexpr_func_ctx().unwrap(),
             &LivecodeSrc::new(vec![]),
-            LiveCodeTimeInstantInfo::new_dummy(), // time
-            AdditionalContextNode::new_dummy(),   // node
-            Arc::new(Assets::empty()),            // assets
+            LiveCodeTimeInstantInfo::new_dummy(),
+            AdditionalContextNode::new_dummy(),
+            Arc::new(Assets::empty()),
         )
         .unwrap()
     }
@@ -448,9 +386,9 @@ impl LivecodeWorldStateInner {
         Self::new(
             &empty_ctx,
             &LivecodeSrc::new(vec![]),
-            LiveCodeTimeInstantInfo::new_dummy(), // time
-            AdditionalContextNode::new_dummy(),   // node
-            Arc::new(Assets::empty()),            // assets
+            LiveCodeTimeInstantInfo::new_dummy(),
+            AdditionalContextNode::new_dummy(),
+            Arc::new(Assets::empty()),
         )
         .unwrap()
     }

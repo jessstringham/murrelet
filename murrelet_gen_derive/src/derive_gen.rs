@@ -121,14 +121,6 @@ impl GenFinal for FieldTokensGen {
                 murrelet_gen::prefix_field_names(#receiver_name.to_string(), vec![vec!["[weight]".to_string()], #names].concat())
             });
 
-            // for_rn_names.extend(
-            //     variant
-            //         .for_rn_names
-            //         .clone()
-            //         .into_iter()
-            //         .map(|x| quote!( murrelet_gen::prefix_field_names(#x, #receiver_name))),
-            // );
-
             let weight = receiver.weight;
             // hrm, might want to use closures if it's expensive
             // also the create_variant will modify rn_start_idx for us.
@@ -302,25 +294,25 @@ impl GenFinal for FieldTokensGen {
         }
     }
 
-    // skip
-    fn from_noop_struct(idents: StructIdents) -> FieldTokensGen {
-        let field_name = idents.data.ident.unwrap().to_string();
-        let ty = idents.data.ty;
+    // // skip
+    // fn from_noop_struct(idents: StructIdents) -> FieldTokensGen {
+    //     let field_name = idents.data.ident.unwrap().to_string();
+    //     let ty = idents.data.ty;
 
-        let for_rn_count = quote! { 0 };
-        let for_rn_names = quote! { vec![] };
-        let for_make_gen = quote! { #field_name: #ty::default() };
-        let for_to_dist = quote! { vec![] };
-        let for_to_dist_mask = quote! { vec![] };
+    //     let for_rn_count = quote! { 0 };
+    //     let for_rn_names = quote! { vec![] };
+    //     let for_make_gen = quote! { #field_name: #ty::default() };
+    //     let for_to_dist = quote! { vec![] };
+    //     let for_to_dist_mask = quote! { vec![] };
 
-        FieldTokensGen {
-            for_rn_count,
-            for_make_gen,
-            for_rn_names,
-            for_to_dist,
-            for_to_dist_mask,
-        }
-    }
+    //     FieldTokensGen {
+    //         for_rn_count,
+    //         for_make_gen,
+    //         for_rn_names,
+    //         for_to_dist,
+    //         for_to_dist_mask,
+    //     }
+    // }
 
     // f32, Vec2, etc
     fn from_type_struct(idents: StructIdents, method: &GenMethod) -> FieldTokensGen {
@@ -354,10 +346,6 @@ impl GenFinal for FieldTokensGen {
 
                 let i = inside_type[1].clone();
                 let inside_type_val: syn::Type = syn::parse_quote! { #i };
-
-                // let mut idents_for_vec = vec![];
-                // recursive_ident_from_path(&ty, &mut idents_for_vec);
-                // let internal_type = idents_for_vec[1].clone();
 
                 let (
                     for_rn_count_per_item,
@@ -464,35 +452,6 @@ impl GenFinal for FieldTokensGen {
             for_to_dist_mask,
         }
     }
-
-    // fn from_override_struct(
-    //     idents: StructIdents,
-    //     func: &str,
-    //     rn_names: Vec<String>,
-    //     rn_count: usize,
-    // ) -> FieldTokensGen {
-    //     let field_name = idents.data.ident.unwrap();
-
-    //     let for_rn_count = quote! { #rn_count };
-
-    //     let strs = strs_to_tokens(rn_names);
-    //     let for_rn_names = quote! {
-    //         #(#strs,)*
-    //     };
-
-    //     let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
-
-    //     let for_make_gen = quote! { #field_name: #method() };
-
-    //     let for_to_dist = quote! { #method_inv() }
-
-    //     FieldTokensGen {
-    //         for_rn_count,
-    //         for_rn_names,
-    //         for_make_gen,
-    //         for_to_dist
-    //     }
-    // }
 }
 
 fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {

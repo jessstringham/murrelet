@@ -1,7 +1,6 @@
 // these could probably be somewhere else, but they are used by this crate
 // and just give more livecode defaults to work with instead of always
 // needing to create a new type.
-// use crate::serialize::serialize_vec2;
 use glam::{Vec2, Vec3};
 use lerpable::Lerpable;
 use murrelet_common::*;

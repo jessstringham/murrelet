@@ -85,35 +85,24 @@ impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
 // todo, figure out how to only build this context once per unitcell/etc
 #[derive(Debug, Clone)]
 pub struct LazyNodeF32Inner {
-    n: Arc<Node>, // what will be evaluated!
-    world: WorldWithLocalVariables, //LivecodeWorldState, // this is a reference :D
-                  // more_defs: MixedEvalDefs,
+    n: Arc<Node>,                   // what will be evaluated!
+    world: WorldWithLocalVariables, // this is a reference :D
 }
 impl LazyNodeF32Inner {
     pub fn new(n: Node, world: LivecodeWorldState) -> Self {
         Self {
             n: Arc::new(n),
             world: world.to_local(),
-            // more_defs: MixedEvalDefs::new(),
         }
     }
 
     // options to add more details...
     pub fn add_more_defs<M: ToMixedDefs>(&self, more_defs: &M) -> Self {
-        // unreachable!();
         let c = self.clone();
         c.add_expr_values(more_defs.to_mixed_def().expr_vals())
-
-        // println!("dropping contexts...");
-        // c.world
-        //     .update_with_defs(MixedEvalDefsRef::new(more_defs.clone()));
-        // c
     }
 
     pub fn add_expr_values(&self, more_vals: &ExprWorldContextValues) -> Self {
-        // let mut c = self.clone();
-        // c.more_defs.set_vals(more_vals);
-        // c
         let mut c = self.clone();
         c.world.update_with_simple_defs(more_vals);
         c
@@ -121,28 +110,12 @@ impl LazyNodeF32Inner {
 
     // internal function to build the ctx
     fn build_ctx(&self) -> &WorldWithLocalVariables {
-        // LivecodeResult<Arc<HashMapContext>> {
-        // self.world.clone_with_mixed_defs(&self.more_defs)
-
-        // self.world.ctx()?;
-
-        // let w = self.world.clone();
-
-        // let a = w.ctx().as_ref()
-
-        // self.world.ctx()
         &self.world
-
-        // let copied_world = self.world.ctx().as_ref().clone();
-        // let mut ctx = copied_world.clone();
-        // self.more_defs.update_ctx(&mut ctx)?;
-        // Ok(ctx)
     }
 
     // what you'll use
     pub fn eval(&self) -> LivecodeResult<f32> {
         let ctx = self.build_ctx();
-        // let ctx = a.as_ref();
 
         self.n
             .eval_float_with_context(ctx)
@@ -322,26 +295,6 @@ where
     }
 }
 
-// pub fn eval_lazy_color(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<MurreletColor> {
-//     Ok(murrelet_common::MurreletColor::hsva(
-//         v[0].eval_lazy(ctx)?,
-//         v[1].eval_lazy(ctx)?,
-//         v[2].eval_lazy(ctx)?,
-//         v[3].eval_lazy(ctx)?,
-//     ))
-// }
-
-// pub fn eval_lazy_vec3(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec3> {
-//     Ok(glam::vec3(
-//         v[0].eval_lazy(ctx)?,
-//         v[1].eval_lazy(ctx)?,
-//         v[2].eval_lazy(ctx)?,
-//     ))
-// }
-
-// pub fn eval_lazy_vec2(v: &[LazyNodeF32], ctx: &MixedEvalDefs) -> LivecodeResult<glam::Vec2> {
-//     Ok(glam::vec2(v[0].eval_lazy(ctx)?, v[1].eval_lazy(ctx)?))
-// }
 
 #[derive(Clone, Debug, Default)]
 pub struct LazyVec2 {

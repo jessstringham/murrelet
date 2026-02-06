@@ -71,7 +71,6 @@ impl<VertexKind: GraphicsVertex> ControlGraphicsRef<VertexKind> {
     }
 
     pub fn update_graphics(&self, c: &GraphicsWindowConf) {
-        //}, g: &GraphicsRef<VertexKind>) {
         self.graphics
             .update_uniforms_other_tuple(c, self.control.more_info_other_tuple());
     }

@@ -111,10 +111,6 @@ impl BoundMetricUsize {
         self.sum += x;
     }
 
-    // pub fn center(&self) -> f32 {
-    //     0.5 * (self.right + self.left)
-    // }
-
     pub fn size(&self) -> usize {
         self.max - self.min
     }
@@ -134,10 +130,6 @@ impl BoundMetricUsize {
     pub fn count(&self) -> usize {
         self.count
     }
-
-    // pub fn avg(&self) -> f32 {
-    //     self.sum / self.count as f32
-    // }
 }
 
 impl Default for BoundMetricUsize {

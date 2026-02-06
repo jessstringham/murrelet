@@ -17,7 +17,6 @@ use crate::cubic::CubicBezier;
 use crate::curve_drawer::ToCurveSegment;
 use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
 
-
 #[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
 pub struct CurveStart {
     #[murrelet_gui(func = "make_gui_vec2")]
@@ -166,10 +165,6 @@ impl CompassAction {
     pub fn line(length: f32, label: String) -> CompassAction {
         CompassAction::Line(CompassLine { length, label })
     }
-
-    // pub fn repeat(times: usize, what: Vec<CompassAction>) -> CompassAction {
-    //     CompassAction::Repeat(CompassRepeat { times, what })
-    // }
 }
 impl Default for CompassAction {
     fn default() -> Self {
@@ -347,37 +342,6 @@ impl InteractiveCompassBuilder {
     }
 
     fn add_arc(&mut self, x: &CompassArc) -> CurveSegment {
-        // let angle_pi = x.arc_length.as_angle_pi();
-        // let (arc_length, radius) = if angle_pi.is_neg() {
-        //     (-angle_pi, -x.radius)
-        // } else {
-        //     (angle_pi, x.radius)
-        // };
-
-        // // starting at our current location, move at a right angle to our current angle
-        // // negative goes to the left of the line
-        // let loc = self.curr_loc + radius * self.curr_angle.perp_to_left().to_norm_dir();
-
-        // // if radius is negative, go backwards
-        // // end_angle is what we'll update curr angle to, it's always assuming positive radius
-        // let (start, end, next_angle) = if radius < 0.0 {
-        //     let next_angle = self.curr_angle - arc_length;
-        //     (
-        //         AnglePi::new(1.0) + self.curr_angle - AnglePi::new(0.5),
-        //         AnglePi::new(1.0) + next_angle - AnglePi::new(0.5),
-        //         next_angle,
-        //     )
-        // } else {
-        //     let next_angle = self.curr_angle + arc_length;
-        //     (
-        //         self.curr_angle - AnglePi::new(0.5),
-        //         next_angle - AnglePi::new(0.5),
-        //         next_angle,
-        //     )
-        // };
-
-        // let a = CurveArc::new(loc, radius.abs(), start, end);
-
         let arc = CurveArc::from_spot(
             SpotOnCurve::new(self.curr_loc, self.curr_angle),
             x.radius,
