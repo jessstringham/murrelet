@@ -8,8 +8,8 @@ default = []
 glam = ["dep:glam"]
 
 [dependencies]
-murrelet_schema_derive = "0.1.2"
-murrelet_common = "0.1.2"
+murrelet_schema_derive = { workspace = true }
+murrelet_common = { workspace = true }
 
 anyhow = "1.0.86"
 thiserror = "2.0.11"

@@ -17,11 +17,11 @@ schemars = [
 
 
 [dependencies]
-murrelet_common = "0.1.2"
+murrelet_common = { workspace = true }
 
-murrelet_livecode = { version = "0.1.2", default-features = false }
-murrelet_livecode_macros = { version = "0.1.2", default-features = false }
-murrelet_livecode_derive = { version = "0.1.2", default-features = false }
+murrelet_livecode = { workspace = true, default-features = false }
+murrelet_livecode_macros = { workspace = true, default-features = false }
+murrelet_livecode_derive = { workspace = true, default-features = false }
 
 lerpable = { version = "0.0.2", features = ["glam"] }
 
@@ -38,7 +38,7 @@ md-5 = "0.10.6"
 hex = "0.4.3"
 
 schemars = { version = "0.8.21", optional = true }
-murrelet_gui = { version = "0.1.2", features = ["glam", "murrelet"] }
+murrelet_gui = { workspace = true, features = ["glam", "murrelet"] }
 
 kurbo = "0.11"
 svg = "0.10.0"

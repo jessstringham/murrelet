@@ -18,11 +18,11 @@ schemars = [
 ]
 
 [dependencies]
-murrelet_common = "0.1.2"
-murrelet_livecode = { version = "0.1.2", default-features = false }
-murrelet_draw = { version = "0.1.2", default-features = false }
-murrelet_livecode_macros = { version = "0.1.2", default-features = false }
-murrelet_livecode_derive = { version = "0.1.2", default-features = false }
+murrelet_common = { workspace = true }
+murrelet_livecode = { workspace = true, default-features = false }
+murrelet_draw = { workspace = true, default-features = false }
+murrelet_livecode_macros = { workspace = true, default-features = false }
+murrelet_livecode_derive = { workspace = true, default-features = false }
 lerpable = { version = "0.0.2" }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
@@ -35,6 +35,6 @@ palette = "0.7.6"
 anyhow = "1.0.86"
 
 schemars = { version = "0.8.21", optional = true }
-murrelet_gui = { version = "0.1.2", features = ["glam"] }
+murrelet_gui = { workspace = true, features = ["glam"] }
 
 clap = { version = "4.5.23", features = ["derive"] }
