@@ -24,13 +24,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libasound2-dev
     - name: cargo fmt
-      run: cargo fmt -- --check
+      run: cargo fmt --all -- --check
     - name: cargo check
-      run: cargo check --verbose
+      run: cargo check --workspace --all-targets --verbose
     - name: cargo check (wasm)
-      run: cargo check --verbose --target wasm32-unknown-unknown
+      run: cargo check --workspace --all-targets --verbose --target wasm32-unknown-unknown
     - name: cargo test
-      run: cargo test --verbose
+      run: cargo test --workspace --verbose
 
 
 
