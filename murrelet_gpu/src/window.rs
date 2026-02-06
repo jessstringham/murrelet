@@ -43,7 +43,7 @@ impl<'a> GraphicsWindowConf<'a> {
     }
 
     pub fn device(&self) -> &wgpu::Device {
-        &self.device.device()
+        self.device.device()
     }
 
     pub fn with_dims(&self, dims: [u32; 2]) -> Self {

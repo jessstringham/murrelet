@@ -23,7 +23,7 @@ murrelet_livecode = { version = "0.1.2", default-features = false }
 murrelet_livecode_macros = { version = "0.1.2", default-features = false }
 murrelet_livecode_derive = { version = "0.1.2", default-features = false }
 
-lerpable = "0.0.2"
+lerpable = { version = "0.0.2", features = ["glam"] }
 
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"

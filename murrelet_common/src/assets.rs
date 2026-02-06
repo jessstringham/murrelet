@@ -146,7 +146,7 @@ impl Assets {
         Self {
             vectors: VectorLayersAssetLookup::empty(),
             rasters: RasterAssetLookup::empty(),
-            json: JsonAssetLookup::empty()
+            json: JsonAssetLookup::empty(),
         }
     }
 

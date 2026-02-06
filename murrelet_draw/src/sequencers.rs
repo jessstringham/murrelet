@@ -1,9 +1,9 @@
+use crate::transform2d::{Transform2d, Transform2dStep};
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode::unitcells::{UnitCellContext, UnitCellCreator, UnitCellIdx};
-use crate::transform2d::{Transform2d, Transform2dStep};
 use murrelet_livecode_derive::Livecode;
 
 const REFERENCE_SIZE: f32 = 100.0;
@@ -127,14 +127,14 @@ impl SimpleCountSequence {
 
 impl UnitCellCreator for SimpleCountSequence {
     fn to_unit_cell_ctxs(&self) -> Vec<murrelet_livecode::unitcells::UnitCellContext> {
-        let v = (0..self.0)
+        
+        (0..self.0)
             .map(|x| {
                 let idx = IdxInRange::new(x, self.0);
                 let ctx = UnitCellIdx::from_idx1d(idx);
                 UnitCellContext::new(ctx, SimpleTransform2d::ident())
             })
-            .collect_vec();
-        v
+            .collect_vec()
     }
 }
 

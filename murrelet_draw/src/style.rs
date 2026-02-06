@@ -137,7 +137,7 @@ impl StyledPathSvgFill {
     }
 
     pub fn with_alpha(&self, alpha: f32) -> StyledPathSvgFill {
-        let mut p = self.clone();
+        let mut p = *self;
         p.alpha = alpha;
         p
     }

@@ -29,11 +29,11 @@ pub fn preprocess_yaml<P: AsRef<std::path::Path>>(text: &str, loc: P) -> String 
 
     let pattern = r"(?m)^( *)\[\[([^\[\]]+)\]\]";
 
-    let re = Regex::new(&pattern).unwrap();
+    let re = Regex::new(pattern).unwrap();
 
     let mut new_text = text.to_owned();
 
-    for cap in re.captures_iter(&text) {
+    for cap in re.captures_iter(text) {
         // println!("cap {:?}", cap);
         let spaces = cap[1].len();
         let filename = cap[2].to_string();

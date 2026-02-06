@@ -170,9 +170,7 @@ impl CanChangeToGUI for MurreletSchema {
             ),
             MurreletSchema::Enum(name, items, b) => MurreletGUISchema::Enum(
                 name.clone(),
-                items
-                    .iter()
-                    .map(|(_type, x)| change_enum_to_gui(x))
+                items.values().map(change_enum_to_gui)
                     .collect_vec(),
                 *b,
             ),

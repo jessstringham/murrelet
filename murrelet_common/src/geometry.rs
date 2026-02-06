@@ -509,7 +509,7 @@ impl SpotOnCurve {
     }
 
     pub fn set_angle<A: Into<Angle>>(&self, new: A) -> Self {
-        let mut c = self.clone();
+        let mut c = *self;
         c.angle = new.into();
         c
     }
@@ -849,7 +849,7 @@ pub trait ToVec2 {
 
 impl ToVec2 for Vec2 {
     fn to_vec2(&self) -> Vec2 {
-        self.clone()
+        *self
     }
 }
 

@@ -202,6 +202,12 @@ pub struct InteractiveCompassBuilder {
     last_action: LastActionNames,
 }
 
+impl Default for InteractiveCompassBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InteractiveCompassBuilder {
     pub fn new() -> Self {
         Self {
@@ -229,7 +235,9 @@ impl InteractiveCompassBuilder {
 
     pub fn new_segments(&mut self, dir: &CompassAction) -> Vec<CurveSegment> {
         // here we go!
-        let r = match dir {
+        
+
+        match dir {
             CompassAction::Angle(x) => {
                 self.set_angle(x);
                 vec![]
@@ -247,9 +255,7 @@ impl InteractiveCompassBuilder {
                 Some(x) => vec![x],
                 None => vec![],
             },
-        };
-
-        r
+        }
     }
 
     pub fn add_qline(&mut self, length: f32) {
@@ -309,7 +315,7 @@ impl InteractiveCompassBuilder {
 
         self.pen_down = true;
 
-        if x.label.len() > 0 {
+        if !x.label.is_empty() {
             self.references.insert(x.label.clone(), self.to_basic());
         }
 
@@ -335,7 +341,7 @@ impl InteractiveCompassBuilder {
 
         self.pen_down = true;
 
-        if x.label.len() > 0 {
+        if !x.label.is_empty() {
             self.references.insert(x.label.clone(), self.to_basic());
         }
         bezier.to_segment()
@@ -353,7 +359,7 @@ impl InteractiveCompassBuilder {
         self.curr_angle = new_spot.angle().mod2();
         self.pen_down = true;
 
-        if x.label.len() > 0 {
+        if !x.label.is_empty() {
             self.references.insert(x.label.clone(), self.to_basic());
         }
 
@@ -365,17 +371,17 @@ impl InteractiveCompassBuilder {
             [.., penultimate, last] => {
                 let pt = PointToPoint::new(*penultimate, *last).angle().as_angle_pi();
                 self.curr_angle = pt;
-                self.curr_loc = last.clone();
+                self.curr_loc = *last;
             }
             [last] => {
                 if last.distance(self.curr_loc) > 0.001 {
                     let penultimate = self.curr_loc;
                     let pt = PointToPoint::new(penultimate, *last).angle().as_angle_pi();
                     self.curr_angle = pt;
-                    self.curr_loc = last.clone();
+                    self.curr_loc = *last;
                 } else {
                     // not enough points to update the angle...
-                    self.curr_loc = last.clone();
+                    self.curr_loc = *last;
                 }
             }
             _ => {
@@ -385,7 +391,7 @@ impl InteractiveCompassBuilder {
 
         self.pen_down = true;
 
-        if x.label.len() > 0 {
+        if !x.label.is_empty() {
             self.references.insert(x.label.clone(), self.to_basic());
         }
 
@@ -444,7 +450,7 @@ impl MurreletCompass {
         let start = self.start;
         builder.add_curve_start(start);
         for w in self.dirs.iter() {
-            builder.add_segment(&w)
+            builder.add_segment(w)
         }
 
         CurveDrawer::new(builder.results(), self.closed)

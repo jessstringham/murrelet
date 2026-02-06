@@ -895,7 +895,7 @@ pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
             let s = path.segments.last().unwrap();
             let main_type = s.ident.clone();
 
-            if main_type.to_string() != "WrappedLazyType" {
+            if main_type != "WrappedLazyType" {
                 acc.push(main_type);
             }
 

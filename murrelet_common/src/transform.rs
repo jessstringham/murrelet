@@ -181,7 +181,7 @@ where
     A: Transformable,
 {
     fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
-        self.into_iter().map(|x| x.transform_with(t)).collect_vec()
+        self.iter().map(|x| x.transform_with(t)).collect_vec()
     }
 }
 
@@ -256,7 +256,7 @@ impl SimpleTransform2d {
                 _ => {}
             }
         }
-        return true;
+        true
     }
 
     // experimental

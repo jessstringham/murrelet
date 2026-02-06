@@ -137,12 +137,12 @@ pub fn epoch_time_us() -> u128 {
     {
         use std::time::SystemTime;
         use std::time::UNIX_EPOCH;
-        let s = SystemTime::now()
+        
+
+        SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("wat")
-            .as_micros();
-
-        s
+            .as_micros()
     }
 }
 
@@ -1018,7 +1018,6 @@ pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
     lerped.into_iter().map(|v| v.into()).collect_vec()
 }
 
-
 // todo, did i end up using this?
 #[derive(Clone, Copy, Debug)]
 pub struct Dim2d {
@@ -1107,7 +1106,7 @@ pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
 pub trait MurreletIterHelpers {
     type T: Clone;
     fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, Self::T>;
-    fn as_vec_ref<'a>(&'a self) -> &'a Vec<Self::T>;
+    fn as_vec_ref(&self) -> &Vec<Self::T>;
 
     fn map_iter_collect<F, U>(&self, f: F) -> Vec<U>
     where
@@ -1117,7 +1116,7 @@ pub trait MurreletIterHelpers {
     }
 
     fn owned_iter(&self) -> std::vec::IntoIter<Self::T> {
-        self.to_iter().map(|x| x.clone()).collect_vec().into_iter()
+        self.to_iter().cloned().collect_vec().into_iter()
     }
 
     fn take_count(&self, amount: usize) -> Vec<Self::T> {
@@ -1127,25 +1126,25 @@ pub trait MurreletIterHelpers {
     fn prev_curr_next_loop_iter<'a>(
         &'a self,
     ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T, &'a Self::T)> + 'a> {
-        prev_curr_next_loop_iter(&self.as_vec_ref())
+        prev_curr_next_loop_iter(self.as_vec_ref())
     }
 
     fn prev_curr_next_no_loop_iter<'a>(
         &'a self,
     ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T, &'a Self::T)> + 'a> {
-        prev_curr_next_no_loop_iter(&self.as_vec_ref())
+        prev_curr_next_no_loop_iter(self.as_vec_ref())
     }
 
     fn curr_next_loop_iter<'a>(
         &'a self,
     ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
-        curr_next_loop_iter(&self.as_vec_ref())
+        curr_next_loop_iter(self.as_vec_ref())
     }
 
     fn curr_next_no_loop_iter<'a>(
         &'a self,
     ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
-        curr_next_no_loop_iter(&self.as_vec_ref())
+        curr_next_no_loop_iter(self.as_vec_ref())
     }
 }
 
@@ -1155,7 +1154,7 @@ impl<T: Clone> MurreletIterHelpers for Vec<T> {
         self.iter()
     }
 
-    fn as_vec_ref<'a>(&'a self) -> &'a Vec<Self::T> {
-        &self
+    fn as_vec_ref(&self) -> &Vec<Self::T> {
+        self
     }
 }

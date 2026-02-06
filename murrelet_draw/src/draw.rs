@@ -3,10 +3,7 @@
 use glam::{vec2, Vec2, Vec3};
 
 use lerpable::Lerpable;
-use murrelet_common::{
-    MurreletColor, SimpleTransform2d, ToSimpleTransform,
-    Transformable,
-};
+use murrelet_common::{MurreletColor, SimpleTransform2d, ToSimpleTransform, Transformable};
 use murrelet_livecode::unitcells::UnitCellContext;
 use murrelet_livecode_derive::Livecode;
 use palette::{named::AQUAMARINE, LinSrgba, Srgb};
@@ -56,7 +53,7 @@ impl MurreletColorStyle {
 
     pub fn as_color(&self) -> MurreletColor {
         match self {
-            MurreletColorStyle::Color(c) => c.clone(),
+            MurreletColorStyle::Color(c) => *c,
             MurreletColorStyle::RgbaFill(c) => c.color(),
             MurreletColorStyle::SvgFill(_) => MurreletColor::white(), // default if we're not drawing the texture
         }

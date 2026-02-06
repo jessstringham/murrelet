@@ -111,8 +111,8 @@ impl AsLyonTransform for SimpleTransform2dStep {
                 let vv = vector(v.x, v.y);
                 let t = t.then_translate(-vv);
                 let t = t.then_rotate(Angle::radians(a.angle()));
-                let t = t.then_translate(vv);
-                t
+                
+                t.then_translate(vv)
             }
             SimpleTransform2dStep::Scale(v) => t.then_scale(v.x, v.y),
             SimpleTransform2dStep::Skew(_, _) => unreachable!(),
@@ -241,10 +241,8 @@ fn add_circular_arc<B: PathBuilder>(builder: &mut B, c: &CurveArc) {
         if sweep < 0.0 {
             sweep += 2.0 * PI;
         }
-    } else {
-        if sweep > 0.0 {
-            sweep -= 2.0 * PI;
-        }
+    } else if sweep > 0.0 {
+        sweep -= 2.0 * PI;
     }
 
     let arc = Arc {
@@ -455,7 +453,7 @@ pub fn segment_arc(
 
 pub fn evenly_split_cubic_bezier(c: &CubicBezier, count: usize) -> Vec<SpotOnCurve> {
     // always include the start (and end)
-    let v = flatten_cubic_bezier_path_with_tolerance(&vec![c.clone()], false, 0.1);
+    let v = flatten_cubic_bezier_path_with_tolerance(&[*c], false, 0.1);
     if count <= 1 {
         let angle = PointToPoint::new(c.from, c.to).angle();
         return vec![c.from, c.to]
@@ -498,10 +496,10 @@ pub fn evenly_split_cubic_bezier(c: &CubicBezier, count: usize) -> Vec<SpotOnCur
         v
     } else {
         let angle = PointToPoint::new(c.from, c.to).angle();
-        return vec![c.from, c.to]
+        vec![c.from, c.to]
             .into_iter()
             .map(|x| SpotOnCurve::new(x, angle))
-            .collect_vec();
+            .collect_vec()
     }
 }
 
@@ -726,7 +724,7 @@ fn parse_data(data: &svg::node::element::path::Data, line_space: f32) -> Vec<Vec
     for command in data.iter() {
         // println!("{:?}", command);
 
-        let _ly = match command {
+        match command {
             svg::node::element::path::Command::Move(_pos, params) => {
                 let curve: Vec<&f32> = params.iter().collect();
                 from = point_from_param1(&curve);
@@ -916,16 +914,16 @@ impl ops::Add<Pt> for Pt {
     }
 }
 
-impl Into<Point2D<f32, UnknownUnit>> for Pt {
-    fn into(self) -> Point2D<f32, UnknownUnit> {
-        self.pt
+impl From<Pt> for Point2D<f32, UnknownUnit> {
+    fn from(val: Pt) -> Self {
+        val.pt
     }
 }
 
 fn point_for_position(pos: &svg::node::element::path::Position, pt: Pt, from: Pt) -> Pt {
     match pos {
-        svg::node::element::path::Position::Absolute => pt.into(),
-        svg::node::element::path::Position::Relative => (pt + from).into(),
+        svg::node::element::path::Position::Absolute => pt,
+        svg::node::element::path::Position::Relative => pt + from ,
     }
 }
 
@@ -934,6 +932,12 @@ pub struct SegmentState {
     line_space: f32,
     dist_towards_next: f32,
 }
+impl Default for SegmentState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SegmentState {
     pub fn new() -> SegmentState {
         SegmentState {

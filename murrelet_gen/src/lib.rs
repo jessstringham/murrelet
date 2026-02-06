@@ -21,7 +21,6 @@ pub trait CanSampleFromDist: Sized {
         let mut rng = StdRng::seed_from_u64(seed);
 
         let rns: Vec<f32> = (0..Self::rn_count())
-            .into_iter()
             .map(|_| rng.gen())
             .collect();
 

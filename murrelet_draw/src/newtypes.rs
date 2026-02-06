@@ -72,7 +72,7 @@ impl RGBandANewtype {
     }
 
     pub fn with_alpha(&self, alpha: f32) -> Self {
-        let mut c = self.clone();
+        let mut c = *self;
         c.a = alpha;
         c
     }

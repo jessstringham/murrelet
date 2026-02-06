@@ -54,11 +54,11 @@ impl<'a> DeviceState<'a> {
     }
 
     pub fn device(&self) -> &wgpu::Device {
-        &self.device
+        self.device
     }
 
     pub fn queue(&self) -> &wgpu::Queue {
-        &self.queue
+        self.queue
     }
 }
 
@@ -106,7 +106,7 @@ impl OwnedDeviceState {
 
 // borrowing from bevy
 pub fn align_byte_size(value: u32) -> u32 {
-    if value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT != 0 {
+    if !value.is_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) {
         value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
     } else {
         value
@@ -148,7 +148,7 @@ fn write_png_to_texture(
     println!("buffer_rows {:?}", buffer_rows);
 
     // just get the name to name the texture
-    let p = path.file_name().map(|x| x.to_str()).flatten().unwrap_or("");
+    let p = path.file_name().and_then(|x| x.to_str()).unwrap_or("");
 
     // bah, uh, okay copy this to a buffer of the right length
     let mut padded_img = vec![0; (padded_row * buffer_rows).try_into().unwrap()];

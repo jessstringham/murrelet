@@ -163,7 +163,7 @@ impl MurreletColor {
     }
 
     pub fn with_saturation(&self, sat: f32) -> MurreletColor {
-        let mut c = self.clone();
+        let mut c = *self;
         c.0[1] = sat;
         c
     }

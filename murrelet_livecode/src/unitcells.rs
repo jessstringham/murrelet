@@ -32,7 +32,7 @@ impl<CtxSource: UnitCellCreator, Target: Default> TmpUnitCells<CtxSource, Target
         Self {
             sequencer,
             node,
-            ctx: ctx.map(|x| MixedEvalDefsRef::from_ctx_node(x)),
+            ctx: ctx.map(MixedEvalDefsRef::from_ctx_node),
             prefix: prefix.to_owned(),
         }
     }
@@ -329,20 +329,20 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
         match neighbor {
             CellNeighbor::Hex(HexCellNeighbor::Up) => self.get_ij(i, j + 1),
             CellNeighbor::Hex(HexCellNeighbor::UpLeft) => {
-                let jj = if i % 2 == 0 { j + 1 } else { j };
+                let jj = if i.is_multiple_of(2) { j + 1 } else { j };
                 self.get_ij(i - 1, jj)
             }
             CellNeighbor::Hex(HexCellNeighbor::DownLeft) => {
-                let jj = if i % 2 == 0 { j } else { j - 1 };
+                let jj = if i.is_multiple_of(2) { j } else { j - 1 };
                 self.get_ij(i - 1, jj)
             }
             CellNeighbor::Hex(HexCellNeighbor::Down) => self.get_ij(i, j - 1),
             CellNeighbor::Hex(HexCellNeighbor::DownRight) => {
-                let jj = if i % 2 == 0 { j } else { j - 1 };
+                let jj = if i.is_multiple_of(2) { j } else { j - 1 };
                 self.get_ij(i + 1, jj)
             }
             CellNeighbor::Hex(HexCellNeighbor::UpRight) => {
-                let jj = if i % 2 == 0 { j + 1 } else { j };
+                let jj = if i.is_multiple_of(2) { j + 1 } else { j };
                 self.get_ij(i + 1, jj)
             }
 
@@ -614,7 +614,7 @@ impl UnitCellContext {
 
         UnitCellContext {
             idx: self.idx,
-            ctx: ctx,
+            ctx,
             detail: other.detail.as_wallpaper().unwrap().combine(&self.detail),
             tile_info: None,
         }

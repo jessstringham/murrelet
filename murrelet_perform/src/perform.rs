@@ -629,16 +629,12 @@ pub fn svg_save_path(lil_liveconfig: &LilLiveConfig) -> SvgDrawConfig {
 }
 
 pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -> SvgDrawConfig {
-    let capture_path = if let Some(save_path) = lil_liveconfig.save_path {
-        Some(capture_frame_name(
+    let capture_path = lil_liveconfig.save_path.map(|save_path| capture_frame_name(
             save_path,
             lil_liveconfig.run_id,
             lil_liveconfig.w.actual_frame_u64(),
             prefix,
-        ))
-    } else {
-        None
-    };
+        ));
 
     SvgDrawConfig::new(
         lil_liveconfig.app_config.width,
@@ -795,13 +791,13 @@ where
 
         let w = self.world();
 
-        let mut target = self.controlconfig.o(&w)?;
+        let mut target = self.controlconfig.o(w)?;
         let mut lerp_change = 0.0;
 
         // todo, make this optional
         if target.config_app_loc().should_lerp() {
             if self.lerp_pct < 1.0 {
-                let old_target = self.prev_controlconfig.o(&w)?;
+                let old_target = self.prev_controlconfig.o(w)?;
                 target = old_target.lerpify(&target, &self.lerp_pct);
             }
 
@@ -865,10 +861,10 @@ where
                 .controlconfig
                 .variable_identifiers()
                 .into_iter()
-                .chain(self.prev_controlconfig.variable_identifiers().into_iter());
+                .chain(self.prev_controlconfig.variable_identifiers());
             let variables = if let Some(queued) = &self.queued_configcontrol {
                 variables_iter
-                    .chain(queued.variable_identifiers().into_iter())
+                    .chain(queued.variable_identifiers())
                     .map(|x| x.name)
                     .collect::<HashSet<String>>()
             } else {
@@ -883,9 +879,7 @@ where
     // web one, callback
     pub fn update_config_to(&mut self, text: &str) -> Result<(), String> {
         match ControlConfType::cb_reload_and_update_info(&mut self.util, text) {
-            Ok(d) => {
-                self.update_config_directly(d).map_err(|x| x.to_string())
-            }
+            Ok(d) => self.update_config_directly(d).map_err(|x| x.to_string()),
             Err(e) => Err(e),
         }
     }
@@ -923,7 +917,7 @@ where
         self.livecode_src.update(&update_input);
 
         // todo, set this as a variable?
-        if app.elapsed_frames() % 1 == 0 {
+        if app.elapsed_frames().is_multiple_of(1) {
             let variables = self
                 .controlconfig
                 .variable_identifiers()
@@ -950,11 +944,10 @@ where
 
         // if we can reload whenever, do that. otherwise only reload on bar
 
-        if reload {
-            if !self.app_config().reload_on_bar() || self.world().time().is_on_bar() {
+        if reload
+            && (!self.app_config().reload_on_bar() || self.world().time().is_on_bar()) {
                 self.reload_config();
             }
-        }
 
         if self.app_config().should_reset() {
             self.util.reset_time();
@@ -1026,17 +1019,13 @@ where
     }
 
     pub fn capture_frame_name(&self, frame: u64, prefix: &str) -> Option<PathBuf> {
-        if let Some(save_path) = &self.save_path {
-            Some(capture_frame_name(&save_path, self.run_id, frame, prefix))
-        } else {
-            None
-        }
+        self.save_path.as_ref().map(|save_path| capture_frame_name(save_path, self.run_id, frame, prefix))
     }
 
     // model.livecode.capture_logic(|img_name: PathBuf| { app.main_window().capture_frame(img_name); } );
     pub fn capture<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
-        F: Fn(PathBuf) -> (),
+        F: Fn(PathBuf),
     {
         let frame = self.world().actual_frame_u64();
 
@@ -1064,7 +1053,7 @@ where
 
     pub fn capture_with_fn<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
-        F: Fn(PathBuf) -> (),
+        F: Fn(PathBuf),
     {
         let w = self.world();
 
@@ -1080,7 +1069,7 @@ where
             || should_capture
         {
             let frame_freq = 1;
-            if frame % frame_freq == 0 {
+            if frame.is_multiple_of(frame_freq) {
                 self.capture(capture_frame_fn)?;
             }
         }
@@ -1097,14 +1086,14 @@ where
         let w = self.world();
         let reload_rate = self.app_config().reload_rate;
         let reload_rate_says_so =
-            reload_rate >= 1 && w.actual_frame() as u64 % self.app_config().reload_rate == 0;
+            reload_rate >= 1 && (w.actual_frame() as u64).is_multiple_of(self.app_config().reload_rate);
         let config_says_so = self.app_config().reload;
         reload_rate_says_so || config_says_so
     }
 
     pub fn should_redraw(&self) -> bool {
         let w = self.world();
-        let redraw_says_so = w.actual_frame() as u64 % self.app_config().redraw == 0;
+        let redraw_says_so = (w.actual_frame() as u64).is_multiple_of(self.app_config().redraw);
         let save_says_so = self.app_config().svg.save;
         // might have other things..
         redraw_says_so || save_says_so

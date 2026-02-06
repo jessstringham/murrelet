@@ -71,11 +71,11 @@ where
     T: ToCurveDrawer,
 {
     fn to_drawn_shape_closed(&self, style: StyleConf) -> DrawnShape {
-        DrawnShape::new_cds(&vec![self.to_cd_closed()], style)
+        DrawnShape::new_cds(&[self.to_cd_closed()], style)
     }
 
     fn to_drawn_shape_open(&self, style: StyleConf) -> DrawnShape {
-        DrawnShape::new_cds(&vec![self.to_cd_open()], style)
+        DrawnShape::new_cds(&[self.to_cd_open()], style)
     }
 }
 
@@ -89,7 +89,7 @@ pub trait ToDrawnShape {
 
 impl ToDrawnShape for CurveDrawer {
     fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
-        DrawnShape::new_cds(&vec![self.clone()], style)
+        DrawnShape::new_cds(&[self.clone()], style)
     }
 }
 

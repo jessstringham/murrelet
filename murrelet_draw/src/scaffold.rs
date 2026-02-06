@@ -17,14 +17,13 @@ pub fn line_to_polygon(curves: &[Vec2]) -> geo::Polygon {
 }
 
 pub fn multipolygon_to_vec2(p: &geo::MultiPolygon) -> Vec<Vec<Vec2>> {
-    p.iter().map(|pp| polygon_to_vec2(pp)).collect_vec()
+    p.iter().map(polygon_to_vec2).collect_vec()
 }
 
 pub fn polygon_to_vec2(p: &geo::Polygon) -> Vec<Vec2> {
     let mut coords = p
         .exterior()
         .coords()
-        .into_iter()
         .map(|coord| coord.to_vec2())
         .collect_vec();
 
@@ -127,12 +126,12 @@ impl MaskCache {
     }
 
     pub fn new_cd(cd: CurveDrawer) -> Self {
-        Self::new(&vec![cd])
+        Self::new(&[cd])
     }
 
     pub fn new_interior(outline: CurveDrawer, interior: &[CurveDrawer]) -> Self {
         // shh, just a wrapper
-        let s = vec![vec![outline], interior.to_vec()].concat();
+        let s = [vec![outline], interior.to_vec()].concat();
         Self::new(&s)
     }
 
@@ -198,26 +197,26 @@ impl MaskCache {
 
     pub fn crop_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
         let mut cropped = vec![];
-        for a in v.into_iter() {
+        for a in v.iter() {
             let mut new_cds = vec![];
             for cd in a.curves() {
                 new_cds.extend(self.crop(&cd.to_rough_points(1.0)));
             }
             cropped.push(DrawnShape::new_vecvec(new_cds, a.style()));
         }
-        return cropped;
+        cropped
     }
 
     pub fn crop_inverse_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
         let mut cropped = vec![];
-        for a in v.into_iter() {
+        for a in v.iter() {
             let mut new_cds = vec![];
             for cd in a.curves() {
                 new_cds.extend(self.crop_inverse(&cd.to_rough_points(1.0)));
             }
             cropped.push(DrawnShape::new_vecvec(new_cds, a.style()));
         }
-        return cropped;
+        cropped
     }
 
     pub fn ray_intersect(&self, spot: &SpotOnCurve) -> Vec2 {

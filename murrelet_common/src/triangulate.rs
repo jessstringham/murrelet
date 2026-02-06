@@ -68,6 +68,12 @@ pub struct Triangulate<Vertex> {
     pub order: Vec<u32>,
 }
 
+impl<Vertex> Default for Triangulate<Vertex> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<Vertex> Triangulate<Vertex> {
     pub fn new() -> Self {
         Triangulate {

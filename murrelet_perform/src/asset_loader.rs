@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path};
 use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::{
-    Assets, JsonAssetLookup, RasterAsset, RasterAssetLookup, VectorAsset, VectorLayersAssetLookup
+    Assets, JsonAssetLookup, RasterAsset, RasterAssetLookup, VectorAsset, VectorLayersAssetLookup,
 };
 use murrelet_gui::CanMakeGUI;
 use murrelet_livecode_derive::Livecode;

@@ -223,7 +223,7 @@ impl AppInputValues {
     pub fn key_cycle_bool(&self, key: MurreletKey) -> bool {
         // just need to check if this one's pressed right now
         if let Some(k) = self.lookup.get(&key) {
-            self.keys_cycle[*k] % 2 == 0
+            self.keys_cycle[*k].is_multiple_of(2)
         } else {
             false
         }

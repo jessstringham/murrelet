@@ -58,7 +58,7 @@ impl<T> IterUnwrapOrPrint<T> for Vec<T> {
     where
         F: Fn(&T) -> LivecodeResult<U>,
     {
-        let res: LivecodeResult<Vec<U>> = self.iter().map(|d| f(d)).collect();
+        let res: LivecodeResult<Vec<U>> = self.iter().map(f).collect();
         print_expect(res, err).unwrap_or(vec![])
     }
 }
@@ -152,8 +152,8 @@ impl ControlVecElementRepeatMethod {
     fn len(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
         let v = match self {
             ControlVecElementRepeatMethod::Single(s) => {
-                let ss = s.o(w)?;
-                ss
+                
+                s.o(w)?
             }
             ControlVecElementRepeatMethod::Rect(r) => {
                 let rr = r.o(w)?;
@@ -377,8 +377,8 @@ impl LazyVecElementRepeatMethod {
     fn len(&self, ctx: &MixedEvalDefs) -> LivecodeResult<usize> {
         let v = match self {
             LazyVecElementRepeatMethod::Single(s) => {
-                let ss = s.eval_lazy(ctx)?;
-                ss
+                
+                s.eval_lazy(ctx)?
             }
             LazyVecElementRepeatMethod::Rect(r) => {
                 let rx = r[0].eval_lazy(ctx)?;
@@ -386,8 +386,8 @@ impl LazyVecElementRepeatMethod {
                 rx * ry
             }
             LazyVecElementRepeatMethod::Blend(b) => {
-                let ss = b.count.eval_lazy(ctx)?;
-                ss
+                
+                b.count.eval_lazy(ctx)?
             }
         };
         Ok(v as usize)

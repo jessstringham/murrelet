@@ -630,6 +630,12 @@ pub struct SvgLayer {
     paths: Vec<StyledPath>,
     text: Vec<StyledText>,
 }
+impl Default for SvgLayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SvgLayer {
     pub fn new() -> SvgLayer {
         SvgLayer {
@@ -713,7 +719,7 @@ impl SvgPathCache {
         let layer = self
             .layers
             .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+            .or_default();
         layer.paths.push(StyledPath::from_path(line));
     }
 
@@ -721,7 +727,7 @@ impl SvgPathCache {
         let layer = self
             .layers
             .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+            .or_default();
         layer.paths.push(StyledPath::from_path(
             self.config.transform_many_vec2(&line),
         ));
@@ -731,7 +737,7 @@ impl SvgPathCache {
         let layer = self
             .layers
             .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+            .or_default();
         layer.paths.push(
             styled_path
                 .transform_with_mat4_after(self.config.svg_draw_config().transform_for_size()),
@@ -742,7 +748,7 @@ impl SvgPathCache {
         let layer = self
             .layers
             .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+            .or_default();
         layer
             .text
             .push(text.transform_with(self.config.svg_draw_config()));
@@ -752,7 +758,7 @@ impl SvgPathCache {
         let layer = self
             .layers
             .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+            .or_default();
         layer.clear();
     }
 
@@ -867,20 +873,17 @@ impl ToSvgData for CurveDrawer {
                 }
                 murrelet_draw::curve_drawer::CurveSegment::Points(a) => {
                     let maybe_first_and_rest = a.points().split_first();
-                    match maybe_first_and_rest {
-                        Some((f, rest)) => {
-                            // first make sure we're at the first point
-                            if curr_point != Some(*f) {
-                                path = path.line_to((f.x, f.y));
-                            }
-
-                            for v in rest {
-                                path = path.line_to((v.x, v.y));
-                            }
-
-                            curr_point = Some(a.last_point())
+                    if let Some((f, rest)) = maybe_first_and_rest {
+                        // first make sure we're at the first point
+                        if curr_point != Some(*f) {
+                            path = path.line_to((f.x, f.y));
                         }
-                        None => {}
+
+                        for v in rest {
+                            path = path.line_to((v.x, v.y));
+                        }
+
+                        curr_point = Some(a.last_point())
                     }
                 }
             }
@@ -893,7 +896,7 @@ impl ToSvgData for CurveDrawer {
 // just connect the dots with lines
 impl ToSvgData for Vec<Vec2> {
     fn to_svg_data(&self) -> Option<Data> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return None;
         }
 

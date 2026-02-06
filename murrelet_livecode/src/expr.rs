@@ -484,9 +484,9 @@ impl ToMixedDefs for MixedEvalDefs {
     }
 }
 
-impl<'a> ToMixedDefs for (&'a str, LivecodeValue) {
+impl ToMixedDefs for (&str, LivecodeValue) {
     fn to_mixed_def(&self) -> MixedEvalDefsRef {
-        MixedEvalDefs::new_simple(self.0, self.1.clone()).to_mixed_def()
+        MixedEvalDefs::new_simple(self.0, self.1).to_mixed_def()
     }
 }
 

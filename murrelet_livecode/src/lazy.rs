@@ -247,7 +247,7 @@ where
 
     // without a _, like unitcell..
     fn eval_idx_(&self, idx: IdxInRange, prefix: &str) -> LivecodeResult<Self::Target> {
-        let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(&format!("{}", prefix));
+        let vals = ExprWorldContextValues::new_from_idx(idx).with_prefix(prefix);
 
         self.eval_lazy(&MixedEvalDefs::new_from_expr(vals))
     }
@@ -295,7 +295,6 @@ where
     }
 }
 
-
 #[derive(Clone, Debug, Default)]
 pub struct LazyVec2 {
     x: LazyNodeF32,
@@ -337,16 +336,14 @@ impl GetLivecodeIdentifiers for ControlLazyVec2 {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         self.0
             .iter()
-            .map(|f| f.variable_identifiers())
-            .flatten()
+            .flat_map(|f| f.variable_identifiers())
             .collect_vec()
     }
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         self.0
             .iter()
-            .map(|f| f.function_identifiers())
-            .flatten()
+            .flat_map(|f| f.function_identifiers())
             .collect_vec()
     }
 }
@@ -402,16 +399,14 @@ impl GetLivecodeIdentifiers for ControlLazyVec3 {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         self.0
             .iter()
-            .map(|f| f.variable_identifiers())
-            .flatten()
+            .flat_map(|f| f.variable_identifiers())
             .collect_vec()
     }
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         self.0
             .iter()
-            .map(|f| f.function_identifiers())
-            .flatten()
+            .flat_map(|f| f.function_identifiers())
             .collect_vec()
     }
 }
@@ -490,16 +485,14 @@ impl GetLivecodeIdentifiers for ControlLazyMurreletColor {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         self.0
             .iter()
-            .map(|f| f.variable_identifiers())
-            .flatten()
+            .flat_map(|f| f.variable_identifiers())
             .collect_vec()
     }
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         self.0
             .iter()
-            .map(|f| f.function_identifiers())
-            .flatten()
+            .flat_map(|f| f.function_identifiers())
             .collect_vec()
     }
 }

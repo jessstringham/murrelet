@@ -109,13 +109,8 @@ where
 
         let idents = ParsedFieldIdent { name: name.clone() };
 
-
         let is_untagged = if let Some(enum_tag) = &e.enum_tag {
-            if enum_tag.as_str() == "external" {
-                true
-            } else {
-                false
-            }
+            enum_tag.as_str() == "external"
         } else {
             false
         };
@@ -187,7 +182,7 @@ impl LivecodeFieldReceiver {
             } else {
                 panic!("unexpected kind")
             }
-        } else if let Some(_) = &self.reference {
+        } else if self.reference.is_some() {
             HowToControlThis::Name
         } else if let Some(func) = &self.func {
             HowToControlThis::Override(func.to_owned())

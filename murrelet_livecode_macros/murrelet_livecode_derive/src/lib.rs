@@ -5,13 +5,13 @@
 
 extern crate proc_macro;
 
+mod derive_cached;
 mod derive_graphics_trait;
 mod derive_lazy;
 mod derive_livecode;
 mod derive_nestedit;
 mod parser;
 mod toplevel;
-mod derive_cached;
 
 use darling::FromDeriveInput;
 use derive_graphics_trait::impl_graphics_trait;
@@ -115,7 +115,6 @@ pub fn murrelet_livecode_graphics(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     impl_graphics_trait(ast).into()
 }
-
 
 #[proc_macro_derive(Cached, attributes(cached))]
 pub fn murrelet_cache_compute(input: TokenStream) -> TokenStream {

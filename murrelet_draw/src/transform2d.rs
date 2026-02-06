@@ -4,11 +4,11 @@ use std::f32::consts::PI;
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
-use murrelet_common::{ToSimpleTransform, lerpify_vec2};
 use murrelet_common::{
     a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
     SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2,
 };
+use murrelet_common::{lerpify_vec2, ToSimpleTransform};
 use murrelet_livecode_derive::Livecode;
 
 pub trait ToMat4 {
@@ -29,7 +29,7 @@ impl ToMat4 for SimpleTransform2d {
 
 impl ToMat4 for Mat4 {
     fn change_to_mat4(&self) -> Mat4 {
-        self.clone()
+        *self
     }
 }
 
@@ -41,11 +41,11 @@ impl Transform2d {
     }
 
     pub fn prepend_action(&mut self, actions: &[Transform2dStep]) {
-        self.0 = vec![actions.to_vec(), self.0.clone()].concat();
+        self.0 = [actions.to_vec(), self.0.clone()].concat();
     }
 
     pub fn prepend_one_action(&mut self, action: Transform2dStep) {
-        self.0 = vec![vec![action], self.0.clone()].concat();
+        self.0 = [vec![action], self.0.clone()].concat();
     }
 
     pub fn append_one_action(&mut self, action: Transform2dStep) {
@@ -53,7 +53,7 @@ impl Transform2d {
     }
 
     pub fn append_action(&mut self, actions: &[Transform2dStep]) {
-        self.0 = vec![self.0.clone(), actions.to_vec()].concat();
+        self.0 = [self.0.clone(), actions.to_vec()].concat();
     }
 
     pub fn append_transform(&mut self, t: &Transform2d) {
@@ -280,8 +280,6 @@ impl Transform2d {
         c.append_transform(&loc);
         c
     }
-
-
 }
 
 impl ToSimpleTransform for Transform2d {

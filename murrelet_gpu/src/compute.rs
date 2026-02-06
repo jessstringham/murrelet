@@ -407,8 +407,8 @@ impl ComputeGraphicsToTexture {
             let [w, h] = self.dims; // ideally could get this from the texture...
             const WGX: u32 = 8;
             const WGY: u32 = 8;
-            let gx = (w + WGX - 1) / WGX;
-            let gy = (h + WGY - 1) / WGY;
+            let gx = w.div_ceil(WGX);
+            let gy = h.div_ceil(WGY);
 
             pass.dispatch_workgroups(gx, gy, 1);
         } // drop(pass)
@@ -440,7 +440,7 @@ impl ComputeGraphicsToTexture {
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
-            layout: &bind_group_layout,
+            layout: bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,

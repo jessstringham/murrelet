@@ -110,11 +110,7 @@ where
         let idents = ParsedFieldIdent { name: name.clone() };
 
         let is_untagged = if let Some(enum_tag) = &e.enum_tag {
-            if enum_tag.as_str() == "external" {
-                true
-            } else {
-                false
-            }
+            enum_tag.as_str() == "external"
         } else {
             false
         };

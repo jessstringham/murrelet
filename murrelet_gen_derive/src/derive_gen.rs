@@ -358,7 +358,7 @@ impl GenFinal for FieldTokensGen {
                     #for_rn_count_per_item * #max + 1
                 };
 
-                let for_rn_names_all = (0..*max).into_iter().map(|x| {
+                let for_rn_names_all = (0..*max).map(|x| {
                     let i_name = x.to_string();
                     quote! { murrelet_gen::prefix_field_names(#i_name.to_string(), #for_rn_names_per_item) }
                 });
@@ -481,7 +481,7 @@ fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
 fn nested_ident(t: &syn::Type) -> Vec<syn::Ident> {
     let mut acc = vec![];
     recursive_ident_from_path(t, &mut acc);
-    return acc;
+    acc
 }
 
 // we need to use turbofish to call an associated function

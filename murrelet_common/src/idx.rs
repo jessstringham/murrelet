@@ -336,7 +336,7 @@ impl IdxInRange2d {
     }
 
     pub fn is_alternate(&self) -> bool {
-        (self.i.i() % 2 != 0) ^ (self.j.i() % 2 == 0)
+        !self.i.i().is_multiple_of(2) ^ self.j.i().is_multiple_of(2)
     }
 
     pub fn is_last_x(&self) -> bool {

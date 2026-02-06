@@ -427,7 +427,6 @@ impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex
     fn dest_view_other(&self) -> Option<wgpu::TextureView> {
         self.dest.texture_view_other()
     }
-
 }
 
 // given a list of inputs, choose which one to use
@@ -504,10 +503,10 @@ impl<VertexKind: GraphicsVertex> RenderTrait for PingPongRender<VertexKind> {
         for _ in 0..self.k {
             self.ping
                 .graphics()
-                .render(device.device_state(), &pong_texture);
+                .render(device.device_state(), pong_texture);
             self.pong
                 .graphics()
-                .render(device.device_state(), &ping_texture);
+                .render(device.device_state(), ping_texture);
         }
     }
 
@@ -701,8 +700,8 @@ impl<GraphicConf> GPUPipeline<GraphicConf> {
             .source
             .as_ref()
             .expect("should have set a source if you're gonna get it source");
-        self.get_graphic(&name)
-            .expect(&format!("gave a source {} that doesn't exist", name))
+        self.get_graphic(name)
+            .unwrap_or_else(|| panic!("gave a source {} that doesn't exist", name))
             .texture_view()
     }
 }

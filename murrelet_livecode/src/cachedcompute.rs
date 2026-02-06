@@ -3,6 +3,12 @@ use std::cell::OnceCell;
 #[derive(Clone, Debug)]
 pub struct CachedCompute<T: Clone + std::fmt::Debug>(OnceCell<T>);
 
+impl<T: Clone + std::fmt::Debug> Default for CachedCompute<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Clone + std::fmt::Debug> CachedCompute<T> {
     pub fn new() -> Self {
         Self(OnceCell::new())

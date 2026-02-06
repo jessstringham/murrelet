@@ -615,12 +615,12 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
             // index buffer with 4-byte alignment: recreate if growing
             const ALIGN: usize = 4;
             let raw_index = bytemuck::cast_slice::<u32, u8>(&g.conf.input_vertex.tri.order);
-            let (index_bytes, needs_recreate) = if raw_index.len() % ALIGN != 0 {
+            let (index_bytes, needs_recreate) = if !raw_index.len().is_multiple_of(ALIGN) {
                 // pad to alignment
                 let pad = ALIGN - (raw_index.len() % ALIGN);
                 let mut data = Vec::with_capacity(raw_index.len() + pad);
                 data.extend_from_slice(raw_index);
-                data.extend(std::iter::repeat(0).take(pad));
+                data.extend(std::iter::repeat_n(0, pad));
                 (
                     data.into_boxed_slice(),
                     raw_index.len() + pad > old_index_bytes_len,
@@ -819,7 +819,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
         let mut bind_group_layout_entries = Vec::new();
         bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
-            binding: 0 as u32, // needs to line up with @group(0) @binding(1)
+            binding: 0_u32, // needs to line up with @group(0) @binding(1)
             visibility: wgpu::ShaderStages::FRAGMENT,
             ty: wgpu::BindingType::Texture {
                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -832,7 +832,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         if has_second_texture {
             bind_group_offset += 1;
             bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
-                binding: 1 as u32, // needs to line up with @group(0) @binding(0)
+                binding: 1_u32, // needs to line up with @group(0) @binding(0)
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -905,8 +905,8 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
     fn _sampler(device: &wgpu::Device, details: ShaderOptions) -> wgpu::Sampler {
         let sampler_desc = details.as_sampler_desc();
-        let sampler = device.create_sampler(&sampler_desc);
-        sampler
+        
+        device.create_sampler(&sampler_desc)
     }
 
     fn _bind_group(
@@ -925,12 +925,12 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
         entries.push(wgpu::BindGroupEntry {
             binding: 0,
-            resource: wgpu::BindingResource::TextureView(&input_texture_view),
+            resource: wgpu::BindingResource::TextureView(input_texture_view),
         });
         if let Some(texture_view_other) = input_texture_view_other {
             entries.push(wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(&texture_view_other),
+                resource: wgpu::BindingResource::TextureView(texture_view_other),
             });
             binding_offset += 1;
         }
@@ -938,7 +938,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         // next is the sampler
         entries.push(wgpu::BindGroupEntry {
             binding: binding_offset + 1,
-            resource: wgpu::BindingResource::Sampler(&sampler),
+            resource: wgpu::BindingResource::Sampler(sampler),
         });
 
         entries.push(wgpu::BindGroupEntry {
@@ -1032,7 +1032,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             depth_stencil,
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
-                module: &fs_mod,
+                module: fs_mod,
                 entry_point: "main",
                 targets: &color_state,
                 #[cfg(not(feature = "nannou"))]
@@ -1041,9 +1041,9 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             multiview: None,
         };
 
-        let main_pipeline = device.create_render_pipeline(&rp_desc);
+        
 
-        main_pipeline
+        device.create_render_pipeline(&rp_desc)
     }
 
     fn _pipeline_layout(
@@ -1363,7 +1363,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                     label: Some("Shadow Pass"),
                     color_attachments: &[],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &shadow_view,
+                        view: shadow_view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
                             #[cfg(not(feature = "nannou"))]
@@ -1379,7 +1379,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                     timestamp_writes: Default::default(),
                 });
                 shadow_pass.set_pipeline(shadow_pipeline);
-                shadow_pass.set_bind_group(0, &shadow_bind_group, &[]);
+                shadow_pass.set_bind_group(0, shadow_bind_group, &[]);
                 shadow_pass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
                 shadow_pass.set_index_buffer(
                     self.vertex_buffers.index.slice(..),

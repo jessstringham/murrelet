@@ -341,7 +341,7 @@ impl TransformedSvgShape {
     }
 
     pub fn from_cd(cd: &CurveDrawer) -> Self {
-        let shape = SvgShape::Path(SvgPathDef::from_cd(&cd));
+        let shape = SvgShape::Path(SvgPathDef::from_cd(cd));
 
         Self {
             shape,

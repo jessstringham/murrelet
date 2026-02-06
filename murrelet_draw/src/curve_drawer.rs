@@ -279,7 +279,7 @@ impl CurveDrawer {
         let mut segments = self.segments().to_vec();
         // if it's closed, then add the first point, otherwise same as rest
         if !self.closed {
-            return segments;
+            segments
         } else {
             // if there's no first point, just return itself (which is empty...)
             if let Some(first_point) = self.first_point() {
@@ -631,7 +631,7 @@ impl CurveArc {
     }
 
     pub fn set_radius(&self, radius: f32) -> CurveArc {
-        let mut m = self.clone();
+        let mut m = *self;
         m.radius = radius;
         m
     }
@@ -698,12 +698,12 @@ impl CurveArc {
         let split_pi = self.start_pi.lerpify(&self.end_pi, &target_pct);
         let first_arc = CurveArc {
             end_pi: split_pi,
-            ..self.clone()
+            ..*self
         };
 
         let second_arc = CurveArc {
             start_pi: split_pi,
-            ..self.clone()
+            ..*self
         };
 
         (first_arc.to_segment(), second_arc.to_segment())
@@ -769,7 +769,7 @@ impl CurveCubicBezier {
     }
 
     pub fn flatten(&self, tolerance: f32) -> Vec<Vec2> {
-        flatten_cubic_bezier_path_with_tolerance(&vec![self.to_cubic()], false, tolerance).unwrap()
+        flatten_cubic_bezier_path_with_tolerance(&[self.to_cubic()], false, tolerance).unwrap()
     }
 
     pub fn to_pts(&self, tolerance: f32) -> CurveSegment {
@@ -902,7 +902,7 @@ impl ToCurveSegment for Circle {
 
 impl ToCurveSegment for CurveArc {
     fn to_segment(&self) -> CurveSegment {
-        CurveSegment::Arc(self.clone())
+        CurveSegment::Arc(*self)
     }
 }
 
@@ -976,7 +976,7 @@ pub trait ToCurveDrawer {
                 }
             }
         }
-        return None;
+        None
     }
 
     fn first_spot_cd(&self) -> Option<SpotOnCurve> {
@@ -999,7 +999,7 @@ pub trait ToCurveDrawer {
                 }
             }
         }
-        return None;
+        None
     }
 
     fn to_cd_closed(&self) -> CurveDrawer {
