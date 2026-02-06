@@ -18,8 +18,8 @@ use murrelet_draw::{
 };
 use murrelet_perform::perform::SvgDrawConfig;
 use svg::{
-    node::element::{path::Data, Group},
     Document, Node,
+    node::element::{Group, path::Data},
 };
 
 pub struct MurreletSvgAttributes(Vec<(String, String)>);

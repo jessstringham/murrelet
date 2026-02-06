@@ -1,8 +1,8 @@
 pub use murrelet_gen_derive::MurreletGen;
 
-use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 pub trait CanSampleFromDist: Sized {
     // returns the right number of rn needed to generate this.
@@ -20,7 +20,9 @@ pub trait CanSampleFromDist: Sized {
     fn gen_from_seed(seed: u64) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);
 
-        let rns: Vec<f32> = (0..Self::rn_count()).map(|_| rng.gen_range(0.0..1.0)).collect();
+        let rns: Vec<f32> = (0..Self::rn_count())
+            .map(|_| rng.gen_range(0.0..1.0))
+            .collect();
 
         Self::sample_dist(&rns, 0)
     }

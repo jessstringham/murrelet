@@ -8,8 +8,8 @@ use murrelet_common::*;
 
 use crate::{
     expr::{
-        init_evalexpr_func_ctx, ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs,
-        MixedEvalDefsRef,
+        ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef,
+        init_evalexpr_func_ctx,
     },
     types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,

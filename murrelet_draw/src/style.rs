@@ -3,7 +3,7 @@ use crate::{
     curve_drawer::{CurveDrawer, ToCurveDrawer},
     draw::*,
     svg::{SvgPathDef, SvgShape, TransformedSvgShape},
-    tesselate::{parse_svg_path_as_vec2, ToLyonPath},
+    tesselate::{ToLyonPath, parse_svg_path_as_vec2},
     transform2d::*,
 };
 use glam::*;

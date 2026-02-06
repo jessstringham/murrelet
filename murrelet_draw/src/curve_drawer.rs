@@ -12,9 +12,8 @@ use crate::{
     cubic::CubicBezier,
     newtypes::*,
     tesselate::{
-        cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
+        ToVecVec2, cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
         flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, segment_arc, segment_vec,
-        ToVecVec2,
     },
 };
 

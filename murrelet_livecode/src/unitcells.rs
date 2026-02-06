@@ -1,6 +1,6 @@
 use glam::*;
 use itertools::Itertools;
-use lerpable::{step, Lerpable};
+use lerpable::{Lerpable, step};
 use murrelet_common::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};

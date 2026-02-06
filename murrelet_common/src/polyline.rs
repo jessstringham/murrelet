@@ -1,7 +1,7 @@
 //! A way to represent a shape from line segments.
 //! I'm not sure if I'll keep going down this route for
 //! shapes in general.
-use glam::{vec2, Mat4, Vec2};
+use glam::{Mat4, Vec2, vec2};
 use itertools::Itertools;
 
 use crate::{geometry::SpotOnCurve, transform::TransformVec2};

@@ -1,6 +1,6 @@
 #[allow(dead_code)]
-use glam::{vec2, Vec2};
-use glam::{vec3, Vec3};
+use glam::{Vec2, vec2};
+use glam::{Vec3, vec3};
 use itertools::Itertools;
 use lerpable::{IsLerpingMethod, Lerpable};
 use num_traits::NumCast;

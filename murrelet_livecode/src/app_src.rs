@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 use murrelet_common::{CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue};
 
 // hacky, and maybe should include more keys or maybe it has too many, but this is quick to type (kDt)

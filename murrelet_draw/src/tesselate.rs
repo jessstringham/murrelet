@@ -8,23 +8,24 @@ use crate::{
     svg::SvgPathDef,
 };
 use delaunator::Triangulation;
-use glam::{vec2, Vec2, Vec2Swizzles};
+use glam::{Vec2, Vec2Swizzles, vec2};
 use itertools::Itertools;
 use kurbo::BezPath;
 use lyon::geom::vector;
-use lyon::{geom::arc::Arc, math::Transform};
 use lyon::{geom::Angle, path::traits::Build};
+use lyon::{geom::arc::Arc, math::Transform};
 use lyon::{
     geom::{
+        Point,
         euclid::{Point2D, UnknownUnit},
-        point, Point,
+        point,
     },
-    path::{traits::PathBuilder, FillRule, Path},
+    path::{FillRule, Path, traits::PathBuilder},
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
-    curr_next_no_loop_iter, triangulate::DefaultVertex, AnglePi, IsAngle, PointToPoint, Polyline,
-    SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, ToVec2,
+    AnglePi, IsAngle, PointToPoint, Polyline, SimpleTransform2d, SimpleTransform2dStep,
+    SpotOnCurve, ToVec2, curr_next_no_loop_iter, triangulate::DefaultVertex,
 };
 use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 

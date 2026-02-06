@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use murrelet_common::{
-    print_expect, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue,
+    IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue, print_expect,
 };
 use rosc::{OscPacket, OscType};
 use std::collections::HashMap;

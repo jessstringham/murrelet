@@ -1,9 +1,9 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
+use evalexpr::{EvalexprError, HashMapContext, Node, build_operator_tree};
 use itertools::Itertools;
-use lerpable::{step, Lerpable};
-use murrelet_common::{print_expect, IdxInRange, IdxInRange2d, LivecodeValue};
+use lerpable::{Lerpable, step};
+use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, print_expect};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;

@@ -14,7 +14,7 @@ use evalexpr::Node;
 
 use itertools::Itertools;
 use lerpable::IsLerpingMethod;
-use lerpable::{step, Lerpable};
+use lerpable::{Lerpable, step};
 use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
 use serde::Deserialize;
 

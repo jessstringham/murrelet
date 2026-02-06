@@ -1,5 +1,5 @@
 use murrelet_common::MurreletColor;
-use serde::{ser::SerializeSeq, Serializer};
+use serde::{Serializer, ser::SerializeSeq};
 
 use anyhow::Result;
 

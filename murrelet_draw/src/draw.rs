@@ -1,16 +1,16 @@
 // traits, that you can connect to things like Nannou draw
 
-use glam::{vec2, Vec2, Vec3};
+use glam::{Vec2, Vec3, vec2};
 
 use lerpable::Lerpable;
 use murrelet_common::{MurreletColor, SimpleTransform2d, ToSimpleTransform, Transformable};
 use murrelet_livecode::unitcells::UnitCellContext;
 use murrelet_livecode_derive::Livecode;
-use palette::{named::AQUAMARINE, LinSrgba, Srgb};
+use palette::{LinSrgba, Srgb, named::AQUAMARINE};
 
 use crate::{
     newtypes::RGBandANewtype,
-    style::{styleconf::*, StyledPathSvgFill},
+    style::{StyledPathSvgFill, styleconf::*},
 };
 
 #[derive(Debug, Clone, Copy, Livecode, Lerpable, Default)]
