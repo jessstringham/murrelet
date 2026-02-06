@@ -27,7 +27,7 @@ murrelet_livecode = { workspace = true, default-features = false }
 murrelet_common = { workspace = true }
 glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
-lerpable = { version = "0.0.2", features = ["glam"] }
+lerpable = { version = "0.0.3", features = ["glam"] }
 schemars = "0.8.21"
 murrelet_gui = { workspace = true, features = ["glam"] }
 

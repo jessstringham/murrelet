@@ -26,12 +26,12 @@ resolver = "2"
 [workspace.dependencies]
 murrelet = { path = "murrelet", version = "0.1.2" }
 murrelet_common = { path = "murrelet_common", version = "0.1.2" }
-murrelet_draw = { path = "murrelet_draw", version = "0.1.2" }
+murrelet_draw = { path = "murrelet_draw", version = "0.1.2", default-features = false }
 murrelet_gpu = { path = "murrelet_gpu", version = "0.1.2" }
-murrelet_livecode = { path = "murrelet_livecode", version = "0.1.2" }
-murrelet_livecode_macros = { path = "murrelet_livecode_macros", version = "0.1.2" }
-murrelet_livecode_derive = { path = "murrelet_livecode_macros/murrelet_livecode_derive", version = "0.1.2" }
-murrelet_perform = { path = "murrelet_perform", version = "0.1.2" }
+murrelet_livecode = { path = "murrelet_livecode", version = "0.1.2", default-features = false }
+murrelet_livecode_macros = { path = "murrelet_livecode_macros", version = "0.1.2", default-features = false }
+murrelet_livecode_derive = { path = "murrelet_livecode_macros/murrelet_livecode_derive", version = "0.1.2", default-features = false }
+murrelet_perform = { path = "murrelet_perform", version = "0.1.2", default-features = false }
 murrelet_src_audio = { path = "murrelet_src_audio", version = "0.1.2" }
 murrelet_src_midi = { path = "murrelet_src_midi", version = "0.1.2" }
 murrelet_src_osc = { path = "murrelet_src_osc", version = "0.1.2" }
@@ -43,3 +43,4 @@ murrelet_gui = { path = "murrelet_gui", version = "0.1.2" }
 murrelet_gui_derive = { path = "murrelet_gui_derive", version = "0.1.2" }
 murrelet_gen = { path = "murrelet_gen", version = "0.1.2" }
 murrelet_gen_derive = { path = "murrelet_gen_derive", version = "0.1.2" }
+getrandom = { version = "0.2.17", features = ["js"] }

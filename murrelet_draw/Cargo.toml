@@ -23,7 +23,7 @@ murrelet_livecode = { workspace = true, default-features = false }
 murrelet_livecode_macros = { workspace = true, default-features = false }
 murrelet_livecode_derive = { workspace = true, default-features = false }
 
-lerpable = { version = "0.0.2", features = ["glam"] }
+lerpable = { version = "0.0.3", features = ["glam"] }
 
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
@@ -45,3 +45,6 @@ svg = "0.10.0"
 lyon = "0.17"
 delaunator = "1.0.2"
 geo = "0.29.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }

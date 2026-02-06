@@ -20,3 +20,6 @@ murrelet_common = { workspace = true }
 [[example]]
 name = "tests"
 path = "examples/tests.rs"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }

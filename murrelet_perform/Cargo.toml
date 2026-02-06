@@ -23,7 +23,7 @@ murrelet_livecode = { workspace = true, default-features = false }
 murrelet_draw = { workspace = true, default-features = false }
 murrelet_livecode_macros = { workspace = true, default-features = false }
 murrelet_livecode_derive = { workspace = true, default-features = false }
-lerpable = { version = "0.0.2" }
+lerpable = { version = "0.0.3" }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 evalexpr = "11.1.0"
@@ -38,3 +38,6 @@ schemars = { version = "0.8.21", optional = true }
 murrelet_gui = { workspace = true, features = ["glam"] }
 
 clap = { version = "4.5.23", features = ["derive"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }

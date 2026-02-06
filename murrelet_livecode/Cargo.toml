@@ -14,7 +14,7 @@ schemars = ["dep:schemars"]
 murrelet_common = { workspace = true }
 murrelet_gui = { workspace = true, features = ["glam"] }
 
-lerpable = "0.0.2"
+lerpable = "0.0.3"
 
 itertools = "0.10.5"
 regex = "1.7.3"
@@ -29,3 +29,6 @@ serde_yaml = "0.9.17"
 thiserror = "2.0.11"
 
 schemars = { version = "0.8.21", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }
