@@ -629,12 +629,14 @@ pub fn svg_save_path(lil_liveconfig: &LilLiveConfig) -> SvgDrawConfig {
 }
 
 pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -> SvgDrawConfig {
-    let capture_path = lil_liveconfig.save_path.map(|save_path| capture_frame_name(
+    let capture_path = lil_liveconfig.save_path.map(|save_path| {
+        capture_frame_name(
             save_path,
             lil_liveconfig.run_id,
             lil_liveconfig.w.actual_frame_u64(),
             prefix,
-        ));
+        )
+    });
 
     SvgDrawConfig::new(
         lil_liveconfig.app_config.width,
@@ -944,10 +946,9 @@ where
 
         // if we can reload whenever, do that. otherwise only reload on bar
 
-        if reload
-            && (!self.app_config().reload_on_bar() || self.world().time().is_on_bar()) {
-                self.reload_config();
-            }
+        if reload && (!self.app_config().reload_on_bar() || self.world().time().is_on_bar()) {
+            self.reload_config();
+        }
 
         if self.app_config().should_reset() {
             self.util.reset_time();
@@ -1019,7 +1020,9 @@ where
     }
 
     pub fn capture_frame_name(&self, frame: u64, prefix: &str) -> Option<PathBuf> {
-        self.save_path.as_ref().map(|save_path| capture_frame_name(save_path, self.run_id, frame, prefix))
+        self.save_path
+            .as_ref()
+            .map(|save_path| capture_frame_name(save_path, self.run_id, frame, prefix))
     }
 
     // model.livecode.capture_logic(|img_name: PathBuf| { app.main_window().capture_frame(img_name); } );
@@ -1085,8 +1088,8 @@ where
     pub fn should_reload(&self) -> bool {
         let w = self.world();
         let reload_rate = self.app_config().reload_rate;
-        let reload_rate_says_so =
-            reload_rate >= 1 && (w.actual_frame() as u64).is_multiple_of(self.app_config().reload_rate);
+        let reload_rate_says_so = reload_rate >= 1
+            && (w.actual_frame() as u64).is_multiple_of(self.app_config().reload_rate);
         let config_says_so = self.app_config().reload;
         reload_rate_says_so || config_says_so
     }

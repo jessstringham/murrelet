@@ -111,7 +111,7 @@ impl AsLyonTransform for SimpleTransform2dStep {
                 let vv = vector(v.x, v.y);
                 let t = t.then_translate(-vv);
                 let t = t.then_rotate(Angle::radians(a.angle()));
-                
+
                 t.then_translate(vv)
             }
             SimpleTransform2dStep::Scale(v) => t.then_scale(v.x, v.y),
@@ -923,7 +923,7 @@ impl From<Pt> for Point2D<f32, UnknownUnit> {
 fn point_for_position(pos: &svg::node::element::path::Position, pt: Pt, from: Pt) -> Pt {
     match pos {
         svg::node::element::path::Position::Absolute => pt,
-        svg::node::element::path::Position::Relative => pt + from ,
+        svg::node::element::path::Position::Relative => pt + from,
     }
 }
 

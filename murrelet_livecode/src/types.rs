@@ -151,10 +151,7 @@ pub enum ControlVecElementRepeatMethod {
 impl ControlVecElementRepeatMethod {
     fn len(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
         let v = match self {
-            ControlVecElementRepeatMethod::Single(s) => {
-                
-                s.o(w)?
-            }
+            ControlVecElementRepeatMethod::Single(s) => s.o(w)?,
             ControlVecElementRepeatMethod::Rect(r) => {
                 let rr = r.o(w)?;
                 rr.x * rr.y
@@ -376,19 +373,13 @@ pub enum LazyVecElementRepeatMethod {
 impl LazyVecElementRepeatMethod {
     fn len(&self, ctx: &MixedEvalDefs) -> LivecodeResult<usize> {
         let v = match self {
-            LazyVecElementRepeatMethod::Single(s) => {
-                
-                s.eval_lazy(ctx)?
-            }
+            LazyVecElementRepeatMethod::Single(s) => s.eval_lazy(ctx)?,
             LazyVecElementRepeatMethod::Rect(r) => {
                 let rx = r[0].eval_lazy(ctx)?;
                 let ry = r[1].eval_lazy(ctx)?;
                 rx * ry
             }
-            LazyVecElementRepeatMethod::Blend(b) => {
-                
-                b.count.eval_lazy(ctx)?
-            }
+            LazyVecElementRepeatMethod::Blend(b) => b.count.eval_lazy(ctx)?,
         };
         Ok(v as usize)
     }

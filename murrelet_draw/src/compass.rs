@@ -235,7 +235,6 @@ impl InteractiveCompassBuilder {
 
     pub fn new_segments(&mut self, dir: &CompassAction) -> Vec<CurveSegment> {
         // here we go!
-        
 
         match dir {
             CompassAction::Angle(x) => {

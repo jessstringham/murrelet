@@ -39,7 +39,7 @@ impl GenFinal for FieldTokensSchema {
             impl murrelet_schema::CanMakeSchema for #name {
                 fn make_schema() -> murrelet_schema::MurreletSchema {
 
-                    let mut v = vec![];
+                    let mut v = std::collections::BTreeMap::new();
                     #(#for_make_schema;)*
 
                     murrelet_schema::MurreletSchema::Struct(#name_str.to_owned(), v)
@@ -62,7 +62,10 @@ impl GenFinal for FieldTokensSchema {
         quote! {
             impl murrelet_schema::CanMakeSchema for #name {
                 fn make_schema() -> murrelet_schema::MurreletSchema {
-                    murrelet_schema::MurreletSchema::Enum(#name_str.to_owned(), vec![#(#for_make_schema,)*], #is_untagged)
+                    let mut v = std::collections::BTreeMap::new();
+                    #(#for_make_schema;)*
+
+                    murrelet_schema::MurreletSchema::Enum(#name_str.to_owned(), v, #is_untagged)
                 }
 
             }
@@ -95,7 +98,15 @@ impl GenFinal for FieldTokensSchema {
         let ty = convert_vec_type(&idents.data.fields.fields.first().unwrap().ty);
         let variant_ident_str = variant_ident.to_string();
 
-        let for_make_schema = quote! { (murrelet_schema::MurreletEnumVal::Unnamed(#variant_ident_str.to_string(), #ty::make_schema())) };
+        let for_make_schema = quote! {
+            v.insert(
+                #variant_ident_str.to_string(),
+                murrelet_schema::MurreletEnumVal::Unnamed(
+                    #variant_ident_str.to_string(),
+                    Box::new(#ty::make_schema()),
+                ),
+            )
+        };
 
         FieldTokensSchema { for_make_schema }
     }
@@ -105,8 +116,7 @@ impl GenFinal for FieldTokensSchema {
         let variant_ident = idents.data.ident;
         let variant_ident_str = variant_ident.to_string();
 
-        let for_make_schema =
-            quote! { murrelet_schema::MurreletEnumVal::Unit(#variant_ident_str.to_owned()) };
+        let for_make_schema = quote! { v.insert(#variant_ident_str.to_owned(), murrelet_schema::MurreletEnumVal::Unit(#variant_ident_str.to_owned())) };
 
         FieldTokensSchema { for_make_schema }
     }
@@ -132,7 +142,7 @@ impl GenFinal for FieldTokensSchema {
         let field_name = idents.data.ident.unwrap().to_string();
 
         let for_make_schema =
-            quote! { v.push((#field_name.to_owned(), murrelet_schema::MurreletSchema::Skip)) };
+            quote! { v.insert(#field_name.to_owned(), murrelet_schema::MurreletSchema::Skip) };
 
         FieldTokensSchema { for_make_schema }
     }
@@ -149,7 +159,7 @@ impl GenFinal for FieldTokensSchema {
         let for_make_schema = if is_flat {
             quote! { v.extend(#kind::make_schema().unwrap_to_struct_fields().into_iter()) }
         } else {
-            quote! { v.push((#field_name_str.to_owned(), #kind::make_schema())) }
+            quote! { v.insert(#field_name_str.to_owned(), #kind::make_schema()) }
         };
 
         FieldTokensSchema { for_make_schema }
@@ -161,7 +171,7 @@ impl GenFinal for FieldTokensSchema {
 
         let method: syn::Path = syn::parse_str(func).expect("Custom method is invalid path!");
 
-        let for_make_schema = quote! { v.push((#field_name_str.to_owned(), #method())) };
+        let for_make_schema = quote! { v.insert(#field_name_str.to_owned(), #method()) };
 
         FieldTokensSchema { for_make_schema }
     }

@@ -137,7 +137,6 @@ pub fn epoch_time_us() -> u128 {
     {
         use std::time::SystemTime;
         use std::time::UNIX_EPOCH;
-        
 
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

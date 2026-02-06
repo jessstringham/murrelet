@@ -716,28 +716,19 @@ impl SvgPathCache {
     }
 
     pub fn add_simple_path_no_transform(&mut self, layer: &str, line: Vec<Vec2>) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_default();
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.paths.push(StyledPath::from_path(line));
     }
 
     pub fn add_simple_path(&mut self, layer: &str, line: Vec<Vec2>) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_default();
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.paths.push(StyledPath::from_path(
             self.config.transform_many_vec2(&line),
         ));
     }
 
     pub fn add_styled_path(&mut self, layer: &str, styled_path: StyledPath) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_default();
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.paths.push(
             styled_path
                 .transform_with_mat4_after(self.config.svg_draw_config().transform_for_size()),
@@ -745,20 +736,14 @@ impl SvgPathCache {
     }
 
     pub fn add_styled_text(&mut self, layer: &str, text: StyledText) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_default();
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer
             .text
             .push(text.transform_with(self.config.svg_draw_config()));
     }
 
     pub fn clear(&mut self, layer: &str) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_default();
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.clear();
     }
 

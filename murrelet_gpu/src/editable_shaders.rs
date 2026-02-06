@@ -69,7 +69,9 @@ impl ShaderStrings {
         name: &str,
         prefix: &str,
     ) -> Option<String> {
-        self.shaders.get(name).map(|str| Self::shader_custom_prefix(str, prefix))
+        self.shaders
+            .get(name)
+            .map(|str| Self::shader_custom_prefix(str, prefix))
     }
 
     pub fn get_graphics_ref(
@@ -77,9 +79,11 @@ impl ShaderStrings {
         c: &GraphicsWindowConf,
         name: &str,
     ) -> Option<GraphicsRefCustom<DefaultVertex>> {
-        self.shaders.get(name).map(|str| GraphicsCreator::<DefaultVertex>::default()
-                    .with_mag_filter(wgpu::FilterMode::Nearest)
-                    .to_graphics_ref(c, name, &Self::shader(str)))
+        self.shaders.get(name).map(|str| {
+            GraphicsCreator::<DefaultVertex>::default()
+                .with_mag_filter(wgpu::FilterMode::Nearest)
+                .to_graphics_ref(c, name, &Self::shader(str))
+        })
     }
 
     pub fn get_graphics_ref_2tex(
@@ -87,10 +91,12 @@ impl ShaderStrings {
         c: &GraphicsWindowConf,
         name: &str,
     ) -> Option<GraphicsRefCustom<DefaultVertex>> {
-        self.shaders.get(name).map(|str| GraphicsCreator::<DefaultVertex>::default()
-                    .with_mag_filter(wgpu::FilterMode::Nearest)
-                    .with_second_texture()
-                    .to_graphics_ref(c, name, &Self::shader2tex(str)))
+        self.shaders.get(name).map(|str| {
+            GraphicsCreator::<DefaultVertex>::default()
+                .with_mag_filter(wgpu::FilterMode::Nearest)
+                .with_second_texture()
+                .to_graphics_ref(c, name, &Self::shader2tex(str))
+        })
     }
 
     pub fn has_changed(&self, other: &ControlShaderStrings) -> bool {

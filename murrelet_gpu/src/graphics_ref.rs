@@ -905,7 +905,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
     fn _sampler(device: &wgpu::Device, details: ShaderOptions) -> wgpu::Sampler {
         let sampler_desc = details.as_sampler_desc();
-        
+
         device.create_sampler(&sampler_desc)
     }
 
@@ -1040,8 +1040,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             }),
             multiview: None,
         };
-
-        
 
         device.create_render_pipeline(&rp_desc)
     }

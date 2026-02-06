@@ -127,7 +127,6 @@ impl SimpleCountSequence {
 
 impl UnitCellCreator for SimpleCountSequence {
     fn to_unit_cell_ctxs(&self) -> Vec<murrelet_livecode::unitcells::UnitCellContext> {
-        
         (0..self.0)
             .map(|x| {
                 let idx = IdxInRange::new(x, self.0);
