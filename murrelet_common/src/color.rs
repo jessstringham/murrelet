@@ -3,9 +3,9 @@ use std::{
     ops::{Add, Mul},
 };
 
-use glam::{vec3, Vec3};
+use glam::{Vec3, vec3};
 use lerpable::{IsLerpingMethod, Lerpable};
-use palette::{rgb::Rgb, FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha};
+use palette::{FromColor, Hsva, IntoColor, LinSrgb, LinSrgba, Srgb, Srgba, WithAlpha, rgb::Rgb};
 use serde::{Deserialize, Serialize};
 
 use crate::rgb_to_hex;

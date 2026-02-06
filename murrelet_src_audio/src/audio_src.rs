@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use glam::{vec2, Vec2};
-use murrelet_common::{clamp, map_range, IsLivecodeSrc, LivecodeValue};
-use rustfft::{num_complex::Complex, num_traits::Zero, Fft, FftPlanner};
+use glam::{Vec2, vec2};
+use murrelet_common::{IsLivecodeSrc, LivecodeValue, clamp, map_range};
+use rustfft::{Fft, FftPlanner, num_complex::Complex, num_traits::Zero};
 use std::{
     sync::{
-        mpsc::{self, Receiver, Sender},
         Arc,
+        mpsc::{self, Receiver, Sender},
     },
     thread::JoinHandle,
 };

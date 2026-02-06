@@ -1,11 +1,11 @@
-use glam::{vec2, vec3, Mat2, Mat3, Mat4, Vec2, Vec3};
+use glam::{Mat2, Mat3, Mat4, Vec2, Vec3, vec2, vec3};
 use itertools::Itertools;
 use lerpable::Lerpable;
 
 use crate::{
-    approx_eq_eps, lerp,
+    AnglePi, IsAngle, approx_eq_eps, lerp,
     polyline::{IsPolyline, Polyline},
-    vec_lerp, AnglePi, IsAngle,
+    vec_lerp,
 };
 
 pub trait TransformVec2 {

@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use evalexpr::Node;
-use glam::{vec2, vec3, Vec2, Vec3};
+use glam::{Vec2, Vec3, vec2, vec3};
 use murrelet_common::{AnglePi, MurreletColor};
 
 use crate::lazy::LazyNodeF32;

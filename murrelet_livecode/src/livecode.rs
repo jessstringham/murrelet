@@ -2,15 +2,15 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use evalexpr::build_operator_tree;
 use evalexpr::Node;
-use glam::vec2;
-use glam::vec3;
+use evalexpr::build_operator_tree;
 use glam::Vec2;
 use glam::Vec3;
+use glam::vec2;
+use glam::vec3;
 use itertools::Itertools;
-use murrelet_common::clamp;
 use murrelet_common::AnglePi;
+use murrelet_common::clamp;
 
 use murrelet_common::MurreletColor;
 use serde::Deserialize;

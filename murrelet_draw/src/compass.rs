@@ -1,16 +1,16 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
-use glam::vec2;
 use glam::Vec2;
+use glam::vec2;
 use itertools::Itertools;
 use lerpable::Lerpable;
 use murrelet_common::*;
-use murrelet_gui::make_gui_angle;
-use murrelet_gui::make_gui_vec2;
 use murrelet_gui::MurreletGUI;
 use murrelet_gui::MurreletGUISchema;
 use murrelet_gui::ValueGUI;
+use murrelet_gui::make_gui_angle;
+use murrelet_gui::make_gui_vec2;
 use murrelet_livecode_derive::Livecode;
 
 use crate::cubic::CubicBezier;

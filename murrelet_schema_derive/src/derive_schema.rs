@@ -179,17 +179,13 @@ impl GenFinal for FieldTokensSchema {
 
 // we need to use turbofish to call an associated function
 fn convert_vec_type(ty: &syn::Type) -> TokenStream2 {
-    if let syn::Type::Path(type_path) = ty {
-        if let Some(last_segment) = type_path.path.segments.last() {
-            if last_segment.ident == "Vec" {
-                if let syn::PathArguments::AngleBracketed(angle_bracketed) = &last_segment.arguments
-                {
-                    if let Some(inner_arg) = angle_bracketed.args.first() {
-                        return quote! { Vec:: < #inner_arg > };
-                    }
-                }
-            }
-        }
+    if let syn::Type::Path(type_path) = ty
+        && let Some(last_segment) = type_path.path.segments.last()
+        && last_segment.ident == "Vec"
+        && let syn::PathArguments::AngleBracketed(angle_bracketed) = &last_segment.arguments
+        && let Some(inner_arg) = angle_bracketed.args.first()
+    {
+        return quote! { Vec:: < #inner_arg > };
     }
 
     quote! { #ty }

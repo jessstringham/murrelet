@@ -1,4 +1,4 @@
-use darling::{ast, FromDeriveInput, FromField, FromVariant};
+use darling::{FromDeriveInput, FromField, FromVariant, ast};
 use proc_macro2::TokenStream as TokenStream2;
 
 use crate::GenMethod;

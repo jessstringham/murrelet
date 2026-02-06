@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{vec2, Vec2, Vec3};
+use glam::{Vec2, Vec3, vec2};
 use lerpable::Lerpable;
 
 #[repr(C)]

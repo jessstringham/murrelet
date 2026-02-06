@@ -3,7 +3,7 @@ use crate::{
     curve_drawer::{CurveDrawer, ToCurveDrawer},
     draw::*,
     svg::{SvgPathDef, SvgShape, TransformedSvgShape},
-    tesselate::{parse_svg_path_as_vec2, ToLyonPath},
+    tesselate::{ToLyonPath, parse_svg_path_as_vec2},
     transform2d::*,
 };
 use glam::*;
@@ -95,16 +95,15 @@ impl StyledPathSvgFill {
         // so using this to center it
         let (center, size, _angle) = find_center_and_size(raw_points);
         let transform = self.transform; // * mat4_from_mat3_transform(Mat3::from_angle(-angle));
-        let points = raw_points
+
+        raw_points
             .into_iter_vec2()
             .map(|x| {
                 let y = (x - center) / size;
                 let z = transform.transform_vec2(y);
                 (x, z)
             })
-            .collect::<Vec<_>>();
-
-        points
+            .collect::<Vec<_>>()
     }
 
     // for svg

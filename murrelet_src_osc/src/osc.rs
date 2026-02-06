@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use murrelet_common::{
-    print_expect, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue,
+    IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue, print_expect,
 };
 use rosc::{OscPacket, OscType};
 use std::collections::HashMap;
@@ -51,13 +51,10 @@ impl IsLivecodeSrc for OscMng {
                         args,
                     };
                     let packet_data = rosc::encoder::encode(&OscPacket::Message(msg));
-                    if let Ok(pd) = packet_data {
-                        if let Some(a) = &self.cxn.target_addr {
-                            print_expect(
-                                self.cxn.send_socket.send_to(&pd, a),
-                                "failed to send osc",
-                            );
-                        }
+                    if let Ok(pd) = packet_data
+                        && let Some(a) = &self.cxn.target_addr
+                    {
+                        print_expect(self.cxn.send_socket.send_to(&pd, a), "failed to send osc");
                     }
                 }
                 LivecodeValue::Bool(_) => {}

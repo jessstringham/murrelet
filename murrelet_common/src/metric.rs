@@ -1,11 +1,11 @@
 //! metrics that can aggregate stats about f32s (averages, ranges) or Vec2
 //! (like centers and width and heights)
 
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 
 use crate::{
-    polyline::{IsPolyline, Polyline},
     Rect,
+    polyline::{IsPolyline, Polyline},
 };
 
 impl Default for BoundMetric {

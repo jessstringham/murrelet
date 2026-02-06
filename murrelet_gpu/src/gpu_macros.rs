@@ -2,7 +2,7 @@
 use std::{cell::RefCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 
 use glam::Vec2;
-use murrelet_common::{triangulate::DefaultVertex, MurreletTime};
+use murrelet_common::{MurreletTime, triangulate::DefaultVertex};
 use serde::Serialize;
 
 use crate::{
@@ -10,8 +10,8 @@ use crate::{
     device_state::{DeviceStateForRender, GraphicsAssets},
     gpu_livecode::{AnyControlRef, ControlProvider},
     graphics_ref::{
-        AnyGraphicsRef, Graphics, GraphicsCreator, GraphicsRefCustom, GraphicsVertex,
-        DEFAULT_LOADED_TEXTURE_FORMAT,
+        AnyGraphicsRef, DEFAULT_LOADED_TEXTURE_FORMAT, Graphics, GraphicsCreator,
+        GraphicsRefCustom, GraphicsVertex,
     },
     shader_str::*,
     window::GraphicsWindowConf,

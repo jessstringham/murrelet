@@ -13,7 +13,7 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     device_state::{DeviceState, DeviceStateForRender},
-    graphics_ref::{shader_from_path, GraphicsRefCustom, TextureAndDesc, DEFAULT_TEXTURE_FORMAT},
+    graphics_ref::{DEFAULT_TEXTURE_FORMAT, GraphicsRefCustom, TextureAndDesc, shader_from_path},
     uniforms::BasicUniform,
     window::GraphicsWindowConf,
 };

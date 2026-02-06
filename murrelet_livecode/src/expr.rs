@@ -2,11 +2,11 @@
 use std::{collections::HashMap, f64::consts::PI, fmt::Debug, sync::Arc};
 
 use evalexpr::*;
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 use itertools::Itertools;
-use murrelet_common::{clamp, ease, lerp, map_range, smoothstep, IdxInRange, LivecodeValue};
+use murrelet_common::{IdxInRange, LivecodeValue, clamp, ease, lerp, map_range, smoothstep};
 use noise::{NoiseFn, Perlin};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
 use regex::Regex;

@@ -4,7 +4,7 @@ use crate::{
     drawable::DrawnShape,
 };
 use geo::{BooleanOps, BoundingRect, Contains};
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 use itertools::Itertools;
 use murrelet_common::SpotOnCurve;
 

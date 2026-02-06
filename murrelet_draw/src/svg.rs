@@ -2,7 +2,7 @@
 
 use glam::Vec2;
 use lerpable::Lerpable;
-use lyon::geom::{euclid::Point2D, Point};
+use lyon::geom::{Point, euclid::Point2D};
 use murrelet_common::{SimpleTransform2d, ToSimpleTransform};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;

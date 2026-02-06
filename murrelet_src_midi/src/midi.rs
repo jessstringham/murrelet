@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
-use murrelet_common::{print_expect, IsLivecodeSrc, LivecodeValue, MurreletTime};
+use murrelet_common::{IsLivecodeSrc, LivecodeValue, MurreletTime, print_expect};
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;

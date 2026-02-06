@@ -8,23 +8,24 @@ use crate::{
     svg::SvgPathDef,
 };
 use delaunator::Triangulation;
-use glam::{vec2, Vec2, Vec2Swizzles};
+use glam::{Vec2, Vec2Swizzles, vec2};
 use itertools::Itertools;
 use kurbo::BezPath;
 use lyon::geom::vector;
-use lyon::{geom::arc::Arc, math::Transform};
 use lyon::{geom::Angle, path::traits::Build};
+use lyon::{geom::arc::Arc, math::Transform};
 use lyon::{
     geom::{
+        Point,
         euclid::{Point2D, UnknownUnit},
-        point, Point,
+        point,
     },
-    path::{traits::PathBuilder, FillRule, Path},
+    path::{FillRule, Path, traits::PathBuilder},
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
-    curr_next_no_loop_iter, triangulate::DefaultVertex, AnglePi, IsAngle, PointToPoint, Polyline,
-    SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, ToVec2,
+    AnglePi, IsAngle, PointToPoint, Polyline, SimpleTransform2d, SimpleTransform2dStep,
+    SpotOnCurve, ToVec2, curr_next_no_loop_iter, triangulate::DefaultVertex,
 };
 use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 
@@ -62,10 +63,10 @@ impl ToVecVec2 for CubicBezier {
 
         let mut path = parse_svg_data_as_vec2(&svg, line_space);
 
-        if let Some(a) = path.last() {
-            if a.distance(self.to.yx()) > 1.0e-3 {
-                path.push(self.to.yx())
-            }
+        if let Some(a) = path.last()
+            && a.distance(self.to.yx()) > 1.0e-3
+        {
+            path.push(self.to.yx())
         }
 
         path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()

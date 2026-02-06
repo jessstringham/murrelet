@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

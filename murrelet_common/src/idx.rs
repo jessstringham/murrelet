@@ -1,8 +1,8 @@
 //! IdxInRange represents things like "item 3 of 7"
 
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 use itertools::Itertools;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
 use crate::lerp;

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 use lerpable::Lerpable;
 use murrelet_common::{
     Assets, AssetsRef, LivecodeUsage, LivecodeValue, SimpleTransform2d, SimpleTransform2dStep,

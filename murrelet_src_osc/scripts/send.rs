@@ -1,6 +1,6 @@
 extern crate rosc;
 
-use rosc::{encoder, OscBundle, OscTime};
+use rosc::{OscBundle, OscTime, encoder};
 use rosc::{OscMessage, OscPacket, OscType};
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;

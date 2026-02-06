@@ -1,9 +1,9 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use evalexpr::{build_operator_tree, EvalexprError, HashMapContext, Node};
+use evalexpr::{EvalexprError, HashMapContext, Node, build_operator_tree};
 use itertools::Itertools;
-use lerpable::{step, Lerpable};
-use murrelet_common::{print_expect, IdxInRange, IdxInRange2d, LivecodeValue};
+use lerpable::{Lerpable, step};
+use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, print_expect};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -333,12 +333,12 @@ where
         format!("LazyControlVecElement_{}", Source::schema_name())
     }
 
-    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(schema_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
         use schemars::schema::{Schema, SchemaObject, SubschemaValidation};
         // Variant 1: plain Source (your Single case without a wrapper key)
-        let single_schema = Source::json_schema(gen);
+        let single_schema = Source::json_schema(schema_gen);
         // Variant 2: the repeat object
-        let repeat_schema = <DeserLazyControlVecElementRepeat<Source>>::json_schema(gen);
+        let repeat_schema = <DeserLazyControlVecElementRepeat<Source>>::json_schema(schema_gen);
 
         Schema::Object(SchemaObject {
             subschemas: Some(Box::new(SubschemaValidation {
@@ -920,12 +920,12 @@ where
         format!("ControlVecElement_{}", Source::schema_name())
     }
 
-    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(schema_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
         use schemars::schema::{Schema, SchemaObject, SubschemaValidation};
         // Variant 1: plain Source (your Single case without a wrapper key)
-        let single_schema = Source::json_schema(gen);
+        let single_schema = Source::json_schema(schema_gen);
         // Variant 2: the repeat object
-        let repeat_schema = <ControlVecElementRepeat<Source>>::json_schema(gen);
+        let repeat_schema = <ControlVecElementRepeat<Source>>::json_schema(schema_gen);
 
         Schema::Object(SchemaObject {
             subschemas: Some(Box::new(SubschemaValidation {

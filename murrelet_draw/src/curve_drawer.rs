@@ -12,9 +12,8 @@ use crate::{
     cubic::CubicBezier,
     newtypes::*,
     tesselate::{
-        cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
+        ToVecVec2, cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
         flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, segment_arc, segment_vec,
-        ToVecVec2,
     },
 };
 
@@ -1169,10 +1168,10 @@ pub trait ToCurveDrawer {
             };
             result.extend(pts);
 
-            if let Some(mc) = max_count {
-                if result.len() > mc {
-                    return result.take_count(mc);
-                }
+            if let Some(mc) = max_count
+                && result.len() > mc
+            {
+                return result.take_count(mc);
             }
         }
         result

@@ -2,15 +2,15 @@
 
 use std::{f32::consts::PI, ops::Add};
 
-use glam::{vec2, Mat3, Mat4, Vec2};
+use glam::{Mat3, Mat4, Vec2, vec2};
 use lerpable::Lerpable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    SimpleTransform2d, SimpleTransform2dStep,
     intersection::{find_intersection_inf, find_intersection_segments, within_segment},
     transform::TransformVec2,
     triangulate::DefaultVertex,
-    SimpleTransform2d, SimpleTransform2dStep,
 };
 
 pub fn a_pi(a: f32) -> AnglePi {
@@ -442,10 +442,10 @@ impl SpotOnCurve {
         let tangent_segment = self.to_right_vector(10.0);
         let intersection = tangent_segment.find_intersection_inf(segment);
 
-        if let Some(i) = intersection {
-            if segment.within_segment(i, 1.0e-4) {
-                return intersection;
-            }
+        if let Some(i) = intersection
+            && segment.within_segment(i, 1.0e-4)
+        {
+            return intersection;
         }
         None
     }

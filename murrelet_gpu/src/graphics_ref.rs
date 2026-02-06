@@ -14,8 +14,8 @@ use wgpu_for_nannou as wgpu;
 use wgpu_for_latest as wgpu;
 
 // some wgpu things
-use wgpu::util::DeviceExt;
 use wgpu::TextureDescriptor;
+use wgpu::util::DeviceExt;
 
 use crate::device_state::*;
 use crate::gpu_livecode::{ControlGraphics, ControlGraphicsRef};
