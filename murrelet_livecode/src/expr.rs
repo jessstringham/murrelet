@@ -514,6 +514,10 @@ impl MixedEvalDefsRef {
     pub(crate) fn expr_vals(&self) -> &ExprWorldContextValues {
         self.0.expr_vals()
     }
+
+    pub fn as_defs(&self) -> &MixedEvalDefs {
+        self.0.as_ref()
+    }
 }
 
 #[derive(Debug, Clone)]
