@@ -22,6 +22,7 @@ schemars = [
 [dependencies]
 wgpu_for_latest = { package = "wgpu", version = "0.20.1", optional = true }
 wgpu_for_nannou = { package = "wgpu", version = "0.17.1", optional = true }
+naga = { version = "0.20.0", features = ["wgsl-in"] }
 
 murrelet_common = { workspace = true }
 murrelet_livecode = { workspace = true, default-features = false }

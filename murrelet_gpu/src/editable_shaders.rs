@@ -7,7 +7,7 @@ use crate::{
 use lerpable::Lerpable;
 use murrelet_common::triangulate::DefaultVertex;
 use murrelet_livecode_derive::Livecode;
-use wgpu_for_latest::naga;
+use naga;
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
 
