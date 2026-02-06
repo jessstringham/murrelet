@@ -13,10 +13,53 @@ use murrelet_draw::{
     curve_drawer::CurveDrawer,
     draw::{MurreletColorStyle, MurreletStyle},
     newtypes::RGBandANewtype,
-    style::{MurreletCurve, MurreletPath, StyledPath, StyledPathSvgFill},
+    style::{MurreletCurve, MurreletPath, MurreletPathAnnotation, StyledPath, StyledPathSvgFill},
+    svg::{SvgPathDef, SvgShape, TransformedSvgShape},
 };
 use murrelet_perform::perform::SvgDrawConfig;
-use svg::{node::element::path::Data, Document, Node};
+use svg::{
+    node::element::{path::Data, Group},
+    Document, Node,
+};
+
+pub struct MurreletSvgAttributes(Vec<(String, String)>);
+impl MurreletSvgAttributes {
+    pub fn add(&mut self, key: &str, value: &str) {
+        self.0.push((key.to_string(), value.to_string()))
+    }
+
+    fn new(v: Vec<(String, String)>) -> Self {
+        Self(v)
+    }
+
+    fn empty() -> Self {
+        Self(vec![])
+    }
+
+    fn new_single(key: &str, value: &str) -> Self {
+        let mut v = Self::empty();
+        v.add(key, value);
+        v
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, (String, String)> {
+        self.0.iter()
+    }
+
+    fn add_other(&mut self, other: &Self) {
+        self.0.extend(other.0.clone());
+    }
+
+    fn add_float(&mut self, key: &str, stroke_weight: f32) {
+        self.add(key, &format!("{}", stroke_weight))
+    }
+
+    fn add_px(&mut self, key: &str, val: f32) {
+        self.add(key, &format!("{}px", val))
+    }
+}
+
+// this area actually follows the spec more closely
 
 #[derive(Debug, Clone)]
 pub struct StyledText {
@@ -44,21 +87,111 @@ impl StyledText {
     }
 }
 
-pub trait ToSvgData {
-    fn to_svg(&self) -> Option<Data>;
+// this can take all of our favorite types, and returns the Group that applies the shape's transforms
+// and styles
+pub trait ToStyledGroup {
+    fn to_group(&self, style: &MurreletStyle) -> Option<Group>;
 }
 
-impl ToSvgData for MurreletCurve {
-    fn to_svg(&self) -> Option<Data> {
-        self.curve().to_svg()
+pub trait ToSvgData {
+    fn to_svg_data(&self) -> Option<Data>;
+
+    fn transform(&self) -> Option<Mat4> {
+        None
+    }
+
+    fn make_path(&self, style: &MurreletStyle) -> Option<svg::node::element::Path> {
+        if let Some(d) = self.to_svg_data() {
+            let mut d = d;
+
+            if style.closed {
+                d = d.close();
+            }
+            let mut p = svg::node::element::Path::new().set("d", d);
+            p = style.add_svg_attributes(p);
+            Some(p)
+        } else {
+            None
+        }
     }
 }
 
-impl ToSvgData for MurreletPath {
-    fn to_svg(&self) -> Option<Data> {
+// if you implement ToSvgData, we can get the group for you
+impl<T: ToSvgData> ToStyledGroup for T {
+    fn to_group(&self, style: &MurreletStyle) -> Option<Group> {
+        if let Some(p) = self.make_path(style) {
+            let mut g = Group::new();
+            if let Some(t) = self.transform() {
+                g = g.set("transform", t.to_svg_matrix());
+            }
+            g.append(p);
+            Some(g)
+        } else {
+            None
+        }
+    }
+}
+
+impl ToSvgData for MurreletCurve {
+    fn to_svg_data(&self) -> Option<Data> {
+        self.curve().to_svg_data()
+        // todo!()
+    }
+
+    fn transform(&self) -> Option<Mat4> {
+        Some(self.mat4())
+    }
+}
+
+impl ToStyledGroup for TransformedSvgShape {
+    fn to_group(&self, style: &MurreletStyle) -> Option<Group> {
+        let mut g = Group::new();
+        g = g.set("transform", self.t.to_mat4().to_svg_matrix());
+        match &self.shape {
+            SvgShape::Rect(s) => {
+                let mut rect = svg::node::element::Rectangle::new()
+                    .set("x", s.x)
+                    .set("y", s.y)
+                    .set("rx", s.rx)
+                    .set("ry", s.ry)
+                    .set("width", s.width)
+                    .set("height", s.height);
+
+                rect = style.add_svg_attributes(rect);
+
+                g.append(rect);
+
+                Some(g)
+            }
+            SvgShape::Circle(s) => {
+                let mut circ = svg::node::element::Circle::new()
+                    .set("cx", s.x)
+                    .set("cy", s.y)
+                    .set("r", s.r);
+
+                circ = style.add_svg_attributes(circ);
+                g.append(circ);
+                Some(g)
+            }
+            SvgShape::Path(svg_path) => {
+                if let Some(data) = svg_path.to_svg_data() {
+                    let mut path = svg::node::element::Path::new().set("d", data);
+                    path = style.add_svg_attributes(path);
+                    g.append(path);
+                }
+                Some(g)
+            }
+        }
+    }
+}
+
+impl ToStyledGroup for MurreletPath {
+    fn to_group(&self, style: &MurreletStyle) -> Option<Group> {
         match self {
-            MurreletPath::Polyline(path) => path.into_iter_vec2().collect_vec().to_svg(),
-            MurreletPath::Curve(c) => c.to_svg(),
+            MurreletPath::Polyline(path) => path.into_iter_vec2().collect_vec().to_group(style),
+            MurreletPath::Curve(c) => c.to_group(style),
+            MurreletPath::Svg(c) => c.to_group(style),
+            MurreletPath::MaskedCurve(_, _) => todo!(), //curve.to_group_with_mask(style, mask),
         }
     }
 }
@@ -76,113 +209,161 @@ impl ToSvgMatrix for Mat4 {
     }
 }
 
-trait AddSvgAttributes {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path;
-}
+// for component types, e.g. "color"
+trait GetSvgAttributes {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes;
 
-impl AddSvgAttributes for StyledPathSvgFill {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
-        p.set("fill", format!("url(#P{})", self.hash()))
+    fn add_svg_attributes<T: Node>(&self, p: T) -> T {
+        let mut p = p;
+        let updates = self.get_svg_attributes();
+        for (key, value) in &updates.0 {
+            p.assign(key, value.clone());
+        }
+        p
     }
 }
 
-impl AddSvgAttributes for MurreletColor {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
-        let [r, g, b, a] = self.into_rgba_components();
-        let fill = format!(
-            "rgba({} {} {} / {})",
-            (r * 255.0) as i32,
-            (g * 255.0) as i32,
-            (b * 255.0) as i32,
-            a
-        );
-        p.set("fill", fill)
+impl GetSvgAttributes for StyledPathSvgFill {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        MurreletSvgAttributes::new_single("fill", &format!("url(#P{})", self.hash()))
     }
 }
 
-impl AddSvgAttributes for RGBandANewtype {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
-        self.color().add_svg_attributes(p)
+impl GetSvgAttributes for MurreletColor {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut v = MurreletSvgAttributes::new_single("fill", &self.to_svg_rgb());
+        v.add("fill-rule", "evenodd");
+        if self.alpha() < 1.0 {
+            v.add("fill-opacity", &format!("{}", self.alpha()));
+        }
+        v
     }
 }
 
-impl AddSvgAttributes for MurreletColorStyle {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
+impl GetSvgAttributes for RGBandANewtype {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        self.color().get_svg_attributes()
+    }
+}
+
+impl GetSvgAttributes for MurreletColorStyle {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
         match self {
-            MurreletColorStyle::Color(c) => c.add_svg_attributes(p),
-            MurreletColorStyle::RgbaFill(c) => c.add_svg_attributes(p),
-            MurreletColorStyle::SvgFill(c) => c.add_svg_attributes(p),
+            MurreletColorStyle::Color(c) => c.get_svg_attributes(),
+            MurreletColorStyle::RgbaFill(c) => c.get_svg_attributes(),
+            MurreletColorStyle::SvgFill(c) => c.get_svg_attributes(),
         }
     }
 }
 
-impl AddSvgAttributes for MurreletPath {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
-        let mut p = p;
+impl GetSvgAttributes for MurreletPath {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
         if let Some(t) = self.transform() {
-            p = p.set("transform", t.to_svg_matrix());
-        }
-        p
-    }
-}
-
-impl AddSvgAttributes for MurreletStyle {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
-        let mut p = p;
-        if self.stroke_weight > 0.0 {
-            p = p.set("stroke-width", self.stroke_weight / 10.0);
-        }
-
-        if self.filled {
-            p = self.color.add_svg_attributes(p);
-
-            if self.stroke_weight > 0.0 {
-                p = p.set("stroke", "black");
-            }
+            MurreletSvgAttributes::new_single("transform", &t.to_svg_matrix())
         } else {
-            p = p.set("fill", "none");
-            p = p.set("stroke", "black");
+            MurreletSvgAttributes::empty()
         }
-
-        p
     }
 }
 
-impl AddSvgAttributes for StyledPath {
-    fn add_svg_attributes(&self, p: svg::node::element::Path) -> svg::node::element::Path {
-        let mut p = p;
-        p = self.path.add_svg_attributes(p);
-        p = self.style.add_svg_attributes(p);
-        p
+impl GetSvgAttributes for MurreletStyle {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut v = MurreletSvgAttributes::new_single("fill-rule", "evenodd");
+
+        match self.drawing_plan() {
+            murrelet_draw::draw::MurreletDrawPlan::Shader(fill) => {
+                v.add_other(&fill.get_svg_attributes());
+            }
+            murrelet_draw::draw::MurreletDrawPlan::DebugPoints(_) => unimplemented!(),
+            murrelet_draw::draw::MurreletDrawPlan::FilledClosed => {
+                // v.add("fill", self.color.get_svg_attributes());
+
+                v.add_other(&self.color.get_svg_attributes());
+
+                if self.stroke_weight > 0.0 {
+                    v.add_float("stroke-width", self.stroke_weight);
+                    v.add("stroke-linejoin", "round");
+                    v.add("stroke-linecap", "round");
+
+                    let sc = self.stroke_color.as_color();
+                    v.add("stroke", &sc.hex());
+                    if sc.alpha() < 1.0 {
+                        v.add("stroke-opacity", &format!("{}", sc.alpha()));
+                    }
+                }
+            }
+            murrelet_draw::draw::MurreletDrawPlan::Outline => {
+                v.add("fill", "none");
+
+                if self.stroke_weight > 0.0 {
+                    v.add_float("stroke-width", self.stroke_weight);
+                    v.add("stroke-linejoin", "round");
+                    v.add("stroke-linecap", "round");
+
+                    // let sc = self.color.as_color();
+                    let sc = match self.stroke_color {
+                        MurreletColorStyle::Color(_) | MurreletColorStyle::RgbaFill(_) => {
+                            self.stroke_color.as_color()
+                        }
+                        _ => self.color.as_color(),
+                    };
+                    v.add("stroke", &sc.hex());
+                    if sc.alpha() < 1.0 {
+                        v.add("stroke-opacity", &format!("{}", sc.alpha()));
+                    }
+                }
+            }
+            murrelet_draw::draw::MurreletDrawPlan::Line => {
+                v.add("fill", "none");
+
+                if self.stroke_weight > 0.0 {
+                    v.add_float("stroke-width", self.stroke_weight);
+                    v.add("stroke-linejoin", "round");
+                    v.add("stroke-linecap", "round");
+
+                    // let sc = self.color.as_color();
+                    let sc = match self.stroke_color {
+                        MurreletColorStyle::Color(_) | MurreletColorStyle::RgbaFill(_) => {
+                            self.stroke_color.as_color()
+                        }
+                        _ => self.color.as_color(),
+                    };
+                    v.add("stroke", &sc.hex());
+                    if sc.alpha() < 1.0 {
+                        v.add("stroke-opacity", &format!("{}", sc.alpha()));
+                    }
+                }
+            }
+        }
+        v
     }
 }
 
-impl ToSvgData for StyledPath {
-    fn to_svg(&self) -> Option<Data> {
-        self.path.to_svg()
+impl GetSvgAttributes for StyledPath {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut c = self.annotations.get_svg_attributes();
+        c.add_other(&self.path.get_svg_attributes());
+        c.add_other(&self.style.get_svg_attributes());
+        c
+    }
+}
+
+impl GetSvgAttributes for MurreletPathAnnotation {
+    fn get_svg_attributes(&self) -> MurreletSvgAttributes {
+        let mut a = MurreletSvgAttributes::empty();
+        for (k, v) in self.vals() {
+            a.add(k, v);
+        }
+        a
     }
 }
 
 pub trait ToSvgPath {
-    fn make_path(&self) -> Option<svg::node::element::Path>;
+    fn make_group(&self) -> Option<svg::node::element::Group>;
     fn make_pattern(&self) -> Option<(String, svg::node::element::Pattern)>;
 }
 
 impl ToSvgPath for StyledPath {
-    fn make_path(&self) -> Option<svg::node::element::Path> {
-        if let Some(d) = self.path.to_svg() {
-            let mut d = d;
-            if self.style.closed {
-                d = d.close();
-            }
-            let mut p = svg::node::element::Path::new().set("d", d);
-            p = self.add_svg_attributes(p);
-            Some(p)
-        } else {
-            None
-        }
-    }
-
     fn make_pattern(&self) -> Option<(String, svg::node::element::Pattern)> {
         if let MurreletColorStyle::SvgFill(f) = self.style.color {
             // ooookay so the whole purpose of this is to have pattern transform
@@ -206,6 +387,12 @@ impl ToSvgPath for StyledPath {
         } else {
             None
         }
+    }
+
+    fn make_group(&self) -> Option<svg::node::element::Group> {
+        self.path
+            .to_group(&self.style)
+            .map(|x| self.annotations.add_svg_attributes(x))
     }
 }
 
@@ -244,7 +431,9 @@ impl SvgDocCreator {
             .set("x", text.loc.x)
             .set("y", text.loc.y)
             .set("text-anchor", "middle")
+            .set("font-family", "monospace".to_string())
             .set("font-size", format!("{}px", text_size))
+            .set("fill", text.style.color.as_color().hex())
             .add(svg::node::Text::new(text.text.clone()));
 
         text
@@ -268,7 +457,7 @@ impl SvgDocCreator {
         let mut patterns = Vec::new();
 
         for path in layer.paths.iter() {
-            if let Some(d) = path.make_path() {
+            if let Some(d) = path.make_group() {
                 // if it's using a svg pattern, we should add that attribute
                 if let Some((key, pattern)) = path.make_pattern() {
                     // the path already will have the id on it, so just make sure it's
@@ -298,11 +487,14 @@ impl SvgDocCreator {
         let mut defs = vec![];
 
         for (name, layer) in paths.layers.iter() {
-            let (g, patterns) = self.make_layer(name, layer, false);
+            let (g, patterns) = self.make_layer(name, layer, self.svg_draw_config.make_layers());
             doc.append(g);
             for p in patterns {
                 defs.push(p.to_string());
             }
+
+            // TODO REMOVE THISS
+            defs.push(name.clone());
         }
 
         (doc, defs.into_iter().join("\n"))
@@ -311,27 +503,48 @@ impl SvgDocCreator {
     // this one's meant for svgs for pen plotters, so it drops fill styles
     fn make_doc(&self, paths: &SvgPathCache) -> Document {
         let target_size = self.svg_draw_config.full_target_width(); // guides are at 10x 10x, gives 1cm margin
+
+        let (view_box_x, view_box_y) = if let Some(r) = self.svg_draw_config.resolution {
+            let [width, height] = r.as_dims();
+            // (width * 2, height * 2) // i'm not sure why i had this?
+            (width, height)
+        } else {
+            (800, 800)
+        };
         let mut doc = Document::new()
             .set(
                 "xmlns:inkscape",
                 "http://www.inkscape.org/namespaces/inkscape",
             )
-            .set(
-                "viewBox",
-                (
-                    target_size / 2.0,
-                    target_size / 2.0,
-                    target_size,
-                    target_size,
-                ),
-            )
+            .set("viewBox", (0, 0, view_box_x, view_box_y))
             .set("width", format!("{:?}mm", target_size))
             .set("height", format!("{:?}mm", target_size));
 
-        for (name, layer) in paths.layers.iter() {
-            let (g, _) = self.make_layer(name, layer, true);
-            doc.append(g);
+        if let Some(bg_color) = self.svg_draw_config.bg_color() {
+            let mut bg_rect = svg::node::element::Rectangle::new()
+                .set("x", 0)
+                .set("y", 0)
+                .set("width", view_box_x)
+                .set("height", view_box_y)
+                .set("fill", bg_color.to_svg_rgb());
+
+            if bg_color.alpha() < 1.0 {
+                bg_rect = bg_rect.set("fill-opacity", bg_color.to_svg_rgb());
+            }
+            doc = doc.add(bg_rect);
         }
+
+        // todo, maybe figure out defs?
+        let (group, _) = self.make_html(paths);
+
+        let mut centering_group = svg::node::element::Group::new();
+        centering_group = centering_group.set(
+            "transform",
+            format!("translate({}px, {}px)", view_box_x / 2, view_box_y / 2),
+        );
+        centering_group = centering_group.add(group);
+
+        doc = doc.add(centering_group);
 
         doc
     }
@@ -417,6 +630,12 @@ pub struct SvgLayer {
     paths: Vec<StyledPath>,
     text: Vec<StyledText>,
 }
+impl Default for SvgLayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SvgLayer {
     pub fn new() -> SvgLayer {
         SvgLayer {
@@ -462,7 +681,7 @@ impl SvgPathCacheRef {
         self.0.borrow_mut().add_styled_text(layer, text)
     }
 
-    pub fn make_html(&self) -> Vec<String> {
+    pub fn make_html(&self) -> (String, String) {
         self.0.borrow().make_html()
     }
 }
@@ -497,28 +716,19 @@ impl SvgPathCache {
     }
 
     pub fn add_simple_path_no_transform(&mut self, layer: &str, line: Vec<Vec2>) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.paths.push(StyledPath::from_path(line));
     }
 
     pub fn add_simple_path(&mut self, layer: &str, line: Vec<Vec2>) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.paths.push(StyledPath::from_path(
             self.config.transform_many_vec2(&line),
         ));
     }
 
     pub fn add_styled_path(&mut self, layer: &str, styled_path: StyledPath) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.paths.push(
             styled_path
                 .transform_with_mat4_after(self.config.svg_draw_config().transform_for_size()),
@@ -526,20 +736,14 @@ impl SvgPathCache {
     }
 
     pub fn add_styled_text(&mut self, layer: &str, text: StyledText) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer
             .text
             .push(text.transform_with(self.config.svg_draw_config()));
     }
 
     pub fn clear(&mut self, layer: &str) {
-        let layer = self
-            .layers
-            .entry(layer.to_owned())
-            .or_insert(SvgLayer::new());
+        let layer = self.layers.entry(layer.to_owned()).or_default();
         layer.clear();
     }
 
@@ -549,6 +753,7 @@ impl SvgPathCache {
             StyledPath {
                 path: MurreletPath::Polyline(path.as_polyline()),
                 style: MurreletStyle::new_outline(),
+                annotations: MurreletPathAnnotation::noop(),
             },
         )
     }
@@ -563,23 +768,38 @@ impl SvgPathCache {
 
     // can add these to a document. I don't give the full svg so I can leave things
     // like <image> defs alone and just update the paths and patternTransforms.
-    pub fn make_html(&self) -> Vec<String> {
+    pub fn make_html(&self) -> (String, String) {
         let (paths, defs) = self.config.make_html(self);
 
-        vec![defs.to_string(), paths.to_string()]
+        (defs.to_string(), paths.to_string())
     }
 }
 
-pub trait ToSvg {
-    fn to_svg(&self) -> Option<Data>;
+// why am i doing this again, it is a good question
+impl ToSvgData for SvgPathDef {
+    fn to_svg_data(&self) -> Option<Data> {
+        let mut path = Data::new();
 
-    fn to_svg_closed(&self) -> Option<Data> {
-        self.to_svg().map(|x| x.close())
+        path = path.move_to(self.svg_move_to());
+
+        for v in self.cmds() {
+            match v {
+                murrelet_draw::svg::SvgCmd::Line(svg_to) => path = path.line_to(svg_to.params()),
+                murrelet_draw::svg::SvgCmd::CubicBezier(svg_cubic_bezier) => {
+                    path = path.cubic_curve_to(svg_cubic_bezier.params())
+                }
+                murrelet_draw::svg::SvgCmd::ArcTo(svg_arc) => {
+                    path = path.elliptical_arc_to(svg_arc.params())
+                }
+            }
+        }
+
+        Some(path)
     }
 }
 
-impl ToSvg for CurveDrawer {
-    fn to_svg(&self) -> Option<Data> {
+impl ToSvgData for CurveDrawer {
+    fn to_svg_data(&self) -> Option<Data> {
         let segments = self.segments();
         if segments.is_empty() {
             return None;
@@ -598,45 +818,57 @@ impl ToSvg for CurveDrawer {
             }
 
             match curve {
+                murrelet_draw::curve_drawer::CurveSegment::CubicBezier(cb) => {
+                    let f = cb.first_point();
+                    // first make sure we're at the first point
+                    if curr_point != Some(f) {
+                        path = path.line_to((f.x, f.y));
+                    }
+
+                    let params = (
+                        cb.ctrl1().x,
+                        cb.ctrl1().y,
+                        cb.ctrl2().x,
+                        cb.ctrl2().y,
+                        cb.to().x,
+                        cb.to().y,
+                    );
+
+                    path = path.cubic_curve_to(params);
+
+                    curr_point = Some(cb.to())
+                }
                 murrelet_draw::curve_drawer::CurveSegment::Arc(a) => {
                     let f = a.first_point();
                     // first make sure we're at the first point
                     if curr_point != Some(f) {
                         path = path.line_to((f.x, f.y));
                     }
-
                     let last_point = a.last_point();
 
-                    let params = (
-                        a.radius,
-                        a.radius, // same as other rad because it's a circle
-                        0.0,      // angle of ellipse doesn't matter, so 0
-                        if a.is_large_arc() { 1 } else { 0 }, // large arc flag
-                        if a.is_ccw() { 1 } else { 0 }, // sweep-flag
-                        last_point.x,
-                        last_point.y,
-                    );
-
-                    path = path.elliptical_arc_to(params);
+                    // special cases for circles!
+                    if let Some((hemi1, hemi2)) = a.is_full_circle_then_split() {
+                        path = path.elliptical_arc_to(hemi1.svg_params().to_vec());
+                        path = path.elliptical_arc_to(hemi2.svg_params().to_vec());
+                    } else {
+                        path = path.elliptical_arc_to(a.svg_params().to_vec());
+                    }
 
                     curr_point = Some(last_point)
                 }
                 murrelet_draw::curve_drawer::CurveSegment::Points(a) => {
                     let maybe_first_and_rest = a.points().split_first();
-                    match maybe_first_and_rest {
-                        Some((f, rest)) => {
-                            // first make sure we're at the first point
-                            if curr_point != Some(*f) {
-                                path = path.line_to((f.x, f.y));
-                            }
-
-                            for v in rest {
-                                path = path.line_to((v.x, v.y));
-                            }
-
-                            curr_point = Some(a.last_point())
+                    if let Some((f, rest)) = maybe_first_and_rest {
+                        // first make sure we're at the first point
+                        if curr_point != Some(*f) {
+                            path = path.line_to((f.x, f.y));
                         }
-                        None => {}
+
+                        for v in rest {
+                            path = path.line_to((v.x, v.y));
+                        }
+
+                        curr_point = Some(a.last_point())
                     }
                 }
             }
@@ -647,20 +879,14 @@ impl ToSvg for CurveDrawer {
 }
 
 // just connect the dots with lines
-impl ToSvg for Vec<Vec2> {
-    fn to_svg(&self) -> Option<Data> {
-        if self.len() == 0 {
+impl ToSvgData for Vec<Vec2> {
+    fn to_svg_data(&self) -> Option<Data> {
+        if self.is_empty() {
             return None;
         }
 
-        let mut curr_item: Vec2 = *self.first().unwrap();
-
-        let mut data = Data::new().move_to((curr_item.x, curr_item.y));
-
-        for loc in self[1..].iter() {
-            data = data.line_by((loc.x - curr_item.x, loc.y - curr_item.y));
-            curr_item = *loc;
-        }
-        Some(data)
+        // todo, hmmm, see if we can consolidate this.
+        let cd = CurveDrawer::new_simple_points(self.clone(), false);
+        cd.to_svg_data()
     }
 }

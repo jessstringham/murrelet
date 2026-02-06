@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 #[allow(dead_code)]
 use std::path::PathBuf;
 
@@ -53,11 +54,11 @@ impl<'a> DeviceState<'a> {
     }
 
     pub fn device(&self) -> &wgpu::Device {
-        &self.device
+        self.device
     }
 
     pub fn queue(&self) -> &wgpu::Queue {
-        &self.queue
+        self.queue
     }
 }
 
@@ -105,7 +106,11 @@ impl OwnedDeviceState {
 
 // borrowing from bevy
 pub fn align_byte_size(value: u32) -> u32 {
-    value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
+    if !value.is_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) {
+        value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
+    } else {
+        value
+    }
 }
 
 pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std::error::Error>> {
@@ -123,7 +128,11 @@ fn write_png_to_texture(
     texture: &wgpu::Texture,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load the image
+    println!("loading file {:?}", path);
     let img = image::open(path)?;
+
+    println!("img.color() {:?}", img.color());
+
     let img_rgba = img.to_rgba8();
     let (img_width, img_height) = img.dimensions();
 
@@ -135,10 +144,11 @@ fn write_png_to_texture(
 
     println!("img_width {:?}", img_width);
     println!("img_height {:?}", img_height);
+    println!("padded_row {:?}", padded_row);
     println!("buffer_rows {:?}", buffer_rows);
 
     // just get the name to name the texture
-    let p = path.file_name().map(|x| x.to_str()).flatten().unwrap_or("");
+    let p = path.file_name().and_then(|x| x.to_str()).unwrap_or("");
 
     // bah, uh, okay copy this to a buffer of the right length
     let mut padded_img = vec![0; (padded_row * buffer_rows).try_into().unwrap()];
@@ -148,6 +158,13 @@ fn write_png_to_texture(
 
         padded_img[start..end].copy_from_slice(data);
     }
+
+    let mut hist = HashMap::new();
+    for value in &padded_img {
+        *hist.entry(value).or_insert(0) += 1;
+    }
+
+    println!("hist {:?}", hist);
 
     // buffer for loading the png
     let buffer = device_state
@@ -256,57 +273,6 @@ impl GraphicsAssets {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct GraphicsWindowConf<'a> {
-    pub device: &'a DeviceState<'a>,
-    pub dims: [u32; 2],
-    pub assets_path: GraphicsAssets,
-}
-impl<'a> GraphicsWindowConf<'a> {
-    pub fn new(
-        device: &'a DeviceState,
-        dims: [u32; 2],
-        assets_path: GraphicsAssets,
-    ) -> GraphicsWindowConf<'a> {
-        GraphicsWindowConf {
-            device,
-            dims,
-            assets_path,
-        }
-    }
-
-    pub fn multi(&self, multiplier: f32) -> GraphicsWindowConf {
-        let [x, y] = self.dims;
-        GraphicsWindowConf {
-            device: self.device,
-            dims: [
-                (x as f32 * multiplier) as u32,
-                (y as f32 * multiplier) as u32,
-            ],
-            assets_path: GraphicsAssets::Nothing,
-        }
-    }
-
-    pub fn dims(&self) -> [u32; 2] {
-        self.dims
-    }
-
-    pub fn device(&self) -> &wgpu::Device {
-        &self.device.device()
-    }
-
-    pub fn with_dims(&self, dims: [u32; 2]) -> Self {
-        Self {
-            dims,
-            ..self.clone()
-        }
-    }
-
-    pub fn queue(&self) -> &wgpu::Queue {
-        self.device.queue()
-    }
-}
-
 // new type just to pull in things available at render time
 pub struct DeviceStateForRender<'a> {
     device_state: DeviceState<'a>,
@@ -320,7 +286,7 @@ impl<'a> DeviceStateForRender<'a> {
         }
     }
 
-    pub fn device_state(&self) -> &DeviceState {
+    pub fn device_state(&self) -> &DeviceState<'_> {
         &self.device_state
     }
 

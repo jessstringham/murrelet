@@ -8,16 +8,22 @@ description = "drawing functions for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
 [features]
-schemars = ["dep:schemars", "murrelet_livecode/schemars", "murrelet_livecode_macros/schemars", "murrelet_livecode_derive/schemars"]
+schemars = [
+    "dep:schemars",
+    "murrelet_livecode/schemars",
+    "murrelet_livecode_macros/schemars",
+    "murrelet_livecode_derive/schemars",
+]
+
 
 [dependencies]
-murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
+murrelet_common = { workspace = true }
 
-murrelet_livecode = { version = "0.1.2", path = "../murrelet_livecode/", default-features = false }
-murrelet_livecode_macros = { version = "0.1.2", path = "../murrelet_livecode_macros/", default-features = false }
-murrelet_livecode_derive = { version = "0.1.2", path = "../murrelet_livecode_macros/murrelet_livecode_derive/", default-features = false }
+murrelet_livecode = { workspace = true, default-features = false }
+murrelet_livecode_macros = { workspace = true, default-features = false }
+murrelet_livecode_derive = { workspace = true, default-features = false }
 
-lerpable = "0.0.2"
+lerpable = { version = "0.0.3", features = ["glam"] }
 
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
@@ -32,3 +38,13 @@ md-5 = "0.10.6"
 hex = "0.4.3"
 
 schemars = { version = "0.8.21", optional = true }
+murrelet_gui = { workspace = true, features = ["glam", "murrelet"] }
+
+kurbo = "0.11"
+svg = "0.10.0"
+lyon = "0.17"
+delaunator = "1.0.2"
+geo = "0.29.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }

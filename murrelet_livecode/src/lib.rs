@@ -1,5 +1,6 @@
 pub mod app_src;
 pub mod boop;
+pub mod cachedcompute;
 pub mod expr;
 pub mod lazy;
 pub mod livecode;

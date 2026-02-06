@@ -78,6 +78,67 @@ impl Default for BoundMetricF32 {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct BoundMetricUsize {
+    min: usize,
+    max: usize,
+    count: usize,
+    sum: usize,
+}
+impl BoundMetricUsize {
+    pub fn new() -> BoundMetricUsize {
+        BoundMetricUsize {
+            min: usize::MAX,
+            max: usize::MIN,
+            count: 0,
+            sum: 0,
+        }
+    }
+
+    pub fn new_init(x: usize) -> BoundMetricUsize {
+        let mut a = Self::new();
+        a.add_point(x);
+        a
+    }
+
+    pub fn add_point(&mut self, x: usize) {
+        if x < self.min {
+            self.min = x
+        }
+        if x > self.max {
+            self.max = x
+        }
+        self.count += 1;
+        self.sum += x;
+    }
+
+    pub fn size(&self) -> usize {
+        self.max - self.min
+    }
+
+    pub fn scale(&self) -> usize {
+        self.size()
+    }
+
+    pub fn min(&self) -> usize {
+        self.min
+    }
+
+    pub fn max(&self) -> usize {
+        self.max
+    }
+
+    pub fn count(&self) -> usize {
+        self.count
+    }
+}
+
+impl Default for BoundMetricUsize {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct BoundMetric {
     x_bound: BoundMetricF32,
     y_bound: BoundMetricF32,
@@ -192,5 +253,13 @@ impl BoundMetric {
     pub fn update_with_other(&mut self, other: &BoundMetric) {
         self.add_point(other.lower_left());
         self.add_point(other.upper_right());
+    }
+
+    pub fn min(&self) -> Vec2 {
+        vec2(self.x_min(), self.y_min())
+    }
+
+    pub fn max(&self) -> Vec2 {
+        vec2(self.x_max(), self.y_max())
     }
 }

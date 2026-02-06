@@ -3,6 +3,37 @@ pub const SUFFIX: &str = r#"
 }
 "#;
 
+pub const COMPUTE_TEX: &str = r#"
+struct BasicUniform {
+    dims: vec4<f32>,
+    more_info: vec4<f32>,
+    more_info_other: vec4<f32>,
+};
+
+// --- bindings ---
+@group(0) @binding(0) var<storage, read>       input_data   : array<Input>;
+@group(0) @binding(1) var<storage, read>       cell_offsets : array<u32>;
+@group(0) @binding(2) var<storage, read>       cell_indices : array<u32>;
+@group(0) @binding(3) var<uniform>             uniforms     : BasicUniform;
+
+@group(0) @binding(4) var                      out_img      : texture_storage_2d<rgba16float, write>;
+
+fn img_wh() -> vec2<u32> {
+  return vec2<u32>(u32(uniforms.dims.x), u32(uniforms.dims.y));
+}
+
+fn to_uv(gid_xy: vec2<u32>) -> vec2<f32> {
+  let wh = vec2<f32>(uniforms.dims.xy);
+  return (vec2<f32>(gid_xy) + vec2<f32>(0.5)) / wh;
+}
+
+fn cell_id(uv: vec2<f32>, Nx: u32, Ny: u32) -> u32 {
+  let xy = clamp(vec2<u32>(floor(uv * vec2<f32>(f32(Nx), f32(Ny)))),
+                 vec2<u32>(0u), vec2<u32>(Nx - 1u, Ny - 1u));
+  return xy.y * Nx + xy.x;
+}
+"#;
+
 pub const BINDING_2TEX: &str = r#"
 struct FragmentOutput {
     @location(0) f_color: vec4<f32>,
@@ -130,10 +161,34 @@ fn rand2(n: vec2<f32>) -> f32 {
   return fract(sin(dot(n, vec2<f32>(12.9898, 4.1414))) * 43758.5453);
 }
 
+  // more things
+  fn hash21(p: vec2<f32>) -> f32 {
+  // Dave-Hoskins style
+  let p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
+  let p3x = p3.x + dot(p3, p3.yzx + 33.33);
+  return fract((p3x + p3.y) * p3.z);
+}
+
+fn hash22(p: vec2<f32>) -> vec2<f32> {
+  var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
+  p3 = p3 + dot(p3, p3.yzx + 33.33);
+  return fract((p3.xx + p3.yz) * p3.zy);
+}
+
 // i don't know where this went
 fn smoothStep(edge0: vec2<f32>, edge1: vec2<f32>, x: vec2<f32>) -> vec2<f32> {
     let t: vec2<f32> = clamp((x - edge0) / (edge1 - edge0), vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
     return t * t * (vec2<f32>(3.0, 3.0) - 2.0 * t);
+}
+
+fn smoothStepf32(edge0: f32, edge1: f32, x: f32) -> f32 {
+    let t: f32 = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+// just basically mix but this is what i use when livecoding
+fn s(pct: f32, a: f32, b: f32) -> f32 {
+  return mix(a, b, pct);
 }
 
 
@@ -185,6 +240,10 @@ fn is_almost_zero(v: f32) -> f32 {
   return 1.0 - is_almost_nonzero(v);
 }
 
+  fn soft_disk(d: f32, r: f32, w: f32) -> f32 {
+    return 1.0 - smoothstep(r - w, r, d);
+}
+
 
 fn fbm(i: vec2<f32>) -> f32 {
   var p = i;
@@ -221,6 +280,56 @@ fn clamp4(p: vec4<f32>, min: f32, max: f32) -> vec4<f32> {
       clamp(p.z, 0.0, 1.0),
       clamp(p.a, 0.0, 1.0)
   );
+}
+
+
+
+fn colormap(
+  hue_start: f32, hue_length: f32, hue_target_offset: f32,
+  center_loc: f32,
+  sat_center: f32, sat_edges: f32,
+  value_center: f32, value_edges: f32,
+  tex_coords: vec2<f32>,
+) -> vec3<f32> {
+    // what is the main hue?
+    // let hue_start = uniforms.more_info.x;
+    // // how far to go across the x-axis
+    // let hue_length = uniforms.more_info.y;
+    // // how far to go along the y-axis, this one will have some effects that we'll add next
+    // let hue_target_offset = uniforms.more_info.z;
+
+    // let center_loc = uniforms.more_info.a;
+
+    // // now add in the transition variables
+    // let sat_center = uniforms.more_info_other.x;
+    // let sat_edges = uniforms.more_info_other.y;
+
+    // let value_center = uniforms.more_info_other.z;
+    // let value_edges = uniforms.more_info_other.a;
+
+    let target_hue_top = hue_start + tex_coords.x * hue_length;
+    let target_hue = target_hue_top + tex_coords.y * hue_target_offset;
+
+    // now compute some things to figure out what we should show
+    let abs_shape = 1.0 - 2.0 * abs(tex_coords.y - 0.5);
+    let l_shape = 1.0 - tex_coords.y;
+    let v_shape = mix(abs_shape, l_shape, center_loc);
+
+    let smoothed_dist_from_center = v_shape * v_shape * (3.0 - 2.0 * v_shape);
+
+    let target_sat = mix(sat_edges, sat_center, smoothed_dist_from_center);
+    let target_value = mix(value_edges, value_center, smoothed_dist_from_center);
+
+    // okay and convert to rgb
+    let rgb1 = hsv2rgb(vec3<f32>(target_hue, target_sat, target_value));
+
+    // if it's at the edges, set to black i guess?
+    let is_too_high_x = step(1.0, tex_coords.y + uniforms.dims.a);
+    let rgb = mix(rgb1, vec3<f32>(0.0, 0.0, 0.0), is_too_high_x);
+
+    return rgb;
+
+
 }
 
 fn color_if_for_neg_color(p: vec4<f32>) -> vec4<f32> {
@@ -297,8 +406,8 @@ fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2
   return VertexOutput(
     tex_coords,
     vec4<f32>(0.0), // shad_info
-    vec3<f32>(0.0), //normal
-    vec4<f32>(0.0), //light space pos
+    normal,
+    vec4<f32>(face_loc, 0.0, 0.0), //face loc
     vec3<f32>(0.0), //world_pos,
     out_pos);
 }";
@@ -336,4 +445,35 @@ fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2
 pub const PREFIX: &str = r#"
 @fragment
 fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>, @location(3) light_space_pos: vec4<f32>, @location(4) world_pos: vec3<f32>) -> FragmentOutput {
+"#;
+
+pub const COMPUTE_FORMAT_STR: &str = r#"
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let w  = u32(uniforms.dims.x);
+  let h  = u32(uniforms.dims.y);
+  let uv = to_uv(gid.xy);
+
+  let Nx = max(u32(uniforms.more_info.x), 1u);
+  let Ny = max(u32(uniforms.more_info.y), 1u);
+  let cid = cell_id(uv, Nx, Ny);
+
+  let start_idx = cell_offsets[cid];
+  let end_idx = cell_offsets[cid + 1u];
+
+  #PREFIX_CODEHERE#
+
+  for (var i = start_idx; i < end_idx; i = i + 1u) {
+    let sid = cell_indices[i];
+    let data = input_data[sid];
+    // dmin = min(dmin, seg_dist(uv, seg.a, seg.b));
+
+    #FORLOOP_CODEHERE#
+
+  }
+
+  #SUFFIX_CODEHERE#
+
+  textureStore(out_img, vec2<i32>(gid.xy), result);
+}
 "#;

@@ -30,6 +30,7 @@ enum GraphicKind {
     Drawer,
     Pipeline,
     Graphics,
+    ComputeTexture, // similar to graphics, but is a compute shader that outputs a texture
     Ref,
     DrawSrc,
 }
@@ -39,6 +40,7 @@ impl GraphicKind {
             "drawer" => Self::Drawer,
             "pipeline" => Self::Pipeline,
             "graphics" => Self::Graphics,
+            "computetexture" => Self::ComputeTexture,
             "ref" => Self::Ref,
             "draw_src" => Self::DrawSrc,
             _ => panic!("unexpected kind"),
@@ -76,6 +78,7 @@ fn parse_graphics(
         if let (Some(kind), Some(ident)) = (&f.kind, &f.ident) {
             let kind = GraphicKind::parse(kind);
             let ident = ident.clone();
+
             match kind {
                 GraphicKind::Drawer => drawers.push(quote! {v.push(&self.#ident)}),
                 GraphicKind::Pipeline => {
@@ -84,7 +87,7 @@ fn parse_graphics(
                             .expect("that's not a function!");
 
                         quote! {
-                            if !#should_run_fn(render_in) {
+                            if #should_run_fn(&livecoder, render_in) {
                                 v.push(&self.#ident as &dyn GraphicsRenderer);
                             }
                         }
@@ -113,7 +116,7 @@ fn parse_graphics(
                             .expect("that's not a function!");
 
                         quote! {
-                            if !#should_run_fn(render_in) {
+                            if !#should_run_fn(&livecoder, render_in) {
                                 v.push(&self.#ident as &dyn GraphicsRenderer);
                             }
                         }
@@ -138,13 +141,22 @@ fn parse_graphics(
                         let ctrl_ident = syn::Ident::new(ctrl_, name.span());
                         let ident_str = ident.to_string();
                         ctrl.push(quote! {
-                            v.extend(ControlGraphicsRef::new(
-                                #ident_str,
-                                Box::new(livecoder.#ctrl_ident.clone()),
-                                Some(self.#ident.clone()),
-                            ).into_iter())
-                        })
+                            v.extend(
+                                ControlGraphicsRef::new(
+                                    #ident_str,
+                                    Box::new(livecoder.#ctrl_ident.clone()),
+                                    Some(self.#ident.clone()),
+                                )
+                                .into_iter()
+                                .map(|c| Box::new(c) as Box<dyn AnyControlRef>)
+                            );
+                        });
                     }
+                }
+                GraphicKind::ComputeTexture => {
+                    ctrl.push(
+                        quote! {v.extend(self.#ident.control_graphics(&livecoder).into_iter())},
+                    );
                 }
             }
         }
@@ -158,14 +170,14 @@ fn parse_graphics(
                 #(#drawers;)*
                 v
             }
-            fn gpu_pipelines(&self, render_in: &GraphicsRenderIn) -> Vec<&dyn GraphicsRenderer> {
+            fn gpu_pipelines<'a, 'b, 'c>(&'a self, livecoder: &'b #ctrlcls, render_in: &'c GraphicsRenderIn) -> Vec<&'a (dyn GraphicsRenderer + 'a)> {
                 let mut v: Vec<&dyn GraphicsRenderer> = vec![];
                 #(#pipelines;)*
                 v
             }
 
-            fn control_graphics<'a>(&'a self, livecoder: &'a #ctrlcls) -> Vec<ControlGraphicsRef> {
-                let mut v: Vec<ControlGraphicsRef> = vec![];
+            fn control_graphics(&self, livecoder: &#ctrlcls) -> Vec<Box<dyn AnyControlRef>> {
+                let mut v: Vec<Box<dyn AnyControlRef>> = vec![];
                 #(#ctrl;)*
                 v
             }

@@ -1,0 +1,30 @@
+[package]
+name = "murrelet_gui"
+version = "0.1.2"
+edition = "2021"
+
+[features]
+default = []
+glam = ["dep:glam"]
+murrelet = ["dep:murrelet_common"]
+
+[dependencies]
+murrelet_gui_derive = { workspace = true }
+murrelet_schema = { workspace = true }
+murrelet_schema_derive = { workspace = true }
+murrelet_common = { workspace = true, optional = true }  # used to derive types
+
+thiserror = "2.0.11"
+serde = { version = "1.0.104", features = ["derive"] }
+serde_json = "1.0.48"
+itertools = "0.10.5"
+
+glam = { version = "0.23", optional = true }
+
+[[example]]
+name = "tests"
+path = "examples/tests.rs"
+
+[[example]]
+name = "tests_schema"
+path = "examples/tests_schema.rs"

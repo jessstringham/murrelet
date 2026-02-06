@@ -4,12 +4,34 @@ use std::f32::consts::PI;
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
-use murrelet_common::lerpify_vec2;
 use murrelet_common::{
     a_pi, approx_eq_eps, mat4_from_mat3_transform, AnglePi, IsAngle, IsPolyline, Polyline,
     SimpleTransform2d, SimpleTransform2dStep, SpotOnCurve, TransformVec2,
 };
+use murrelet_common::{lerpify_vec2, ToSimpleTransform};
 use murrelet_livecode_derive::Livecode;
+
+pub trait ToMat4 {
+    fn change_to_mat4(&self) -> Mat4;
+}
+
+impl ToMat4 for Transform2d {
+    fn change_to_mat4(&self) -> Mat4 {
+        self.to_mat4()
+    }
+}
+
+impl ToMat4 for SimpleTransform2d {
+    fn change_to_mat4(&self) -> Mat4 {
+        self.to_mat4()
+    }
+}
+
+impl ToMat4 for Mat4 {
+    fn change_to_mat4(&self) -> Mat4 {
+        *self
+    }
+}
 
 #[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct Transform2d(Vec<Transform2dStep>);
@@ -19,7 +41,11 @@ impl Transform2d {
     }
 
     pub fn prepend_action(&mut self, actions: &[Transform2dStep]) {
-        self.0 = vec![actions.to_vec(), self.0.clone()].concat();
+        self.0 = [actions.to_vec(), self.0.clone()].concat();
+    }
+
+    pub fn prepend_one_action(&mut self, action: Transform2dStep) {
+        self.0 = [vec![action], self.0.clone()].concat();
     }
 
     pub fn append_one_action(&mut self, action: Transform2dStep) {
@@ -27,7 +53,7 @@ impl Transform2d {
     }
 
     pub fn append_action(&mut self, actions: &[Transform2dStep]) {
-        self.0 = vec![self.0.clone(), actions.to_vec()].concat();
+        self.0 = [self.0.clone(), actions.to_vec()].concat();
     }
 
     pub fn append_transform(&mut self, t: &Transform2d) {
@@ -42,6 +68,13 @@ impl Transform2d {
         Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(
             Vec2::ZERO,
             a_pi(angle_pi),
+        ))])
+    }
+
+    pub fn rotate_angle<A: IsAngle>(angle_pi: A) -> Transform2d {
+        Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(
+            Vec2::ZERO,
+            angle_pi,
         ))])
     }
 
@@ -106,11 +139,8 @@ impl Transform2d {
         mat4_from_mat3_transform(self.to_mat3())
     }
 
-    pub fn rotate_around(angle_pi: f32, v: Vec2) -> Transform2d {
-        Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(
-            v,
-            a_pi(angle_pi),
-        ))])
+    pub fn rotate_around<A: IsAngle>(angle_pi: A, v: Vec2) -> Transform2d {
+        Transform2d::new(vec![Transform2dStep::Rotate(Rotate2::new(v, angle_pi))])
     }
 
     pub fn new_from_scale_rotate<A: IsAngle>(s: f32, angle_pi: A) -> Transform2d {
@@ -212,6 +242,50 @@ impl Transform2d {
     pub fn to_simple(&self) -> SimpleTransform2d {
         SimpleTransform2d::new(self.0.iter().map(|t| t.to_simple()).collect_vec())
     }
+
+    pub fn from_simple(simple: &SimpleTransform2d) -> Self {
+        Self::new(
+            simple
+                .steps()
+                .iter()
+                .map(|x| Transform2dStep::from_simple(x.clone()))
+                .collect_vec(),
+        )
+    }
+
+    pub fn steps(&self) -> &Vec<Transform2dStep> {
+        &self.0
+    }
+
+    pub fn transform_vec_vec(&self, vs: &[Vec<Vec2>]) -> Vec<Vec<Vec2>> {
+        let mut vv = vec![];
+        for line in vs {
+            let mut vvv = vec![];
+            for v in line {
+                vvv.push(self.transform_vec2(*v));
+            }
+            vv.push(vvv);
+        }
+        vv
+    }
+
+    pub fn with_one_action(&self, action: Transform2dStep) -> Transform2d {
+        let mut c = self.clone();
+        c.append_one_action(action);
+        c
+    }
+
+    pub fn with_transform(&self, loc: Transform2d) -> Transform2d {
+        let mut c = self.clone();
+        c.append_transform(&loc);
+        c
+    }
+}
+
+impl ToSimpleTransform for Transform2d {
+    fn to_simple_transform(&self) -> SimpleTransform2d {
+        self.to_simple()
+    }
 }
 
 impl Default for ControlTransform2d {
@@ -300,6 +374,10 @@ impl Transform2dStep {
 
     pub fn scale(scale_x: f32, scale_y: f32) -> Self {
         Self::Scale(V2::new(vec2(scale_x, scale_y)))
+    }
+
+    pub fn scale_p(scale_x: f32) -> Self {
+        Self::Scale(V2::new(vec2(scale_x, scale_x)))
     }
 
     fn transform(&self) -> Mat3 {

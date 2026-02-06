@@ -134,9 +134,18 @@ impl GenFinal for FieldTokensNestEdit {
         name.clone()
     }
 
-    fn from_newtype_struct(_idents: StructIdents, parent_ident: syn::Ident) -> FieldTokensNestEdit {
-        // let name = idents.control_type();
+    fn from_newtype_struct_lazy(idents: StructIdents, parent_ident: syn::Ident) -> Self {
+        Self::from_newtype_struct_struct(idents, parent_ident)
+    }
 
+    fn from_newtype_struct_struct(
+        idents: StructIdents,
+        parent_ident: syn::Ident,
+    ) -> FieldTokensNestEdit {
+        Self::from_newtype_struct(idents, parent_ident)
+    }
+
+    fn from_newtype_struct(_idents: StructIdents, parent_ident: syn::Ident) -> FieldTokensNestEdit {
         // these will fall to todo!()
         let for_nestedit = quote! {
             #parent_ident(self.0.nest_update(mods))
@@ -276,6 +285,37 @@ impl GenFinal for FieldTokensNestEdit {
 
         let for_nestedit_get_newtype = quote! {
             _ => self.#name.nest_get(getter)
+        };
+
+        FieldTokensNestEdit {
+            kind: "type struct".to_owned(),
+            for_nestedit,
+            for_nestedit_get,
+            for_nestedit_get_newtype: Some(for_nestedit_get_newtype),
+            for_nestedit_get_flatten: None,
+        }
+    }
+
+    fn from_option(idents: StructIdents) -> Self {
+        let name = idents.name();
+        let yaml_name = name.to_string();
+
+        // we'll just use the trait! (unless it's none, then we bail
+        let for_nestedit = match idents.how_to_control_this() {
+            HowToControlThis::WithNone(_) => quote! {
+                #name: self.#name.clone()
+            },
+            _ => quote! {
+                #name: self.#name.as_ref().map(|name| name.nest_update(mods.next_loc(#yaml_name)))
+            },
+        };
+
+        let for_nestedit_get = quote! {
+            [#yaml_name, rest @ ..] => self.#name.as_ref().map(|name| name.nest_get(rest)).unwrap_or(Ok("".to_string()))
+        };
+
+        let for_nestedit_get_newtype = quote! {
+            _ => self.#name.map(|name| name.nest_get(getter)).unwrap_or(Ok("".to_string()))
         };
 
         FieldTokensNestEdit {

@@ -25,12 +25,12 @@ pub trait LiveCoderLoader: Sized {
     fn _app_config(&self) -> &ControlAppConfig;
 
     // usually just serde_yaml::from_str(&str)
-    fn parse(text: &str) -> Result<Self, serde_yaml::Error>;
+    fn parse(text: &str) -> LivecodeResult<Self>;
 
     fn fs_parse<P: AsRef<std::path::Path>>(
         text: &str,
         includes_dir: P,
-    ) -> Result<Self, serde_yaml::Error> {
+    ) -> Result<Self, LivecodeError> {
         let preprocessed = crate::load::preprocess_yaml(text, includes_dir);
         //serde_yaml::from_str(&stripped_json)
         Self::parse(&preprocessed)
@@ -39,14 +39,14 @@ pub trait LiveCoderLoader: Sized {
     fn fs_parse_data<P: AsRef<Path>, P2: AsRef<Path>>(
         filename: P,
         includes_dir: P2,
-    ) -> Result<Self, serde_yaml::Error> {
+    ) -> Result<Self, LivecodeError> {
         let mut file = fs::File::open(filename).unwrap();
         let mut data = String::new();
         std::io::Read::read_to_string(&mut file, &mut data).unwrap();
         Self::fs_parse(&data, includes_dir)
     }
 
-    fn _fs_load() -> Result<Self, serde_yaml::Error> {
+    fn _fs_load() -> Result<Self, LivecodeError> {
         let args: Vec<String> = env::args().collect();
         Self::fs_parse_data(&args[1], &args[2])
     }
@@ -86,15 +86,15 @@ pub trait LiveCoderLoader: Sized {
 
         let mut latest_time = MurreletTime::epoch();
         for entry in
-            fs::read_dir(dir).map_err(|e| LivecodeError::Io(format!("template error"), e))?
+            fs::read_dir(dir).map_err(|e| LivecodeError::Io("template error".to_string(), e))?
         {
-            let entry = entry.map_err(|e| LivecodeError::Io(format!("template error"), e))?;
+            let entry = entry.map_err(|e| LivecodeError::Io("template error".to_string(), e))?;
             let metadata = entry
                 .metadata()
-                .map_err(|e| LivecodeError::Io(format!("template error"), e))?;
+                .map_err(|e| LivecodeError::Io("template error".to_string(), e))?;
             let modified_time_s = metadata
                 .modified()
-                .map_err(|e| LivecodeError::Io(format!("template error"), e))?;
+                .map_err(|e| LivecodeError::Io("template error".to_string(), e))?;
 
             let modified_time = MurreletTime::from_epoch_time(
                 modified_time_s
@@ -115,7 +115,7 @@ pub trait LiveCoderLoader: Sized {
     fn cb_reload_and_update_info(util: &mut LiveCodeUtil, text: &str) -> Result<Self, String> {
         util.reset_info();
 
-        match Self::parse(&text) {
+        match Self::parse(text) {
             Ok(x) => {
                 util.update_info_reloaded();
                 Ok(x)
@@ -141,7 +141,7 @@ pub trait LiveCoderLoader: Sized {
             })?;
             let modified = filename
                 .modified()
-                .map_err(|err| LivecodeError::Io(format!("error finding modified type"), err))?;
+                .map_err(|err| LivecodeError::Io("error finding modified type".to_string(), err))?;
 
             let current_modified = murrelet_time_from_system(modified);
 
@@ -163,11 +163,7 @@ pub trait LiveCoderLoader: Sized {
                     }
                     Err(err) => {
                         util.update_info_error();
-                        if let Some(error) = err.location() {
-                            Err(LivecodeError::SerdeLoc(error, err.to_string()))
-                        } else {
-                            Err(LivecodeError::Raw(err.to_string()))
-                        }
+                        Err(err)
                     }
                 }
             } else {

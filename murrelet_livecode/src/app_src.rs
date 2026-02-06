@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use glam::{vec2, Vec2};
-use murrelet_common::{IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue};
+use murrelet_common::{CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue};
 
 // hacky, and maybe should include more keys or maybe it has too many, but this is quick to type (kDt)
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -81,6 +81,7 @@ pub struct AppInputValues {
     mouse_loc: Vec2, // doesn't need a click
     // can refactor. for now, this is a quick way to exclude, say, keyboard things from livecode web
     include_keyboard: bool,
+    custom_vars: CustomVars,
 }
 impl AppInputValues {
     // there's a nicer way to write this for keys...
@@ -122,6 +123,7 @@ impl AppInputValues {
             ("w".to_owned(), LivecodeValue::Float(w as f64)),
             ("h".to_owned(), LivecodeValue::Float(h as f64)),
         ]);
+        r.extend(self.custom_vars.to_exec_funcs());
         r
     }
 }
@@ -143,6 +145,7 @@ impl IsLivecodeSrc for AppInputValues {
         let keys_cycle = self.keys_cycle;
         let keys_fired = self.keys_fire;
 
+        // i don't remember why i wrote it this way...
         self.result(has_click, cx, cy, mx, my, keys_cycle, keys_fired, w, h)
     }
 
@@ -164,6 +167,7 @@ impl IsLivecodeSrc for AppInputValues {
         }
 
         self.mouse_loc = app.mouse_position;
+        // only update clicks if they are clicking!
         self.click_fire = false;
         self.click_changed = false;
         if app.mouse_left_is_down {
@@ -172,6 +176,8 @@ impl IsLivecodeSrc for AppInputValues {
             self.click_cycle += 1;
             self.click_changed = true;
         }
+
+        self.custom_vars.update(&src_input.app().custom_vars);
 
         self.window_dims = app.window_dims;
     }
@@ -217,7 +223,7 @@ impl AppInputValues {
     pub fn key_cycle_bool(&self, key: MurreletKey) -> bool {
         // just need to check if this one's pressed right now
         if let Some(k) = self.lookup.get(&key) {
-            self.keys_cycle[*k] % 2 == 0
+            self.keys_cycle[*k].is_multiple_of(2)
         } else {
             false
         }
@@ -263,6 +269,7 @@ impl AppInputValues {
             mouse_loc: Vec2::ZERO,
             click_loc: Vec2::ZERO,
             include_keyboard,
+            custom_vars: CustomVars::default(),
         }
     }
 

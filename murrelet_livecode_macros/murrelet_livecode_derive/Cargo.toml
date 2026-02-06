@@ -12,6 +12,7 @@ proc-macro = true
 
 [features]
 schemars = ["murrelet_livecode/schemars"]
+# murrelet_gui = ["murrelet_livecode/murrelet_gui"]
 
 [dependencies]
 syn = "2.0.15"
@@ -19,15 +20,16 @@ quote = "1.0.18"
 proc-macro2 = "1.0.37"
 darling = "0.20.3"
 serde = { version = "1.0.104", features = ["derive"] }
-murrelet_livecode = { version = "0.1.2", path = "../../murrelet_livecode", default-features = false}
+murrelet_livecode = { workspace = true, default-features = false }
 
 # just for examples...
 [dev-dependencies]
-murrelet_common = { version = "0.1.2", path = "../../murrelet_common"}
-glam = "0.28.0"
+murrelet_common = { workspace = true }
+glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
-lerpable = "0.0.2"
+lerpable = { version = "0.0.3", features = ["glam"] }
 schemars = "0.8.21"
+murrelet_gui = { workspace = true, features = ["glam"] }
 
 [[example]]
 name = "tests"

@@ -1,12 +1,9 @@
-//! Since I need to do so much transforms of vec2, this
-//! trait just makes it easier to use different types to
-//! do that.
 use glam::{vec2, vec3, Mat2, Mat3, Mat4, Vec2, Vec3};
 use itertools::Itertools;
 use lerpable::Lerpable;
 
 use crate::{
-    lerp,
+    approx_eq_eps, lerp,
     polyline::{IsPolyline, Polyline},
     vec_lerp, AnglePi, IsAngle,
 };
@@ -58,9 +55,9 @@ pub fn mat4_from_mat3_transform(m: Mat3) -> Mat4 {
     // i don't know about this..
     // println!("_z_z {:?}", _z_z);
     if z_z != 1.0 {
-        println!("trying to turn a mat3 to mat4 with invalid values");
-        println!("z_z {:?}", z_z);
-        println!("m {:?}", m);
+        // println!("trying to turn a mat3 to mat4 with invalid values");
+        // println!("z_z {:?}", z_z);
+        // println!("m {:?}", m);
     }
     let z_axis = vec3(z_x, z_y, 0.0);
 
@@ -108,8 +105,20 @@ impl SimpleTransform2dStep {
         Self::Translate(v)
     }
 
+    pub fn rotate_pi<A: IsAngle>(angle_pi: A) -> Self {
+        Self::Rotate(Vec2::ZERO, angle_pi.as_angle_pi())
+    }
+
     pub fn scale_both(v: f32) -> Self {
         Self::Scale(Vec2::ONE * v)
+    }
+
+    pub fn reflect_x() -> Self {
+        Self::Scale(vec2(-1.0, 1.0))
+    }
+
+    pub fn reflect_y() -> Self {
+        Self::Scale(vec2(1.0, -1.0))
     }
 
     pub fn transform(&self) -> Mat3 {
@@ -157,6 +166,25 @@ impl Lerpable for SimpleTransform2dStep {
     }
 }
 
+pub trait Transformable {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self;
+}
+
+impl Transformable for Vec2 {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        t.to_simple_transform().transform_vec2(*self)
+    }
+}
+
+impl<A> Transformable for Vec<A>
+where
+    A: Transformable,
+{
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        self.iter().map(|x| x.transform_with(t)).collect_vec()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SimpleTransform2d(Vec<SimpleTransform2dStep>);
 impl SimpleTransform2d {
@@ -164,20 +192,38 @@ impl SimpleTransform2d {
         Self(v)
     }
 
+    pub fn rotate(angle_pi: AnglePi) -> Self {
+        Self(vec![SimpleTransform2dStep::rotate_pi(angle_pi)])
+    }
+
+    pub fn rotate_pi(angle_pi: f32) -> Self {
+        Self(vec![SimpleTransform2dStep::rotate_pi(AnglePi::new(
+            angle_pi,
+        ))])
+    }
+
+    pub fn noop() -> Self {
+        Self(vec![])
+    }
+
     pub fn steps(&self) -> &Vec<SimpleTransform2dStep> {
         &self.0
     }
 
-    pub fn add_after(&self, transform_vertex: &SimpleTransform2d) -> SimpleTransform2d {
+    pub fn add_transform_after<F: ToSimpleTransform>(&self, other: &F) -> SimpleTransform2d {
         // just append
         let v = self
             .0
             .iter()
-            .chain(transform_vertex.0.iter())
+            .chain(other.to_simple_transform().0.iter())
             .cloned()
             .collect();
 
         SimpleTransform2d(v)
+    }
+
+    pub fn add_transform_before<F: ToSimpleTransform>(&self, other: &F) -> SimpleTransform2d {
+        other.to_simple_transform().add_transform_after(self)
     }
 
     pub fn ident() -> SimpleTransform2d {
@@ -187,12 +233,79 @@ impl SimpleTransform2d {
     pub fn translate(v: Vec2) -> Self {
         Self(vec![SimpleTransform2dStep::Translate(v)])
     }
+
+    pub fn to_mat3(&self) -> Mat3 {
+        self.0
+            .iter()
+            .fold(Mat3::IDENTITY, |acc, el| el.transform() * acc)
+    }
+
+    pub fn to_mat4(&self) -> Mat4 {
+        mat4_from_mat3_transform(self.to_mat3())
+    }
+
+    pub fn is_similarity_transform(&self) -> bool {
+        for s in &self.0 {
+            match s {
+                SimpleTransform2dStep::Scale(v2) => {
+                    if !approx_eq_eps(v2.x.abs(), v2.y.abs(), 1.0e-3) {
+                        return false;
+                    }
+                }
+                SimpleTransform2dStep::Skew(_, _) => return false,
+                _ => {}
+            }
+        }
+        true
+    }
+
+    // experimental
+    pub fn approx_scale(&self) -> f32 {
+        let mut scale = 1.0;
+        for a in &self.0 {
+            match a {
+                SimpleTransform2dStep::Translate(_) => {}
+                SimpleTransform2dStep::Rotate(_, _) => {}
+                SimpleTransform2dStep::Scale(s) => scale *= s.x.max(s.y),
+                SimpleTransform2dStep::Skew(_, _) => todo!(),
+            }
+        }
+        scale
+    }
+
+    pub fn approx_rotate(&self) -> AnglePi {
+        let mut rotate = AnglePi::new(0.0);
+        for a in &self.0 {
+            match a {
+                SimpleTransform2dStep::Translate(_) => {}
+                SimpleTransform2dStep::Rotate(_, s) => rotate = rotate + *s,
+                SimpleTransform2dStep::Scale(_) => {}
+                SimpleTransform2dStep::Skew(_, _) => todo!(),
+            }
+        }
+        rotate
+    }
 }
 
-impl TransformVec2 for SimpleTransform2d {
+pub trait ToSimpleTransform {
+    fn to_simple_transform(&self) -> SimpleTransform2d;
+}
+
+impl ToSimpleTransform for SimpleTransform2d {
+    fn to_simple_transform(&self) -> SimpleTransform2d {
+        self.clone()
+    }
+}
+
+impl<T> TransformVec2 for T
+where
+    T: ToSimpleTransform,
+{
     fn transform_vec2(&self, v: Vec2) -> Vec2 {
+        let s = self.to_simple_transform();
+
         let mut v = v;
-        for step in &self.0 {
+        for step in &s.0 {
             v = step.transform().transform_vec2(v);
         }
         v

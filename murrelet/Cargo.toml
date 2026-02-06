@@ -17,17 +17,24 @@ schemars = [
     "murrelet_livecode_derive/schemars",
     "murrelet_perform/schemars",
 ]
+# murrelet_gui = [
+#     "murrelet_draw/murrelet_gui",
+#     "murrelet_livecode/murrelet_gui",
+#     "murrelet_livecode_macros/murrelet_gui",
+#     "murrelet_livecode_derive/murrelet_gui",
+#     "murrelet_perform/murrelet_gui",
+# ]
 
 [dependencies]
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 itertools = "0.10.5"
 
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 
-murrelet_common = { version = "0.1.2", path = "../murrelet_common" }
-murrelet_draw = { version = "0.1.2", path = "../murrelet_draw", default-features = false }
-murrelet_livecode = { version = "0.1.2", path = "../murrelet_livecode", default-features = false }
-murrelet_livecode_macros = { version = "0.1.2", path = "../murrelet_livecode_macros" , default-features = false }
-murrelet_livecode_derive = { version = "0.1.2", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" , default-features = false }
-murrelet_perform = { version = "0.1.2", path = "../murrelet_perform", default-features = false }
+murrelet_common = { workspace = true }
+murrelet_draw = { workspace = true, default-features = false }
+murrelet_livecode = { workspace = true, default-features = false }
+murrelet_livecode_macros = { workspace = true, default-features = false }
+murrelet_livecode_derive = { workspace = true, default-features = false }
+murrelet_perform = { workspace = true, default-features = false }

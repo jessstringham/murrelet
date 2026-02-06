@@ -1,15 +1,17 @@
 #![allow(dead_code)]
-use glam::{vec3, Mat4, Vec2};
+use glam::{vec2, Vec2};
 use lerpable::Lerpable;
-use murrelet_common::{Assets, AssetsRef, LivecodeUsage};
+use murrelet_common::{
+    Assets, AssetsRef, LivecodeUsage, LivecodeValue, SimpleTransform2d, SimpleTransform2dStep,
+};
 use murrelet_common::{LivecodeSrc, LivecodeSrcUpdateInput, MurreletAppInput};
 use murrelet_common::{MurreletColor, TransformVec2};
-use murrelet_livecode::lazy::ControlLazyNodeF32;
+use murrelet_gui::MurreletGUI;
+use murrelet_livecode::expr::{MixedEvalDefs, MixedEvalDefsRef};
+use murrelet_livecode::lazy::{ControlLazyMurreletColor, ControlLazyNodeF32, LazyNodeF32};
 use murrelet_livecode::state::{LivecodeTimingConfig, LivecodeWorldState};
-use murrelet_livecode::types::{
-    AdditionalContextNode, ControlVecElement, LivecodeError, LivecodeResult,
-};
-use std::collections::HashMap;
+use murrelet_livecode::types::{AdditionalContextNode, LivecodeResult};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use murrelet_common::run_id;
@@ -20,7 +22,7 @@ use murrelet_livecode::livecode::*;
 use murrelet_livecode_derive::Livecode;
 
 use crate::asset_loader::*;
-use crate::cli::BaseConfigArgs;
+use crate::cli::{BaseConfigArgs, TextureDimensions};
 use crate::reload::*;
 use clap::Parser;
 
@@ -37,20 +39,32 @@ pub trait ConfCommon: CommonTrait {
     fn config_app_loc(&self) -> &AppConfig;
 }
 
+#[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
+pub enum SvgSaveKind {
+    HTML,
+    Inkscape,
+}
+
 #[derive(Clone, Debug)]
 pub struct SvgDrawConfig {
-    size: f32,
+    size: f32, // todo, what's the difference between this and texture sizes?
+    pub resolution: Option<TextureDimensions>,
     capture_path: Option<PathBuf>, // if it's missing, we don't save (e.g. web browser)
     frame: u64,
     target_size: f32, // in mm
     margin_size: f32,
+    should_resize: bool, // sorry, something to force it not to resize my shapes on the web!
+    bg_color: Option<MurreletColor>,
+    output_kind: SvgSaveKind,
 }
 impl SvgDrawConfig {
     pub fn new(
         size: f32,
+        resolution: Option<TextureDimensions>,
         capture_path: Option<PathBuf>,
         target_size: f32,
         frame: u64,
+        output_kind: SvgSaveKind,
     ) -> SvgDrawConfig {
         SvgDrawConfig {
             size,
@@ -58,7 +72,23 @@ impl SvgDrawConfig {
             target_size,
             margin_size: 10.0,
             frame,
+            should_resize: true,
+            resolution,
+            bg_color: None,
+            output_kind,
         }
+    }
+
+    pub fn with_bg_color(&self, bg_color: MurreletColor) -> Self {
+        let mut c = self.clone();
+        c.bg_color = Some(bg_color);
+        c
+    }
+
+    pub fn with_no_resize(&self) -> Self {
+        let mut c = self.clone();
+        c.should_resize = false;
+        c
     }
 
     pub fn full_target_width(&self) -> f32 {
@@ -76,22 +106,41 @@ impl SvgDrawConfig {
         self.capture_path.clone()
     }
 
-    pub fn transform_for_size(&self) -> Mat4 {
-        // okay so we take the width, since that's what looked okay on the screen
-        let size = self.size();
-        let full_target_width = self.full_target_width() * 1.0;
+    pub fn transform_for_size(&self) -> SimpleTransform2d {
+        if self.should_resize {
+            // okay so we take the width, since that's what looked okay on the screen
+            let size = self.size();
+            let full_target_width = self.full_target_width() * 1.0;
 
-        let translation_to_final = vec3(full_target_width, full_target_width, 0.0);
-        let s = self.target_size / size;
-        let scale = vec3(s, s, 1.0);
+            let translation_to_final = vec2(full_target_width, full_target_width);
+            let s = self.target_size / size;
 
-        // aiming for 100mm by 100mm, going from 0 to 10
-        // operations go right to left!
-        Mat4::from_translation(translation_to_final) * Mat4::from_scale(scale)
+            // aiming for 100mm by 100mm, going from 0 to 10
+            // operations go right to left!
+            SimpleTransform2d::new(vec![
+                SimpleTransform2dStep::translate(translation_to_final),
+                SimpleTransform2dStep::scale_both(s),
+            ])
+        } else {
+            SimpleTransform2d::noop()
+        }
     }
 
     pub fn frame(&self) -> u64 {
         self.frame
+    }
+
+    pub fn bg_color(&self) -> Option<MurreletColor> {
+        self.bg_color
+    }
+
+    // hrm, for now, we have two main types, html, which i don't think will need
+    // layers(?), and inkscape. in any case, make_layers is also very inkscape-focused
+    pub fn make_layers(&self) -> bool {
+        match self.output_kind {
+            SvgSaveKind::HTML => false,
+            SvgSaveKind::Inkscape => true,
+        }
     }
 }
 
@@ -194,13 +243,8 @@ fn _default_bg_color() -> [ControlF32; 4] {
     ]
 }
 
-fn _default_bg_color_lazy() -> Vec<ControlVecElement<ControlLazyNodeF32>> {
-    vec![
-        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::raw(ControlLazyNodeF32::Float(0.0)),
-        ControlVecElement::raw(ControlLazyNodeF32::Float(1.0)),
-    ]
+fn _default_bg_color_lazy() -> ControlLazyMurreletColor {
+    ControlLazyMurreletColor::new_default(0.0, 0.0, 0.0, 1.0)
 }
 
 fn _default_svg_size() -> ControlF32 {
@@ -217,9 +261,31 @@ fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(false)
 }
 
+impl Default for ControlAppConfigTiming {
+    fn default() -> Self {
+        Self {
+            bpm: _default_bpm(),
+            beats_per_bar: _default_beats_per_bar(),
+            fps: _default_fps(),
+            realtime: ControlBool::Raw(true),
+        }
+    }
+}
+
+impl Default for ControlLazyAppConfigTiming {
+    fn default() -> Self {
+        Self {
+            bpm: _default_bpm_lazy(),
+            beats_per_bar: _default_beats_per_bar_lazy(),
+            fps: _default_fps_lazy(),
+            realtime: ControlLazyNodeF32::Bool(true),
+        }
+    }
+}
+
 // this stuff adjusts how time works, so needs to be split off pretty early
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct AppConfigTiming {
     #[livecode(serde_default = "_default_bpm")]
     pub bpm: f32,
@@ -267,30 +333,43 @@ fn _reset_b_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct SvgConfig {
     #[livecode(serde_default = "_default_svg_size")]
     pub size: f32,
     #[livecode(serde_default = "_default_svg_save")]
-    pub save: bool, // trigger for svg save
+    pub save: bool,
+    #[livecode(serde_default = "_default_svg_kind")]
+    output_kind: SvgSaveKind, // trigger for svg save
 }
 impl Default for ControlSvgConfig {
     fn default() -> Self {
         Self {
             size: _default_svg_size(),
             save: _default_svg_save(),
+            output_kind: _default_svg_kind(),
         }
     }
 }
+
 impl Default for ControlLazySvgConfig {
     fn default() -> Self {
         Self {
             size: _default_svg_size_lazy(),
             save: _default_svg_save_lazy(),
+            output_kind: _default_svg_kind_lazy(),
         }
     }
 }
 
+// set this in websites!
+fn _default_svg_kind_lazy() -> ControlLazySvgSaveKind {
+    ControlLazySvgSaveKind::Inkscape
+}
+
+fn _default_svg_kind() -> ControlSvgSaveKind {
+    ControlSvgSaveKind::Inkscape
+}
 fn _default_gpu_debug_next() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
@@ -330,7 +409,7 @@ fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct GpuConfig {
     #[livecode(serde_default = "_default_gpu_debug_next")]
     debug_next: bool,
@@ -374,8 +453,90 @@ fn _default_should_reset_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(false)
 }
 
+fn _default_redraw() -> ControlF32 {
+    ControlF32::Int(1)
+}
+
+fn _default_redraw_lazy() -> LazyNodeF32 {
+    LazyNodeF32::simple_number(1.0)
+}
+
+fn _default_reload() -> ControlBool {
+    ControlBool::Raw(true)
+}
+
+fn _default_reload_lazy() -> LazyNodeF32 {
+    LazyNodeF32::simple_number(1.0)
+}
+
+fn _default_reload_rate() -> ControlF32 {
+    ControlF32::Int(1)
+}
+
+fn _default_reload_rate_lazy() -> LazyNodeF32 {
+    LazyNodeF32::simple_number(1.0)
+}
+
+fn _default_time() -> ControlAppConfigTiming {
+    ControlAppConfigTiming::default()
+}
+
+fn _default_ctx() -> AdditionalContextNode {
+    AdditionalContextNode::new_dummy()
+}
+
+fn _default_ctx_lazy() -> AdditionalContextNode {
+    AdditionalContextNode::new_dummy()
+}
+
+fn _default_svg() -> ControlSvgConfig {
+    ControlSvgConfig::default()
+}
+
+impl Default for ControlAppConfig {
+    fn default() -> Self {
+        Self {
+            should_reset: _default_should_reset(),
+            debug: ControlBool::Raw(false),
+            capture: ControlBool::Raw(false),
+            seed: _default_seed(),
+            width: _default_width(),
+            bg_alpha: _default_bg_alpha(),
+            clear_bg: _default_clear_bg(),
+            bg_color: _default_bg_color(),
+            capture_frame: _default_capture_frame(),
+            redraw: _default_redraw(),
+            reload: _default_reload(),
+            reload_rate: _default_reload_rate(),
+            time: _default_time(),
+            ctx: _default_ctx(),
+            svg: _default_svg(),
+            gpu: _default_gpu(),
+            reload_on_bar: _default_reload_on_bar(),
+            assets: _default_assets(),
+            lerp_rate: _default_lerp_rate(),
+        }
+    }
+}
+
+fn _default_lerp_rate() -> ControlF32 {
+    ControlF32::Int(0)
+}
+
+fn _default_assets() -> ControlAssetFilenames {
+    _empty_filenames()
+}
+
+fn _default_reload_on_bar() -> ControlBool {
+    ControlBool::Raw(false)
+}
+
+fn _default_gpu() -> ControlGpuConfig {
+    ControlGpuConfig::default()
+}
+
 #[allow(dead_code)]
-#[derive(Debug, Clone, Livecode, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct AppConfig {
     #[livecode(serde_default = "_default_should_reset")]
     pub should_reset: bool, // should reset audio and time,
@@ -401,8 +562,10 @@ pub struct AppConfig {
     pub reload: bool, // should reload and draw, good for slow drawing things
     #[livecode(serde_default = "0")]
     pub reload_rate: u64, // controls should_redraw, how many frames between redraw. if < 1, always defer to reload
+    #[livecode(serde_default = "default")]
     pub time: AppConfigTiming,
     #[livecode(kind = "none")]
+    #[livecode(serde_default = "_default_ctx")]
     pub ctx: AdditionalContextNode,
     #[livecode(serde_default = "default")]
     pub svg: SvgConfig,
@@ -454,6 +617,7 @@ impl AppConfig {
 
 // todo, this is all a little weird (svg save path), i should revisit it..
 pub struct LilLiveConfig<'a> {
+    resolution: Option<TextureDimensions>,
     save_path: Option<&'a PathBuf>,
     run_id: u64,
     w: &'a LivecodeWorldState,
@@ -465,22 +629,22 @@ pub fn svg_save_path(lil_liveconfig: &LilLiveConfig) -> SvgDrawConfig {
 }
 
 pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -> SvgDrawConfig {
-    let capture_path = if let Some(save_path) = lil_liveconfig.save_path {
-        Some(capture_frame_name(
+    let capture_path = lil_liveconfig.save_path.map(|save_path| {
+        capture_frame_name(
             save_path,
             lil_liveconfig.run_id,
             lil_liveconfig.w.actual_frame_u64(),
             prefix,
-        ))
-    } else {
-        None
-    };
+        )
+    });
 
     SvgDrawConfig::new(
         lil_liveconfig.app_config.width,
+        lil_liveconfig.resolution,
         capture_path,
         lil_liveconfig.app_config.svg.size,
         lil_liveconfig.w.actual_frame_u64(),
+        lil_liveconfig.app_config.svg.output_kind,
     )
 }
 
@@ -518,6 +682,8 @@ where
     assets: AssetsRef,
     maybe_args: Option<BaseConfigArgs>, // should redesign this...
     lerp_pct: f32,                      // moving between things
+    used_variable_names: HashSet<String>,
+    outgoing_msgs: Vec<(String, String, LivecodeValue)>, // addr, name, value
 }
 impl<ConfType, ControlConfType> LiveCoder<ConfType, ControlConfType>
 where
@@ -527,15 +693,9 @@ where
     pub fn new_web(
         conf: String,
         livecode_src: LivecodeSrc,
-        load_funcs: &[Box<dyn AssetLoader>],
+        load_funcs: &AssetLoaders,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
-        let controlconfig = ControlConfType::parse(&conf).map_err(|err| {
-            if let Some(error) = err.location() {
-                LivecodeError::SerdeLoc(error, err.to_string())
-            } else {
-                LivecodeError::Raw(err.to_string())
-            }
-        })?;
+        let controlconfig = ControlConfType::parse(&conf)?;
         Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }
 
@@ -543,7 +703,7 @@ where
     pub fn new(
         save_path: PathBuf,
         livecode_src: LivecodeSrc,
-        load_funcs: &[Box<dyn AssetLoader>],
+        load_funcs: &AssetLoaders,
     ) -> LiveCoder<ConfType, ControlConfType> {
         let controlconfig = ControlConfType::fs_load();
 
@@ -563,12 +723,18 @@ where
         controlconfig: ControlConfType,
         save_path: Option<PathBuf>,
         livecode_src: LivecodeSrc,
-        load_funcs: &[Box<dyn AssetLoader>],
+        load_funcs: &AssetLoaders,
         maybe_args: Option<BaseConfigArgs>,
     ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
         let run_id = run_id();
 
         let util = LiveCodeUtil::new()?;
+
+        let used_variable_names = controlconfig
+            .variable_identifiers()
+            .into_iter()
+            .map(|x| x.name)
+            .collect();
 
         let mut s = LiveCoder {
             run_id,
@@ -584,6 +750,8 @@ where
             assets: Assets::empty_ref(),
             maybe_args,
             lerp_pct: 1.0, // start in the done state!
+            used_variable_names,
+            outgoing_msgs: vec![],
         };
 
         // hrm, before doing most things, load the assets (but we'll do this line again...)
@@ -593,7 +761,7 @@ where
 
         let w = s.world();
         let app_conf = s.controlconfig._app_config().o(w)?;
-        let assets = app_conf.assets.load(load_funcs);
+        let assets = app_conf.assets.load_polylines(load_funcs);
         s.assets = assets.to_ref();
 
         // use the object to create a world and generate the configs
@@ -625,13 +793,13 @@ where
 
         let w = self.world();
 
-        let mut target = self.controlconfig.o(&w)?;
+        let mut target = self.controlconfig.o(w)?;
         let mut lerp_change = 0.0;
 
         // todo, make this optional
         if target.config_app_loc().should_lerp() {
             if self.lerp_pct < 1.0 {
-                let old_target = self.prev_controlconfig.o(&w)?;
+                let old_target = self.prev_controlconfig.o(w)?;
                 target = old_target.lerpify(&target, &self.lerp_pct);
             }
 
@@ -647,11 +815,9 @@ where
         self.lerp_pct += lerp_change;
 
         if self.lerp_pct >= 1.0 {
+            // todo, just move it out...
             if let Some(new_target) = &self.queued_configcontrol {
-                self.prev_controlconfig = self.controlconfig.clone();
-                self.controlconfig = new_target.clone();
-                self.lerp_pct = 0.0;
-                self.queued_configcontrol = None;
+                self.update_config_directly(new_target.clone())?;
             }
         }
 
@@ -662,12 +828,13 @@ where
         self.svg_save_path_with_prefix("")
     }
 
-    pub fn to_lil_liveconfig(&self) -> LivecodeResult<LilLiveConfig> {
+    pub fn to_lil_liveconfig(&self) -> LivecodeResult<LilLiveConfig<'_>> {
         Ok(LilLiveConfig {
             save_path: self.save_path.as_ref(),
             run_id: self.run_id,
             w: self.world(),
             app_config: self.app_config(),
+            resolution: self.maybe_args.as_ref().map(|x| x.resolution),
         })
     }
 
@@ -690,6 +857,22 @@ where
                 self.controlconfig = d;
                 self.lerp_pct = 0.0; // reloaded, so time to reload it!
             }
+
+            // set the current vars
+            let variables_iter = self
+                .controlconfig
+                .variable_identifiers()
+                .into_iter()
+                .chain(self.prev_controlconfig.variable_identifiers());
+            let variables = if let Some(queued) = &self.queued_configcontrol {
+                variables_iter
+                    .chain(queued.variable_identifiers())
+                    .map(|x| x.name)
+                    .collect::<HashSet<String>>()
+            } else {
+                variables_iter.map(|x| x.name).collect::<HashSet<String>>()
+            };
+            self.used_variable_names = variables;
         } else if let Err(e) = result {
             eprintln!("Error {}", e);
         }
@@ -698,15 +881,17 @@ where
     // web one, callback
     pub fn update_config_to(&mut self, text: &str) -> Result<(), String> {
         match ControlConfType::cb_reload_and_update_info(&mut self.util, text) {
-            Ok(d) => {
-                self.prev_controlconfig = self.controlconfig.clone();
-                self.controlconfig = d;
-                self.queued_configcontrol = None;
-                self.lerp_pct = 0.0;
-                Ok(())
-            }
+            Ok(d) => self.update_config_directly(d).map_err(|x| x.to_string()),
             Err(e) => Err(e),
         }
+    }
+
+    pub fn update_config_directly(&mut self, control_conf: ControlConfType) -> LivecodeResult<()> {
+        self.prev_controlconfig = self.controlconfig.clone();
+        self.controlconfig = control_conf;
+        self.queued_configcontrol = None;
+        self.lerp_pct = 0.0;
+        Ok(())
     }
 
     /// if the bg_alpha is above 0.5 or clear_bg is true
@@ -716,6 +901,10 @@ where
 
     pub fn maybe_bg_alpha(&self) -> Option<f32> {
         self.app_config().bg_alpha()
+    }
+
+    pub fn add_outgoing_msg(&mut self, addr: String, name: String, value: LivecodeValue) {
+        self.outgoing_msgs.push((addr, name, value));
     }
 
     // called every frame
@@ -729,7 +918,8 @@ where
 
         self.livecode_src.update(&update_input);
 
-        if app.elapsed_frames() % 20 == 0 {
+        // todo, set this as a variable?
+        if app.elapsed_frames().is_multiple_of(1) {
             let variables = self
                 .controlconfig
                 .variable_identifiers()
@@ -746,7 +936,9 @@ where
                 })
                 .collect::<HashMap<_, _>>();
 
-            self.livecode_src.feedback(&variables);
+            let outgoing_msgs = std::mem::take(&mut self.outgoing_msgs);
+
+            self.livecode_src.feedback(&variables, &outgoing_msgs);
         }
 
         // needs to happen before checking is on bar
@@ -754,10 +946,8 @@ where
 
         // if we can reload whenever, do that. otherwise only reload on bar
 
-        if reload {
-            if !self.app_config().reload_on_bar() || self.world().time().is_on_bar() {
-                self.reload_config();
-            }
+        if reload && (!self.app_config().reload_on_bar() || self.world().time().is_on_bar()) {
+            self.reload_config();
         }
 
         if self.app_config().should_reset() {
@@ -785,15 +975,30 @@ where
 
         let ctx = &self.controlconfig._app_config().ctx;
 
-        let world = self
-            .util
-            .world(&self.livecode_src, &timing_conf, ctx, self.assets.clone())?;
+        let mut world =
+            self.util
+                .world(&self.livecode_src, &timing_conf, ctx, self.assets.clone())?;
+
+        let mut md = MixedEvalDefs::new();
+
+        for x in self.used_variable_names.difference(&world.vars()) {
+            // argh, so used_variable_names includes non-global things, but right now i'm global
+            // so just do the stuff I care about right now, osc things...
+            if x.starts_with("oo_") {
+                if world.actual_frame_u64() % 1000 == 0 {
+                    println!("adding default value for {:?}", x);
+                }
+                md.set_val(x, murrelet_common::LivecodeValue::Float(0.0));
+            }
+        }
+        world.update_with_defs(MixedEvalDefsRef::new(md)); // i'm setting this so it should be okay..
 
         self.cached_world = Some(world);
         Ok(())
     }
 
     pub fn world(&self) -> &LivecodeWorldState {
+        // self.cached_world.as_ref().unwrap()
         self.cached_world.as_ref().unwrap()
     }
 
@@ -815,17 +1020,15 @@ where
     }
 
     pub fn capture_frame_name(&self, frame: u64, prefix: &str) -> Option<PathBuf> {
-        if let Some(save_path) = &self.save_path {
-            Some(capture_frame_name(&save_path, self.run_id, frame, prefix))
-        } else {
-            None
-        }
+        self.save_path
+            .as_ref()
+            .map(|save_path| capture_frame_name(save_path, self.run_id, frame, prefix))
     }
 
     // model.livecode.capture_logic(|img_name: PathBuf| { app.main_window().capture_frame(img_name); } );
     pub fn capture<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
-        F: Fn(PathBuf) -> (),
+        F: Fn(PathBuf),
     {
         let frame = self.world().actual_frame_u64();
 
@@ -853,7 +1056,7 @@ where
 
     pub fn capture_with_fn<F>(&self, capture_frame_fn: F) -> LivecodeResult<()>
     where
-        F: Fn(PathBuf) -> (),
+        F: Fn(PathBuf),
     {
         let w = self.world();
 
@@ -869,7 +1072,7 @@ where
             || should_capture
         {
             let frame_freq = 1;
-            if frame % frame_freq == 0 {
+            if frame.is_multiple_of(frame_freq) {
                 self.capture(capture_frame_fn)?;
             }
         }
@@ -885,15 +1088,15 @@ where
     pub fn should_reload(&self) -> bool {
         let w = self.world();
         let reload_rate = self.app_config().reload_rate;
-        let reload_rate_says_so =
-            reload_rate >= 1 && w.actual_frame() as u64 % self.app_config().reload_rate == 0;
+        let reload_rate_says_so = reload_rate >= 1
+            && (w.actual_frame() as u64).is_multiple_of(self.app_config().reload_rate);
         let config_says_so = self.app_config().reload;
         reload_rate_says_so || config_says_so
     }
 
     pub fn should_redraw(&self) -> bool {
         let w = self.world();
-        let redraw_says_so = w.actual_frame() as u64 % self.app_config().redraw == 0;
+        let redraw_says_so = (w.actual_frame() as u64).is_multiple_of(self.app_config().redraw);
         let save_says_so = self.app_config().svg.save;
         // might have other things..
         redraw_says_so || save_says_so
@@ -924,11 +1127,19 @@ where
         self.world().time().seconds_between_render_times()
     }
 
+    pub fn args(&self) -> BaseConfigArgs {
+        self.maybe_args.clone().unwrap()
+    }
+
     pub fn sketch_args(&self) -> Vec<String> {
         if let Some(args) = &self.maybe_args {
             args.sketch_args.clone()
         } else {
             vec![]
         }
+    }
+
+    pub fn run_id(&self) -> u64 {
+        self.run_id
     }
 }

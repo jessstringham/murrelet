@@ -18,20 +18,22 @@ schemars = [
     "murrelet_perform/schemars",
 ]
 
+
 [dependencies]
 wgpu_for_latest = { package = "wgpu", version = "0.20.1", optional = true }
 wgpu_for_nannou = { package = "wgpu", version = "0.17.1", optional = true }
+naga = { version = "0.20.0", features = ["wgsl-in"] }
 
-murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
-murrelet_livecode = { version = "0.1.2", path = "../murrelet_livecode/", default-features = false }
-murrelet_draw = { version = "0.1.2", path = "../murrelet_draw/", default-features = false }
-murrelet_livecode_macros = { version = "0.1.2", path = "../murrelet_livecode_macros/" }
-murrelet_livecode_derive = { version = "0.1.2", path = "../murrelet_livecode_macros/murrelet_livecode_derive/" }
-murrelet_perform = { version = "0.1.2", path = "../murrelet_perform/", default-features = false }
+murrelet_common = { workspace = true }
+murrelet_livecode = { workspace = true, default-features = false }
+murrelet_draw = { workspace = true, default-features = false }
+murrelet_livecode_macros = { workspace = true }
+murrelet_livecode_derive = { workspace = true }
+murrelet_perform = { workspace = true, default-features = false }
 
-lerpable = "0.0.2"
+lerpable = { version = "0.0.3" }
 
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
 
 serde = { version = "1.0.104", features = ["derive"] }
@@ -48,3 +50,7 @@ image = "0.25.2"
 bytemuck = { version = "1.16.1", features = ["derive"] }
 
 schemars = { version = "0.8.21", optional = true }
+murrelet_gui = { workspace = true, features = ["glam"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }

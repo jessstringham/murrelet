@@ -5,7 +5,7 @@
 
 extern crate proc_macro;
 
-mod derive_boop;
+mod derive_cached;
 mod derive_graphics_trait;
 mod derive_lazy;
 mod derive_livecode;
@@ -14,7 +14,6 @@ mod parser;
 mod toplevel;
 
 use darling::FromDeriveInput;
-use derive_boop::FieldTokensBoop;
 use derive_graphics_trait::impl_graphics_trait;
 use derive_lazy::FieldTokensLazy;
 use derive_livecode::FieldTokensLivecode;
@@ -23,9 +22,11 @@ use parser::{GenFinal, LivecodeReceiver};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use syn::parse_macro_input;
-use toplevel::{impl_all_the_traits, top_level_livecode};
+use toplevel::{impl_all_the_traits, top_level_livecode, top_level_livecode_json};
 
 use quote::quote;
+
+use crate::derive_cached::impl_cache_traits;
 
 fn livecode_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensLivecode::from_ast(rec)
@@ -33,10 +34,6 @@ fn livecode_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
 
 fn lazy_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
     FieldTokensLazy::from_ast(rec)
-}
-
-fn boop_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
-    FieldTokensBoop::from_ast(rec)
 }
 
 fn nestedit_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
@@ -69,10 +66,7 @@ pub fn murrelet_livecode_derive_livecode(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
 
-    // livecode_parse_ast(ast_receiver.clone()).into()
-
     // and then i realized i still need nested and lerpable too....
-
     let livecode = livecode_parse_ast(ast_receiver.clone());
     let nested = nestedit_parse_ast(ast_receiver.clone());
 
@@ -90,13 +84,6 @@ pub fn murrelet_livecode_derive_lazy(input: TokenStream) -> TokenStream {
     lazy_parse_ast(ast_receiver.clone()).into()
 }
 
-#[proc_macro_derive(Boop, attributes(livecode))]
-pub fn murrelet_livecode_derive_boop(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as syn::DeriveInput);
-    let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
-    boop_parse_ast(ast_receiver.clone()).into()
-}
-
 #[proc_macro_derive(NestEdit, attributes(livecode))]
 pub fn murrelet_livecode_derive_nestedit(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
@@ -111,6 +98,12 @@ pub fn murrelet_livecode_top_level_livecode(input: TokenStream) -> TokenStream {
     top_level_livecode(ast.ident).into()
 }
 
+#[proc_macro_derive(TopLevelLiveCodeJson, attributes(livecode))]
+pub fn murrelet_livecode_top_level_livecode_json(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    top_level_livecode_json(ast.ident).into()
+}
+
 #[proc_macro_derive(LiveCoderTrait, attributes(livecode))]
 pub fn murrelet_livecode_livecoder_traits(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
@@ -121,4 +114,10 @@ pub fn murrelet_livecode_livecoder_traits(input: TokenStream) -> TokenStream {
 pub fn murrelet_livecode_graphics(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     impl_graphics_trait(ast).into()
+}
+
+#[proc_macro_derive(Cached, attributes(cached))]
+pub fn murrelet_cache_compute(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::DeriveInput);
+    impl_cache_traits(ast).into()
 }

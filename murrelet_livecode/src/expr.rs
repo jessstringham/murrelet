@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{f64::consts::PI, fmt::Debug};
+use std::{collections::HashMap, f64::consts::PI, fmt::Debug, sync::Arc};
 
 use evalexpr::*;
 use glam::{vec2, Vec2};
@@ -9,6 +9,7 @@ use noise::{NoiseFn, Perlin};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
+use regex::Regex;
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{
@@ -27,6 +28,16 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             }
             Ok(Value::Empty)
         }),
+        "p" => Function::new(move |argument| {
+            if let Ok(a) = argument.as_float() {
+                println!("{:?} (float)", a);
+                Ok(Value::Float(a))
+            } else {
+                let a = argument.as_int()?;
+                println!("{:?} (int)", a);
+                Ok(Value::Int(a))
+            }
+        }),
         "manymod" => Function::new(move |argument| {
             let a = argument.as_tuple()?;
 
@@ -41,6 +52,12 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                 offset *= mod_thing;
             }
             Ok(Value::Int(result))
+        }),
+        "trigger" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(3)?;
+            let (val, last_val, rate) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
+            let f = (val / rate).floor() > (last_val / rate).floor();
+            Ok(Value::Boolean(f))
         }),
 
         "clamp" => Function::new(move |argument| {
@@ -92,6 +109,17 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = 1.0 - (src * 2.0 - 1.0).abs();
             Ok(Value::Float(f))
         }),
+        // l2 version of this, use power instead!
+        "tri2" => Function::new(|argument| {
+            let src = argument.as_number()?;
+            let f = 1.0 - (src * 2.0 - 1.0).powi(2);
+            Ok(Value::Float(f))
+        }),
+        "smooth" => Function::new(|argument| {
+            let t = argument.as_number()?;
+            let f = smoothstep(t, 0.0, 1.0);
+            Ok(Value::Float(f))
+        }),
         // bounce(t, 0.25)
         "bounce" => Function::new(|argument| {
             let (src, mult, offset) = match argument.as_fixed_len_tuple(3) {
@@ -128,6 +156,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = smoothstep(t, edge0, edge1);
             Ok(Value::Float(f))
         }),
+
         "step" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(2)?;
             let (src, val) = (tuple[0].as_number()?, tuple[1].as_number()?);
@@ -196,6 +225,29 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = (PI * 2.0 * (w * t + phase)).sin();
             Ok(Value::Float(f))
         }),
+        "sinpos" => Function::new(move |argument| {
+            let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
+                Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?),
+                Err(_) => {
+                    match argument.as_fixed_len_tuple(2) {
+                        Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, 0.0),
+                        Err(_) => {
+                            (argument.as_float()?, 1.0, 0.0)
+                        },
+                    }
+                }
+            };
+            let f = 0.5 + 0.5 * (PI * 2.0 * (w * t + phase)).sin();
+            Ok(Value::Float(f))
+        }),
+        "quantize" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (x, y) = (tuple[0].as_number()?, tuple[1].as_number()?);
+
+            let p = (x * y).floor() / y;
+            Ok(Value::Float(p))
+        }),
+
         "cos" => Function::new(move |argument| {
             let (t, w, phase) = match argument.as_fixed_len_tuple(3) {
                 Ok(tuple) => (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?),
@@ -221,11 +273,28 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             );
             let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos() * (m * PI * y / b).cos();
             Ok(Value::Float(f))
+        }),
+        "len" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (x1, y1) = (
+                tuple[0].as_number()?, tuple[1].as_number()?,
+            );
+            let f = vec2(x1 as f32, y1 as f32).length();
+            Ok(Value::Float(f as f64))
+        }),
+        "dist" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(4)?;
+            let (x1, y1, x2, y2) = (
+                tuple[0].as_number()?, tuple[1].as_number()?,
+                tuple[2].as_number()?, tuple[3].as_number()?,
+            );
+            let f = vec2(x1 as f32, y1 as f32).distance(vec2(x2 as f32, y2 as f32));
+            Ok(Value::Float(f as f64))
         })
     }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err)})
 }
 
-fn lc_val_to_expr(v: &LivecodeValue) -> Value {
+pub fn lc_val_to_expr(v: &LivecodeValue) -> Value {
     match v {
         LivecodeValue::Float(f) => Value::Float(*f),
         LivecodeValue::Bool(f) => Value::Boolean(*f),
@@ -235,10 +304,14 @@ fn lc_val_to_expr(v: &LivecodeValue) -> Value {
 
 // simple mapping of values
 #[derive(Debug, Clone)]
-pub struct ExprWorldContextValues(Vec<(String, LivecodeValue)>);
+pub struct ExprWorldContextValues(HashMap<String, LivecodeValue>);
 impl ExprWorldContextValues {
     pub fn new(v: Vec<(String, LivecodeValue)>) -> Self {
-        Self(v)
+        Self(v.into_iter().collect())
+    }
+
+    pub fn empty() -> Self {
+        Self::new(vec![])
     }
 
     pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
@@ -253,7 +326,20 @@ impl ExprWorldContextValues {
     }
 
     pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
-        self.0.push((name.to_owned(), val))
+        if self.0.contains_key(name) {
+            let re = Regex::new(r"^(.*?)(\d+)$").unwrap();
+            let new_name = if let Some(caps) = re.captures(name) {
+                let base = caps.get(1).map_or("", |m| m.as_str());
+                let num = caps.get(2).map_or("0", |m| m.as_str());
+                let num: u32 = num.parse().unwrap_or(0);
+                format!("{}{}", base, num + 1)
+            } else {
+                format!("{}_0", name)
+            };
+            self.0.insert(new_name, val);
+        } else {
+            self.0.insert(name.to_owned(), val);
+        }
     }
 
     pub fn new_from_idx(idx: IdxInRange) -> Self {
@@ -261,6 +347,7 @@ impl ExprWorldContextValues {
             ("i".to_string(), LivecodeValue::Int(idx.i() as i64)),
             ("if".to_string(), LivecodeValue::Float(idx.i() as f64)),
             ("pct".to_string(), LivecodeValue::Float(idx.pct() as f64)),
+            ("x".to_string(), LivecodeValue::Float(idx.pct() as f64)), // just in case i use the wrong one
             ("total".to_string(), LivecodeValue::Int(idx.total() as i64)),
             (
                 "totalf".to_string(),
@@ -285,9 +372,27 @@ impl ExprWorldContextValues {
         Self::new(new_vals)
     }
 
-    fn combine(&mut self, vals: ExprWorldContextValues) -> Self {
+    pub fn combine(&mut self, vals: ExprWorldContextValues) -> Self {
         // have the new ones added later, so they'll overwrite if there are duplicates...
-        Self::new([self.0.clone(), vals.0].concat())
+
+        let mut new = self.clone();
+
+        for (name, val) in vals.0 {
+            new.set_val(&name, val);
+        }
+
+        new
+    }
+
+    pub(crate) fn get_variable(&self, identifier: &str) -> Option<&LivecodeValue> {
+        self.0.get(identifier)
+    }
+
+    pub(crate) fn to_vals(&self) -> Vec<(String, Value)> {
+        self.0
+            .iter()
+            .map(|(k, v)| (k.clone(), lc_val_to_expr(v)))
+            .collect_vec()
     }
 }
 
@@ -300,7 +405,7 @@ impl IntoExprWorldContext for Vec<(String, f32)> {
         let v = self
             .iter()
             .map(|(s, x)| (s.to_owned(), LivecodeValue::Float(*x as f64)))
-            .collect_vec();
+            .collect();
         ExprWorldContextValues(v)
     }
 }
@@ -354,6 +459,64 @@ impl GuideType {
                 ]
             }
         }
+    }
+}
+
+pub trait ToMixedDefs {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef;
+}
+
+impl ToMixedDefs for ExprWorldContextValues {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefs::new_from_expr(self.clone()).to_mixed_def()
+    }
+}
+
+impl ToMixedDefs for Arc<MixedEvalDefs> {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefsRef(self.clone())
+    }
+}
+
+impl ToMixedDefs for MixedEvalDefs {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefsRef::new(self.clone())
+    }
+}
+
+impl ToMixedDefs for (&str, LivecodeValue) {
+    fn to_mixed_def(&self) -> MixedEvalDefsRef {
+        MixedEvalDefs::new_simple(self.0, self.1).to_mixed_def()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MixedEvalDefsRef(Arc<MixedEvalDefs>);
+impl MixedEvalDefsRef {
+    pub fn new(m: MixedEvalDefs) -> Self {
+        MixedEvalDefsRef(Arc::new(m))
+    }
+
+    pub fn from_ctx_node(x: AdditionalContextNode) -> Self {
+        let mut m = MixedEvalDefs::new();
+        m.add_node(x);
+        Self::new(m)
+    }
+
+    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+        self.0.update_ctx(ctx)
+    }
+
+    pub(crate) fn new_from_expr(more_vals: ExprWorldContextValues) -> MixedEvalDefsRef {
+        Self::new(MixedEvalDefs::new_from_expr(more_vals))
+    }
+
+    pub(crate) fn expr_vals(&self) -> &ExprWorldContextValues {
+        self.0.expr_vals()
+    }
+
+    pub fn as_defs(&self) -> &MixedEvalDefs {
+        self.0.as_ref()
     }
 }
 
@@ -420,5 +583,27 @@ impl MixedEvalDefs {
         let mut c = Self::new();
         c.set_val(name, val);
         c
+    }
+
+    pub fn from_idx(idx: IdxInRange) -> Self {
+        Self::new_from_expr(ExprWorldContextValues::new_from_idx(idx))
+    }
+
+    pub(crate) fn expr_vals(&self) -> &ExprWorldContextValues {
+        &self.vals
+    }
+
+    pub fn add_idx(&mut self, i: IdxInRange, prefix: &str) {
+        self.set_vals(ExprWorldContextValues::new_from_idx(i).with_prefix(prefix));
+    }
+
+    pub fn with_idx(mut self, i: IdxInRange, prefix: &str) -> MixedEvalDefs {
+        self.set_vals(ExprWorldContextValues::new_from_idx(i).with_prefix(prefix));
+        self
+    }
+
+    pub fn with_val(mut self, prefix: &str, val: LivecodeValue) -> MixedEvalDefs {
+        self.set_val(prefix, val);
+        self
     }
 }

@@ -10,6 +10,7 @@ use glam::Vec2;
 use glam::Vec3;
 use itertools::Itertools;
 use murrelet_common::clamp;
+use murrelet_common::AnglePi;
 
 use murrelet_common::MurreletColor;
 use serde::Deserialize;
@@ -29,6 +30,10 @@ pub fn empty_vec<T>() -> Vec<T> {
 
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
+
+    fn o_dummy(&self) -> LivecodeResult<T> {
+        self.o(&LivecodeWorldState::new_dummy())
+    }
 }
 
 impl LivecodeFromWorld<f32> for ControlF32 {
@@ -58,6 +63,15 @@ impl LivecodeFromWorld<MurreletColor> for [ControlF32; 4] {
             clamp(self[2].o(w)?, 0.0, 1.0),
             self[3].o(w)?,
         ))
+    }
+}
+
+impl<Source, Target> LivecodeFromWorld<Vec<Target>> for Vec<Source>
+where
+    Source: LivecodeFromWorld<Target>,
+{
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>> {
+        self.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -92,6 +106,12 @@ impl LivecodeToControl<ControlF32> for u8 {
 impl LivecodeToControl<ControlBool> for bool {
     fn to_control(&self) -> ControlBool {
         ControlBool::Raw(*self)
+    }
+}
+
+impl LivecodeToControl<ControlF32> for AnglePi {
+    fn to_control(&self) -> ControlF32 {
+        ControlF32::Raw(self._angle_pi())
     }
 }
 
@@ -135,9 +155,28 @@ impl LivecodeToControl<ControlF32> for u64 {
     }
 }
 
+impl<Source, Target> LivecodeToControl<Vec<Target>> for Vec<Source>
+where
+    Source: LivecodeToControl<Target>,
+{
+    fn to_control(&self) -> Vec<Target> {
+        self.iter().map(|x| x.to_control()).collect_vec()
+    }
+}
+
 impl LivecodeToControl<ControlLazyNodeF32> for LazyNodeF32 {
     fn to_control(&self) -> ControlLazyNodeF32 {
         ControlLazyNodeF32::new(self.n().cloned().unwrap())
+    }
+}
+
+impl<T, ControlType> LivecodeToControl<Option<ControlType>> for Option<T>
+where
+    T: LivecodeToControl<ControlType> + Clone,
+    ControlType: LivecodeFromWorld<T>,
+{
+    fn to_control(&self) -> Option<ControlType> {
+        self.as_ref().map(|s| s.to_control())
     }
 }
 
@@ -284,6 +323,23 @@ impl GetLivecodeIdentifiers for [ControlF32; 4] {
     }
 }
 
+impl<T> GetLivecodeIdentifiers for Vec<T>
+where
+    T: GetLivecodeIdentifiers,
+{
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        self.iter()
+            .flat_map(|x| x.variable_identifiers())
+            .collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        self.iter()
+            .flat_map(|x| x.function_identifiers())
+            .collect_vec()
+    }
+}
+
 impl GetLivecodeIdentifiers for String {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         vec![]
@@ -294,9 +350,10 @@ impl GetLivecodeIdentifiers for String {
     }
 }
 
+//
 impl GetLivecodeIdentifiers for AdditionalContextNode {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
-        vec![]
+        self.vars()
     }
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
@@ -311,6 +368,20 @@ impl<K, V> GetLivecodeIdentifiers for HashMap<K, V> {
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         vec![]
+    }
+}
+
+impl<T: GetLivecodeIdentifiers> GetLivecodeIdentifiers for Option<T> {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        self.as_ref()
+            .map(|x| x.variable_identifiers())
+            .unwrap_or(vec![])
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        self.as_ref()
+            .map(|x| x.function_identifiers())
+            .unwrap_or(vec![])
     }
 }
 
@@ -440,6 +511,8 @@ pub enum ControlF32 {
 }
 
 impl ControlF32 {
+    pub const ZERO: ControlF32 = ControlF32::Float(0.0);
+
     // for backwards compatibility
     #[allow(non_snake_case)]
     pub fn Raw(v: f32) -> ControlF32 {
@@ -457,6 +530,8 @@ impl ControlF32 {
     }
 
     pub fn _o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
+        let a = w.ctx()?;
+        let ctx = a.as_ref();
         match self {
             ControlF32::Bool(b) => {
                 if *b {
@@ -467,15 +542,15 @@ impl ControlF32 {
             }
             ControlF32::Int(i) => Ok(*i as f32),
             ControlF32::Float(x) => Ok(*x),
-            ControlF32::Expr(e) => match e.eval_float_with_context(w.ctx()).map(|x| x as f32) {
-                Ok(r) => Ok(r),
-                Err(_) => {
-                    let b = e
-                        .eval_boolean_with_context(w.ctx())
-                        .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err));
-                    Ok(if b? { 1.0 } else { -1.0 })
-                }
-            },
+            ControlF32::Expr(e) => e
+                .eval_float_with_context(ctx)
+                .map(|x| x as f32)
+                .or_else(|_| e.eval_int_with_context(ctx).map(|b| b as f32))
+                .or_else(|_| {
+                    e.eval_boolean_with_context(ctx)
+                        .map(|b| if b { 1.0 } else { -1.0 })
+                        .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err))
+                }),
         }
     }
 }
@@ -497,15 +572,6 @@ pub enum ControlBool {
     Expr(Node),
 }
 impl ControlBool {
-    // pub fn to_unitcell_control(&self) -> UnitCellControlExprBool {
-    //     match self {
-    //         ControlBool::Raw(x) => UnitCellControlExprBool::Bool(*x),
-    //         ControlBool::Int(x) => UnitCellControlExprBool::Int(*x),
-    //         ControlBool::Float(x) => UnitCellControlExprBool::Float(*x),
-    //         ControlBool::Expr(x) => UnitCellControlExprBool::Expr(x.clone()),
-    //     }
-    // }
-
     pub fn force_from_str(s: &str) -> ControlBool {
         match build_operator_tree(s) {
             Ok(e) => Self::Expr(e),
@@ -517,21 +583,22 @@ impl ControlBool {
     }
 
     pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<bool> {
-        // self.to_unitcell_control().eval(w)
+        let a = w.ctx()?;
+        let ctx = a.as_ref();
 
         match self {
             ControlBool::Raw(b) => Ok(*b),
             ControlBool::Int(i) => Ok(*i > 0),
             ControlBool::Float(x) => Ok(*x > 0.0),
-            ControlBool::Expr(e) => match e.eval_boolean_with_context(w.ctx()) {
-                Ok(r) => Ok(r),
-                Err(_) => {
-                    let b = e.eval_float_with_context(w.ctx()).map_err(|err| {
-                        LivecodeError::EvalExpr("error evaluing bool".to_string(), err)
-                    });
-                    b.map(|x| x > 0.0)
-                }
-            },
+
+            ControlBool::Expr(e) => e
+                .eval_boolean_with_context(ctx)
+                .or_else(|_| e.eval_float_with_context(ctx).map(|b| b > 0.0))
+                .or_else(|_| {
+                    e.eval_int_with_context(ctx)
+                        .map(|b| b > 0)
+                        .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err))
+                }),
         }
     }
 

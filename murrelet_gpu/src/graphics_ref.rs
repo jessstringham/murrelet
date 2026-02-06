@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 use std::{cell::RefCell, sync::Arc};
 
-use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec3};
+use bytemuck::NoUninit;
+use glam::Mat4;
+
+use murrelet_common::triangulate::{DefaultVertex, Triangulate};
 use std::rc::Rc;
 
 #[cfg(feature = "nannou")]
@@ -17,7 +19,9 @@ use wgpu::TextureDescriptor;
 
 use crate::device_state::*;
 use crate::gpu_livecode::{ControlGraphics, ControlGraphicsRef};
-use crate::shader_str::{VERTEX_SHADER, VERTEX_SHADER_3D};
+use crate::shader_str::{PREFIX, VERTEX_SHADER, VERTEX_SHADER_3D};
+use crate::uniforms::{BasicUniform, UniformsPair};
+use crate::window::GraphicsWindowConf;
 
 #[cfg(not(feature = "nannou"))]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -29,61 +33,54 @@ pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureForm
 #[cfg(feature = "nannou")]
 pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
-fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
+pub fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
     device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Shader"),
         source: wgpu::ShaderSource::Wgsl(data.into()),
     })
 }
 
-// for each vertex, this is what we'll pass in
+pub trait GraphicsVertex: NoUninit + Copy + Clone + std::fmt::Debug + 'static {
+    fn vertex_shader() -> &'static str;
+    fn vertex_shader_3d() -> &'static str {
+        unimplemented!()
+    }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct Vertex {
-    position: [f32; 3],
-    normal: [f32; 3],
-    face_pos: [f32; 2],
+    fn fragment_prefix() -> &'static str;
 }
 
-impl Vertex {
-    pub fn new(position: [f32; 3], normal: [f32; 3], face_pos: [f32; 2]) -> Self {
-        Self {
-            position,
-            normal,
-            face_pos,
-        }
-    }
-    pub fn pos(&self) -> [f32; 3] {
-        self.position
+impl GraphicsVertex for DefaultVertex {
+    fn vertex_shader() -> &'static str {
+        VERTEX_SHADER
     }
 
-    pub fn pos_vec3(&self) -> Vec3 {
-        glam::vec3(self.position[0], self.position[1], self.position[2])
+    fn vertex_shader_3d() -> &'static str {
+        VERTEX_SHADER_3D
+    }
+
+    fn fragment_prefix() -> &'static str {
+        PREFIX
     }
 }
-
-unsafe impl Zeroable for Vertex {}
-unsafe impl Pod for Vertex {}
 
 // in the default vertex shader, z is dropped
-pub const VERTICES: [Vertex; 4] = [
-    Vertex {
+pub const VERTICES: [DefaultVertex; 4] = [
+    DefaultVertex {
         position: [-1.0, 1.0, 0.0],
         normal: [0.0, 0.0, 0.0],
         face_pos: [1.0, 0.0],
     },
-    Vertex {
+    DefaultVertex {
         position: [-1.0, -1.0, 0.0],
         normal: [0.0, 0.0, 0.0],
         face_pos: [0.0, 0.0],
     },
-    Vertex {
+    DefaultVertex {
         position: [1.0, 1.0, 0.0],
         normal: [0.0, 0.0, 0.0],
         face_pos: [1.0, 1.0],
     },
-    Vertex {
+    DefaultVertex {
         position: [1.0, -1.0, 0.0],
         normal: [0.0, 0.0, 0.0],
         face_pos: [1.0, 0.0],
@@ -137,79 +134,18 @@ pub struct Scene {
 
 // this is the conf that you'll interface with
 #[derive(Debug, Clone)]
-pub struct Triangulate {
-    vertices: Vec<Vertex>,
-    order: Vec<u16>,
-}
-
-impl Triangulate {
-    pub fn new() -> Self {
-        Triangulate {
-            vertices: vec![],
-            order: vec![],
-        }
-    }
-
-    pub fn vertices(&self) -> &[Vertex] {
-        &self.vertices
-    }
-
-    pub fn add_vertex(&mut self, v: [f32; 3], n: [f32; 3], face_pos: [f32; 2]) -> u16 {
-        let vv = Vertex::new(v, n, face_pos);
-        self.vertices.push(vv);
-        (self.vertices.len() - 1) as u16
-    }
-
-    // alternatively can add vertices and then add teh vec
-    pub fn add_rect(&mut self, v: &[Vec3; 4], flip: bool) {
-        let edge1 = v[0] - v[1];
-        let edge2 = v[3] - v[1];
-        let normal = edge1.cross(edge2).normalize().to_array();
-
-        let v0 = self.add_vertex(v[0].to_array(), normal, [1.0, 0.0]);
-        let v1 = self.add_vertex(v[1].to_array(), normal, [0.0, 0.0]);
-        let v2 = self.add_vertex(v[2].to_array(), normal, [1.0, 1.0]);
-        let v3 = self.add_vertex(v[3].to_array(), normal, [0.0, 1.0]);
-
-        if !flip {
-            self.order.extend([v0, v2, v1, v1, v2, v3])
-        } else {
-            self.order.extend([v0, v1, v2, v1, v3, v2])
-        }
-    }
-
-    fn order(&self) -> &[u16] {
-        &self.order
-    }
-
-    pub fn indices(&self) -> &[u16] {
-        &self.order
-    }
-}
-
-// this is the conf that you'll interface with
-#[derive(Debug, Clone)]
-pub struct InputVertexConf {
+pub struct InputVertexConf<VertexKind> {
     is_3d: bool, // todo, maybe can simplify now that i have this, e.g. vs_mod
     vs_mod: &'static str,
     view: VertexUniforms,
     topology: wgpu::PrimitiveTopology,
-    vertices: Vec<Vertex>,
-    order: Vec<u16>,
+    tri: Triangulate<VertexKind>, // vertices: Vec<VertexKind>,
+                                  // order: Vec<u32>,
 }
 
-impl InputVertexConf {
-    pub fn buffer_slice(&self) -> &[u16] {
-        self.order.as_slice()
-    }
-
-    pub fn from_triangulate(t: &Triangulate) -> Self {
-        let mut c = Self::default();
-        c.is_3d = true;
-        c.vs_mod = VERTEX_SHADER_3D;
-        c.vertices = t.vertices.clone();
-        c.order = t.order.clone();
-        c
+impl<VertexKind: Clone> InputVertexConf<VertexKind> {
+    pub fn buffer_slice(&self) -> &[u32] {
+        self.tri.order.as_slice()
     }
 
     pub fn set_view(mut self, view: Mat4, light: Mat4) -> Self {
@@ -234,25 +170,49 @@ fn main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
         )
     }
 
-    pub fn with_custom_vertices(mut self, tri: &Triangulate) -> Self {
-        self.vertices = tri.vertices.clone();
+    pub fn with_custom_vertices(mut self, tri: &Triangulate<VertexKind>) -> Self {
+        self.tri = tri.clone();
         self.topology = wgpu::PrimitiveTopology::TriangleList;
-        self.order = tri.order.clone();
         self
     }
 
     pub fn indices(&self) -> u32 {
-        self.order.len() as u32
+        self.tri.order.len() as u32
     }
+}
 
-    pub fn default() -> Self {
-        Self {
-            vs_mod: VERTEX_SHADER,
+impl InputVertexConf<DefaultVertex> {
+    pub fn default() -> InputVertexConf<DefaultVertex> {
+        InputVertexConf {
+            vs_mod: DefaultVertex::vertex_shader(),
             view: VertexUniforms::identity(),
             topology: wgpu::PrimitiveTopology::TriangleList,
-            vertices: VERTICES.to_vec(),
-            order: vec![0, 1, 2, 1, 3, 2],
+            tri: Triangulate::<DefaultVertex> {
+                vertices: VERTICES.to_vec(),
+                order: vec![0, 1, 2, 1, 3, 2],
+            },
             is_3d: false,
+        }
+    }
+}
+impl<VertexKind: GraphicsVertex> InputVertexConf<VertexKind> {
+    pub fn from_triangulate_2d(tri: Triangulate<VertexKind>) -> InputVertexConf<VertexKind> {
+        InputVertexConf {
+            vs_mod: VertexKind::vertex_shader(),
+            view: VertexUniforms::identity(),
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            tri,
+            is_3d: false,
+        }
+    }
+
+    pub fn from_triangulate(tri: Triangulate<VertexKind>) -> InputVertexConf<VertexKind> {
+        InputVertexConf {
+            vs_mod: VertexKind::vertex_shader_3d(),
+            view: VertexUniforms::identity(),
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            tri,
+            is_3d: true,
         }
     }
 }
@@ -292,7 +252,7 @@ impl ShaderOptions {
         }
     }
 
-    fn as_sampler_desc(&self) -> wgpu::SamplerDescriptor {
+    fn as_sampler_desc(&self) -> wgpu::SamplerDescriptor<'_> {
         wgpu::SamplerDescriptor {
             address_mode_u: self.sampler_address_mode_u,
             address_mode_v: self.sampler_address_mode_v,
@@ -338,15 +298,16 @@ struct TextureCreator {
 }
 
 #[derive(Debug, Clone)]
-pub struct GraphicsCreator {
+pub struct GraphicsCreator<VertexKind> {
     first_texture: TextureCreator,
     second_texture: Option<TextureCreator>,
     details: ShaderOptions,
     color_blend: wgpu::BlendComponent,
     dst_texture: TextureCreator,
-    input_vertex: InputVertexConf, // defaults to the square
+    input_vertex: InputVertexConf<VertexKind>, // defaults to the square
+    blend_state: wgpu::BlendState,
 }
-impl Default for GraphicsCreator {
+impl Default for GraphicsCreator<DefaultVertex> {
     fn default() -> Self {
         GraphicsCreator {
             first_texture: TextureCreator {
@@ -362,10 +323,46 @@ impl Default for GraphicsCreator {
                 format: DEFAULT_TEXTURE_FORMAT,
             },
             input_vertex: InputVertexConf::default(),
+            blend_state: wgpu::BlendState::REPLACE,
         }
     }
 }
-impl GraphicsCreator {
+impl GraphicsCreator<DefaultVertex> {
+    pub fn with_custom_triangle(mut self, t: &Triangulate<DefaultVertex>, is_3d: bool) -> Self {
+        if is_3d {
+            self.input_vertex = InputVertexConf::from_triangulate(t.clone());
+        } else {
+            self.input_vertex = InputVertexConf::from_triangulate_2d(t.clone());
+        }
+        self
+    }
+}
+
+impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
+    pub fn default_with_custom_vertex(t: &Triangulate<VertexKind>, is_3d: bool) -> Self {
+        let input_vertex = if is_3d {
+            InputVertexConf::from_triangulate(t.clone())
+        } else {
+            InputVertexConf::from_triangulate_2d(t.clone())
+        };
+        GraphicsCreator {
+            first_texture: TextureCreator {
+                format: DEFAULT_TEXTURE_FORMAT,
+            },
+            second_texture: None,
+            details: ShaderOptions::new_with_options(
+                wgpu::FilterMode::Linear,
+                wgpu::AddressMode::ClampToEdge,
+            ),
+            color_blend: wgpu::BlendComponent::REPLACE,
+            dst_texture: TextureCreator {
+                format: DEFAULT_TEXTURE_FORMAT,
+            },
+            input_vertex,
+            blend_state: wgpu::BlendState::REPLACE,
+        }
+    }
+
     pub fn with_first_texture_format(mut self, format: wgpu::TextureFormat) -> Self {
         self.first_texture = TextureCreator { format };
         self
@@ -375,11 +372,6 @@ impl GraphicsCreator {
         self.second_texture = Some(TextureCreator {
             format: DEFAULT_TEXTURE_FORMAT,
         });
-        self
-    }
-
-    pub fn with_custom_triangle(mut self, t: &Triangulate) -> Self {
-        self.input_vertex = InputVertexConf::from_triangulate(t);
         self
     }
 
@@ -418,130 +410,43 @@ impl GraphicsCreator {
         self
     }
 
+    pub fn with_blend_state(mut self, blend_state: wgpu::BlendState) -> Self {
+        self.blend_state = blend_state;
+        self
+    }
+
     pub fn to_graphics_ref<'a>(
         &self,
         c: &GraphicsWindowConf<'a>,
         name: &str,
         fs_shader: &str,
-    ) -> GraphicsRef {
+    ) -> GraphicsRefCustom<VertexKind> {
         if self.color_blend != wgpu::BlendComponent::REPLACE
             && self.dst_texture.format == wgpu::TextureFormat::Rgba32Float
         {
             panic!("can't blend with float32 textures");
         }
 
-        GraphicsRef::new(name, c, fs_shader, self)
+        GraphicsRefCustom::new(name, c, fs_shader, self)
     }
 
     fn is_3d(&self) -> bool {
         self.input_vertex.is_3d
     }
-}
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
-pub struct BasicUniform {
-    dims: [f32; 4],
-    more_info: [f32; 4],
-    more_info_other: [f32; 4],
-}
-
-unsafe impl Zeroable for BasicUniform {}
-unsafe impl Pod for BasicUniform {}
-
-impl BasicUniform {
-    fn empty_4() -> [f32; 4] {
-        [0.0, 0.0, 0.0, 0.0]
-    }
-
-    pub fn from_empty() -> BasicUniform {
-        BasicUniform {
-            dims: BasicUniform::empty_4(),
-            more_info: BasicUniform::empty_4(),
-            more_info_other: BasicUniform::empty_4(),
-        }
-    }
-
-    fn _dims_to_more_info(w: f32, h: f32) -> [f32; 4] {
-        [w, h, 1.0 / w, 1.0 / h]
-    }
-
-    pub fn from_dims([w, h]: [u32; 2]) -> BasicUniform {
-        let w_f32 = w as f32;
-        let h_f32 = h as f32;
-        let dims = BasicUniform::_dims_to_more_info(w_f32, h_f32);
-        BasicUniform {
-            dims,
-            more_info: BasicUniform::empty_4(),
-            more_info_other: BasicUniform::empty_4(),
-        }
-    }
-
-    pub fn from_dims_and_more([w, h]: [u32; 2], more_info: [f32; 4]) -> BasicUniform {
-        let w_f32 = w as f32;
-        let h_f32 = h as f32;
-        let dims = BasicUniform::_dims_to_more_info(w_f32, h_f32);
-        BasicUniform {
-            dims,
-            more_info,
-            more_info_other: BasicUniform::empty_4(),
-        }
-    }
-
-    pub fn update_more_info(&mut self, more_info: [f32; 4]) {
-        self.more_info = more_info
-    }
-
-    pub fn update_more_info_other(&mut self, more_info: [f32; 4]) {
-        self.more_info_other = more_info
-    }
-
-    fn as_bytes(&self) -> &[u8] {
-        bytemuck::bytes_of(self)
-    }
-
-    fn uniforms_size(&self) -> u64 {
-        std::mem::size_of::<Self>() as wgpu::BufferAddress
-    }
-
-    fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: self.uniforms_size(),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        })
-    }
-
-    fn copy_to_buffer(
-        &self,
-        dest: &wgpu::Buffer,
-        device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
-    ) {
-        encoder.copy_buffer_to_buffer(&self.to_buffer(device), 0, dest, 0, self.uniforms_size());
-    }
-}
-
-pub struct UniformsPair {
-    more_info: [f32; 4],
-    more_info_other: [f32; 4],
-}
-impl UniformsPair {
-    pub fn new(more_info: [f32; 4], more_info_other: [f32; 4]) -> UniformsPair {
-        UniformsPair {
-            more_info,
-            more_info_other,
-        }
+    pub fn blend_state(&self) -> wgpu::BlendState {
+        self.blend_state
     }
 }
 
 #[derive(Clone)]
-pub struct GraphicsRef {
-    pub graphics: Rc<RefCell<Graphics>>,
+pub struct GraphicsRefCustom<VertexKind> {
+    pub graphics: Rc<RefCell<Graphics<VertexKind>>>,
 }
 
-impl GraphicsRef {
+pub type GraphicsRef = GraphicsRefCustom<DefaultVertex>;
+
+impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
     pub fn name(&self) -> String {
         self.graphics.borrow().name.clone()
     }
@@ -557,9 +462,10 @@ impl GraphicsRef {
         name: &str,
         c: &GraphicsWindowConf<'a>,
         fs_shader: &str,
-        conf: &GraphicsCreator,
+        conf: &GraphicsCreator<VertexKind>,
         assets: GraphicsAssets,
     ) -> Self {
+        println!("name {:?}", name);
         let graphics = Graphics::new_mut(
             name.to_string(),
             c,
@@ -568,6 +474,7 @@ impl GraphicsRef {
             assets,
             conf.clone(),
         );
+        println!("done name {:?}", name);
         Self { graphics }
     }
 
@@ -575,7 +482,7 @@ impl GraphicsRef {
         name: &str,
         c: &GraphicsWindowConf<'a>,
         fs_shader: &str,
-        conf: &GraphicsCreator,
+        conf: &GraphicsCreator<VertexKind>,
     ) -> Self {
         Self::new_with_src(name, c, fs_shader, conf, GraphicsAssets::Nothing)
     }
@@ -590,19 +497,18 @@ impl GraphicsRef {
         graphics_rc.update_uniforms_other_tuple(c, more_info)
     }
 
+    #[deprecated(note = "Use render instead")]
     pub fn render_to_view(&self, device: &DeviceState, view: &wgpu::TextureView) {
+        self.render(device, view)
+    }
+
+    pub fn render(&self, device: &DeviceState, view: &wgpu::TextureView) {
         self.graphics.borrow_mut().render(device, view)
     }
 
-    pub fn render(&self, device: &DeviceState, other: &GraphicsRef) {
-        let view = &other.graphics.borrow_mut().input_texture_view;
-        self.graphics.borrow_mut().render(device, view)
-    }
-
-    pub fn render_2tex(&self, device_state: &DeviceState, other: &GraphicsRef) {
-        let binding = other.graphics.borrow_mut();
-        let view = binding.input_texture_view_other.as_ref().unwrap();
-        self.graphics.borrow_mut().render(device_state, view)
+    #[deprecated(note = "Use render_to_view instead")]
+    pub fn render_2tex(&self, device: &DeviceState, view: &wgpu::TextureView) {
+        self.render(device, view)
     }
 
     pub fn update_uniforms(&self, c: &GraphicsWindowConf, more_info: [f32; 4]) {
@@ -649,7 +555,7 @@ impl GraphicsRef {
         &self,
         label: &'static str,
         control_graphic_fn: Arc<impl Fn(&T) -> Box<dyn ControlGraphics> + 'static>,
-    ) -> GraphicsRefWithControlFn<T> {
+    ) -> GraphicsRefWithControlFn<T, VertexKind> {
         GraphicsRefWithControlFn {
             label,
             graphics: self.clone(),
@@ -657,13 +563,13 @@ impl GraphicsRef {
         }
     }
 
-    pub fn graphics(&self) -> GraphicsRef {
+    pub fn graphics(&self) -> GraphicsRefCustom<VertexKind> {
         self.clone()
     }
 
     pub fn control_graphics_fn<GraphicsConf>(
         &self,
-    ) -> Option<GraphicsRefWithControlFn<GraphicsConf>> {
+    ) -> Option<GraphicsRefWithControlFn<GraphicsConf, VertexKind>> {
         None
     }
 
@@ -671,27 +577,119 @@ impl GraphicsRef {
         let col = self.graphics.borrow().conf.input_vertex.view.view_proj;
         Mat4::from_cols_array_2d(&col)
     }
+
+    pub fn update_tri(&mut self, c: &GraphicsWindowConf, tri: Triangulate<VertexKind>) {
+        // capture previous buffer sizes
+        let (old_vert_bytes_len, old_index_bytes_len) = {
+            let g = self.graphics.borrow();
+            (
+                bytemuck::cast_slice::<VertexKind, u8>(&g.conf.input_vertex.tri.vertices).len(),
+                bytemuck::cast_slice::<u32, u8>(&g.conf.input_vertex.tri.order).len(),
+            )
+        };
+
+        {
+            let mut g = self.graphics.borrow_mut();
+            g.conf.input_vertex.tri.vertices = tri.vertices.clone();
+            g.conf.input_vertex.tri.order = tri.order.clone();
+            let queue = c.device.queue();
+
+            // vertex buffer: either recreate or overwrite
+            let new_vert_bytes =
+                bytemuck::cast_slice::<VertexKind, u8>(&g.conf.input_vertex.tri.vertices);
+            if new_vert_bytes.len() > old_vert_bytes_len {
+                // recreate vertex buffer with new size
+                let vb = c
+                    .device
+                    .device()
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("vertex buffer"),
+                        contents: new_vert_bytes,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    });
+                g.vertex_buffers.vertex = vb;
+            } else {
+                queue.write_buffer(&g.vertex_buffers.vertex, 0, new_vert_bytes);
+            }
+
+            // index buffer with 4-byte alignment: recreate if growing
+            const ALIGN: usize = 4;
+            let raw_index = bytemuck::cast_slice::<u32, u8>(&g.conf.input_vertex.tri.order);
+            let (index_bytes, needs_recreate) = if !raw_index.len().is_multiple_of(ALIGN) {
+                // pad to alignment
+                let pad = ALIGN - (raw_index.len() % ALIGN);
+                let mut data = Vec::with_capacity(raw_index.len() + pad);
+                data.extend_from_slice(raw_index);
+                data.extend(std::iter::repeat_n(0, pad));
+                (
+                    data.into_boxed_slice(),
+                    raw_index.len() + pad > old_index_bytes_len,
+                )
+            } else {
+                (raw_index.into(), raw_index.len() > old_index_bytes_len)
+            };
+            if needs_recreate {
+                let ib = c
+                    .device
+                    .device()
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("index buffer"),
+                        contents: &index_bytes,
+                        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                    });
+                g.vertex_buffers.index = ib;
+            } else {
+                queue.write_buffer(&g.vertex_buffers.index, 0, &index_bytes);
+            }
+        }
+    }
+
+    pub(crate) fn texture_view(&self) -> wgpu::TextureView {
+        self.graphics.borrow().texture_and_desc.default_view()
+    }
+
+    pub(crate) fn texture_view_other(&self) -> Option<wgpu::TextureView> {
+        self.graphics
+            .borrow()
+            .other_texture_and_desc
+            .as_ref()
+            .map(|x| x.default_view())
+    }
 }
 
 #[derive(Clone)]
-pub struct GraphicsRefWithControlFn<GraphicsConf> {
+pub struct GraphicsRefWithControlFn<GraphicsConf, VertexKind> {
     pub label: &'static str,
-    pub graphics: GraphicsRef,
+    pub graphics: GraphicsRefCustom<VertexKind>,
     pub control_graphic_fn: Arc<dyn Fn(&GraphicsConf) -> Box<dyn ControlGraphics>>,
 }
 
-impl<GraphicsConf> GraphicsRefWithControlFn<GraphicsConf> {
-    pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef> {
+pub trait AnyGraphicsRef {
+    fn texture_view(&self) -> wgpu::TextureView;
+}
+impl<VertexKind> AnyGraphicsRef for GraphicsRefCustom<VertexKind>
+where
+    VertexKind: GraphicsVertex + 'static,
+{
+    fn texture_view(&self) -> wgpu::TextureView {
+        self.texture_view()
+    }
+}
+
+impl<GraphicsConf, VertexKind: GraphicsVertex> GraphicsRefWithControlFn<GraphicsConf, VertexKind> {
+    pub fn control_graphics(&self, conf: &GraphicsConf) -> Vec<ControlGraphicsRef<VertexKind>> {
         let ctrl_graphics = (self.control_graphic_fn)(conf);
 
         ControlGraphicsRef::new(self.label, ctrl_graphics, Some(self.graphics.clone()))
     }
 
-    pub fn graphics(&self) -> GraphicsRef {
+    pub fn graphics(&self) -> GraphicsRefCustom<VertexKind> {
         self.graphics.clone()
     }
 
-    pub fn control_graphics_fn(&self) -> Option<GraphicsRefWithControlFn<GraphicsConf>> {
+    pub fn control_graphics_fn(
+        &self,
+    ) -> Option<GraphicsRefWithControlFn<GraphicsConf, VertexKind>> {
         // Some(self.clone())
         let c = GraphicsRefWithControlFn {
             label: self.label,
@@ -708,6 +706,11 @@ pub struct TextureAndDesc {
     pub texture: Arc<wgpu::Texture>,
     pub desc: wgpu::TextureDescriptor<'static>,
 }
+impl TextureAndDesc {
+    pub(crate) fn default_view(&self) -> wgpu::TextureView {
+        self.texture.create_view(&Default::default())
+    }
+}
 
 pub struct TextureFor3d {
     shadow_pipeline: wgpu::RenderPipeline,
@@ -719,9 +722,9 @@ pub struct TextureFor3d {
 }
 
 // represents things needed to create a single texture... it's a bit of a mess
-pub struct Graphics {
+pub struct Graphics<VertexKind> {
     name: String,
-    conf: GraphicsCreator,
+    conf: GraphicsCreator<VertexKind>,
     bind_group: wgpu::BindGroup,
     vertex_buffers: VertexBuffers,
     render_pipeline: wgpu::RenderPipeline,
@@ -737,12 +740,11 @@ pub struct Graphics {
     textures_for_3d: Option<TextureFor3d>,
 }
 
-impl Graphics {
+impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
     pub fn update_uniforms(&mut self, c: &GraphicsWindowConf, more_info: [f32; 4]) {
         let queue = &c.device.queue();
         self.uniforms.more_info = more_info;
 
-        // println!("{:?}", self.uniform.more_info);
         queue.write_buffer(&self.uniforms_buffer, 0, self.uniforms.as_bytes());
     }
 
@@ -756,7 +758,6 @@ impl Graphics {
         self.uniforms.more_info = more_info;
         self.uniforms.more_info_other = more_info_other;
 
-        // println!("{:?}", self.uniform.more_info);
         queue.write_buffer(&self.uniforms_buffer, 0, self.uniforms.as_bytes());
     }
 
@@ -793,7 +794,8 @@ impl Graphics {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST
-                | wgpu::TextureUsages::COPY_SRC,
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::STORAGE_BINDING, // needed for compute
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -817,7 +819,7 @@ impl Graphics {
 
         let mut bind_group_layout_entries = Vec::new();
         bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
-            binding: 0 as u32, // needs to line up with @group(0) @binding(1)
+            binding: 0_u32, // needs to line up with @group(0) @binding(1)
             visibility: wgpu::ShaderStages::FRAGMENT,
             ty: wgpu::BindingType::Texture {
                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -830,7 +832,7 @@ impl Graphics {
         if has_second_texture {
             bind_group_offset += 1;
             bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
-                binding: 1 as u32, // needs to line up with @group(0) @binding(0)
+                binding: 1_u32, // needs to line up with @group(0) @binding(0)
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -903,9 +905,8 @@ impl Graphics {
 
     fn _sampler(device: &wgpu::Device, details: ShaderOptions) -> wgpu::Sampler {
         let sampler_desc = details.as_sampler_desc();
-        let sampler = device.create_sampler(&sampler_desc);
-        println!("sampler: {:?}, {:?}", sampler, sampler_desc);
-        sampler
+
+        device.create_sampler(&sampler_desc)
     }
 
     fn _bind_group(
@@ -924,12 +925,12 @@ impl Graphics {
 
         entries.push(wgpu::BindGroupEntry {
             binding: 0,
-            resource: wgpu::BindingResource::TextureView(&input_texture_view),
+            resource: wgpu::BindingResource::TextureView(input_texture_view),
         });
         if let Some(texture_view_other) = input_texture_view_other {
             entries.push(wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(&texture_view_other),
+                resource: wgpu::BindingResource::TextureView(texture_view_other),
             });
             binding_offset += 1;
         }
@@ -937,7 +938,7 @@ impl Graphics {
         // next is the sampler
         entries.push(wgpu::BindGroupEntry {
             binding: binding_offset + 1,
-            resource: wgpu::BindingResource::Sampler(&sampler),
+            resource: wgpu::BindingResource::Sampler(sampler),
         });
 
         entries.push(wgpu::BindGroupEntry {
@@ -977,16 +978,17 @@ impl Graphics {
     }
 
     fn _render_pipeline(
-        vertex_conf: &InputVertexConf,
+        conf: &GraphicsCreator<VertexKind>,
         device: &wgpu::Device,
         bind_group_layout: &wgpu::BindGroupLayout,
         fs_mod: &wgpu::ShaderModule,
         dst_format: wgpu::TextureFormat,
     ) -> wgpu::RenderPipeline {
-        let pipeline_layout = Graphics::_pipeline_layout(device, bind_group_layout);
+        let vertex_conf = &conf.input_vertex;
+        let pipeline_layout = Graphics::<VertexKind>::_pipeline_layout(device, bind_group_layout);
 
         let vertex_buffer_layouts = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<DefaultVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
         };
@@ -1000,7 +1002,7 @@ impl Graphics {
 
         let color_state = vec![Some(wgpu::ColorTargetState {
             format: dst_format,
-            blend: Some(wgpu::BlendState::REPLACE), //None,
+            blend: Some(conf.blend_state()),
             write_mask: wgpu::ColorWrites::ALL,
         })];
 
@@ -1030,19 +1032,16 @@ impl Graphics {
             depth_stencil,
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
-                module: &fs_mod,
+                module: fs_mod,
                 entry_point: "main",
                 targets: &color_state,
                 #[cfg(not(feature = "nannou"))]
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             multiview: None,
-            // cache: None,
         };
 
-        let main_pipeline = device.create_render_pipeline(&rp_desc);
-
-        main_pipeline
+        device.create_render_pipeline(&rp_desc)
     }
 
     fn _pipeline_layout(
@@ -1063,7 +1062,7 @@ impl Graphics {
         fs_shader_data: &str,
         initial_uniform: BasicUniform,
         texture_src_path: GraphicsAssets,
-        conf: GraphicsCreator,
+        conf: GraphicsCreator<VertexKind>,
     ) -> Rc<RefCell<Self>> {
         // todo, i used to have code here to check the conf's destination texture was okay
 
@@ -1085,11 +1084,11 @@ impl Graphics {
         fs_shader_data: &str,
         initial_uniform: BasicUniform,
         texture_src_path: GraphicsAssets,
-        conf: GraphicsCreator,
+        conf: GraphicsCreator<VertexKind>,
     ) -> Self {
         let conf_c = conf.clone();
         let has_second_texture = conf.second_texture.is_some();
-        let details = conf.details;
+        let details = conf.clone().details;
         let first_format = conf.first_texture.format;
         let second_format = conf.second_texture.map(|x| x.format);
         let dst_format = conf.dst_texture.format;
@@ -1103,7 +1102,8 @@ impl Graphics {
         // make a bind group layout
 
         let first_texture_format = texture_src_path.to_format(first_format);
-        let texture_and_desc = Graphics::texture(c.dims, device, first_texture_format);
+        let texture_and_desc =
+            Graphics::<DefaultVertex>::texture(c.dims, device, first_texture_format);
         let input_texture = &texture_and_desc.texture;
 
         // maybe load the image source if we have one
@@ -1111,10 +1111,9 @@ impl Graphics {
 
         let input_texture_view = input_texture.create_view(&Default::default());
 
-        println!("input {:?}", input_texture_view);
         let (input_texture_view_other, other_texture_and_desc) = if has_second_texture {
-            let other_texture = Graphics::texture(c.dims(), device, second_format.unwrap());
-            println!("other texture view {:?}", &other_texture.texture);
+            let other_texture =
+                Graphics::<DefaultVertex>::texture(c.dims(), device, second_format.unwrap());
             (
                 Some(other_texture.texture.create_view(&Default::default())),
                 Some(other_texture),
@@ -1122,10 +1121,9 @@ impl Graphics {
         } else {
             (None, None)
         };
-        println!("other input {:?}", input_texture_view_other);
 
-        let sampler = Graphics::_sampler(device, details);
-        let bind_group_layout = Graphics::_bind_group_layout(
+        let sampler = Graphics::<VertexKind>::_sampler(device, details);
+        let bind_group_layout = Graphics::<VertexKind>::_bind_group_layout(
             device,
             has_second_texture,
             false,
@@ -1134,13 +1132,8 @@ impl Graphics {
 
         let initial_uniform_buffer = initial_uniform.to_buffer(device);
 
-        let render_pipeline = Graphics::_render_pipeline(
-            &conf.input_vertex,
-            device,
-            &bind_group_layout,
-            &fs_mod,
-            dst_format,
-        );
+        let render_pipeline =
+            Graphics::_render_pipeline(&conf, device, &bind_group_layout, &fs_mod, dst_format);
 
         let vertex_buffers = VertexBuffers::from_conf(device, &conf.input_vertex);
 
@@ -1219,7 +1212,7 @@ impl Graphics {
 
             // needs to be same
             let vertex_buffer_layouts = wgpu::VertexBufferLayout {
-                array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+                array_stride: std::mem::size_of::<DefaultVertex>() as wgpu::BufferAddress,
                 step_mode: wgpu::VertexStepMode::Vertex,
                 attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
             };
@@ -1269,7 +1262,7 @@ impl Graphics {
             None
         };
 
-        let bind_group = Graphics::_bind_group(
+        let bind_group = Graphics::<VertexKind>::_bind_group(
             device,
             &bind_group_layout,
             &input_texture_view,
@@ -1311,7 +1304,7 @@ impl Graphics {
     ) -> wgpu::BindGroup {
         println!("making custom {:?} {:?}", texture_view, self.sampler);
 
-        Graphics::_bind_group(
+        Graphics::<VertexKind>::_bind_group(
             device,
             &self.bind_group_layout,
             texture_view,
@@ -1327,7 +1320,7 @@ impl Graphics {
         )
     }
 
-    pub fn depth_stencil_attachment(&self) -> Option<wgpu::RenderPassDepthStencilAttachment> {
+    pub fn depth_stencil_attachment(&self) -> Option<wgpu::RenderPassDepthStencilAttachment<'_>> {
         if let Some(TextureFor3d { depth_view, .. }) = &self.textures_for_3d {
             Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_view,
@@ -1368,7 +1361,7 @@ impl Graphics {
                     label: Some("Shadow Pass"),
                     color_attachments: &[],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &shadow_view,
+                        view: shadow_view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
                             #[cfg(not(feature = "nannou"))]
@@ -1384,7 +1377,7 @@ impl Graphics {
                     timestamp_writes: Default::default(),
                 });
                 shadow_pass.set_pipeline(shadow_pipeline);
-                shadow_pass.set_bind_group(0, &shadow_bind_group, &[]);
+                shadow_pass.set_bind_group(0, shadow_bind_group, &[]);
                 shadow_pass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
                 shadow_pass.set_index_buffer(
                     self.vertex_buffers.index.slice(..),
@@ -1420,7 +1413,7 @@ impl Graphics {
             rpass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
             rpass.set_index_buffer(
                 self.vertex_buffers.index.slice(..),
-                wgpu::IndexFormat::Uint16,
+                wgpu::IndexFormat::Uint32,
             );
             rpass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
             drop(rpass);
@@ -1439,7 +1432,7 @@ impl Graphics {
 }
 
 pub fn quick_texture(dims: [u32; 2], device: &wgpu::Device) -> TextureAndDesc {
-    Graphics::texture(dims, device, DEFAULT_TEXTURE_FORMAT)
+    Graphics::<DefaultVertex>::texture(dims, device, DEFAULT_TEXTURE_FORMAT)
 }
 
 pub struct VertexBuffers {
@@ -1450,16 +1443,19 @@ pub struct VertexBuffers {
 
 impl VertexBuffers {
     // inits them all
-    fn from_conf(device: &wgpu::Device, conf: &InputVertexConf) -> Self {
+    fn from_conf<VertexKind: NoUninit>(
+        device: &wgpu::Device,
+        conf: &InputVertexConf<VertexKind>,
+    ) -> Self {
         let vertex = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&conf.vertices[..]),
-            usage: wgpu::BufferUsages::VERTEX,
+            contents: bytemuck::cast_slice(&conf.tri.vertices[..]),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
         let order = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&conf.order[..]),
-            usage: wgpu::BufferUsages::INDEX,
+            contents: bytemuck::cast_slice(&conf.tri.order[..]),
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         });
         let uniform = conf.view.to_buffer(device);
 

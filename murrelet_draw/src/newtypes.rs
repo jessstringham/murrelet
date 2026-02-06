@@ -5,6 +5,7 @@ use glam::{Vec2, Vec3};
 use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode_derive::Livecode;
+use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
 pub struct F32Newtype {
@@ -17,7 +18,7 @@ impl F32Newtype {
     }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
+#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default, Serialize, Deserialize)]
 pub struct Vec2Newtype {
     #[lerpable(func = "lerpify_vec2")]
     v: Vec2,
@@ -71,8 +72,12 @@ impl RGBandANewtype {
     }
 
     pub fn with_alpha(&self, alpha: f32) -> Self {
-        let mut c = self.clone();
+        let mut c = *self;
         c.a = alpha;
         c
+    }
+
+    pub fn alpha(&self) -> f32 {
+        self.a
     }
 }

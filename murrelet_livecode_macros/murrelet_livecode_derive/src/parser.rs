@@ -25,6 +25,8 @@ where
     Self: Sized,
 {
     fn from_newtype_struct(_idents: StructIdents, parent_ident: syn::Ident) -> Self;
+    fn from_newtype_struct_struct(idents: StructIdents, parent_ident: syn::Ident) -> Self;
+    fn from_newtype_struct_lazy(idents: StructIdents, parent_ident: syn::Ident) -> Self;
     fn from_newtype_recurse_struct_vec(_idents: StructIdents) -> Self;
     fn from_unnamed_enum(idents: EnumIdents) -> Self;
     fn from_unit_enum(idents: EnumIdents) -> Self;
@@ -34,10 +36,12 @@ where
     fn from_recurse_struct_struct(idents: StructIdents) -> Self;
     fn from_recurse_struct_unitcell(idents: StructIdents) -> Self;
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self;
+    fn from_option(idents: StructIdents) -> Self;
 
     fn from_ast(ast_receiver: LivecodeReceiver) -> TokenStream2 {
         match ast_receiver.data {
             ast::Data::Enum(_) => Self::make_enum(&ast_receiver),
+            // it's a newtype!
             ast::Data::Struct(ast::Fields {
                 style: ast::Style::Tuple,
                 ..
@@ -112,6 +116,12 @@ where
                             println!("-> from_recurse_struct_unitcell");
                         }
                         Self::from_recurse_struct_unitcell(idents)
+                    }
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::Option) => {
+                        if DEBUG_THIS {
+                            println!("-> from_option");
+                        }
+                        Self::from_option(idents)
                     }
                 }
             })
@@ -211,11 +221,27 @@ where
                         }
                         Self::from_newtype_recurse_struct_vec(idents)
                     }
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_struct_struct");
+                        }
+                        Self::from_newtype_struct_struct(idents, name.clone())
+                    }
+                    HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                        if DEBUG_THIS {
+                            println!("-> from_newtype_struct_struct");
+                        }
+                        Self::from_newtype_struct_lazy(idents, name.clone())
+                    }
+
                     // creating a : Something in livecode
                     // HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => Self::from_recurse_struct_struct(idents),
                     // dealing with UnitCell<something>
                     // HowToControlThis::WithRecurse(_, RecursiveControlType::UnitCell) => Self::from_recurse_struct_unitcell(idents),
-                    _ => panic!("newtype for this kind isn't implemented yet"),
+                    _ => panic!(
+                        "{:?} for this kind isn't implemented yet",
+                        field.how_to_control_this()
+                    ),
                 }
             })
             .collect::<Vec<_>>();
@@ -348,7 +374,7 @@ impl LivecodeFieldReceiver {
                 }
                 SerdeDefault::DefaultImpl => quote! {#[serde(default)]},
                 SerdeDefault::Empty => {
-                    // nace and general
+                    // nice and general
                     quote! {#[serde(default="murrelet_livecode::livecode::empty_vec")]}
                 }
                 _ => {
@@ -356,18 +382,26 @@ impl LivecodeFieldReceiver {
                     let how = self.how_to_control_this();
 
                     if is_lazy {
-                        let serde_func = match &how {
-                            HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
-                                // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
-                                serde.from_control_type(ControlType::LazyNodeF32, true)
-                            }
-                            _ => serde.from_control_type(how.get_control_type(), false),
-                        };
-                        let r = lazy_version_of_default_serde(&serde_func);
+                        if matches!(
+                            how,
+                            HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy)
+                        ) {
+                            quote! { #[serde(default)] }
+                        } else {
+                            let serde_func = match &how {
+                                HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                                    // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
+                                    serde.from_control_type(ControlType::LazyNodeF32, true)
+                                }
+                                _ => serde.from_control_type(how.get_control_type(), false),
+                            };
+                            let r = lazy_version_of_default_serde(&serde_func);
 
-                        quote! {#[serde(default=#r)]}
+                            quote! {#[serde(default=#r)]}
+                        }
                     } else {
                         let r = serde.from_control_type(how.get_control_type(), false);
+
                         quote! {#[serde(default=#r)]}
                     }
                 }
@@ -513,6 +547,7 @@ pub enum ControlType {
     Color,
     ColorUnclamped,
     LazyNodeF32,
+    AnglePi,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -520,8 +555,9 @@ pub(crate) enum RecursiveControlType {
     Struct,
     StructLazy, // just a way to stop some features from propogating..
     Vec,
-    UnitCell, // special type that builds up an expression context
-              // Array,
+    UnitCell,
+    Option, // special type that builds up an expression context
+            // Array,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -582,6 +618,7 @@ impl HowToControlThis {
                 OverrideOrInferred::Override,
                 RecursiveControlType::Vec,
             ),
+            "a" => HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::AnglePi),
             // "expr" => {
             //     HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::EvalExpr)
             // }
@@ -610,6 +647,10 @@ impl HowToControlThis {
                 OverrideOrInferred::Inferred,
                 RecursiveControlType::Vec,
             ),
+            "Option" => HowToControlThis::WithRecurse(
+                OverrideOrInferred::Inferred,
+                RecursiveControlType::Option,
+            ),
             "Vec3" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32_3),
             "String" => HowToControlThis::WithNone(OverrideOrInferred::Inferred),
             // some special types from this library
@@ -623,6 +664,9 @@ impl HowToControlThis {
             ),
             "LazyNodeF32" => {
                 HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::LazyNodeF32)
+            }
+            "AnglePi" => {
+                HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::AnglePi)
             }
             // _ => HowToControlThis::WithNone(OverrideOrInferred::Inferred)
             _ => {
@@ -656,6 +700,9 @@ impl SerdeDefault {
     fn from_control_type(&self, ty: ControlType, is_vec: bool) -> String {
         match (ty, self, is_vec) {
             (ControlType::F32, SerdeDefault::Zeros, _) => {
+                "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
+            }
+            (ControlType::AnglePi, SerdeDefault::Zeros, _) => {
                 "murrelet_livecode::livecode::_auto_default_f32_0".to_string()
             }
             (ControlType::F32, SerdeDefault::Ones, _) => {
@@ -718,10 +765,12 @@ pub(crate) struct DataFromType {
     pub(crate) main_type: syn::Ident,
     pub(crate) second_type: Option<syn::Ident>,
     pub(crate) third_type: Option<syn::Ident>, // so we coulddd use a vec her
+    pub(crate) fourth_type: Option<syn::Ident>, // so we coulddd use a vec her
 
     pub(crate) main_how_to: HowToControlThis,
     pub(crate) second_how_to: Option<HowToControlThis>,
     pub(crate) third_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
+    pub(crate) fourth_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
 }
 impl DataFromType {
     fn new_from_list(types: Vec<syn::Ident>) -> DataFromType {
@@ -730,6 +779,7 @@ impl DataFromType {
         let main_type = types[0].clone();
         let second_type = types.get(1).cloned();
         let third_type = types.get(2).cloned();
+        let fourth_type = types.get(3).cloned();
 
         let main_how_to = HowToControlThis::from_type_str(&main_type.to_string());
         let second_how_to = second_type
@@ -738,19 +788,26 @@ impl DataFromType {
         let third_how_to = third_type
             .as_ref()
             .map(|x| HowToControlThis::from_type_str(&x.to_string()));
+        let fourth_how_to = fourth_type
+            .as_ref()
+            .map(|x| HowToControlThis::from_type_str(&x.to_string()));
 
         Self {
             main_type,
             second_type,
             third_type,
+            fourth_type,
             main_how_to,
             second_how_to,
             third_how_to,
+            fourth_how_to,
         }
     }
 
     pub(crate) fn how_to_control_internal(&self) -> &HowToControlThis {
-        if let Some(third) = &self.third_how_to {
+        if let Some(fourth) = &self.fourth_how_to {
+            fourth
+        } else if let Some(third) = &self.third_how_to {
             third
         } else if let Some(second) = &self.second_how_to {
             second
@@ -777,18 +834,58 @@ impl DataFromType {
                     Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec)) => {
                         VecDepth::VecVec
                     }
-                    Some(_) => VecDepth::Vec,
+                    Some(_) => {
+                        // let s = self.second_type.as_ref().map(|x| x.to_string()).clone();
+                        if matches!(
+                            self.third_how_to,
+                            Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec))
+                        ) {
+                            VecDepth::VecControlVec
+                        } else {
+                            VecDepth::Vec
+                        }
+                    }
                     None => unreachable!("vec should have a type??"),
                 }
             }
             _ => VecDepth::NotAVec,
         }
     }
+
+    pub(crate) fn inside_type(&self) -> Self {
+        Self {
+            main_type: self.second_type.clone().unwrap(),
+            second_type: self.third_type.clone(),
+            third_type: self.fourth_type.clone(),
+            fourth_type: None,
+            main_how_to: self.second_how_to.unwrap(),
+            second_how_to: self.third_how_to,
+            third_how_to: self.fourth_how_to,
+            fourth_how_to: None,
+        }
+    }
+
+    pub(crate) fn to_quote(&self) -> TokenStream2 {
+        let main_type = self.main_type.clone();
+        match (&self.second_type, &self.third_type, &self.fourth_type) {
+            (None, None, None) => quote! { #main_type },
+            (Some(second_type), None, None) => quote! { #main_type<#second_type> },
+            (Some(second_type), Some(third_type), None) => {
+                quote! { #main_type<#second_type<#third_type>> }
+            }
+            (Some(second_type), Some(third_type), Some(fourth_type)) => {
+                quote! { #main_type<#second_type<#third_type<#fourth_type>>> }
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
+#[derive(Debug)]
 pub(crate) enum VecDepth {
     NotAVec,
     Vec,
+    VecControlVec, // nested vec, but outside is a control vec
     VecVec,
 }
 
@@ -798,7 +895,9 @@ pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
             let s = path.segments.last().unwrap();
             let main_type = s.ident.clone();
 
-            acc.push(main_type);
+            if main_type != "WrappedLazyType" {
+                acc.push(main_type);
+            }
 
             if let syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
                 args,

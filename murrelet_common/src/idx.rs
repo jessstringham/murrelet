@@ -3,10 +3,18 @@
 use glam::{vec2, Vec2};
 use itertools::Itertools;
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
 
 use crate::lerp;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
+pub enum IdxMatch {
+    First,
+    Last,
+    Idx(u64),
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdxInRange {
     i: u64,
     total: u64, // the count
@@ -23,6 +31,13 @@ impl IdxInRange {
         }
     }
 
+    pub fn new_last<U: TryInto<u64>>(total: U) -> IdxInRange
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        IdxInRange::new(0, total).last_i()
+    }
+
     pub fn enumerate<'a, T, I>(iter: I) -> Vec<(IdxInRange, T)>
     where
         I: ExactSizeIterator<Item = T>,
@@ -31,6 +46,32 @@ impl IdxInRange {
         iter.enumerate()
             .map(|(i, v)| (IdxInRange::new(i, total), v))
             .collect_vec()
+    }
+
+    pub fn enumerate_count<U: TryInto<u64>>(total: U) -> Vec<IdxInRange>
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let total = total.try_into().expect("can't convert to u64");
+        (0..total).map(|i| IdxInRange::new(i, total)).collect_vec()
+    }
+
+    pub fn idx_rep(&self) -> IdxMatch {
+        if self.is_first() {
+            IdxMatch::First
+        } else if self.is_last() {
+            IdxMatch::Last
+        } else {
+            IdxMatch::Idx(self.i())
+        }
+    }
+
+    pub fn matches(&self, m: &IdxMatch) -> bool {
+        match m {
+            IdxMatch::First => self.i() == 0,
+            IdxMatch::Last => self.is_last(),
+            IdxMatch::Idx(i) => self.i() == *i,
+        }
     }
 
     pub fn prev_i(&self) -> Option<IdxInRange> {
@@ -104,16 +145,61 @@ impl IdxInRange {
         self.i
     }
 
-    fn is_last(&self) -> bool {
+    pub fn is_last(&self) -> bool {
         self.i == self.total - 1
     }
 
     pub fn amount_from_end(&self) -> u64 {
         self.total - self.i - 1
     }
+
+    pub fn s(&self, range: Vec2) -> f32 {
+        self.scale(range.x, range.y)
+    }
+
+    pub fn scale(&self, start: f32, end: f32) -> f32 {
+        lerp(start, end, self.pct())
+    }
+
+    pub fn to_2d(&self) -> IdxInRange2d {
+        IdxInRange2d::new_from_single_idx(*self)
+    }
+
+    pub fn skip<T: TryInto<u64>>(&self, count: T) -> Option<IdxInRange>
+    where
+        <T as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let count_u64 = count.try_into().expect("can't convert to u64");
+        if self.i + count_u64 >= self.total {
+            None
+        } else {
+            Some(IdxInRange {
+                i: self.i + count_u64,
+                total: self.total,
+            })
+        }
+    }
+
+    pub fn is_first(&self) -> bool {
+        self.i == 0
+    }
+
+    pub fn i_usize(&self) -> usize {
+        self.i() as usize
+    }
 }
 
-#[derive(Debug, Clone, Copy)]
+pub trait IdxInRangeEnum<'a, T> {
+    fn iter_enum_idx(&'a self) -> Vec<(IdxInRange, &'a T)>;
+}
+
+impl<'a, T> IdxInRangeEnum<'a, T> for &[T] {
+    fn iter_enum_idx(&'a self) -> Vec<(IdxInRange, &'a T)> {
+        IdxInRange::enumerate(self.iter())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdxInRange2d {
     pub i: IdxInRange,
     pub j: IdxInRange,
@@ -128,6 +214,21 @@ impl IdxInRange2d {
             i: IdxInRange::new(i, total),
             j: IdxInRange::new(j, total),
         }
+    }
+
+    pub fn enumerate_counts<U: TryInto<u64> + Copy>(ii: U, jj: U) -> Vec<IdxInRange2d>
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let ii = ii.try_into().expect("can't convert to u64");
+        let jj = jj.try_into().expect("can't convert to u64");
+        let mut v = vec![];
+        for i in 0..ii {
+            for j in 0..jj {
+                v.push(IdxInRange2d::new_rect(i, j, ii, jj));
+            }
+        }
+        v
     }
 
     pub fn to_alternating_i(&self) -> IdxInRange2d {
@@ -155,6 +256,11 @@ impl IdxInRange2d {
 
     // seed iterates across each item in the row
     pub fn new_from_idx(i: IdxInRange, j: IdxInRange) -> IdxInRange2d {
+        IdxInRange2d { i, j }
+    }
+
+    pub fn new_from_single_idx(i: IdxInRange) -> IdxInRange2d {
+        let j = IdxInRange::new(0, 1);
         IdxInRange2d { i, j }
     }
 
@@ -203,11 +309,9 @@ impl IdxInRange2d {
         vec2(self.i.half_step_pct(), self.j.half_step_pct())
     }
 
-    pub fn lerp_idx(&self, x: f32, y: f32) -> [(usize, usize); 4] {
-        // helps tell which indexes to use for lerping
-        let x_idx = x as usize;
-        let y_idx = y as usize;
-
+    pub fn lerp_idx(&self) -> [(usize, usize); 4] {
+        let x_idx = self.i.i() as usize;
+        let y_idx = self.j.i() as usize;
         let x_is_too_far = x_idx + 1 >= self.i.total as usize;
         let y_is_too_far = y_idx + 1 >= self.j.total as usize;
 
@@ -232,7 +336,7 @@ impl IdxInRange2d {
     }
 
     pub fn is_alternate(&self) -> bool {
-        (self.i.i() % 2 != 0) ^ (self.j.i() % 2 == 0)
+        !self.i.i().is_multiple_of(2) ^ self.j.i().is_multiple_of(2)
     }
 
     pub fn is_last_x(&self) -> bool {
@@ -247,5 +351,17 @@ impl IdxInRange2d {
         let x = self.i.to_range(domain.x, domain.y);
         let y = self.j.to_range(range.x, range.y);
         vec2(x, y)
+    }
+
+    pub fn i_total(&self) -> f32 {
+        self.i.total as f32
+    }
+
+    pub fn i(&self) -> u64 {
+        self.i.i()
+    }
+
+    pub fn j(&self) -> u64 {
+        self.j.i()
     }
 }

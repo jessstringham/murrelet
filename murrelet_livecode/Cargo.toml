@@ -11,19 +11,24 @@ license = "AGPL-3.0-or-later"
 schemars = ["dep:schemars"]
 
 [dependencies]
-murrelet_common = { version = "0.1.2", path = "../murrelet_common/" }
+murrelet_common = { workspace = true }
+murrelet_gui = { workspace = true, features = ["glam"] }
 
-lerpable = "0.0.2"
+lerpable = "0.0.3"
 
 itertools = "0.10.5"
 regex = "1.7.3"
 uuid = "1.8.0"
 rand = "0.8"
-glam = "0.28.0"
+glam = { version = "0.28.0", features = ["serde"] }
 anyhow = "1.0.86"
 noise = "0.9.0"
 evalexpr = { version = "11.1.0", features = ["serde_support"] }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
+thiserror = "2.0.11"
 
 schemars = { version = "0.8.21", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }

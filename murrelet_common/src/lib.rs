@@ -4,6 +4,7 @@ use glam::{vec3, Vec3};
 use itertools::Itertools;
 use lerpable::{IsLerpingMethod, Lerpable};
 use num_traits::NumCast;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -18,6 +19,7 @@ mod iter;
 mod metric;
 mod polyline;
 mod transform;
+pub mod triangulate;
 
 pub use assets::*;
 pub use color::*;
@@ -43,7 +45,7 @@ pub struct MurreletTime(u128); // millis
 
 impl MurreletTime {
     pub fn now() -> Self {
-        MurreletTime(epoch_time_ms())
+        MurreletTime(epoch_time_us())
     }
 
     pub fn epoch() -> Self {
@@ -62,21 +64,25 @@ impl MurreletTime {
         MurreletTime::in_x_ms(1000)
     }
 
-    pub fn as_millis_u128(&self) -> u128 {
-        self.0
-    }
-
     pub fn as_secs(&self) -> u64 {
-        (self.0 / 1000) as u64
+        (self.as_millis_u128() / 1000) as u64
     }
 
     // f32 for historical reasons, can change at some point
     pub fn as_secs_f32(&self) -> f32 {
-        (self.0 as f32) / 1000.0
+        (self.as_millis()) / 1000.0
+    }
+
+    pub fn as_millis_u128(&self) -> u128 {
+        self.0 / 1000
     }
 
     pub fn as_millis(&self) -> f32 {
-        self.0 as f32
+        self.0 as f32 / 1000.0
+    }
+
+    pub fn as_micro(&self) -> u128 {
+        self.0
     }
 }
 
@@ -88,7 +94,6 @@ impl std::ops::Sub for MurreletTime {
     }
 }
 
-// in seconds
 pub fn epoch_time_ms() -> u128 {
     #[cfg(target_arch = "wasm32")]
     {
@@ -113,6 +118,30 @@ pub fn epoch_time_ms() -> u128 {
             .as_millis() as f64
             / 1000.0;
         (s * 1000.0) as u128
+    }
+}
+
+pub fn epoch_time_us() -> u128 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        #[wasm_bindgen]
+        extern "C" {
+            #[wasm_bindgen(js_namespace = Date)]
+            fn now() -> f64;
+        }
+
+        (now() * 1000.0) as u128
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::time::SystemTime;
+        use std::time::UNIX_EPOCH;
+
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("wat")
+            .as_micros()
     }
 }
 
@@ -386,6 +415,30 @@ impl Rect {
     pub fn xy(&self) -> Vec2 {
         self.xy
     }
+
+    pub fn center(&self) -> Vec2 {
+        self.xy()
+    }
+
+    pub fn pos(&self, s: Vec2) -> Vec2 {
+        vec2(
+            (s.x - self.left()) / self.w(),
+            (s.y - self.bottom()) / self.h(),
+        )
+    }
+
+    pub fn transform_to_other_rect(&self, target_rect: Rect) -> SimpleTransform2d {
+        let scale = target_rect.w() / self.w();
+
+        SimpleTransform2d::new(vec![
+            // first move to center
+            SimpleTransform2dStep::translate(-self.center()),
+            // scale
+            SimpleTransform2dStep::scale_both(scale),
+            // then move to target
+            SimpleTransform2dStep::translate(target_rect.center()),
+        ])
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -468,13 +521,47 @@ pub trait IsLivecodeSrc {
     fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
     // this is a way to give usage feedback to the livecode src, e.g. tell a MIDI controller
     // we're using a parameter, or what value to set indicator lights to.
-    fn feedback(&mut self, _variables: &HashMap<String, LivecodeUsage>) {
+    fn feedback(
+        &mut self,
+        _variables: &HashMap<String, LivecodeUsage>,
+        _outgoing_msgs: &[(String, String, LivecodeValue)],
+    ) {
         // default don't do anything
     }
 }
 
 pub struct LivecodeSrc {
     vs: Vec<Box<dyn IsLivecodeSrc>>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct CustomVars(Option<HashMap<String, f32>>);
+
+impl CustomVars {
+    pub fn new(hash_map: HashMap<String, f32>) -> Self {
+        Self(Some(hash_map))
+    }
+
+    pub fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
+        if let Some(hm) = &self.0 {
+            let mut v = vec![];
+            for (key, value) in hm.iter() {
+                v.push((key.clone(), LivecodeValue::float(*value)))
+            }
+            v
+        } else {
+            vec![]
+        }
+    }
+
+    pub fn update(&mut self, new: &Self) {
+        // basically update adds, and you can never delete >:D
+        if let Some(o) = &new.0 {
+            self.0
+                .get_or_insert_with(Default::default)
+                .extend(o.iter().map(|(k, v)| (k.clone(), *v)));
+        }
+    }
 }
 
 // what is sent from apps (like nannou)
@@ -485,6 +572,7 @@ pub struct MurreletAppInput {
     pub mouse_position: Vec2,
     pub mouse_left_is_down: bool,
     pub elapsed_frames: u64,
+    pub custom_vars: CustomVars,
 }
 
 impl MurreletAppInput {
@@ -501,6 +589,7 @@ impl MurreletAppInput {
             mouse_position,
             mouse_left_is_down,
             elapsed_frames,
+            custom_vars: CustomVars::default(),
         }
     }
 
@@ -509,6 +598,7 @@ impl MurreletAppInput {
         mouse_position: Vec2,
         mouse_left_is_down: bool,
         elapsed_frames: u64,
+        custom_vars: HashMap<String, f32>,
     ) -> Self {
         Self {
             keys: None,
@@ -516,6 +606,7 @@ impl MurreletAppInput {
             mouse_position,
             mouse_left_is_down,
             elapsed_frames,
+            custom_vars: CustomVars::new(custom_vars),
         }
     }
 
@@ -578,9 +669,13 @@ impl LivecodeSrc {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
     }
 
-    pub fn feedback(&mut self, variables: &HashMap<String, LivecodeUsage>) {
+    pub fn feedback(
+        &mut self,
+        variables: &HashMap<String, LivecodeUsage>,
+        outgoing_msgs: &[(String, String, LivecodeValue)],
+    ) {
         for v in self.vs.iter_mut() {
-            v.feedback(variables);
+            v.feedback(variables, outgoing_msgs);
         }
     }
 }
@@ -589,7 +684,24 @@ const MAX_STRID_LEN: usize = 16;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StrId([u8; MAX_STRID_LEN]);
+impl Serialize for StrId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
 
+impl<'de> Deserialize<'de> for StrId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(StrId::new(&s))
+    }
+}
 // from chatgpt
 impl StrId {
     pub fn new(s: &str) -> Self {
@@ -633,20 +745,58 @@ pub fn fixed_pt_f32_to_str(x: f32) -> String {
     FixedPointF32::new(x).to_str()
 }
 
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct FixedPointF32 {
     pub x: i64,
+}
+
+impl FixedPointF32 {
+    pub fn abs(&self) -> Self {
+        Self { x: self.x.abs() }
+    }
+
+    pub fn decode(s: &str) -> Self {
+        Self {
+            x: s.parse::<i64>().unwrap_or(0),
+        }
+    }
+
+    pub fn encode(&self) -> String {
+        self.x.to_string()
+    }
+}
+
+impl std::ops::Sub for FixedPointF32 {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+        }
+    }
+}
+
+impl std::ops::Add for FixedPointF32 {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+        }
+    }
 }
 impl FixedPointF32 {
     pub const MAX: Self = FixedPointF32 { x: i64::MAX };
     pub const MIN: Self = FixedPointF32 { x: i64::MIN };
 
+    pub const GRANULARITY: f32 = 1e4f32;
+
     fn f32_to_i64(f: f32) -> i64 {
-        (f * 1e4f32) as i64
+        (f * Self::GRANULARITY).round() as i64
     }
 
     fn i64_to_f32(f: i64) -> f32 {
-        f as f32 / 1e4f32
+        f as f32 / Self::GRANULARITY
     }
 
     pub fn to_i64(&self) -> i64 {
@@ -681,11 +831,19 @@ impl FixedPointF32 {
     }
 }
 
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
+#[derive(Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct FixedPointVec2 {
     pub x: FixedPointF32,
     pub y: FixedPointF32,
 }
+
+impl std::fmt::Debug for FixedPointVec2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let vec2_representation = self.to_vec2();
+        write!(f, "FixedPointVec2({:?})", vec2_representation)
+    }
+}
+
 impl FixedPointVec2 {
     pub fn round(&self, n: i64) -> FixedPointVec2 {
         FixedPointVec2::new_from_fixed_point(self.x.round(n), self.y.round(n))
@@ -746,6 +904,13 @@ impl FixedPointVec2 {
 
     pub fn nudge(&self, x: i64, y: i64) -> Self {
         Self::new_from_fixed_point(self.x.nudge(x), self.y.nudge(y))
+    }
+
+    // manhattan
+    pub fn dist_man(&self, other: FixedPointVec2) -> i64 {
+        let dx = (self.x - other.x).abs();
+        let dy = (self.y - other.y).abs();
+        (dx + dy).to_i64()
     }
 }
 
@@ -850,4 +1015,145 @@ pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
     let lerped = this_vec.lerpify(&other_vec, pct);
 
     lerped.into_iter().map(|v| v.into()).collect_vec()
+}
+
+// todo, did i end up using this?
+#[derive(Clone, Copy, Debug)]
+pub struct Dim2d {
+    x: usize, // e.g. rows
+    y: usize, // e.g. cols
+}
+
+impl Dim2d {
+    pub fn new(x: usize, y: usize) -> Self {
+        Self { x, y }
+    }
+
+    pub fn x(&self) -> usize {
+        self.x
+    }
+
+    pub fn y(&self) -> usize {
+        self.y
+    }
+
+    pub fn row(&self) -> usize {
+        self.y
+    }
+
+    pub fn col(&self) -> usize {
+        self.x
+    }
+
+    pub fn i(&self) -> usize {
+        self.y
+    }
+
+    pub fn j(&self) -> usize {
+        self.x
+    }
+
+    pub fn i_plus_1(&self) -> Self {
+        let i = self.i();
+        let j = self.j();
+        Self::from_i_j(i + 1, j)
+    }
+
+    pub fn j_plus_1(&self) -> Self {
+        let i = self.i();
+        let j = self.j();
+        Self::from_i_j(i, j + 1)
+    }
+
+    pub fn from_x_y<T: TryInto<u64>>(x: T, y: T) -> Self
+    where
+        T::Error: std::fmt::Debug,
+    {
+        Self {
+            x: x.try_into().expect("Conversion failed") as usize,
+            y: y.try_into().expect("Conversion failed") as usize,
+        }
+    }
+
+    pub fn from_row_col<T: TryInto<u64>>(row: T, col: T) -> Self
+    where
+        T::Error: std::fmt::Debug,
+    {
+        Self::from_x_y(col, row)
+    }
+
+    pub fn from_i_j<T: TryInto<u64>>(i: T, j: T) -> Self
+    where
+        T::Error: std::fmt::Debug,
+    {
+        Self::from_x_y(j, i)
+    }
+}
+
+pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
+    let r = clamp(r, 0.0, 1.0);
+    let g = clamp(g, 0.0, 1.0);
+    let b = clamp(b, 0.0, 1.0);
+
+    let r = (r * 255.0) as u8;
+    let g = (g * 255.0) as u8;
+    let b = (b * 255.0) as u8;
+
+    format!("#{:02X}{:02X}{:02X}", r, g, b)
+}
+
+pub trait MurreletIterHelpers {
+    type T: Clone;
+    fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, Self::T>;
+    fn as_vec_ref(&self) -> &Vec<Self::T>;
+
+    fn map_iter_collect<F, U>(&self, f: F) -> Vec<U>
+    where
+        F: Fn(&Self::T) -> U,
+    {
+        self.to_iter().map(f).collect_vec()
+    }
+
+    fn owned_iter(&self) -> std::vec::IntoIter<Self::T> {
+        self.to_iter().cloned().collect_vec().into_iter()
+    }
+
+    fn take_count(&self, amount: usize) -> Vec<Self::T> {
+        self.owned_iter().take(amount).collect::<Vec<Self::T>>()
+    }
+
+    fn prev_curr_next_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T, &'a Self::T)> + 'a> {
+        prev_curr_next_loop_iter(self.as_vec_ref())
+    }
+
+    fn prev_curr_next_no_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T, &'a Self::T)> + 'a> {
+        prev_curr_next_no_loop_iter(self.as_vec_ref())
+    }
+
+    fn curr_next_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
+        curr_next_loop_iter(self.as_vec_ref())
+    }
+
+    fn curr_next_no_loop_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
+        curr_next_no_loop_iter(self.as_vec_ref())
+    }
+}
+
+impl<T: Clone> MurreletIterHelpers for Vec<T> {
+    type T = T;
+    fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
+        self.iter()
+    }
+
+    fn as_vec_ref(&self) -> &Vec<Self::T> {
+        self
+    }
 }

@@ -1,0 +1,19 @@
+[package]
+name = "murrelet_gui_derive"
+version = "0.1.2"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[features]
+debug_logging = ["log"]
+
+[dependencies]
+syn = "2.0.15"
+quote = "1.0.18"
+proc-macro2 = "1.0.37"
+darling = "0.20.3"
+
+log = { version = "0.4.25", optional = true }
+

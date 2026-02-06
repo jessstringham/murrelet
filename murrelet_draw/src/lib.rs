@@ -1,8 +1,13 @@
 pub mod compass;
+pub mod cubic;
 pub mod curve_drawer;
 pub mod draw;
-pub mod livecodetypes;
+pub mod drawable;
 pub mod newtypes;
+pub mod scaffold;
 pub mod sequencers;
+pub mod serialize;
 pub mod style;
+pub mod svg;
+pub mod tesselate;
 pub mod transform2d;
