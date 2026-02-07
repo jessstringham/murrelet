@@ -143,10 +143,18 @@ impl Lerpable for AdditionalContextNode {
 
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+struct ControlBlendRepeatMethod {
+    count: ControlF32,
+    blend: ControlF32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlVecElementRepeatMethod {
     Single(ControlF32),
     Rect([ControlF32; 2]),
+    Blend(ControlBlendRepeatMethod),
 }
 impl ControlVecElementRepeatMethod {
     fn len(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
@@ -156,6 +164,7 @@ impl ControlVecElementRepeatMethod {
                 let rr = r.o(w)?;
                 rr.x * rr.y
             }
+            ControlVecElementRepeatMethod::Blend(b) => b.count.o(w)?,
         };
         Ok(v as usize)
     }
@@ -171,8 +180,29 @@ impl ControlVecElementRepeatMethod {
                 let rr = s.o(w)?;
                 IdxInRange2d::enumerate_counts(rr.x as usize, rr.y as usize)
             }
+            ControlVecElementRepeatMethod::Blend(b) => {
+                IdxInRange::enumerate_count((b.count.o(w)? + b.blend.o(w)?) as usize)
+                    .iter()
+                    .map(|x| x.to_2d())
+                    .collect_vec()
+            }
         };
         Ok(v)
+    }
+
+    fn next_blend(&self, w: &LivecodeWorldState) -> Option<BlendWith> {
+        match self {
+            ControlVecElementRepeatMethod::Blend(b) => {
+                let blend = b.blend.o(w).unwrap_or_default() as usize;
+                if blend > 0 {
+                    Some(BlendWith::new(blend))
+                } else {
+                    None
+                }
+            }
+            ControlVecElementRepeatMethod::Single(_) => None,
+            ControlVecElementRepeatMethod::Rect(_) => None,
+        }
     }
 }
 
@@ -553,8 +583,6 @@ pub struct ControlVecElementRepeat<Source: Clone + Debug> {
     // #[serde(default)]
     prefix: String,
     what: Vec<ControlVecElement<Source>>,
-    #[serde(default)]
-    blend_with_next: usize,
 }
 
 // impl<Sequencer, Source> GetLivecodeIdentifiers for ControlVecElement<Sequencer, Source>
@@ -660,9 +688,8 @@ where
             blend_with_list(&mut result, elem, &mut is_blending);
         }
 
-        let blend_count = item.blend_with_next();
-        if blend_count > 0 {
-            is_blending = Some(BlendWith::new(blend_count));
+        if let Some(new_blend) = item.next_blend(w) {
+            is_blending = Some(new_blend);
         }
     }
 
@@ -740,8 +767,8 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
                             blend_with_list(&mut result, item, &mut is_blending);
                         }
 
-                        if c.blend_with_next > 0 {
-                            is_blending = Some(BlendWith::new(c.blend_with_next));
+                        if let Some(new_blend) = c.repeat.next_blend(&new_w) {
+                            is_blending = Some(new_blend);
                         }
 
                         offset = new_offset;
@@ -885,13 +912,6 @@ where
     // Sequencer: UnitCellCreator,
     // ControlSequencer: LivecodeFromWorld<Sequencer>,
 {
-    fn blend_with_next(&self) -> usize {
-        match self {
-            ControlVecElement::Single(_) => 0,
-            ControlVecElement::Repeat(r) => r.blend_with_next,
-        }
-    }
-
     pub fn raw(c: Source) -> Self {
         Self::Single(c)
     }
@@ -905,6 +925,13 @@ where
             ControlVecElement::Single(c) => Ok(vec![c.o(w)?]),
             ControlVecElement::Repeat(r) => r.eval_and_expand_vec(w),
             // ControlVecElement::UnitCell(c) => c.eval_and_expand_vec(w),
+        }
+    }
+
+    fn next_blend(&self, w: &LivecodeWorldState) -> Option<BlendWith> {
+        match self {
+            ControlVecElement::Single(_) => None,
+            ControlVecElement::Repeat(r) => r.repeat.next_blend(w),
         }
     }
 }
