@@ -8,7 +8,7 @@ use glam::Vec2;
 use lerpable::Lerpable;
 use murrelet_common::*;
 
-pub struct CurveDrawerDebugStyle {
+pub struct CurveDrawerAnalysisStyle {
     cb_fill: StyleConf,
     cb_line: StyleConf,
     arc_line: StyleConf,
@@ -17,7 +17,7 @@ pub struct CurveDrawerDebugStyle {
     start_point: StyleConf,
     end_point: StyleConf,
 }
-impl Default for CurveDrawerDebugStyle {
+impl Default for CurveDrawerAnalysisStyle {
     fn default() -> Self {
         let fill = StyleConf::outlined_fill(MurreletColor::black(), 0.25, MurreletColor::white());
         let start = StyleConf::fill(MurreletColor::hsva(0.4, 1.0, 1.0, 1.0));
@@ -36,7 +36,7 @@ impl Default for CurveDrawerDebugStyle {
     }
 }
 
-pub struct CurveDrawerDebugShape {
+pub struct CurveDrawerAnalysis {
     pub cb_dots: Vec<Vec2>,
     pub cb_ctrl_lines: Vec<PointToPoint>,
     pub arc_lines: Vec<PointToPoint>,
@@ -44,9 +44,16 @@ pub struct CurveDrawerDebugShape {
     arc_centers: Vec<Vec2>,
     start_marker: Vec<Vec<Vec2>>,
     end_marker: Vec<Vec<Vec2>>,
+    cd: Vec<CurveDrawer>,
 }
 
-impl CurveDrawerDebugShape {
+impl Default for CurveDrawerAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CurveDrawerAnalysis {
     pub fn new() -> Self {
         Self {
             cb_dots: vec![],
@@ -56,6 +63,7 @@ impl CurveDrawerDebugShape {
             arc_centers: vec![],
             start_marker: vec![],
             end_marker: vec![],
+            cd: vec![],
         }
     }
 
@@ -73,6 +81,8 @@ impl CurveDrawerDebugShape {
                 CurveSegment::CubicBezier(c) => self.add_cubic_bezier(&c.to_cubic()),
             };
         }
+
+        self.cd.push(cd.clone()); // hmm, i wonder whether i can keep curvedrawers being pretty light...
     }
 
     fn add_end(&mut self, end: &SpotOnCurve, len: f32) {
@@ -93,7 +103,7 @@ impl CurveDrawerDebugShape {
         ]);
     }
 
-    pub fn to_drawn_shape(&self, style: &CurveDrawerDebugStyle) -> Vec<DrawnShape> {
+    pub fn to_drawn_shape(&self, style: &CurveDrawerAnalysisStyle) -> Vec<DrawnShape> {
         vec![
             self.cb_dots
                 .map_iter_collect(|f| f.to_cd_open())
@@ -157,6 +167,24 @@ impl CurveDrawerDebugShape {
         self.add_start(&cb.start_spot(), len);
         self.add_end(&cb.end_spot(), len);
     }
+
+    pub fn curvature_data(&self, approx_spacing: f32) -> Vec<(SpotOnCurve, f32)> {
+        // hmm, the curvature requires the full cd, but the rest work on each part...
+        let mut v = vec![];
+        for cd in &self.cd {
+            v.extend(sample_curve_drawer_curvature(cd, approx_spacing));
+        }
+        v
+    }
+
+    pub fn curvature(&self, approx_spacing: f32, multi: f32) -> Vec<PointToPoint> {
+        let data = self.curvature_data(approx_spacing);
+        let mut v = vec![];
+        for (spot, length) in &data {
+            v.push(spot.travel_p2p(*length * multi));
+        }
+        v
+    }
 }
 
 // curvature brought to you by chatgpt
@@ -203,12 +231,12 @@ pub fn sample_curve_drawer_curvature(
 
     fn push_spot(out: &mut Vec<(SpotOnCurve, f32)>, spot: SpotOnCurve, k: f32) -> bool {
         // avoid duplicate boundary points
-        if let Some((last, _)) = out.last() {
-            if last.loc.distance(spot.loc) <= 1e-6 {
-                return false;
-            }
+        if let Some((last, _)) = out.last()
+            && last.loc.distance(spot.loc) <= 1e-6
+        {
+            return false;
         }
-        out.push((spot, k));
+        out.push((spot.turn_left_perp(), k));
         true
     }
 
@@ -308,4 +336,18 @@ pub fn sample_curve_drawer_curvature(
     }
 
     out
+}
+
+pub trait ToCurveDrawerAnalysis {
+    fn analyze_curve(&self) -> CurveDrawerAnalysis;
+
+    fn draw(&self) -> Vec<DrawnShape> {
+        self.analyze_curve().to_drawn_shape(&Default::default())
+    }
+}
+
+impl ToCurveDrawerAnalysis for CurveDrawer {
+    fn analyze_curve(&self) -> CurveDrawerAnalysis {
+        CurveDrawerAnalysis::new_from_cd(self)
+    }
 }

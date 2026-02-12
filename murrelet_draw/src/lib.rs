@@ -1,6 +1,7 @@
 pub mod compass;
 pub mod cubic;
 pub mod curve_drawer;
+pub mod curve_drawer_analysis;
 pub mod draw;
 pub mod drawable;
 pub mod newtypes;
@@ -11,4 +12,3 @@ pub mod style;
 pub mod svg;
 pub mod tesselate;
 pub mod transform2d;
-pub mod curve_drawer_analysis;

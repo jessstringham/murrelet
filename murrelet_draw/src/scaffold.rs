@@ -253,6 +253,12 @@ impl MaskCache {
 pub struct Masker {
     mask: MultiPolygon,
 }
+impl Default for Masker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Masker {
     pub fn new() -> Self {
         Self {
@@ -312,8 +318,8 @@ impl Masker {
         // first mask them...
         let p = MultiPolygon::new(vec![line_to_polygon(cd)]);
         let masked = p.intersection(&self.mask);
-        let v = multipolygon_to_vec2(&masked);
-        v
+
+        multipolygon_to_vec2(&masked)
     }
 
     pub fn intersect_many_cds(
