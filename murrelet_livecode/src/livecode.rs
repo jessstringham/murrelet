@@ -462,6 +462,21 @@ pub fn _auto_default_vec2_1() -> [ControlF32; 2] {
     [ControlF32::Raw(1.0), ControlF32::Raw(1.0)]
 }
 
+pub fn _auto_default_vec3_0() -> [ControlF32; 3] {
+    [
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(0.0),
+        ControlF32::Raw(0.0),
+    ]
+}
+pub fn _auto_default_vec3_1() -> [ControlF32; 3] {
+    [
+        ControlF32::Raw(1.0),
+        ControlF32::Raw(1.0),
+        ControlF32::Raw(1.0),
+    ]
+}
+
 pub fn _auto_default_vec2_0_lazy() -> [ControlLazyNodeF32; 2] {
     [
         ControlLazyNodeF32::Float(0.0),

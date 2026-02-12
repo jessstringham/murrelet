@@ -457,6 +457,10 @@ pub mod styleconf {
         pub fn fill_color(&self) -> MurreletColor {
             self.color()
         }
+
+        pub fn stroke_color(&self) -> MurreletColor {
+            self.to_style().stroke_color.as_color()
+        }
     }
 
     impl Default for StyleConf {

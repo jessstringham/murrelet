@@ -11,9 +11,12 @@ use delaunator::Triangulation;
 use glam::{Vec2, Vec2Swizzles, vec2};
 use itertools::Itertools;
 use kurbo::BezPath;
-use lyon::geom::vector;
-use lyon::{geom::Angle, path::traits::Build};
+use lyon::{
+    geom::Angle,
+    path::{Event, traits::Build},
+};
 use lyon::{geom::arc::Arc, math::Transform};
+use lyon::{geom::vector, path::traits::PathIterator};
 use lyon::{
     geom::{
         Point,
@@ -145,6 +148,39 @@ pub trait ToLyonPath {
 
     fn to_lyon(&self) -> LivecodeResult<lyon::path::Path> {
         self.to_lyon_with_transform(&SimpleTransform2d::ident())
+    }
+
+    fn flatten_with_lyon(&self, tolerance: f32) -> LivecodeResult<Vec<Vec2>> {
+        let path = self.to_lyon()?;
+
+        let mut pts = vec![];
+
+        for evt in path.iter().flattened(tolerance) {
+            match evt {
+                Event::Begin { at } => {
+                    let p = Vec2::new(at.x, at.y);
+                    pts.push(p);
+                }
+                Event::Line { to, .. } => {
+                    pts.push(Vec2::new(to.x, to.y));
+                }
+                Event::End {
+                    last,
+                    first: f,
+                    close,
+                } => {
+                    if close {
+                        let a = Vec2::new(last.x, last.y);
+                        let b = Vec2::new(f.x, f.y);
+                        if a != b {
+                            pts.push(b); // close loop
+                        }
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        Ok(pts)
     }
 
     fn start(&self) -> Vec2;

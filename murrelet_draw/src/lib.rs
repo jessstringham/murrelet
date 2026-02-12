@@ -11,3 +11,4 @@ pub mod style;
 pub mod svg;
 pub mod tesselate;
 pub mod transform2d;
+pub mod curve_drawer_analysis;
