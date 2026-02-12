@@ -1,5 +1,5 @@
 use glam::Vec2;
-use murrelet_common::{Angle, IsAngle, SpotOnCurve};
+use murrelet_common::{Angle, IsAngle, PointToPoint, SpotOnCurve};
 
 use crate::svg::glam_to_lyon;
 
@@ -96,33 +96,14 @@ impl CubicBezier {
     }
 
     pub fn start_to_tangent(&self) -> (SpotOnCurve, f32) {
-        let ctrl_line = self.from - self.ctrl1;
-        let dir = Angle::new(ctrl_line.to_angle())
-            .as_angle_pi()
-            .normalize_angle();
+        let ctrl_line = PointToPoint::new(self.from, self.ctrl1);
 
-        (
-            SpotOnCurve {
-                loc: self.from,
-                angle: dir.into(),
-            },
-            ctrl_line.length(),
-        )
+        (ctrl_line.start_spot(), ctrl_line.length())
     }
 
     pub fn end_to_tangent(&self) -> (SpotOnCurve, f32) {
-        let ctrl_line = self.ctrl2 - self.to;
-        let dir = Angle::new(ctrl_line.to_angle())
-            .as_angle_pi()
-            .normalize_angle();
-
-        (
-            SpotOnCurve {
-                loc: self.to,
-                angle: dir.into(),
-            },
-            ctrl_line.length(),
-        )
+        let ctrl_line = PointToPoint::new(self.to, self.ctrl2);
+        (ctrl_line.start_spot(), ctrl_line.length())
     }
 
     pub fn tangent_at_pct(&self, pct: f32) -> SpotOnCurve {
@@ -167,5 +148,17 @@ impl CubicBezier {
             to: glam_to_lyon(self.to),
         };
         lyon_cubic.approximate_length(0.1)
+    }
+
+    pub fn get_next(&self, out_spot: SpotOnCurve, strength: Vec2) -> Self {
+        Self::from_spots_s(self.end_to_tangent().0, out_spot, strength)
+    }
+
+    pub fn start_spot(&self) -> SpotOnCurve {
+        self.start_to_tangent().0
+    }
+
+    pub fn end_spot(&self) -> SpotOnCurve {
+        self.end_to_tangent().0
     }
 }

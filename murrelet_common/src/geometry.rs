@@ -168,7 +168,7 @@ impl From<AnglePi> for Angle {
 }
 
 // newtype.
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Default)]
 pub struct Angle(f32);
 impl Angle {
     pub fn new(v: f32) -> Angle {
@@ -255,6 +255,12 @@ pub trait IsAngle: Sized {
     fn perp_to_left(&self) -> Self;
     fn perp_to_right(&self) -> Self;
     fn scale(&self, s: f32) -> Self;
+    fn rotate<B>(&self, a: B) -> Self
+    where
+        B: IsAngle,
+        Angle: From<B>,
+        B: From<Angle>,
+        B: Copy;
 
     fn mod2(&self) -> AnglePi {
         AnglePi::new(self.angle_pi() % 2.0)
@@ -313,6 +319,16 @@ where
 
     fn scale(&self, s: f32) -> Self {
         self.as_angle()._scale(s).into()
+    }
+
+    fn rotate<B>(&self, a: B) -> Self
+    where
+        B: IsAngle,
+        Angle: From<B>,
+        B: From<Angle>,
+        B: Copy,
+    {
+        (self.as_angle() + a.as_angle()).into()
     }
 }
 
@@ -404,7 +420,7 @@ impl IsLength for PointToPoint {
 
 // should combine this with Tangent...
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct SpotOnCurve {
     pub loc: Vec2,
     pub angle: Angle,
@@ -536,6 +552,10 @@ impl SpotOnCurve {
         }
     }
 
+    pub fn travel_p2p(&self, length: f32) -> PointToPoint {
+        PointToPoint::new(self.clone().loc(), self.travel(length).loc())
+    }
+
     pub fn travel_2d(&self, dist: Vec2) -> SpotOnCurve {
         let a = Angle::new(dist.to_angle());
         let loc = self.travel(dist.x).turn_right_perp().travel(dist.y).loc;
@@ -544,6 +564,10 @@ impl SpotOnCurve {
 
     pub fn move_back(&self, dist: f32) -> SpotOnCurve {
         self.flip().travel(dist).flip()
+    }
+
+    pub fn maybe_flip(&self, is_up: bool) -> SpotOnCurve {
+        if is_up { self.flip() } else { *self }
     }
 }
 
@@ -670,7 +694,11 @@ impl PointToPoint {
 
     // angle relative to 0
     pub fn angle(&self) -> Angle {
-        Angle(self.to_norm_dir().to_angle())
+        if self.length() < 1.0e-6 {
+            Angle::new(0.0) // todo, error?
+        } else {
+            Angle(self.to_norm_dir().to_angle())
+        }
     }
 
     pub fn midpoint(&self) -> Vec2 {
@@ -752,6 +780,10 @@ impl PointToPoint {
             self.start_spot().turn_left_perp().travel(dist).loc,
             self.end_spot().turn_left_perp().travel(dist).loc,
         )
+    }
+
+    pub fn length(&self) -> f32 {
+        self.start.distance(self.end)
     }
 }
 

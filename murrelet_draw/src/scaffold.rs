@@ -1,12 +1,15 @@
 #![allow(dead_code)]
 use crate::{
     curve_drawer::{CurveDrawer, ToCurveDrawer},
-    drawable::DrawnShape,
+    drawable::{DrawnShape, ToDrawnShape},
+    tesselate::ToLyonPath,
 };
-use geo::{BooleanOps, BoundingRect, Contains};
+use geo::{BooleanOps, BoundingRect, Contains, MultiPolygon};
 use glam::{Vec2, vec2};
 use itertools::Itertools;
+
 use murrelet_common::SpotOnCurve;
+use murrelet_livecode::types::LivecodeResult;
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
     geo::MultiPolygon::new(vec![line_to_polygon(curves)])
@@ -86,18 +89,20 @@ impl MaskCacheImpl {
     }
 }
 
-fn curve_segment_maker_to_line_string(curve: &CurveDrawer) -> geo::LineString {
-    vec2_to_line_string(&curve.to_rough_points(1.0))
-}
+// fn curve_segment_maker_to_line_string(curve: &CurveDrawer, tolerance: f32) -> LivecodeResult<geo::LineString> {
+//     let c = curve.to_lyon()?;
+//     vec2_to_line_string(&curve.to_rough_points(1.0))
+// }
 
 fn vec2_to_line_string(vs: &[Vec2]) -> geo::LineString {
     let coords = vs.iter().map(|x| x.to_coord()).collect_vec();
     geo::LineString::new(coords)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum MaskCache {
     Impl(MaskCacheImpl),
+    #[default] // todo, this should be uninitialized or something...
     AlwaysTrue,
 }
 
@@ -125,33 +130,40 @@ impl MaskCache {
         })
     }
 
-    pub fn new_cd(cd: CurveDrawer) -> Self {
-        Self::new(&[cd])
+    pub fn new_cd(cd: CurveDrawer, tolerance: f32) -> LivecodeResult<Self> {
+        Self::new(&[cd], tolerance)
     }
 
-    pub fn new_interior(outline: CurveDrawer, interior: &[CurveDrawer]) -> Self {
+    pub fn new_interior(
+        outline: CurveDrawer,
+        interior: &[CurveDrawer],
+        tolerance: f32,
+    ) -> LivecodeResult<Self> {
         // shh, just a wrapper
         let s = [vec![outline], interior.to_vec()].concat();
-        Self::new(&s)
+        Self::new(&s, tolerance)
     }
 
-    pub fn new(curves: &[CurveDrawer]) -> Self {
+    pub fn new(curves: &[CurveDrawer], tolerance: f32) -> LivecodeResult<Self> {
         // first curve is external
         let (first_curve, rest) = curves.split_first().unwrap();
-        let first = curve_segment_maker_to_line_string(first_curve);
+        // let first = curve_segment_maker_to_line_string(first_curve);
+        let first = vec2_to_line_string(&first_curve.flatten_with_lyon(tolerance)?);
 
         let mut remaining = vec![];
         // add all our points to a hashmap
         for curve_maker in rest {
-            remaining.push(curve_segment_maker_to_line_string(curve_maker));
+            remaining.push(vec2_to_line_string(
+                &curve_maker.flatten_with_lyon(tolerance)?,
+            ));
         }
 
         let polygon = ::geo::Polygon::new(first, remaining);
 
-        MaskCache::Impl(MaskCacheImpl {
+        Ok(MaskCache::Impl(MaskCacheImpl {
             bounding: polygon.bounding_rect().unwrap(),
             polygon,
-        })
+        }))
     }
 
     pub fn contains(&self, v: &Vec2) -> bool {
@@ -233,5 +245,117 @@ impl MaskCache {
             }
             MaskCache::AlwaysTrue => todo!(),
         }
+    }
+}
+
+// should probably move from mask cache to this one...
+
+pub struct Masker {
+    mask: MultiPolygon,
+}
+impl Masker {
+    pub fn new() -> Self {
+        Self {
+            mask: MultiPolygon::new(vec![]),
+        }
+    }
+    pub fn from_vec2(v: &[Vec2]) -> Self {
+        let mut s = Self::new();
+        s.union_vec2(v);
+        s
+    }
+
+    pub fn from_cd(v: &CurveDrawer, tolerance: f32) -> Self {
+        let mut s = Self::new();
+        s.union_cd(v, tolerance);
+        s
+    }
+
+    pub fn from_many_cd(v: &[CurveDrawer], tolerance: f32) -> Self {
+        let mut s = Self::new();
+        s.union_many_cds(v, tolerance);
+        s
+    }
+
+    pub fn union_cd(&mut self, cd: &CurveDrawer, tolerance: f32) {
+        self.union_vec2(&cd.flatten_with_lyon(tolerance).unwrap_or_default());
+    }
+
+    pub fn union_vec2(&mut self, s: &[Vec2]) {
+        if s.len() > 3 {
+            let other = line_to_polygon(s);
+            self.mask = self.mask.union(&MultiPolygon::new(vec![other]))
+        }
+    }
+
+    pub fn union_many_vec2(&mut self, s: &[Vec<Vec2>]) {
+        for styled in s {
+            self.union_vec2(styled);
+        }
+    }
+
+    pub fn union_many_cds(&mut self, cds: &[CurveDrawer], tolerance: f32) {
+        for cd in cds {
+            self.union_cd(cd, tolerance);
+        }
+    }
+
+    // pub fn union_many_styled(&mut self, s: &[DrawnShape], tolerance: f32) {
+    //     for styled in s {
+    //         for cd in styled.curves() {
+    //             self.union_cd(cd, tolerance);
+    //         }
+    //     }
+    // }
+
+    pub fn intersect_vec2(&self, cd: &[Vec2]) -> Vec<Vec<Vec2>> {
+        // first mask them...
+        let p = MultiPolygon::new(vec![line_to_polygon(cd)]);
+        let masked = p.intersection(&self.mask);
+        let v = multipolygon_to_vec2(&masked);
+        v
+    }
+
+    pub fn intersect_many_cds(
+        &self,
+        cds: &[CurveDrawer],
+        tolerance: f32,
+    ) -> LivecodeResult<Vec<Vec<Vec2>>> {
+        let mut all_the_vecs = vec![];
+        for cd in cds {
+            // first mask them...
+
+            let p = MultiPolygon::new(vec![line_to_polygon(&cd.flatten_with_lyon(tolerance)?)]);
+            let masked = p.intersection(&self.mask);
+
+            let v = multipolygon_to_vec2(&masked);
+
+            all_the_vecs.extend(v);
+        }
+
+        Ok(all_the_vecs)
+    }
+
+    // pub fn intersect_styled_shapes(
+    //     &self,
+    //     shapes: &[DrawnShape],
+    //     tolerance: f32,
+    // ) -> LivecodeResult<Vec<DrawnShape>> {
+    //     let mut v = vec![];
+    //     for c in shapes {
+    //         v.push(self.intersect_many_cds(&c.curves(), c.style(), tolerance)?)
+    //     }
+
+    //     Ok(v)
+    // }
+
+    pub fn to_vec(&self) -> Vec<Vec<Vec2>> {
+        multipolygon_to_vec2(&self.mask)
+    }
+}
+
+impl ToDrawnShape for Masker {
+    fn to_drawn_shape(&self, style: crate::style::styleconf::StyleConf) -> DrawnShape {
+        DrawnShape::new_vecvec(self.to_vec(), style)
     }
 }

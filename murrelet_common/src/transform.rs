@@ -3,7 +3,7 @@ use itertools::Itertools;
 use lerpable::Lerpable;
 
 use crate::{
-    AnglePi, IsAngle, approx_eq_eps, lerp,
+    AnglePi, IsAngle, SpotOnCurve, approx_eq_eps, lerp,
     polyline::{IsPolyline, Polyline},
     vec_lerp,
 };
@@ -93,7 +93,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SimpleTransform2dStep {
     Translate(Vec2),
     Rotate(Vec2, AnglePi),
@@ -176,6 +176,21 @@ impl Transformable for Vec2 {
     }
 }
 
+impl<A> Transformable for A
+where
+    A: IsAngle,
+{
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        self.rotate(t.to_simple_transform().approx_rotate())
+    }
+}
+
+impl Transformable for SpotOnCurve {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        SpotOnCurve::new(self.loc.transform_with(t), self.angle.transform_with(t))
+    }
+}
+
 impl<A> Transformable for Vec<A>
 where
     A: Transformable,
@@ -185,7 +200,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SimpleTransform2d(Vec<SimpleTransform2dStep>);
 impl SimpleTransform2d {
     pub fn new(v: Vec<SimpleTransform2dStep>) -> Self {
@@ -194,6 +209,14 @@ impl SimpleTransform2d {
 
     pub fn rotate(angle_pi: AnglePi) -> Self {
         Self(vec![SimpleTransform2dStep::rotate_pi(angle_pi)])
+    }
+
+    pub fn reflect_x() -> Self {
+        Self(vec![SimpleTransform2dStep::reflect_x()])
+    }
+
+    pub fn reflect_y() -> Self {
+        Self(vec![SimpleTransform2dStep::reflect_y()])
     }
 
     pub fn rotate_pi(angle_pi: f32) -> Self {
@@ -284,6 +307,29 @@ impl SimpleTransform2d {
             }
         }
         rotate
+    }
+
+    pub fn inverse(&self) -> Self {
+        let mut vs = vec![];
+
+        for t in self.0.iter().rev() {
+            let v = match t {
+                SimpleTransform2dStep::Translate(v2) => {
+                    SimpleTransform2dStep::Translate(vec2(-v2.x, -v2.y))
+                }
+                SimpleTransform2dStep::Rotate(center, angle_pi) => {
+                    SimpleTransform2dStep::Rotate(*center, -*angle_pi)
+                }
+                SimpleTransform2dStep::Scale(v2) => {
+                    SimpleTransform2dStep::Scale(Vec2::new(1.0 / v2.x, 1.0 / v2.y))
+                }
+                SimpleTransform2dStep::Skew(..) => {
+                    todo!();
+                }
+            };
+            vs.push(v);
+        }
+        Self::new(vs)
     }
 }
 

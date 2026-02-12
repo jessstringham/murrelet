@@ -722,6 +722,12 @@ impl SerdeDefault {
             (ControlType::F32_2, SerdeDefault::Ones, _) => {
                 "murrelet_livecode::livecode::_auto_default_vec2_1".to_string()
             }
+            (ControlType::F32_3, SerdeDefault::Zeros, _) => {
+                "murrelet_livecode::livecode::_auto_default_vec3_0".to_string()
+            }
+            (ControlType::F32_3, SerdeDefault::Ones, _) => {
+                "murrelet_livecode::livecode::_auto_default_vec3_1".to_string()
+            }
             (ControlType::F32_2, SerdeDefault::CustomFunction(x), _) => x.clone(),
             (ControlType::F32_3, SerdeDefault::CustomFunction(x), _) => x.clone(),
 

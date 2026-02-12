@@ -287,6 +287,16 @@ impl CurveDrawer {
             segments
         }
     }
+
+    pub fn reverse(&self) -> CurveDrawer {
+        let s = self
+            .segments
+            .iter()
+            .map(|x| x.reverse())
+            .rev()
+            .collect_vec();
+        s.to_cd(self.closed)
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -611,6 +621,10 @@ impl CurveArc {
 
     fn end_angle(&self) -> Angle {
         self.end_pi.as_angle()
+    }
+
+    pub fn first_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.first_point(), self.start_tangent_angle())
     }
 
     pub fn last_spot(&self) -> SpotOnCurve {
@@ -952,6 +966,10 @@ pub trait ToCurveDrawer {
         CurveDrawer::new(simplify_curve_segments(&self.to_segments()), is_closed)
     }
 
+    fn reverse_curve(&self) -> Vec<CurveSegment> {
+        self.to_cd_open().reverse().segments
+    }
+
     // assume open
     fn last_spot_cd(&self) -> Option<SpotOnCurve> {
         let cdo = self.to_cd_open();
@@ -1075,6 +1093,11 @@ pub trait ToCurveDrawer {
         let new_size = length / how_many;
 
         self.split(new_size)
+    }
+
+    fn pct(&self, pct: f32) -> Option<SpotOnCurve> {
+        let (a, _) = self.split(pct);
+        a.last_spot_cd()
     }
 
     fn split(&self, pct: f32) -> (Vec<CurveSegment>, Vec<CurveSegment>) {
@@ -1228,6 +1251,12 @@ impl ToCurveDrawer for Vec<SpotOnCurve> {
 impl ToCurveDrawer for Vec<CubicBezier> {
     fn to_segments(&self) -> Vec<CurveSegment> {
         self.map_iter_collect(|x| x.to_segment())
+    }
+}
+
+impl ToCurveSegment for LineFromVecAndLen {
+    fn to_segment(&self) -> CurveSegment {
+        self.to_vec().to_segment()
     }
 }
 

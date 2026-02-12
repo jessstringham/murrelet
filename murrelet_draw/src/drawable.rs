@@ -1,6 +1,6 @@
 use glam::Vec2;
 use itertools::Itertools;
-use murrelet_common::{ToSimpleTransform, Transformable};
+use murrelet_common::{MurreletIterHelpers, ToSimpleTransform, Transformable};
 use murrelet_livecode::types::LivecodeResult;
 
 use crate::{
@@ -140,6 +140,24 @@ impl PositionedText {
     }
 }
 
+impl Transformable for PositionedText {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        Self {
+            loc: self.loc.transform_with(t),
+            ..self.clone()
+        }
+    }
+}
+
+impl Transformable for MixedDrawableShape {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        match self {
+            MixedDrawableShape::Shape(d) => MixedDrawableShape::Shape(d.transform_with(t)),
+            MixedDrawableShape::Text(d) => MixedDrawableShape::Text(d.transform_with(t)),
+        }
+    }
+}
+
 impl ToMixedDrawableWithStyle for Vec<PositionedText> {
     fn with_style(&self, style: &StyleConf) -> MixedDrawableShape {
         MixedDrawableShape::Text(DrawnTextShape {
@@ -167,6 +185,14 @@ pub struct DrawnTextShape {
 impl DrawnTextShape {
     pub fn positions(&self) -> &[PositionedText] {
         &self.text
+    }
+}
+impl Transformable for DrawnTextShape {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        Self {
+            text: self.text.map_iter_collect(|x| x.transform_with(t)),
+            ..self.clone()
+        }
     }
 }
 
