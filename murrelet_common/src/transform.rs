@@ -343,6 +343,24 @@ impl ToSimpleTransform for SimpleTransform2d {
     }
 }
 
+impl ToSimpleTransform for SimpleTransform2dStep {
+    fn to_simple_transform(&self) -> SimpleTransform2d {
+        SimpleTransform2d::new(vec![self.clone()])
+    }
+}
+
+impl<T> ToSimpleTransform for Option<T>
+where
+    T: ToSimpleTransform,
+{
+    fn to_simple_transform(&self) -> SimpleTransform2d {
+        match self {
+            Some(x) => x.to_simple_transform(),
+            None => SimpleTransform2d::noop(),
+        }
+    }
+}
+
 impl<T> TransformVec2 for T
 where
     T: ToSimpleTransform,
@@ -362,4 +380,59 @@ impl Lerpable for SimpleTransform2d {
     fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
         Self::new(self.0.lerpify(&other.0, pct))
     }
+}
+
+#[macro_export]
+macro_rules! translate {
+    ($v:expr) => {
+        Some(murrelet_common::SimpleTransform2dStep::translate($v))
+    };
+}
+
+#[macro_export]
+macro_rules! rotate {
+    ($a:expr) => {
+        Some(murrelet_common::SimpleTransform2dStep::rotate($a))
+    };
+}
+
+#[macro_export]
+macro_rules! scale {
+    ($s:expr) => {
+        Some(murrelet_common::SimpleTransform2dStep::scale_both($s))
+    };
+}
+
+#[macro_export]
+macro_rules! maybe_reflect_x {
+    ($cond:expr) => {
+        if $cond {
+            Some(murrelet_common::SimpleTransform2dStep::reflect_x())
+        } else {
+            None
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! maybe_reflect_y {
+    ($cond:expr) => {
+        if $cond {
+            Some(murrelet_common::SimpleTransform2dStep::reflect_y())
+        } else {
+            None
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! transform {
+    ( $( $step:expr ),* $(,)? ) => {{
+        murrelet_common::SimpleTransform2d::new(
+            vec![$($step),*]
+                .into_iter()
+                .flat_map(|s| s.into_iter())
+                .collect()
+        )
+    }};
 }
