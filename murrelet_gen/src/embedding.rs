@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use lerpable::Lerpable;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rand_distr::Normal;
@@ -39,12 +40,12 @@ pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
 #[derive(Debug, Clone)]
 pub struct MurreletEmbeddingEncoded(String);
 impl MurreletEmbeddingEncoded {
-    pub fn from_decoded(d: &MurreletEmbeddingDecoded) -> EmbeddingResult<Self> {
+    pub fn from_decoded(d: &MurreletQuantizedEmbedding) -> EmbeddingResult<Self> {
         d.encode()
     }
 
-    pub fn decode(&self) -> EmbeddingResult<MurreletEmbeddingDecoded> {
-        MurreletEmbeddingDecoded::from_str(&self.0)
+    pub fn decode(&self) -> EmbeddingResult<MurreletQuantizedEmbedding> {
+        MurreletQuantizedEmbedding::from_str(&self.0)
     }
 
     pub fn to_string(&self) -> String {
@@ -53,16 +54,23 @@ impl MurreletEmbeddingEncoded {
 
     pub fn from_str(s: &str) -> EmbeddingResult<Self> {
         // we go through decoded so that we know it's valid!
-        MurreletEmbeddingDecoded::from_str(s)?.encode()
+        MurreletQuantizedEmbedding::from_str(s)?.encode()
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct MurreletEmbeddingDecoded(Vec<u32>, usize);
+#[derive(Debug, Clone, Lerpable)]
+pub struct MurreletQuantizedEmbedding {
+    emb: Vec<u32>,
+    digits: usize,
+}
 
-impl MurreletEmbeddingDecoded {
+impl MurreletQuantizedEmbedding {
+    pub fn new(emb: Vec<u32>, digits: usize) -> Self {
+        Self { emb, digits }
+    }
+
     pub fn as_rn(&self) -> Vec<f32> {
-        self.0
+        self.emb
             .iter()
             .map(|x| *x as f32 / self.factor() as f32)
             .collect()
@@ -76,25 +84,21 @@ impl MurreletEmbeddingDecoded {
         self.factor() - 1
     }
 
-    pub fn new_rn(seed: u64, conf: &MurreletEmbeddingConf) -> MurreletEmbeddingDecoded {
+    pub fn from_seed(conf: &MurreletEmbeddingConf, seed: u64) -> MurreletQuantizedEmbedding {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
 
         let quantized: Vec<u32> = (0..conf.len)
             .map(|_| conf.compute_one_value(&mut rng))
             .collect();
 
-        MurreletEmbeddingDecoded(quantized, conf.digits)
+        MurreletQuantizedEmbedding::new(quantized, conf.digits)
     }
 
-    pub fn new_with_gaussian_noise(
-        &self,
-        seed: u64,
-        stdev: f32,
-    ) -> EmbeddingResult<MurreletEmbeddingDecoded> {
+    pub fn new_with_gaussian_noise(&self, seed: u64, stdev: f32) -> MurreletQuantizedEmbedding {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
 
         let base = self.as_rn();
-        let rns = normal_n(&mut rng, 0.0, stdev, self.0.len());
+        let rns = normal_n(&mut rng, 0.0, stdev, self.dims());
 
         let v = base
             .into_iter()
@@ -102,18 +106,18 @@ impl MurreletEmbeddingDecoded {
             .map(|(a, b)| a + b)
             .collect::<Vec<_>>();
 
-        Ok(MurreletEmbeddingDecoded::from_rn(&v, self.digits()))
+        MurreletQuantizedEmbedding::from_rn(&v, self.digits())
     }
 
     pub fn new_with_rerandomize(
         &self,
         seed: u64,
         rerand_chance: f32,
-    ) -> EmbeddingResult<MurreletEmbeddingDecoded> {
+    ) -> MurreletQuantizedEmbedding {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
 
         let v = self
-            .0
+            .emb
             .iter()
             .map(|x| {
                 if rng.gen_range(0.0..1.0) < rerand_chance {
@@ -124,18 +128,18 @@ impl MurreletEmbeddingDecoded {
             })
             .collect_vec();
 
-        Ok(MurreletEmbeddingDecoded(v, self.digits()))
+        MurreletQuantizedEmbedding::new(v, self.digits())
     }
 
     pub fn new_with_rerandomize_idx(
         &self,
         seed: u64,
         idx: HashSet<usize>,
-    ) -> EmbeddingResult<MurreletEmbeddingDecoded> {
+    ) -> EmbeddingResult<MurreletQuantizedEmbedding> {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
 
         let v = self
-            .0
+            .emb
             .iter()
             .enumerate()
             .map(|(i, x)| {
@@ -147,22 +151,26 @@ impl MurreletEmbeddingDecoded {
             })
             .collect_vec();
 
-        Ok(MurreletEmbeddingDecoded(v, self.digits()))
+        Ok(MurreletQuantizedEmbedding::new(v, self.digits()))
     }
 
-    pub fn from_rn(v: &[f32], digits: usize) -> MurreletEmbeddingDecoded {
+    pub fn from_rn(v: &[f32], digits: usize) -> MurreletQuantizedEmbedding {
         let d = quantize(v, digits);
-        Self(d, digits)
+        Self::new(d, digits)
     }
 
     pub fn digits(&self) -> usize {
-        self.1
+        self.digits
+    }
+
+    pub fn dims(&self) -> usize {
+        self.emb.len()
     }
 
     pub fn encode(&self) -> EmbeddingResult<MurreletEmbeddingEncoded> {
-        let mut result = Vec::with_capacity(self.0.len());
+        let mut result = Vec::with_capacity(self.dims());
 
-        for v in &self.0 {
+        for v in &self.emb {
             let val = *v;
             if val > self.max_val() {
                 return Err(EmbeddingError::DecodeValueOutOfRange {
@@ -210,24 +218,34 @@ impl MurreletEmbeddingDecoded {
             decoded.push(v);
         }
 
-        Ok(MurreletEmbeddingDecoded(decoded, digits))
+        Ok(MurreletQuantizedEmbedding::new(decoded, digits))
     }
 
     pub fn zero(&self, conf: &MurreletEmbeddingConf) -> Self {
         let a = vec![0; conf.len];
-        Self(a, conf.digits)
-    }
-
-    pub fn length(&self) -> usize {
-        self.0.len()
+        Self::new(a, conf.digits)
     }
 
     pub fn set(&self, idx: usize, val: f32) -> Self {
         let mut v = self.clone();
-        if let Some(a) = v.0.get_mut(idx) {
+        if let Some(a) = v.emb.get_mut(idx) {
             *a = quantize_one(val, self.digits());
         }
         v
+    }
+}
+
+// Convert a quantized embedding into normalized floats in [0,1].
+// Prefer `From` impls; `Into` is provided automatically by Rust.
+impl From<MurreletQuantizedEmbedding> for Vec<f32> {
+    fn from(value: MurreletQuantizedEmbedding) -> Self {
+        value.as_rn()
+    }
+}
+
+impl From<&MurreletQuantizedEmbedding> for Vec<f32> {
+    fn from(value: &MurreletQuantizedEmbedding) -> Self {
+        value.as_rn()
     }
 }
 
@@ -260,6 +278,10 @@ pub struct MurreletEmbeddingConf {
 }
 
 impl MurreletEmbeddingConf {
+    pub fn new_high_limit(len: usize) -> Self {
+        Self { digits: 9, len }
+    }
+
     pub fn new(digits: usize, len: usize) -> Self {
         Self { digits, len }
     }
@@ -270,5 +292,57 @@ impl MurreletEmbeddingConf {
 
     fn compute_one_value<R: Rng>(&self, rng: &mut R) -> u32 {
         rng.gen_range(0..self.factor())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum EmbeddingGenStep {
+    Seed(u64),
+    NearSeedGaussian {
+        source: Box<EmbeddingGenStep>,
+        rand_seed: u64, // seed for gaussian
+        stdev: f32,
+    },
+    NearSeedReRand {
+        source: Box<EmbeddingGenStep>,
+        rand_seed: u64,     // seed for rerand
+        rerand_chance: f32, // controls how many are updated, per item
+    },
+    Mix {
+        source_a: Box<EmbeddingGenStep>,
+        source_b: Box<EmbeddingGenStep>,
+        mix: f32,
+    },
+}
+impl EmbeddingGenStep {
+    pub fn compute(&self, conf: &MurreletEmbeddingConf) -> MurreletQuantizedEmbedding {
+        match &self {
+            EmbeddingGenStep::Seed(seed) => MurreletQuantizedEmbedding::from_seed(&conf, *seed),
+            EmbeddingGenStep::NearSeedGaussian {
+                source,
+                rand_seed,
+                stdev,
+            } => {
+                let base = source.compute(conf);
+                base.new_with_gaussian_noise(*rand_seed, *stdev)
+            }
+            EmbeddingGenStep::NearSeedReRand {
+                source,
+                rand_seed,
+                rerand_chance,
+            } => {
+                let base = source.compute(conf);
+                base.new_with_rerandomize(*rand_seed, *rerand_chance)
+            }
+            EmbeddingGenStep::Mix {
+                source_a,
+                source_b,
+                mix,
+            } => {
+                let base_a = source_a.compute(conf);
+                let base_b = source_b.compute(conf);
+                base_a.lerpify(&base_b, mix)
+            }
+        }
     }
 }

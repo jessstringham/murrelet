@@ -1,10 +1,8 @@
 pub mod embedding;
 
+use crate::embedding::EmbeddingGenStep;
+use crate::embedding::MurreletEmbeddingConf;
 pub use murrelet_gen_derive::MurreletGen;
-
-use rand::Rng;
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 
 pub trait CanSampleFromDist: Sized {
     // returns the right number of rn needed to generate this.
@@ -14,22 +12,30 @@ pub trait CanSampleFromDist: Sized {
     // given rn of length ^, it'll generate!
     fn sample_dist(rn: &[f32], start_idx: usize) -> Self;
 
-    fn from_dist(rn: &[f32]) -> Self {
+    fn from_slice(rn: &[f32]) -> Self {
         Self::sample_dist(rn, 0)
     }
 
-    // usually you'll call this one
-    fn gen_from_seed(seed: u64) -> Self {
-        let mut rng = StdRng::seed_from_u64(seed);
-
-        let rns: Vec<f32> = (0..Self::rn_count())
-            .map(|_| rng.gen_range(0.0..1.0))
-            .collect();
-
-        Self::sample_dist(&rns, 0)
+    fn from_dist<Emb>(rn: Emb) -> Self
+    where
+        Emb: Into<Vec<f32>>,
+    {
+        let rnf32: Vec<f32> = rn.into();
+        Self::sample_dist(&rnf32, 0)
     }
 
-    // creates an arbitrary floats that should turn back into the same values
+    fn conf_high_limit() -> MurreletEmbeddingConf {
+        MurreletEmbeddingConf::new_high_limit(Self::rn_count())
+    }
+
+    // usually you'll call this one, or use the MurreletQuantizedEmbedding or its DSL
+    fn gen_from_seed(seed: u64) -> Self {
+        let cmd = EmbeddingGenStep::Seed(seed);
+        let emb = cmd.compute(&Self::conf_high_limit());
+        Self::from_dist(&emb)
+    }
+
+    // should map back to itself
     fn to_dist(&self) -> Vec<f32>;
     fn to_dist_mask(&self) -> Vec<bool>;
 }
