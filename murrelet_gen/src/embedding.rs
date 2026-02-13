@@ -1,16 +1,23 @@
 use itertools::Itertools;
-use lerpable::Lerpable;
+use lerpable::{IsLerpingMethod, Lerpable};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rand_distr::Normal;
-use std::{collections::HashSet, fmt};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    fmt,
+    rc::Rc,
+};
+
+// we're going to do a u32 with 10^digit count, so this is basically the max anyway
+const MAX_DIGIT_COUNT: usize = 9;
 
 #[derive(Debug, PartialEq)]
 pub enum EmbeddingError {
     DecodeEmpty,
     DecodeHasWrongDigitCount { expected: usize, got: usize },
     DecodeValueOutOfRange { max: u32, got: u32 },
-    // InvalidValue(String),
     DecodeParseError(String),
 }
 
@@ -102,7 +109,7 @@ impl MurreletQuantizedEmbedding {
 
         let v = base
             .into_iter()
-            .zip(rns.into_iter())
+            .zip(rns)
             .map(|(a, b)| a + b)
             .collect::<Vec<_>>();
 
@@ -155,6 +162,7 @@ impl MurreletQuantizedEmbedding {
     }
 
     pub fn from_rn(v: &[f32], digits: usize) -> MurreletQuantizedEmbedding {
+        let digits = digits.max(MAX_DIGIT_COUNT);
         let d = quantize(v, digits);
         Self::new(d, digits)
     }
@@ -237,7 +245,7 @@ impl MurreletQuantizedEmbedding {
 
 impl From<&[f32]> for MurreletQuantizedEmbedding {
     fn from(value: &[f32]) -> Self {
-        MurreletQuantizedEmbedding::from_rn(value, 9)
+        MurreletQuantizedEmbedding::from_rn(value, MAX_DIGIT_COUNT)
     }
 }
 
@@ -275,6 +283,25 @@ fn quantize(decoded: &[f32], digits: usize) -> Vec<u32> {
     v
 }
 
+#[derive(Debug, Clone)]
+pub struct MemoizedEmbeddingGenerator {
+    conf: MurreletEmbeddingConf,
+    cache: EmbeddingGenStepCacheRef,
+}
+impl MemoizedEmbeddingGenerator {
+    fn lookup(&self, key: &EmbeddingGenStep) -> Option<MurreletQuantizedEmbedding> {
+        self.cache.0.borrow().cache.get(key).cloned()
+    }
+
+    fn insert(&self, key: &EmbeddingGenStep, val: &MurreletQuantizedEmbedding) {
+        self.cache
+            .0
+            .borrow_mut()
+            .cache
+            .insert(key.clone(), val.clone());
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct MurreletEmbeddingConf {
     digits: usize,
@@ -283,11 +310,21 @@ pub struct MurreletEmbeddingConf {
 
 impl MurreletEmbeddingConf {
     pub fn new_high_limit(len: usize) -> Self {
-        Self { digits: 9, len }
+        Self {
+            digits: MAX_DIGIT_COUNT,
+            len,
+        }
     }
 
     pub fn new(digits: usize, len: usize) -> Self {
         Self { digits, len }
+    }
+
+    pub fn to_memoized(&self) -> MemoizedEmbeddingGenerator {
+        MemoizedEmbeddingGenerator {
+            conf: self.clone(),
+            cache: EmbeddingGenStepCacheRef::new(),
+        }
     }
 
     fn factor(&self) -> u32 {
@@ -302,64 +339,124 @@ impl MurreletEmbeddingConf {
 #[derive(Clone, Debug)]
 pub struct EmbeddingGenCommand {
     steps: EmbeddingGenStep,
-    conf: MurreletEmbeddingConf,
+    memoized: MemoizedEmbeddingGenerator,
 }
 impl EmbeddingGenCommand {
     pub fn new(steps: EmbeddingGenStep, conf: MurreletEmbeddingConf) -> Self {
-        Self { steps, conf }
+        Self {
+            steps,
+            memoized: conf.to_memoized(),
+        }
     }
 
     pub fn compute(&self) -> MurreletQuantizedEmbedding {
-        self.steps.compute(&self.conf)
+        self.steps.compute(&self.memoized)
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
+struct EmbeddingGenStepCache {
+    cache: HashMap<EmbeddingGenStep, MurreletQuantizedEmbedding>,
+}
+impl EmbeddingGenStepCache {
+    pub fn new() -> Self {
+        Self {
+            cache: HashMap::new(),
+        }
+    }
+
+    // pub fn compute(&mut self, step: &EmbeddingGenStep) -> &MurreletQuantizedEmbedding {
+    //     if !self.cache.contains_key(step) {
+    //         let c = step.compute(&self.conf);
+    //         self.cache.insert(step.clone(), c);
+    //     }
+
+    //     &self.cache[step]
+    // }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum EmbeddingGenStep {
     Seed(u64),
     NearSeedGaussian {
         source: Box<EmbeddingGenStep>,
         rand_seed: u64, // seed for gaussian
-        stdev: f32,
+        stdev: HashableF32,
     },
     NearSeedReRand {
         source: Box<EmbeddingGenStep>,
-        rand_seed: u64,     // seed for rerand
-        rerand_chance: f32, // controls how many are updated, per item
+        rand_seed: u64,             // seed for rerand
+        rerand_chance: HashableF32, // controls how many are updated, per item
     },
     Mix {
         source_a: Box<EmbeddingGenStep>,
         source_b: Box<EmbeddingGenStep>,
-        mix: f32,
+        mix: HashableF32,
     },
 }
 impl EmbeddingGenStep {
-    pub fn compute(&self, conf: &MurreletEmbeddingConf) -> MurreletQuantizedEmbedding {
+    pub fn seed(seed: u64) -> Self {
+        Self::Seed(seed)
+    }
+
+    pub fn near_seed_gaussian(source: EmbeddingGenStep, rand_seed: u64, stdev: f32) -> Self {
+        let source = Box::new(source);
+        Self::NearSeedGaussian {
+            source,
+            rand_seed,
+            stdev: stdev.into(),
+        }
+    }
+
+    pub fn near_seed_rerand(source: EmbeddingGenStep, rand_seed: u64, rerand_chance: f32) -> Self {
+        let source = Box::new(source);
+        Self::NearSeedReRand {
+            source,
+            rand_seed,
+            rerand_chance: rerand_chance.into(),
+        }
+    }
+
+    pub fn compute(&self, mconf: &MemoizedEmbeddingGenerator) -> MurreletQuantizedEmbedding {
+        if let Some(c) = mconf.lookup(self) {
+            return c;
+        }
+
+        let c = self.evaluate_compute(mconf);
+        mconf.insert(self, &c);
+        c
+    }
+
+    pub fn evaluate_compute(
+        &self,
+        mconf: &MemoizedEmbeddingGenerator,
+    ) -> MurreletQuantizedEmbedding {
+        let conf = &mconf.conf;
         match &self {
-            EmbeddingGenStep::Seed(seed) => MurreletQuantizedEmbedding::from_seed(&conf, *seed),
+            EmbeddingGenStep::Seed(seed) => MurreletQuantizedEmbedding::from_seed(conf, *seed),
             EmbeddingGenStep::NearSeedGaussian {
                 source,
                 rand_seed,
                 stdev,
             } => {
-                let base = source.compute(conf);
-                base.new_with_gaussian_noise(*rand_seed, *stdev)
+                let base = source.compute(mconf);
+                base.new_with_gaussian_noise(*rand_seed, stdev.into())
             }
             EmbeddingGenStep::NearSeedReRand {
                 source,
                 rand_seed,
                 rerand_chance,
             } => {
-                let base = source.compute(conf);
-                base.new_with_rerandomize(*rand_seed, *rerand_chance)
+                let base = source.compute(mconf);
+                base.new_with_rerandomize(*rand_seed, rerand_chance.into())
             }
             EmbeddingGenStep::Mix {
                 source_a,
                 source_b,
                 mix,
             } => {
-                let base_a = source_a.compute(conf);
-                let base_b = source_b.compute(conf);
+                let base_a = source_a.compute(mconf);
+                let base_b = source_b.compute(mconf);
                 base_a.lerpify(&base_b, mix)
             }
         }
@@ -367,5 +464,70 @@ impl EmbeddingGenStep {
 
     pub(crate) fn with_conf(&self, conf: &MurreletEmbeddingConf) -> EmbeddingGenCommand {
         EmbeddingGenCommand::new(self.clone(), conf.clone())
+    }
+}
+
+#[derive(Debug, Clone)]
+struct EmbeddingGenStepCacheRef(Rc<RefCell<EmbeddingGenStepCache>>);
+impl EmbeddingGenStepCacheRef {
+    fn new() -> Self {
+        Self(Rc::new(RefCell::new(EmbeddingGenStepCache::new())))
+    }
+}
+
+const HASHABLE_F32_DIGITS: i32 = 6;
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, PartialOrd, Eq)]
+pub struct HashableF32(i64);
+
+impl HashableF32 {
+    #[inline]
+    fn scale() -> f32 {
+        10f32.powi(HASHABLE_F32_DIGITS)
+    }
+}
+
+impl From<f32> for HashableF32 {
+    fn from(value: f32) -> Self {
+        if !value.is_finite() {
+            return HashableF32(0); // fall back to 0...
+        }
+
+        let scaled = (value * Self::scale()).round() as i64;
+        HashableF32(scaled)
+    }
+}
+
+impl From<HashableF32> for f32 {
+    fn from(value: HashableF32) -> Self {
+        value.0 as f32 / HashableF32::scale()
+    }
+}
+
+impl From<&HashableF32> for f32 {
+    fn from(value: &HashableF32) -> Self {
+        value.0 as f32 / HashableF32::scale()
+    }
+}
+
+impl IsLerpingMethod for HashableF32 {
+    fn has_lerp_stepped(&self) -> bool {
+        let a: f32 = self.into();
+        a.has_lerp_stepped()
+    }
+
+    fn partial_lerp_pct(&self, i: usize, total: usize) -> f64 {
+        let a: f32 = self.into();
+        a.partial_lerp_pct(i, total)
+    }
+
+    fn lerp_pct(&self) -> f64 {
+        let a: f32 = self.into();
+        a.lerp_pct()
+    }
+
+    fn with_lerp_pct(&self, pct: f64) -> Self {
+        let a: f32 = self.into();
+        a.with_lerp_pct(pct).into()
     }
 }
