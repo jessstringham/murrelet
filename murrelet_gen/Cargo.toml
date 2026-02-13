@@ -17,6 +17,7 @@ glam = { version = "0.28.0", features = ["serde"] }
 murrelet_common = { workspace = true }
 itertools = "0.10.5"
 rand_distr = "0.4.3"
+rand_chacha = "0.3"
 
 
 [[example]]
