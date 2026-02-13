@@ -2,6 +2,7 @@ pub mod embedding;
 
 use crate::embedding::EmbeddingGenStep;
 use crate::embedding::MurreletEmbeddingConf;
+use crate::embedding::MurreletQuantizedEmbedding;
 pub use murrelet_gen_derive::MurreletGen;
 
 pub trait CanSampleFromDist: Sized {
@@ -9,30 +10,29 @@ pub trait CanSampleFromDist: Sized {
     fn rn_count() -> usize;
     fn rn_names() -> Vec<String>;
 
-    // given rn of length ^, it'll generate!
     fn sample_dist(rn: &[f32], start_idx: usize) -> Self;
 
+    // given rn of length ^, it'll generate!
     fn from_slice(rn: &[f32]) -> Self {
         Self::sample_dist(rn, 0)
     }
 
     fn from_dist<Emb>(rn: Emb) -> Self
     where
-        Emb: Into<Vec<f32>>,
+        Emb: Into<MurreletQuantizedEmbedding>,
     {
-        let rnf32: Vec<f32> = rn.into();
-        Self::sample_dist(&rnf32, 0)
+        let rnf32: MurreletQuantizedEmbedding = rn.into();
+        Self::sample_dist(&rnf32.as_rn(), 0)
     }
 
     fn conf_high_limit() -> MurreletEmbeddingConf {
         MurreletEmbeddingConf::new_high_limit(Self::rn_count())
     }
 
-    // usually you'll call this one, or use the MurreletQuantizedEmbedding or its DSL
+    // usually you'll call this one, or use the MurreletQuantizedEmbedding or its DSL, esp if you need custom quantizing
     fn gen_from_seed(seed: u64) -> Self {
-        let cmd = EmbeddingGenStep::Seed(seed);
-        let emb = cmd.compute(&Self::conf_high_limit());
-        Self::from_dist(&emb)
+        let cmd = EmbeddingGenStep::Seed(seed).with_conf(&Self::conf_high_limit());
+        Self::from_dist(cmd)
     }
 
     // should map back to itself

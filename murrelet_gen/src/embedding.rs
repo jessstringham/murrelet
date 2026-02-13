@@ -235,11 +235,15 @@ impl MurreletQuantizedEmbedding {
     }
 }
 
-// Convert a quantized embedding into normalized floats in [0,1].
-// Prefer `From` impls; `Into` is provided automatically by Rust.
-impl From<MurreletQuantizedEmbedding> for Vec<f32> {
-    fn from(value: MurreletQuantizedEmbedding) -> Self {
-        value.as_rn()
+impl From<&[f32]> for MurreletQuantizedEmbedding {
+    fn from(value: &[f32]) -> Self {
+        MurreletQuantizedEmbedding::from_rn(value, 9)
+    }
+}
+
+impl From<EmbeddingGenCommand> for MurreletQuantizedEmbedding {
+    fn from(value: EmbeddingGenCommand) -> Self {
+        value.compute()
     }
 }
 
@@ -296,6 +300,21 @@ impl MurreletEmbeddingConf {
 }
 
 #[derive(Clone, Debug)]
+pub struct EmbeddingGenCommand {
+    steps: EmbeddingGenStep,
+    conf: MurreletEmbeddingConf,
+}
+impl EmbeddingGenCommand {
+    pub fn new(steps: EmbeddingGenStep, conf: MurreletEmbeddingConf) -> Self {
+        Self { steps, conf }
+    }
+
+    pub fn compute(&self) -> MurreletQuantizedEmbedding {
+        self.steps.compute(&self.conf)
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum EmbeddingGenStep {
     Seed(u64),
     NearSeedGaussian {
@@ -344,5 +363,9 @@ impl EmbeddingGenStep {
                 base_a.lerpify(&base_b, mix)
             }
         }
+    }
+
+    pub(crate) fn with_conf(&self, conf: &MurreletEmbeddingConf) -> EmbeddingGenCommand {
+        EmbeddingGenCommand::new(self.clone(), conf.clone())
     }
 }
