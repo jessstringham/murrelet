@@ -1,3 +1,5 @@
+pub mod embedding;
+
 pub use murrelet_gen_derive::MurreletGen;
 
 use rand::Rng;
