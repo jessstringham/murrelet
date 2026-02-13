@@ -103,7 +103,11 @@ impl CurveDrawerAnalysis {
         ]);
     }
 
-    pub fn to_drawn_shape(&self, style: &CurveDrawerAnalysisStyle) -> Vec<DrawnShape> {
+    pub fn to_drawn_shape_default(&self) -> Vec<DrawnShape> {
+        self.to_drawn_shape_r(&Default::default())
+    }
+
+    pub fn to_drawn_shape_r(&self, style: &CurveDrawerAnalysisStyle) -> Vec<DrawnShape> {
         vec![
             self.cb_dots
                 .map_iter_collect(|f| f.to_cd_open())
@@ -342,12 +346,22 @@ pub trait ToCurveDrawerAnalysis {
     fn analyze_curve(&self) -> CurveDrawerAnalysis;
 
     fn draw(&self) -> Vec<DrawnShape> {
-        self.analyze_curve().to_drawn_shape(&Default::default())
+        self.analyze_curve().to_drawn_shape_r(&Default::default())
     }
 }
 
 impl ToCurveDrawerAnalysis for CurveDrawer {
     fn analyze_curve(&self) -> CurveDrawerAnalysis {
         CurveDrawerAnalysis::new_from_cd(self)
+    }
+}
+
+impl ToCurveDrawerAnalysis for Vec<CurveDrawer> {
+    fn analyze_curve(&self) -> CurveDrawerAnalysis {
+        let mut c = CurveDrawerAnalysis::new();
+        for cd in self {
+            c.add_cd(cd);
+        }
+        c
     }
 }
