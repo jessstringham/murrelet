@@ -207,7 +207,7 @@ impl GenFinal for FieldTokensLazy {
         let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
+            #[derive(Debug, Clone, Default, murrelet_livecode::LivecodeOnly)]
             #vis struct #lc_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::lazy::IsLazy for #lc_ident {
@@ -233,7 +233,7 @@ impl GenFinal for FieldTokensLazy {
         let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
+            #[derive(Debug, Clone, Default, murrelet_livecode::LivecodeOnly)]
             #vis struct #lc_ident {
                 #(#for_struct,)*
             }
@@ -266,7 +266,7 @@ impl GenFinal for FieldTokensLazy {
         let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
 
         quote! {
-            #[derive(Debug, Clone, Default, murrelet_livecode_derive::LivecodeOnly)]
+            #[derive(Debug, Clone, Default, murrelet_livecode::LivecodeOnly)]
             #[allow(non_camel_case_types)]
             #tags
             #vis enum #new_enum_ident {
