@@ -2,7 +2,16 @@ use proc_macro2::TokenStream as TokenStream2;
 
 use quote::quote;
 
-use crate::derive_livecode::update_to_control_ident;
+
+pub(crate) fn prefix_ident(prefix: &str, name: syn::Ident) -> syn::Ident {
+    let lc_name = format!("{}{}", prefix, name);
+    syn::Ident::new(&lc_name, name.span())
+}
+
+// these should probably come from livecode crate
+pub(crate) fn update_to_control_ident(name: syn::Ident) -> syn::Ident {
+    prefix_ident("Control", name)
+}
 
 // ugly quick fix, just generate this code
 pub(crate) fn top_level_livecode(ident: syn::Ident) -> TokenStream2 {

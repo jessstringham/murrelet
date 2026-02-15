@@ -51,9 +51,9 @@ pub enum GenMethod {
         min: usize,
         max: usize,
     },
-    VecLengthFixed {
-        val: syn::Expr,
-    },
+    // VecLengthFixed {
+    //     _val: syn::Expr,
+    // },
     ColorNormal,       // samples h, s, and v values
     ColorTransparency, // same as ColorNormal, plus alpha
     StringChoice {
@@ -299,7 +299,7 @@ impl GenMethod {
                 // this is handled in the vec parser
                 unreachable!("this location of veclength isn't supported yet!")
             }
-            GenMethod::VecLengthFixed { val: _ } => unreachable!(),
+            // GenMethod::VecLengthFixed { val: _ } => unreachable!(),
 
             GenMethod::StringChoice { choices } => {
                 let one_hot = choices.len();

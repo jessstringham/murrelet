@@ -17,6 +17,8 @@ schemars = [
 ]
 
 [dependencies]
+murrelet_perform_derive = { workspace = true }
+
 murrelet_common = { workspace = true }
 murrelet_livecode = { workspace = true, default-features = false }
 murrelet_draw = { workspace = true, default-features = false }
