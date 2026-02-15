@@ -222,7 +222,12 @@ impl GenFinal for FieldTokensNestEdit {
             quote! { (Some(x), _) if x == #variant_ident_str => #name::#variant_ident };
 
         let for_nestedit_get = quote! {
-            #name::#variant_ident => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("unitcell enum")))
+            #name::#variant_ident => match getter {
+                [] => Ok(#variant_ident_str.to_string()),
+                _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(
+                    "nestedit enum".to_owned()
+                )),
+            }
         };
 
         FieldTokensNestEdit {

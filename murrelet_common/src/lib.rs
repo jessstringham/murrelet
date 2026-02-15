@@ -534,38 +534,40 @@ pub struct LivecodeSrc {
     vs: Vec<Box<dyn IsLivecodeSrc>>,
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct CustomVars(Option<HashMap<String, f32>>);
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct CustomVars(HashMap<String, f32>);
 
 impl CustomVars {
+    pub fn empty() -> Self {
+        Self(HashMap::new())
+    }
+
     pub fn new(hash_map: HashMap<String, f32>) -> Self {
-        Self(Some(hash_map))
+        Self(hash_map)
     }
 
     pub fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
-        if let Some(hm) = &self.0 {
-            let mut v = vec![];
-            for (key, value) in hm.iter() {
-                v.push((key.clone(), LivecodeValue::float(*value)))
-            }
-            v
-        } else {
-            vec![]
+        let hm = &self.0;
+        let mut v = vec![];
+        for (key, value) in hm.iter() {
+            v.push((key.clone(), LivecodeValue::float(*value)))
         }
+        v
     }
 
     pub fn update(&mut self, new: &Self) {
         // basically update adds, and you can never delete >:D
-        if let Some(o) = &new.0 {
-            self.0
-                .get_or_insert_with(Default::default)
-                .extend(o.iter().map(|(k, v)| (k.clone(), *v)));
-        }
+        let o = &new.0;
+        self.0.extend(o.iter().map(|(k, v)| (k.clone(), *v)));
+    }
+
+    pub fn insert(&mut self, key: String, value: f32) {
+        self.0.insert(key, value);
     }
 }
 
 // what is sent from apps (like nannou)
-#[derive(Default)]
+#[derive(Default, Deserialize)]
 pub struct MurreletAppInput {
     pub keys: Option<[bool; 26]>,
     pub window_dims: Vec2,

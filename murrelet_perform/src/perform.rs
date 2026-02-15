@@ -535,6 +535,46 @@ fn _default_gpu() -> ControlGpuConfig {
     ControlGpuConfig::default()
 }
 
+// sorry this is twice...
+impl AppConfig {
+    pub fn default_web() -> Self {
+        Self {
+            should_reset: false,
+            debug: false,
+            capture: false,
+            seed: 42.0,
+            width: 400.0,
+            bg_alpha: 1.0,
+            clear_bg: false,
+            bg_color: MurreletColor::hsva(0.0, 0.0, 0.0, 1.0),
+            capture_frame: false,
+            redraw: 1,
+            reload: true,
+            reload_rate: 0,
+            time: AppConfigTiming {
+                bpm: 90.0,
+                beats_per_bar: 4.0,
+                fps: 30.0,
+                realtime: true,
+            },
+            ctx: AdditionalContextNode::new_dummy(),
+            svg: SvgConfig {
+                size: 100.0,
+                save: false,
+                output_kind: SvgSaveKind::Inkscape,
+            },
+            gpu: GpuConfig {
+                debug_next: false,
+                debug: false,
+                color_channel: 0,
+            },
+            reload_on_bar: false,
+            assets: AssetFilenames::empty(),
+            lerp_rate: 0.0,
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
 pub struct AppConfig {
@@ -612,6 +652,14 @@ impl AppConfig {
 
     fn should_lerp(&self) -> bool {
         self.lerp_rate > 0.0
+    }
+
+    pub fn set_bpm(&mut self, bpm: f32) {
+        self.time.bpm = bpm
+    }
+
+    pub fn set_beats_per_bar(&mut self, beats_per_bar: f32) {
+        self.time.beats_per_bar = beats_per_bar
     }
 }
 
