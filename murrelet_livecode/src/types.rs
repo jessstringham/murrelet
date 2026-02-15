@@ -143,7 +143,7 @@ impl Lerpable for AdditionalContextNode {
 
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-struct ControlBlendRepeatMethod {
+pub struct ControlBlendRepeatMethod {
     count: ControlF32,
     blend: ControlF32,
 }
