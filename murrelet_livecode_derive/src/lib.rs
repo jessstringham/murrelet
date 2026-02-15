@@ -6,14 +6,12 @@
 extern crate proc_macro;
 
 mod derive_cached;
-mod derive_graphics_trait;
 mod derive_lazy;
 mod derive_livecode;
 mod derive_nestedit;
 mod parser;
 
 use darling::FromDeriveInput;
-use derive_graphics_trait::impl_graphics_trait;
 use derive_lazy::FieldTokensLazy;
 use derive_livecode::FieldTokensLivecode;
 use derive_nestedit::FieldTokensNestEdit;
@@ -87,12 +85,6 @@ pub fn murrelet_livecode_derive_nestedit(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::DeriveInput);
     let ast_receiver = LivecodeReceiver::from_derive_input(&ast).unwrap();
     nestedit_parse_ast(ast_receiver.clone()).into()
-}
-
-#[proc_macro_derive(LiveGraphics, attributes(graphics))]
-pub fn murrelet_livecode_graphics(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as syn::DeriveInput);
-    impl_graphics_trait(ast).into()
 }
 
 #[proc_macro_derive(Cached, attributes(cached))]
