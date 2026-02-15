@@ -7,3 +7,5 @@ pub mod graphics_ref;
 pub mod shader_str;
 pub mod uniforms;
 pub mod window;
+
+pub use murrelet_gpu_derive::*;

@@ -8,3 +8,5 @@ pub use perform::AppConfig;
 pub use perform::ControlAppConfig;
 pub use perform::LiveCoder;
 pub use reload::LiveCoderLoader;
+
+pub use murrelet_perform_derive::*;
