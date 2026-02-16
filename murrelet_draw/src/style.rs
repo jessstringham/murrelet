@@ -712,6 +712,7 @@ impl ToLyonPath for MurreletPath {
     }
 }
 
+
 #[derive(Debug, Clone)]
 pub struct StyledPath {
     pub path: MurreletPath,

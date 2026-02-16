@@ -63,30 +63,6 @@ impl<T> IterUnwrapOrPrint<T> for Vec<T> {
     }
 }
 
-// impl std::fmt::Display for LivecodeError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             LivecodeError::Raw(msg) => write!(f, "{}", msg),
-//             LivecodeError::EvalExpr(msg, err) => write!(f, "{}: {}", msg, err),
-//             LivecodeError::Io(msg, err) => write!(f, "{}: {}", msg, err),
-//             LivecodeError::NestGetExtra(err) => {
-//                 write!(f, "nest get has unusable tokens...: {}", err)
-//             }
-//             LivecodeError::NestGetInvalid(err) => {
-//                 write!(f, "nest get requested for odd thing...: {}", err)
-//             }
-//             LivecodeError::SerdeLoc(location, err) => {
-//                 // if it's err, hrm, remove the controlvec ones
-//                 let loc = format!("{},{}", location.line(), location.column());
-//                 write!(f, "parse_error :: loc: {},{}, err: {}", loc, err)
-//             }
-//             LivecodeError::WGPU(err) => write!(f, "shader parse error: {}", err),
-//         }
-//     }
-// }
-
-// impl std::error::Error for LivecodeError {}
-
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
 #[derive(Debug, Clone, Deserialize)]

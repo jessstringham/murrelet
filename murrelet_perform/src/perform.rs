@@ -747,6 +747,17 @@ where
         Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }
 
+    pub fn new_wasm(
+        controlconfig: ControlConfType,
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
+        let livecode_src = murrelet_common::LivecodeSrc::new(vec![Box::new(
+            murrelet_livecode::app_src::AppInputValues::new(false),
+        )]);
+        let load_funcs = AssetLoaders::empty();
+
+        Self::new_full(controlconfig, None, livecode_src, &load_funcs, None)
+    }
+
     // this one panics if something goes wrong
     pub fn new(
         save_path: PathBuf,
@@ -934,6 +945,8 @@ where
         }
     }
 
+    // hmm i don't think we want this to be used directly because we lose util stuff? or does it matter?
+    // i should really refactor all of thisssss
     pub fn update_config_directly(&mut self, control_conf: ControlConfType) -> LivecodeResult<()> {
         self.prev_controlconfig = self.controlconfig.clone();
         self.controlconfig = control_conf;
@@ -956,6 +969,7 @@ where
     }
 
     // called every frame
+    // this uh this does everything.
     pub fn update(&mut self, app: &MurreletAppInput, reload: bool) -> LivecodeResult<()> {
         // use the previous frame's world for this
         let update_input = LivecodeSrcUpdateInput::new(
@@ -1189,5 +1203,25 @@ where
 
     pub fn run_id(&self) -> u64 {
         self.run_id
+    }
+}
+
+pub trait WithDrawerUpdator<ControlDrawingConfType> {
+    fn new_from_parts(app: ControlAppConfig, drawing_conf: ControlDrawingConfType) -> Self;
+
+    fn init(app: &AppConfig, drawing_conf: &str) -> LivecodeResult<Self>
+    where
+        Self: Sized,
+    {
+        let drawing_conf = Self::parse_drawer(drawing_conf)?;
+        Ok(Self::new_from_parts(app.to_control(), drawing_conf))
+    }
+
+    fn parse_drawer(text: &str) -> murrelet_livecode::types::LivecodeResult<ControlDrawingConfType>;
+    fn set_drawing_conf(&mut self, drawing_conf: ControlDrawingConfType);
+    fn set_app(&mut self, app_conf: ControlAppConfig);
+
+    fn set_app_conf(&mut self, app: &AppConfig) {
+        self.set_app(app.to_control());
     }
 }

@@ -111,11 +111,11 @@ pub trait LiveCoderLoader: Sized {
         Ok(latest_time)
     }
 
-    // callback one
-    fn cb_reload_and_update_info(util: &mut LiveCodeUtil, text: &str) -> Result<Self, String> {
+
+    fn cb_update_info(util: &mut LiveCodeUtil, result: LivecodeResult<Self>) -> Result<Self, String> {
         util.reset_info();
 
-        match Self::parse(text) {
+        match result {
             Ok(x) => {
                 util.update_info_reloaded();
                 Ok(x)
@@ -125,6 +125,24 @@ pub trait LiveCoderLoader: Sized {
                 Err(err.to_string())
             }
         }
+    }
+
+    // callback one
+    fn cb_reload_and_update_info(util: &mut LiveCodeUtil, text: &str) -> Result<Self, String> {
+        // util.reset_info();
+
+        // match Self::parse(text) {
+        //     Ok(x) => {
+        //         util.update_info_reloaded();
+        //         Ok(x)
+        //     }
+        //     Err(err) => {
+        //         util.update_info_error();
+        //         Err(err.to_string())
+        //     }
+        // }
+        let result = Self::parse(text);
+        Self::cb_update_info(util, result)
     }
 
     // filesystem one, hmm, should tidy up

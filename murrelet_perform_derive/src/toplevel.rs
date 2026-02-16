@@ -2,7 +2,6 @@ use proc_macro2::TokenStream as TokenStream2;
 
 use quote::quote;
 
-
 pub(crate) fn prefix_ident(prefix: &str, name: syn::Ident) -> syn::Ident {
     let lc_name = format!("{}{}", prefix, name);
     syn::Ident::new(&lc_name, name.span())
@@ -19,9 +18,9 @@ pub(crate) fn top_level_livecode(ident: syn::Ident) -> TokenStream2 {
     let control_ident = update_to_control_ident(ident.clone());
 
     quote! {
-        type LiveCode = LiveCoder<#conf_ident, #control_ident>;
+        type LiveCode = murrelet_perform::LiveCoder<#conf_ident, #control_ident>;
 
-        impl LiveCoderLoader for #control_ident {
+        impl murrelet_perform::LiveCoderLoader for #control_ident {
             fn _app_config(&self) -> &murrelet_perform::perform::ControlAppConfig { &self.app }
 
             fn parse(text: &str) -> murrelet_livecode::types::LivecodeResult<Self> {
@@ -52,14 +51,14 @@ pub(crate) fn top_level_livecode_json(ident: syn::Ident) -> TokenStream2 {
     let control_ident = update_to_control_ident(ident.clone());
 
     quote! {
-        type LiveCode = LiveCoder<#conf_ident, #control_ident>;
+        type LiveCode = murrelet_perform::LiveCoder<#conf_ident, #control_ident>;
 
-        impl LiveCoderLoader for #control_ident {
+        impl murrelet_perform::LiveCoderLoader for #control_ident {
             fn _app_config(&self) -> &murrelet_perform::perform::ControlAppConfig { &self.app }
 
             fn parse(text: &str) -> murrelet_livecode::types::LivecodeResult<Self> {
                 serde_json::from_str(&text).map_err(|err| {
-                    LivecodeError::JsonParse(err.to_string())
+                    murrelet_livecode::types::LivecodeError::JsonParse(err.to_string())
                 })
             }
         }
