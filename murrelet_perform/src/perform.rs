@@ -1209,7 +1209,7 @@ where
 pub trait WithDrawerUpdator<ControlDrawingConfType> {
     fn new_from_parts(app: ControlAppConfig, drawing_conf: ControlDrawingConfType) -> Self;
 
-    fn init(app: &AppConfig, drawing_conf: &str) -> LivecodeResult<Self>
+    fn from_json(app: &AppConfig, drawing_conf: &str) -> LivecodeResult<Self>
     where
         Self: Sized,
     {
@@ -1217,7 +1217,16 @@ pub trait WithDrawerUpdator<ControlDrawingConfType> {
         Ok(Self::new_from_parts(app.to_control(), drawing_conf))
     }
 
-    fn parse_drawer(text: &str) -> murrelet_livecode::types::LivecodeResult<ControlDrawingConfType>;
+    fn from_regular<DrawingConfType>(app: &AppConfig, drawing_conf: &DrawingConfType) -> LivecodeResult<Self>
+    where
+        Self: Sized,
+        DrawingConfType: LivecodeToControl<ControlDrawingConfType>
+    {
+        Ok(Self::new_from_parts(app.to_control(), drawing_conf.to_control()))
+    }
+
+    fn parse_drawer(text: &str)
+    -> murrelet_livecode::types::LivecodeResult<ControlDrawingConfType>;
     fn set_drawing_conf(&mut self, drawing_conf: ControlDrawingConfType);
     fn set_app(&mut self, app_conf: ControlAppConfig);
 

@@ -3,6 +3,7 @@ use lerpable::{IsLerpingMethod, Lerpable};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rand_distr::Normal;
+use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
@@ -44,7 +45,8 @@ impl std::error::Error for EmbeddingError {}
 
 pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
 
-#[derive(Debug, Clone)]
+// hm this might be the only one you get in web actually...
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MurreletEmbeddingEncoded(String);
 impl MurreletEmbeddingEncoded {
     pub fn from_decoded(d: &MurreletQuantizedEmbedding) -> EmbeddingResult<Self> {
@@ -65,7 +67,7 @@ impl MurreletEmbeddingEncoded {
     }
 }
 
-#[derive(Debug, Clone, Lerpable)]
+#[derive(Debug, Clone, Lerpable, Hash, PartialEq, Eq)]
 pub struct MurreletQuantizedEmbedding {
     emb: Vec<u32>,
     digits: usize,
@@ -162,7 +164,7 @@ impl MurreletQuantizedEmbedding {
     }
 
     pub fn from_rn(v: &[f32], digits: usize) -> MurreletQuantizedEmbedding {
-        let digits = digits.max(MAX_DIGIT_COUNT);
+        let digits = digits.min(MAX_DIGIT_COUNT);
         let d = quantize(v, digits);
         Self::new(d, digits)
     }
@@ -241,6 +243,52 @@ impl MurreletQuantizedEmbedding {
         }
         v
     }
+
+    pub fn dist_l2_rms(&self, other: &Self) -> Option<f32> {
+        if self.digits != other.digits || self.dims() != other.dims() {
+            return None;
+        }
+        let inv = 1.0 / self.factor() as f32;
+        let mut acc = 0.0f32;
+        for (&x, &y) in self.emb.iter().zip(&other.emb) {
+            let d = x.abs_diff(y) as f32 * inv;
+            acc += d * d;
+        }
+        Some((acc / self.dims() as f32).sqrt())
+    }
+
+    pub fn dist_l1_mean(&self, other: &Self) -> Option<f32> {
+        if self.digits != other.digits || self.dims() != other.dims() {
+            return None;
+        }
+        let inv = 1.0 / self.factor() as f32;
+        let mut acc = 0.0f32;
+        for (&x, &y) in self.emb.iter().zip(&other.emb) {
+            acc += x.abs_diff(y) as f32 * inv;
+        }
+        Some(acc / self.dims() as f32)
+    }
+
+    pub fn dist_cosine(&self, other: &Self) -> Option<f32> {
+        if self.digits() != other.digits() {
+            return None;
+        }
+        let mut dot = 0.0f32;
+        let mut na = 0.0f32;
+        let mut nb = 0.0f32;
+        for (&x, &y) in self.emb.iter().zip(&other.emb) {
+            let ax = x as f32;
+            let by = y as f32;
+            dot += ax * by;
+            na += ax * ax;
+            nb += by * by;
+        }
+        let cos = dot / (na.sqrt() * nb.sqrt()).max(1e-12);
+
+        let unit_l2 = (2.0 - 2.0 * cos).max(0.0).sqrt();
+
+        Some(unit_l2)
+    }
 }
 
 impl From<&[f32]> for MurreletQuantizedEmbedding {
@@ -257,6 +305,12 @@ impl From<EmbeddingGenCommand> for MurreletQuantizedEmbedding {
 
 impl From<&MurreletQuantizedEmbedding> for Vec<f32> {
     fn from(value: &MurreletQuantizedEmbedding) -> Self {
+        value.as_rn()
+    }
+}
+
+impl From<MurreletQuantizedEmbedding> for Vec<f32> {
+    fn from(value: MurreletQuantizedEmbedding) -> Self {
         value.as_rn()
     }
 }
@@ -289,6 +343,13 @@ pub struct MemoizedEmbeddingGenerator {
     cache: EmbeddingGenStepCacheRef,
 }
 impl MemoizedEmbeddingGenerator {
+    pub fn new(digits: usize, len: usize) -> Self {
+        Self {
+            conf: MurreletEmbeddingConf::new(digits, len),
+            cache: EmbeddingGenStepCacheRef::new(),
+        }
+    }
+
     fn lookup(&self, key: &EmbeddingGenStep) -> Option<MurreletQuantizedEmbedding> {
         self.cache.0.borrow().cache.get(key).cloned()
     }
@@ -377,6 +438,7 @@ impl EmbeddingGenStepCache {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum EmbeddingGenStep {
+    Emb(MurreletQuantizedEmbedding),
     Seed(u64),
     NearSeedGaussian {
         source: Box<EmbeddingGenStep>,
@@ -397,6 +459,11 @@ pub enum EmbeddingGenStep {
 impl EmbeddingGenStep {
     pub fn seed(seed: u64) -> Self {
         Self::Seed(seed)
+    }
+
+    // useful if you edited a embedding
+    pub fn emb(emb: MurreletQuantizedEmbedding) -> Self {
+        Self::Emb(emb)
     }
 
     pub fn near_seed_gaussian(source: EmbeddingGenStep, rand_seed: u64, stdev: f32) -> Self {
@@ -458,6 +525,9 @@ impl EmbeddingGenStep {
                 let base_a = source_a.compute(mconf);
                 let base_b = source_b.compute(mconf);
                 base_a.lerpify(&base_b, mix)
+            }
+            EmbeddingGenStep::Emb(murrelet_quantized_embedding) => {
+                murrelet_quantized_embedding.clone()
             }
         }
     }
@@ -529,5 +599,64 @@ impl IsLerpingMethod for HashableF32 {
     fn with_lerp_pct(&self, pct: f64) -> Self {
         let a: f32 = self.into();
         a.with_lerp_pct(pct).into()
+    }
+}
+
+// hm now let's make a web version
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum DeserEmbeddingGenStep {
+    Emb(MurreletEmbeddingEncoded),
+    Seed(u64),
+    NearSeedGaussian {
+        source: Box<DeserEmbeddingGenStep>,
+        rand_seed: u64,
+        stdev: f32,
+    },
+    NearSeedReRand {
+        source: Box<DeserEmbeddingGenStep>,
+        rand_seed: u64,
+        rerand_chance: f32,
+    },
+    Mix {
+        source_a: Box<DeserEmbeddingGenStep>,
+        source_b: Box<DeserEmbeddingGenStep>,
+        mix: f32,
+    },
+}
+
+impl DeserEmbeddingGenStep {
+    pub fn to_embedding_gen(&self) -> EmbeddingResult<EmbeddingGenStep> {
+        let result = match self {
+            DeserEmbeddingGenStep::Seed(a) => EmbeddingGenStep::Seed(*a),
+            DeserEmbeddingGenStep::NearSeedGaussian {
+                source,
+                rand_seed,
+                stdev,
+            } => EmbeddingGenStep::NearSeedGaussian {
+                source: Box::new(source.to_embedding_gen()?),
+                rand_seed: *rand_seed,
+                stdev: (*stdev).into(),
+            },
+            DeserEmbeddingGenStep::NearSeedReRand {
+                source,
+                rand_seed,
+                rerand_chance,
+            } => EmbeddingGenStep::NearSeedReRand {
+                source: Box::new(source.to_embedding_gen()?),
+                rand_seed: *rand_seed,
+                rerand_chance: (*rerand_chance).into(),
+            },
+            DeserEmbeddingGenStep::Mix {
+                source_a,
+                source_b,
+                mix,
+            } => EmbeddingGenStep::Mix {
+                source_a: Box::new(source_a.to_embedding_gen()?),
+                source_b: Box::new(source_b.to_embedding_gen()?),
+                mix: (*mix).into(),
+            },
+            DeserEmbeddingGenStep::Emb(emb) => EmbeddingGenStep::Emb(emb.decode()?),
+        };
+        Ok(result)
     }
 }
