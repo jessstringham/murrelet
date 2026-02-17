@@ -22,25 +22,6 @@ pub enum EmbeddingError {
     DecodeParseError(String),
 }
 
-impl fmt::Display for EmbeddingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            EmbeddingError::DecodeHasWrongDigitCount { expected, got } => {
-                write!(
-                    f,
-                    "Decode invalid digit count: expected {}, got {}",
-                    expected, got
-                )
-            }
-            EmbeddingError::DecodeParseError(msg) => write!(f, "Decode parse error: {}", msg),
-            EmbeddingError::DecodeEmpty => write!(f, "Decode error: empty"),
-            EmbeddingError::DecodeValueOutOfRange { max, got } => {
-                write!(f, "Decode digit too large: max {}, got {}", max, got)
-            }
-        }
-    }
-}
-
 impl std::error::Error for EmbeddingError {}
 
 pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
@@ -602,61 +583,277 @@ impl IsLerpingMethod for HashableF32 {
     }
 }
 
-// hm now let's make a web version
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum DeserEmbeddingGenStep {
-    Emb(MurreletEmbeddingEncoded),
-    Seed(u64),
-    NearSeedGaussian {
-        source: Box<DeserEmbeddingGenStep>,
-        rand_seed: u64,
-        stdev: f32,
-    },
-    NearSeedReRand {
-        source: Box<DeserEmbeddingGenStep>,
-        rand_seed: u64,
-        rerand_chance: f32,
-    },
-    Mix {
-        source_a: Box<DeserEmbeddingGenStep>,
-        source_b: Box<DeserEmbeddingGenStep>,
-        mix: f32,
-    },
-}
-
-impl DeserEmbeddingGenStep {
-    pub fn to_embedding_gen(&self) -> EmbeddingResult<EmbeddingGenStep> {
-        let result = match self {
-            DeserEmbeddingGenStep::Seed(a) => EmbeddingGenStep::Seed(*a),
-            DeserEmbeddingGenStep::NearSeedGaussian {
+// chatgpt can generate my de/serialization functions
+impl EmbeddingGenStep {
+    /// Function-like expression syntax used for (de)serialization.
+    /// Examples:
+    /// - emb(001-002-003)
+    /// - seed(1)
+    /// - gauss(seed(1), 23, 0.5)
+    /// - rerand(seed(1), 99, 0.2)
+    /// - mix(seed(1), seed(2), 0.35)
+    pub fn to_expr_string(&self) -> EmbeddingResult<String> {
+        match self {
+            EmbeddingGenStep::Emb(e) => {
+                let enc = e.encode()?;
+                Ok(format!("e({})", enc.to_string()))
+            }
+            EmbeddingGenStep::Seed(s) => Ok(format!("s({})", s)),
+            EmbeddingGenStep::NearSeedGaussian {
                 source,
                 rand_seed,
                 stdev,
-            } => EmbeddingGenStep::NearSeedGaussian {
-                source: Box::new(source.to_embedding_gen()?),
-                rand_seed: *rand_seed,
-                stdev: (*stdev).into(),
-            },
-            DeserEmbeddingGenStep::NearSeedReRand {
+            } => {
+                let stdev_f: f32 = (*stdev).into();
+                Ok(format!(
+                    "g({}, {}, {})",
+                    source.to_expr_string()?,
+                    rand_seed,
+                    stdev_f
+                ))
+            }
+            EmbeddingGenStep::NearSeedReRand {
                 source,
                 rand_seed,
                 rerand_chance,
-            } => EmbeddingGenStep::NearSeedReRand {
-                source: Box::new(source.to_embedding_gen()?),
-                rand_seed: *rand_seed,
-                rerand_chance: (*rerand_chance).into(),
-            },
-            DeserEmbeddingGenStep::Mix {
+            } => {
+                let chance_f: f32 = (*rerand_chance).into();
+                Ok(format!(
+                    "r({}, {}, {})",
+                    source.to_expr_string()?,
+                    rand_seed,
+                    chance_f
+                ))
+            }
+            EmbeddingGenStep::Mix {
                 source_a,
                 source_b,
                 mix,
-            } => EmbeddingGenStep::Mix {
-                source_a: Box::new(source_a.to_embedding_gen()?),
-                source_b: Box::new(source_b.to_embedding_gen()?),
-                mix: (*mix).into(),
-            },
-            DeserEmbeddingGenStep::Emb(emb) => EmbeddingGenStep::Emb(emb.decode()?),
-        };
-        Ok(result)
+            } => {
+                let mix_f: f32 = (*mix).into();
+                Ok(format!(
+                    "m({}, {}, {})",
+                    source_a.to_expr_string()?,
+                    source_b.to_expr_string()?,
+                    mix_f
+                ))
+            }
+        }
+    }
+
+    pub fn parse_expr(s: &str) -> EmbeddingResult<Self> {
+        fn split_args(inner: &str) -> Result<Vec<String>, EmbeddingError> {
+            let mut args = Vec::new();
+            let mut depth: i32 = 0;
+            let mut start = 0usize;
+            let chars: Vec<char> = inner.chars().collect();
+            for (i, &c) in chars.iter().enumerate() {
+                match c {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth < 0 {
+                            return Err(EmbeddingError::DecodeParseError(
+                                "unbalanced ')'".to_string(),
+                            ));
+                        }
+                    }
+                    ',' if depth == 0 => {
+                        args.push(inner[start..i].trim().to_string());
+                        start = i + 1;
+                    }
+                    _ => {}
+                }
+            }
+            if depth != 0 {
+                return Err(EmbeddingError::DecodeParseError(
+                    "unbalanced parentheses".to_string(),
+                ));
+            }
+            let last = inner[start..].trim();
+            if !last.is_empty() {
+                args.push(last.to_string());
+            }
+            Ok(args)
+        }
+
+        fn parse_call(s: &str) -> Result<(String, String), EmbeddingError> {
+            let s = s.trim();
+            let open = s
+                .find('(')
+                .ok_or_else(|| EmbeddingError::DecodeParseError("expected '('".to_string()))?;
+            if !s.ends_with(')') {
+                return Err(EmbeddingError::DecodeParseError(
+                    "expected trailing ')'".to_string(),
+                ));
+            }
+            let name = s[..open].trim();
+            let inner = &s[open + 1..s.len() - 1];
+            if name.is_empty() {
+                return Err(EmbeddingError::DecodeParseError(
+                    "missing function name".to_string(),
+                ));
+            }
+            Ok((name.to_string(), inner.to_string()))
+        }
+
+        fn parse_u64(s: &str, ctx: &str) -> Result<u64, EmbeddingError> {
+            s.trim()
+                .parse::<u64>()
+                .map_err(|e| EmbeddingError::DecodeParseError(format!("{ctx} parse error: {e}")))
+        }
+
+        fn parse_f32(s: &str, ctx: &str) -> Result<f32, EmbeddingError> {
+            s.trim()
+                .parse::<f32>()
+                .map_err(|e| EmbeddingError::DecodeParseError(format!("{ctx} parse error: {e}")))
+        }
+
+        let (name, inner) = parse_call(s)?;
+        let lname = name.to_lowercase();
+        let args = split_args(&inner)?;
+
+        match lname.as_str() {
+            "e" | "emb" => {
+                if args.len() != 1 {
+                    return Err(EmbeddingError::DecodeParseError(
+                        "emb(...) expects 1 argument".to_string(),
+                    ));
+                }
+                let enc = MurreletEmbeddingEncoded::from_str(args[0].trim())?;
+                let decoded = enc.decode()?;
+                Ok(EmbeddingGenStep::Emb(decoded))
+            }
+            "s" | "seed" => {
+                if args.len() != 1 {
+                    return Err(EmbeddingError::DecodeParseError(
+                        "seed(...) expects 1 argument".to_string(),
+                    ));
+                }
+                Ok(EmbeddingGenStep::Seed(parse_u64(&args[0], "seed")?))
+            }
+            "g" | "gauss" | "gaussian" => {
+                if args.len() != 3 {
+                    return Err(EmbeddingError::DecodeParseError(
+                        "gauss(source, rand_seed, stdev) expects 3 arguments".to_string(),
+                    ));
+                }
+                let source = Box::new(EmbeddingGenStep::parse_expr(&args[0])?);
+                let rand_seed = parse_u64(&args[1], "gauss rand_seed")?;
+                let stdev = parse_f32(&args[2], "gauss stdev")?;
+                Ok(EmbeddingGenStep::NearSeedGaussian {
+                    source,
+                    rand_seed,
+                    stdev: stdev.into(),
+                })
+            }
+            "r" | "rerand" | "rerandomize" => {
+                if args.len() != 3 {
+                    return Err(EmbeddingError::DecodeParseError(
+                        "rerand(source, rand_seed, rerand_chance) expects 3 arguments".to_string(),
+                    ));
+                }
+                let source = Box::new(EmbeddingGenStep::parse_expr(&args[0])?);
+                let rand_seed = parse_u64(&args[1], "rerand rand_seed")?;
+                let rerand_chance = parse_f32(&args[2], "rerand chance")?;
+                Ok(EmbeddingGenStep::NearSeedReRand {
+                    source,
+                    rand_seed,
+                    rerand_chance: rerand_chance.into(),
+                })
+            }
+            "m" | "mix" => {
+                if args.len() != 3 {
+                    return Err(EmbeddingError::DecodeParseError(
+                        "mix(source_a, source_b, mix) expects 3 arguments".to_string(),
+                    ));
+                }
+                let source_a = Box::new(EmbeddingGenStep::parse_expr(&args[0])?);
+                let source_b = Box::new(EmbeddingGenStep::parse_expr(&args[1])?);
+                let mix = parse_f32(&args[2], "mix")?;
+                Ok(EmbeddingGenStep::Mix {
+                    source_a,
+                    source_b,
+                    mix: mix.into(),
+                })
+            }
+            _ => Err(EmbeddingError::DecodeParseError(format!(
+                "unknown function: {name}"
+            ))),
+        }
+    }
+}
+
+impl serde::Serialize for EmbeddingGenStep {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self
+            .to_expr_string()
+            .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
+        serializer.serialize_str(&s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for EmbeddingGenStep {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct V;
+
+        impl<'de> serde::de::Visitor<'de> for V {
+            type Value = EmbeddingGenStep;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(
+                    f,
+                    "a string like emb(...), seed(...), gauss(...), rerand(...), mix(...)"
+                )
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                EmbeddingGenStep::parse_expr(v).map_err(|e| E::custom(e.to_string()))
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                self.visit_str(&v)
+            }
+        }
+
+        deserializer.deserialize_any(V)
+    }
+}
+
+impl fmt::Display for EmbeddingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            EmbeddingError::DecodeHasWrongDigitCount { expected, got } => {
+                write!(
+                    f,
+                    "Decode invalid digit count: expected {}, got {}",
+                    expected, got
+                )
+            }
+            EmbeddingError::DecodeParseError(msg) => write!(f, "Decode parse error: {}", msg),
+            EmbeddingError::DecodeEmpty => write!(f, "Decode error: empty"),
+            EmbeddingError::DecodeValueOutOfRange { max, got } => {
+                write!(f, "Decode digit too large: max {}, got {}", max, got)
+            }
+        }
+    }
+}
+
+impl std::str::FromStr for EmbeddingGenStep {
+    type Err = EmbeddingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        EmbeddingGenStep::parse_expr(s)
     }
 }

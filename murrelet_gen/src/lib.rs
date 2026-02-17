@@ -46,3 +46,4 @@ pub fn prefix_field_names(prefix: String, names: Vec<String>) -> Vec<String> {
         .map(|s| format!("{}.{}", prefix, s))
         .collect()
 }
+
