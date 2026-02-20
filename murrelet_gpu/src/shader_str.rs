@@ -477,3 +477,38 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   textureStore(out_img, vec2<i32>(gid.xy), result);
 }
 "#;
+
+
+pub const COMPUTE_FORMAT_HEADER_STR: &str = r#"
+  let w  = u32(uniforms.dims.x);
+  let h  = u32(uniforms.dims.y);
+  let uv = to_uv(gid.xy);
+
+  let Nx = max(u32(uniforms.more_info.x), 1u);
+  let Ny = max(u32(uniforms.more_info.y), 1u);
+  let cid = cell_id(uv, Nx, Ny);
+
+  let start_idx = cell_offsets[cid];
+  let end_idx = cell_offsets[cid + 1u];
+"#;
+
+pub const COMPUTE_FORMAT_SIMPLE_STR: &str = r#"
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let w  = u32(uniforms.dims.x);
+  let h  = u32(uniforms.dims.y);
+  let uv = to_uv(gid.xy);
+
+  let Nx = max(u32(uniforms.more_info.x), 1u);
+  let Ny = max(u32(uniforms.more_info.y), 1u);
+  let cid = cell_id(uv, Nx, Ny);
+
+  let start_idx = cell_offsets[cid];
+  let end_idx = cell_offsets[cid + 1u];
+
+
+  #BASIC#
+
+  textureStore(out_img, vec2<i32>(gid.xy), result);
+}
+"#;

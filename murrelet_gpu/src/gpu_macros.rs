@@ -171,6 +171,8 @@ pub enum ShaderStr {
     Prefix,
     Suffix,
     ComputeFormatStr,
+    ComputeFormatSimpleStr,
+    ComputeFormatSimpleHeaderStr,
 }
 impl ShaderStr {
     pub fn to_str(&self) -> &str {
@@ -183,6 +185,8 @@ impl ShaderStr {
             ShaderStr::Suffix => SUFFIX,
             ShaderStr::Binding3d => BINDING_3D,
             ShaderStr::ComputeFormatStr => COMPUTE_FORMAT_STR,
+            ShaderStr::ComputeFormatSimpleStr => COMPUTE_FORMAT_SIMPLE_STR,
+            ShaderStr::ComputeFormatSimpleHeaderStr => COMPUTE_FORMAT_HEADER_STR,
         }
     }
 }
@@ -238,6 +242,34 @@ macro_rules! build_compute_shader {
                 .replace("#PREFIX_CODEHERE#", $prefix)
                 .replace("#FORLOOP_CODEHERE#", $forloop)
                 .replace("#SUFFIX_CODEHERE#", $suffix)
+        )
+    }};
+
+    (structure $input_structure:tt; include $include:tt; ($prefix:tt; for $forloop:tt; $suffix:tt;)) => {{
+        format!(
+            "{}\n{}\n{}\n{}\n{}",
+            $input_structure,
+            ShaderStr::Compute.to_str(),
+            ShaderStr::Includes.to_str(),
+            $include,
+            ShaderStr::ComputeFormatStr
+                .to_str()
+                .replace("#PREFIX_CODEHERE#", $prefix)
+                .replace("#FORLOOP_CODEHERE#", $forloop)
+                .replace("#SUFFIX_CODEHERE#", $suffix)
+        )
+    }};
+
+    (structure $input_structure:tt; include $include:tt; raw ($raw:tt;)) => {{
+        format!(
+            "{}\n{}\n{}\n{}\n{}",
+            $input_structure,
+            ShaderStr::Compute.to_str(),
+            ShaderStr::Includes.to_str(),
+            $include,
+            ShaderStr::ComputeFormatSimpleStr
+                .to_str()
+                .replace("#BASIC#", $raw)
         )
     }};
 }
