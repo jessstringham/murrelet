@@ -685,11 +685,28 @@ impl CurveArc {
     // you should make sure that it's a similarity trnasform before you do this!
     fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
         let transform = transform.to_simple_transform();
+        let loc = transform.transform_vec2(self.loc);
+        let first_point = transform.transform_vec2(self.first_point());
+        // let first_dir = first_point - loc;
+        let first_p2p = PointToPoint::new(loc, first_point);
+        // let start_pi: AnglePi = Angle::new(first_dir.to_angle()).into();
+        // let radius = first_dir.length();
+        let start_pi = first_p2p.angle().into();
+        let radius = first_p2p.length();
+
+        // getting some chatgpt help to handle reflection...
+        // Reflection flips winding, so flip arc sweep when orientation is reversed.
+        let delta = if transform.to_mat3().determinant() < 0.0 {
+            -(self.end_pi - self.start_pi)
+        } else {
+            self.end_pi - self.start_pi
+        };
+
         Self {
-            loc: transform.transform_vec2(self.loc),
-            radius: transform.approx_scale() * self.radius,
-            start_pi: transform.approx_rotate() + self.start_pi,
-            end_pi: transform.approx_rotate() + self.end_pi,
+            loc,
+            radius,
+            start_pi,
+            end_pi: start_pi + delta,
         }
     }
 

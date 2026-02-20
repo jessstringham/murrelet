@@ -561,7 +561,7 @@ impl AppConfig {
             svg: SvgConfig {
                 size: 100.0,
                 save: false,
-                output_kind: SvgSaveKind::Inkscape,
+                output_kind: SvgSaveKind::HTML,
             },
             gpu: GpuConfig {
                 debug_next: false,
