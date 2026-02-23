@@ -14,6 +14,18 @@ pub trait ControlGraphics {
     fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]);
 }
 
+impl ControlGraphics for Vec<f32> {
+    fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]) {
+        let mut v = vec![];
+        for i in 0..8 {
+            v.push(self.get(i).copied().unwrap_or_default());
+        }
+        // now we know we have 16 things
+
+        (v[0..4].try_into().unwrap(), v[4..8].try_into().unwrap())
+    }
+}
+
 pub trait AnyControlRef {
     fn update(&self, c: &GraphicsWindowConf);
 }

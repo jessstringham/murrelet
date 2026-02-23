@@ -144,7 +144,6 @@ impl OscCxn {
                     r.smooth_values.insert(name.clone(), new_val);
                 }
 
-                // println!("{:?} {:?}", name, new_val);
                 r.last_values.insert(name.clone(), new_val); // todo, probably good to get timestamp
             }
         })

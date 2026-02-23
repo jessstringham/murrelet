@@ -6,6 +6,7 @@ use crate::{
 };
 use lerpable::Lerpable;
 use murrelet_common::triangulate::DefaultVertex;
+use murrelet_livecode::types::LivecodeResult;
 use murrelet_livecode_derive::Livecode;
 use naga;
 #[cfg(feature = "nannou")]
@@ -26,9 +27,9 @@ pub struct ShaderStrings {
     shaders: HashMap<String, String>,
 }
 impl ShaderStrings {
-    fn shader_str<VertexKind: GraphicsVertex>(shader: &str) -> String {
-        Self::shader_custom_prefix(shader, VertexKind::fragment_prefix())
-    }
+    // fn shader_str<VertexKind: GraphicsVertex>(shader: &str) -> String {
+    //     Self::shader_custom_prefix(shader, VertexKind::fragment_prefix())
+    // }
 
     fn shader(shader: &str) -> String {
         build_shader! {
@@ -57,6 +58,10 @@ impl ShaderStrings {
 
     pub fn get_shader_str(&self, _c: &GraphicsWindowConf, name: &str) -> Option<String> {
         self.shaders.get(name).map(|str| Self::shader(str))
+    }
+
+    pub fn get_shader(&self, name: &str) -> Option<String> {
+        self.shaders.get(name).cloned()
     }
 
     pub fn get_shader_str_2tex(&self, _c: &GraphicsWindowConf, name: &str) -> Option<String> {
@@ -98,34 +103,6 @@ impl ShaderStrings {
                 .to_graphics_ref(c, name, &Self::shader2tex(str))
         })
     }
-
-    pub fn has_changed(&self, other: &ControlShaderStrings) -> bool {
-        self.shaders != other.shaders
-    }
-
-    pub fn naga_if_needed<VertexKind: GraphicsVertex>(
-        &self,
-        prev_shaders: &ControlShaderStrings,
-    ) -> bool {
-        if self.has_changed(prev_shaders) {
-            let mut all_success = true;
-
-            for (name, shader_str) in self.shaders.iter() {
-                let t = ShaderStrings::shader_str::<VertexKind>(shader_str);
-                if let Err(err) = naga::front::wgsl::parse_str(&t) {
-                    println!(
-                        "error with shader {:?}, {:?}, not updating until it works!",
-                        name, err
-                    );
-                    all_success = false;
-                }
-            }
-
-            all_success
-        } else {
-            false
-        }
-    }
 }
 
 impl ControlShaderStrings {
@@ -135,20 +112,90 @@ impl ControlShaderStrings {
         }
     }
 
-    pub fn should_update<VertexKind: GraphicsVertex>(
+    pub fn has_changed(&self, other: &ControlShaderStrings) -> bool {
+        self.shaders != other.shaders
+    }
+
+    pub fn should_update<VertexKind: GraphicsVertex, CustomShaderStrings: CustomShaderString>(
         &self,
         prev: &ControlShaderStrings,
         force_reload: bool,
-    ) -> Option<ShaderStrings> {
-        let shaders = self.to_normal();
+    ) -> Option<CustomShaderStrings> {
+        let custom_shader = CustomShaderStrings::from_ctrl_shader_str(self).ok()?;
 
-        let shader_changed_and_compiles = shaders.naga_if_needed::<VertexKind>(prev);
+        let shader_changed_and_compiles = if !self.has_changed(prev) {
+            custom_shader.naga_if_needed::<VertexKind>()
+        } else {
+            false
+        };
 
         if force_reload || shader_changed_and_compiles {
             // just in case there's lerp, be sure to use the one we tested
-            Some(shaders)
+            Some(custom_shader)
         } else {
             None
+        }
+    }
+}
+
+pub trait CustomShaderString: Sized {
+    fn from_shader_str(c: &ShaderStrings) -> LivecodeResult<Self>;
+
+    fn built_shaders_for_validation(&self) -> Vec<(&str, String)>;
+
+    fn from_ctrl_shader_str(c: &ControlShaderStrings) -> LivecodeResult<Self> {
+        Self::from_shader_str(&c.to_normal())
+    }
+
+    fn naga_if_needed<VertexKind: GraphicsVertex>(&self) -> bool {
+        let mut all_success = true;
+
+        for (name, shader_str) in self.built_shaders_for_validation().iter() {
+            if let Err(err) = naga::front::wgsl::parse_str(shader_str) {
+                println!(
+                    "error with shader {:?}, {:?}, not updating until it works!",
+                    name, err
+                );
+                all_success = false;
+            }
+        }
+
+        all_success
+    }
+
+    fn to_2tex_graphics(
+        c: &GraphicsWindowConf,
+        name: &str,
+        shader_str: &str,
+    ) -> GraphicsRefCustom<DefaultVertex> {
+        GraphicsCreator::<DefaultVertex>::default()
+            .with_mag_filter(wgpu::FilterMode::Nearest)
+            .with_second_texture()
+            .to_graphics_ref(c, name, shader_str)
+    }
+
+    fn shader(shader: &str) -> String {
+        build_shader! {
+            (
+                raw shader;
+            )
+        }
+    }
+
+    fn shader_custom_prefix(shader: &str, prefix: &str) -> String {
+        build_shader_custom_vertex! {
+            (
+                prefix prefix;
+                raw shader;
+            )
+        }
+    }
+
+    fn shader2tex(shader: &str) -> String {
+        build_shader_2tex! {
+            (
+                raw shader;
+            )
         }
     }
 }
