@@ -50,9 +50,3 @@ features = [
   "CanvasRenderingContext2d",
   "SvgElement","SvgsvgElement"
 ]
-
-
-# to write a bit more javascript we need...
-[[bin]]
-name = "murrelet_ship_js"
-path = "src/bin/murrelet_ship_js.rs"
