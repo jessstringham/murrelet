@@ -5,7 +5,6 @@ members = [
     "murrelet_draw",
     "murrelet_gpu",
     "murrelet_livecode",
-    "murrelet_livecode_derive",
     "murrelet_perform",
     "murrelet_src_audio",
     "murrelet_src_midi",
