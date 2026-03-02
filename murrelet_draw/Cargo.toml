@@ -21,7 +21,7 @@ murrelet_common = { workspace = true }
 murrelet_livecode = { workspace = true, default-features = false }
 murrelet_livecode_derive = { workspace = true, default-features = false }
 
-lerpable = { version = "0.0.3", features = ["glam"] }
+lerpable = { workspace = true, features = ["glam"] }
 
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"

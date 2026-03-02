@@ -123,7 +123,7 @@ impl ControlShaderStrings {
     ) -> Option<CustomShaderStrings> {
         let custom_shader = CustomShaderStrings::from_ctrl_shader_str(self).ok()?;
 
-        let shader_changed_and_compiles = if !self.has_changed(prev) {
+        let shader_changed_and_compiles = if self.has_changed(prev) {
             custom_shader.naga_if_needed::<VertexKind>()
         } else {
             false

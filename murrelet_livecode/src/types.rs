@@ -65,6 +65,17 @@ impl<T> IterUnwrapOrPrint<T> for Vec<T> {
 
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
+pub trait ToLivecodeResult<T> {
+    fn to_lc_err(self) -> LivecodeResult<T>;
+}
+
+impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
+    #[inline]
+    fn to_lc_err(self) -> LivecodeResult<T> {
+        self.map_err(|e| LivecodeError::Raw(e.to_string()))
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(transparent)]

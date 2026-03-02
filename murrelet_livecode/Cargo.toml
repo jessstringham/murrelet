@@ -15,7 +15,7 @@ murrelet_common = { workspace = true }
 murrelet_gui = { workspace = true, features = ["glam"] }
 murrelet_livecode_derive = { workspace = true }
 
-lerpable = "0.0.3"
+lerpable = { workspace = true, features = ["glam"] }
 
 itertools = "0.10.5"
 regex = "1.7.3"
@@ -40,7 +40,7 @@ getrandom = { workspace = true }
 murrelet_common = { workspace = true }
 glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
-lerpable = { version = "0.0.3", features = ["glam"] }
+lerpable = { workspace = true, features = ["glam"] }
 schemars = "0.8.21"
 murrelet_gui = { workspace = true, features = ["glam"] }
 

@@ -31,7 +31,7 @@ murrelet_gpu_derive = { workspace = true }
 murrelet_livecode_derive = { workspace = true }
 murrelet_perform = { workspace = true, default-features = false }
 
-lerpable = { version = "0.0.3" }
+lerpable = { workspace = true, features = ["glam"] }
 
 glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
