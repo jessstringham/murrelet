@@ -2,7 +2,9 @@
 use std::collections::HashMap;
 
 use glam::{Vec2, vec2};
-use murrelet_common::{CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue, StrId, ToStrId};
+use murrelet_common::{
+    CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue, StrId, ToStrId,
+};
 
 // hacky, and maybe should include more keys or maybe it has too many, but this is quick to type (kDt)
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -73,6 +75,8 @@ pub struct AppInputValues {
     keys_fire: [bool; 26],    // which key is currently pressed
     keys_changed: [bool; 26], // which keys have just changed
     keys_cycle: [u32; 26], // how many times a key has been pressed, so you can compute if it's triggered
+    key_trigger_names: [StrId; 26],
+    key_fire_names: [StrId; 26],
     lookup: HashMap<MurreletKey, usize>,
     click_fire: bool,
     click_changed: bool,
@@ -101,13 +105,10 @@ impl AppInputValues {
             let mut v = Vec::with_capacity(26 + 26 + 5);
             for i in 0..26 {
                 v.push((
-                    format!("k{}t", Self::VALID_KEYS[i].to_str()).to_strid(),
+                    self.key_trigger_names[i],
                     LivecodeValue::Bool(keys_cycle[i] % 2 == 1),
                 ));
-                v.push((
-                    format!("k{}f", Self::VALID_KEYS[i].to_str()).to_strid(),
-                    LivecodeValue::Bool(key_fire[i]),
-                ));
+                v.push((self.key_fire_names[i], LivecodeValue::Bool(key_fire[i])));
             }
             v
         } else {
@@ -257,6 +258,12 @@ impl AppInputValues {
             .map(|(a, b)| (*b, a))
             .collect();
 
+        // build these once
+        let key_trigger_names =
+            std::array::from_fn(|i| StrId::new(&format!("k{}t", Self::VALID_KEYS[i].to_str())));
+        let key_fire_names =
+            std::array::from_fn(|i| StrId::new(&format!("k{}f", Self::VALID_KEYS[i].to_str())));
+
         AppInputValues {
             window_dims: vec2(100.0, 100.0), // todo, is this supposed to be updated?
             keys_fire: [false; 26],
@@ -270,6 +277,8 @@ impl AppInputValues {
             click_loc: Vec2::ZERO,
             include_keyboard,
             custom_vars: CustomVars::default(),
+            key_trigger_names,
+            key_fire_names,
         }
     }
 

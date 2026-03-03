@@ -347,13 +347,13 @@ impl ExprWorldContextValues {
 
     pub fn new_from_idx(idx: IdxInRange) -> Self {
         Self::new(vec![
-            ("i".to_string(), LivecodeValue::Int(idx.i() as i64)),
-            ("if".to_string(), LivecodeValue::Float(idx.i() as f64)),
-            ("pct".to_string(), LivecodeValue::Float(idx.pct() as f64)),
-            ("x".to_string(), LivecodeValue::Float(idx.pct() as f64)), // just in case i use the wrong one
-            ("total".to_string(), LivecodeValue::Int(idx.total() as i64)),
+            ("i".to_strid(), LivecodeValue::Int(idx.i() as i64)),
+            ("if".to_strid(), LivecodeValue::Float(idx.i() as f64)),
+            ("pct".to_strid(), LivecodeValue::Float(idx.pct() as f64)),
+            ("x".to_strid(), LivecodeValue::Float(idx.pct() as f64)), // just in case i use the wrong one
+            ("total".to_strid(), LivecodeValue::Int(idx.total() as i64)),
             (
-                "totalf".to_string(),
+                "totalf".to_strid(),
                 LivecodeValue::Float(idx.total() as f64),
             ),
         ])
@@ -361,8 +361,8 @@ impl ExprWorldContextValues {
 
     pub fn new_from_totaless_idx(idx: usize) -> Self {
         Self::new(vec![
-            ("i".to_string(), LivecodeValue::Int(idx as i64)),
-            ("if".to_string(), LivecodeValue::Float(idx as f64)),
+            ("i".to_strid(), LivecodeValue::Int(idx as i64)),
+            ("if".to_strid(), LivecodeValue::Float(idx as f64)),
         ])
     }
 
