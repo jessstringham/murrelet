@@ -694,8 +694,8 @@ impl IntoExprWorldContext for UnitCellContext {
         let width = locs[1].distance(locs[0]);
         let height = locs[1].distance(locs[2]);
 
-        ctx_vals.set_val("u_width", LivecodeValue::float(width));
-        ctx_vals.set_val("u_height", LivecodeValue::float(height));
+        ctx_vals.set_val(&StrId::new("u_width"), LivecodeValue::float(width));
+        ctx_vals.set_val(&StrId::new("u_height"), LivecodeValue::float(height));
 
         if let Some(expr) = &self.ctx {
             ctx_vals = ctx_vals.combine(expr.clone());

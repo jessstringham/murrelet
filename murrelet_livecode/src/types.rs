@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{EvalexprError, HashMapContext, Node, build_operator_tree};
 use itertools::Itertools;
 use lerpable::{Lerpable, step};
-use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, print_expect};
+use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, StrId, print_expect};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -739,7 +739,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
                     ControlVecElement::Single(c) => {
                         // just update it and overwrite it...
                         new_w.update_with_defs(
-                            ("vseed", LivecodeValue::float(offset as f32)).to_mixed_def(),
+                            (StrId::new("vseed"), LivecodeValue::float(offset as f32)).to_mixed_def(),
                         );
                         let o = c.o(&new_w)?;
 

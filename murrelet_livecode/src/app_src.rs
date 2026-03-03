@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use glam::{Vec2, vec2};
-use murrelet_common::{CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue};
+use murrelet_common::{CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue, StrId, ToStrId};
 
 // hacky, and maybe should include more keys or maybe it has too many, but this is quick to type (kDt)
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -96,16 +96,16 @@ impl AppInputValues {
         key_fire: [bool; 26],
         w: f32,
         h: f32,
-    ) -> Vec<(String, LivecodeValue)> {
+    ) -> Vec<(StrId, LivecodeValue)> {
         let mut r = if self.include_keyboard {
             let mut v = Vec::with_capacity(26 + 26 + 5);
             for i in 0..26 {
                 v.push((
-                    format!("k{}t", Self::VALID_KEYS[i].to_str()),
+                    format!("k{}t", Self::VALID_KEYS[i].to_str()).to_strid(),
                     LivecodeValue::Bool(keys_cycle[i] % 2 == 1),
                 ));
                 v.push((
-                    format!("k{}f", Self::VALID_KEYS[i].to_str()),
+                    format!("k{}f", Self::VALID_KEYS[i].to_str()).to_strid(),
                     LivecodeValue::Bool(key_fire[i]),
                 ));
             }
@@ -115,13 +115,13 @@ impl AppInputValues {
         };
 
         r.extend(vec![
-            ("has_click".to_owned(), LivecodeValue::Bool(has_click)),
-            ("cx".to_owned(), LivecodeValue::Float(cx as f64)),
-            ("cy".to_owned(), LivecodeValue::Float(cy as f64)),
-            ("mx".to_owned(), LivecodeValue::Float(mx as f64)),
-            ("my".to_owned(), LivecodeValue::Float(my as f64)),
-            ("w".to_owned(), LivecodeValue::Float(w as f64)),
-            ("h".to_owned(), LivecodeValue::Float(h as f64)),
+            ("has_click".to_strid(), LivecodeValue::Bool(has_click)),
+            ("cx".to_strid(), LivecodeValue::Float(cx as f64)),
+            ("cy".to_strid(), LivecodeValue::Float(cy as f64)),
+            ("mx".to_strid(), LivecodeValue::Float(mx as f64)),
+            ("my".to_strid(), LivecodeValue::Float(my as f64)),
+            ("w".to_strid(), LivecodeValue::Float(w as f64)),
+            ("h".to_strid(), LivecodeValue::Float(h as f64)),
         ]);
         r.extend(self.custom_vars.to_exec_funcs());
         r
@@ -129,7 +129,7 @@ impl AppInputValues {
 }
 
 impl IsLivecodeSrc for AppInputValues {
-    fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)> {
         let dims = self.window_dims;
 
         let has_click = self.click_fire;

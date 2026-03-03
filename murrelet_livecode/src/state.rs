@@ -220,7 +220,7 @@ impl LivecodeWorldState {
 #[derive(Debug, Clone)]
 pub struct WorldWithLocalVariables {
     base: Arc<HashMapContext>,
-    locals: Vec<(String, Value)>,
+    locals: Vec<(StrId, Value)>,
     builtins_disabled: bool,
 }
 impl WorldWithLocalVariables {
@@ -230,8 +230,9 @@ impl WorldWithLocalVariables {
         self.locals = locals;
     }
 
+    // todo maybe change this to strids?
     pub(crate) fn variable_names(&self) -> Vec<String> {
-        let mut names: Vec<String> = self.locals.iter().map(|(k, _)| k.clone()).collect();
+        let mut names: Vec<String> = self.locals.iter().map(|(k, _)| k.to_string()).collect();
         names.extend(self.base.iter_variable_names());
         names
     }
@@ -239,7 +240,7 @@ impl WorldWithLocalVariables {
 
 impl Context for WorldWithLocalVariables {
     fn get_value(&self, identifier: &str) -> Option<&Value> {
-        if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k == identifier) {
+        if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k.as_str() == identifier) {
             return Some(v);
         }
         self.base.get_value(identifier)
@@ -550,23 +551,23 @@ impl IsLivecodeSrc for LiveCodeTimeInstantInfo {
         self.system_timing.frame = input.app().elapsed_frames();
     }
 
-    fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)> {
         let time = self.beat();
         let frame = self.actual_frame_u64();
 
         vec![
-            ("t".to_owned(), LivecodeValue::Float(time as f64)),
+            ("t".to_strid(), LivecodeValue::Float(time as f64)),
             (
-                "tease".to_owned(),
+                "tease".to_strid(),
                 LivecodeValue::Float(ease(time.into(), 1.0 / 4.0, 0.0)),
             ),
             (
-                "stease".to_owned(),
+                "stease".to_strid(),
                 LivecodeValue::Float(ease(time.into(), 0.0125, 0.0)),
             ),
-            ("ti".to_owned(), LivecodeValue::Int(time as i64)),
-            ("f".to_owned(), LivecodeValue::Float(frame as f64)),
-            ("fi".to_owned(), LivecodeValue::Int(frame as i64)),
+            ("ti".to_strid(), LivecodeValue::Int(time as i64)),
+            ("f".to_strid(), LivecodeValue::Float(frame as f64)),
+            ("fi".to_strid(), LivecodeValue::Int(frame as i64)),
         ]
     }
 }

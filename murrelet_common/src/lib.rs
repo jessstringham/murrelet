@@ -518,7 +518,7 @@ impl LivecodeUsage {
 
 pub trait IsLivecodeSrc {
     fn update(&mut self, input: &LivecodeSrcUpdateInput);
-    fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
+    fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)>;
     // this is a way to give usage feedback to the livecode src, e.g. tell a MIDI controller
     // we're using a parameter, or what value to set indicator lights to.
     fn feedback(
@@ -535,39 +535,75 @@ pub struct LivecodeSrc {
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-pub struct CustomVars(HashMap<String, f32>);
+pub struct CustomVars(Vec<StrId>, Vec<f32>);
 
 impl CustomVars {
     pub fn empty() -> Self {
-        Self(HashMap::new())
+        Self(vec![], vec![])
     }
 
     pub fn new(hash_map: HashMap<String, f32>) -> Self {
-        Self(hash_map)
+        let mut keys = vec![];
+        let mut values = vec![];
+
+        for (k, v) in hash_map.iter() {
+            keys.push(StrId::new(k));
+            values.push(*v)
+        }
+
+        Self(keys, values)
     }
 
-    pub fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
-        let hm = &self.0;
+    pub fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)> {
+        let hm = self.iter();
         let mut v = vec![];
-        for (key, value) in hm.iter() {
-            v.push((key.clone(), LivecodeValue::float(*value)))
+        for (key, value) in hm {
+            v.push((*key, LivecodeValue::float(*value)))
         }
         v
     }
 
-    pub fn update(&mut self, new: &Self) {
-        // basically update adds, and you can never delete >:D
-        let o = &new.0;
-        self.0.extend(o.iter().map(|(k, v)| (k.clone(), *v)));
+    fn iter(&self) -> impl Iterator<Item = (&StrId, &f32)> {
+        self.0.iter().zip(self.1.iter())
     }
 
-    pub fn insert(&mut self, key: String, value: f32) {
-        self.0.insert(key, value);
+    fn lookup_idx(&self, k: StrId) -> Option<usize> {
+        self.0.iter().position(|n| *n == k)
     }
+
+    pub fn update(&mut self, new: &Self) {
+        // basically update adds, and you can never delete >:D
+
+        for (k, v) in new.iter() {
+            self.insert(*k, *v)
+        }
+    }
+
+    pub fn insert(&mut self, key: StrId, value: f32) {
+        if let Some(id) = self.lookup_idx(key) {
+            self.1[id] = value
+        } else {
+            self.0.push(key);
+            self.1.push(value)
+        }
+    }
+
+    // this is dangerous if you don't keep these in sync!
+    pub fn dangerous_set_names(&mut self, values: &[StrId]) {
+        self.0.clear();
+        self.0.as_mut_slice().copy_from_slice(values);
+    }
+
+    pub fn dangerous_change_data_in_place(&mut self, values: &[f32]) {
+        self.1.clear();
+        self.1.as_mut_slice().copy_from_slice(values);
+    }
+
+
 }
 
 // what is sent from apps (like nannou)
-#[derive(Default, Deserialize)]
+#[derive(Default, Deserialize, Clone)]
 pub struct MurreletAppInput {
     pub keys: Option<[bool; 26]>,
     pub window_dims: Vec2,
@@ -667,7 +703,7 @@ impl LivecodeSrc {
         }
     }
 
-    pub fn to_world_vals(&self) -> Vec<(String, LivecodeValue)> {
+    pub fn to_world_vals(&self) -> Vec<(StrId, LivecodeValue)> {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
     }
 
@@ -740,6 +776,38 @@ impl std::fmt::Debug for StrId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Format the Identifier using its string representation
         write!(f, "StrId({})", self.as_str())
+    }
+}
+
+pub trait ToStrId {
+    fn to_strid(&self) -> StrId;
+}
+
+impl ToStrId for StrId {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        *self
+    }
+}
+
+impl ToStrId for str {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self)
+    }
+}
+
+impl ToStrId for String {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self.as_str())
+    }
+}
+
+impl ToStrId for &String {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self.as_str())
     }
 }
 

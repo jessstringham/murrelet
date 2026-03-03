@@ -2,7 +2,7 @@
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use glam::{Vec2, vec2};
-use murrelet_common::{IsLivecodeSrc, LivecodeValue, clamp, map_range};
+use murrelet_common::{IsLivecodeSrc, LivecodeValue, StrId, ToStrId, clamp, map_range};
 use rustfft::{Fft, FftPlanner, num_complex::Complex, num_traits::Zero};
 use std::{
     sync::{
@@ -480,7 +480,7 @@ impl IsLivecodeSrc for AudioMng {
         }
     }
 
-    fn to_exec_funcs(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
         let [fft0, fft1, fft2, fft3, fft4, fft5, fft6] = self.values.fft();
 
         let audio = self.values.amp_pct();
@@ -488,15 +488,15 @@ impl IsLivecodeSrc for AudioMng {
         let audio_clamp = map_range(audio_clamp_raw, 0.01, 0.3, 0.0, 1.0);
 
         vec![
-            ("a".to_owned(), LivecodeValue::Float(audio as f64)),
-            ("ac".to_owned(), LivecodeValue::Float(audio_clamp as f64)),
-            ("fft0".to_owned(), LivecodeValue::Float(fft0 as f64)),
-            ("fft1".to_owned(), LivecodeValue::Float(fft1 as f64)),
-            ("fft2".to_owned(), LivecodeValue::Float(fft2 as f64)),
-            ("fft3".to_owned(), LivecodeValue::Float(fft3 as f64)),
-            ("fft4".to_owned(), LivecodeValue::Float(fft4 as f64)),
-            ("fft5".to_owned(), LivecodeValue::Float(fft5 as f64)),
-            ("fft6".to_owned(), LivecodeValue::Float(fft6 as f64)),
+            ("a".to_strid(), LivecodeValue::Float(audio as f64)),
+            ("ac".to_strid(), LivecodeValue::Float(audio_clamp as f64)),
+            ("fft0".to_strid(), LivecodeValue::Float(fft0 as f64)),
+            ("fft1".to_strid(), LivecodeValue::Float(fft1 as f64)),
+            ("fft2".to_strid(), LivecodeValue::Float(fft2 as f64)),
+            ("fft3".to_strid(), LivecodeValue::Float(fft3 as f64)),
+            ("fft4".to_strid(), LivecodeValue::Float(fft4 as f64)),
+            ("fft5".to_strid(), LivecodeValue::Float(fft5 as f64)),
+            ("fft6".to_strid(), LivecodeValue::Float(fft6 as f64)),
         ]
     }
 }

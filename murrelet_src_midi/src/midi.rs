@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
-use murrelet_common::{IsLivecodeSrc, LivecodeValue, MurreletTime, print_expect};
+use murrelet_common::{IsLivecodeSrc, LivecodeValue, MurreletTime, StrId, ToStrId, print_expect};
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
@@ -32,19 +32,25 @@ impl IsLivecodeSrc for MidiMng {
         }
     }
 
-    fn to_exec_funcs(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
         let midi = &self.values.dials;
         let midi_bool = &self.values.pads;
         let midi_fire = &self.values.pads_changed;
 
         let mut vals = Vec::with_capacity(MIDI_COUNT * 3);
         for idx in 0..MIDI_COUNT {
-            vals.push((format!("m{}", idx), LivecodeValue::Float(midi[idx] as f64)));
             vals.push((
-                format!("m{}t", idx),
+                format!("m{}", idx).to_strid(),
+                LivecodeValue::Float(midi[idx] as f64),
+            ));
+            vals.push((
+                format!("m{}t", idx).to_strid(),
                 LivecodeValue::Bool(midi_bool[idx] % 2 == 1),
             ));
-            vals.push((format!("m{}f", idx), LivecodeValue::Bool(midi_fire[0])));
+            vals.push((
+                format!("m{}f", idx).to_strid(),
+                LivecodeValue::Bool(midi_fire[0]),
+            ));
         }
         vals
     }

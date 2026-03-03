@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use glam::vec2;
-use murrelet_common::MurreletAppInput;
+use murrelet_common::{MurreletAppInput, ToStrId};
 use murrelet_draw::drawable::MixedDrawableShape;
 use murrelet_gen::embedding::MurreletQuantizedEmbedding;
 use murrelet_perform::AppConfig;
@@ -63,8 +63,8 @@ impl AppManager {
         self.conf.set_beats_per_bar(bpm);
     }
 
-    pub fn set_custom_var(&mut self, key: String, value: f32) {
-        self.state.custom_vars.insert(key, value);
+    pub fn set_custom_var<S: ToStrId>(&mut self, key: S, value: f32) {
+        self.state.custom_vars.insert(key.to_strid(), value);
     }
 
     pub fn set_window_dims(&mut self, x: f32, y: f32) {
@@ -94,6 +94,10 @@ impl AppManager {
 
     pub fn state(&self) -> &murrelet_common::MurreletAppInput {
         &self.state
+    }
+
+    pub fn frame(&self) -> u64 {
+        self.state.elapsed_frames
     }
 }
 
@@ -148,10 +152,11 @@ pub fn new_svg_obj() -> Result<MurreletSvgObj, wasm_bindgen::JsValue> {
 #[macro_export]
 macro_rules! basic_wrapper {
     ($model_ty:ident, $conf_ty:ident, $conf_ty_wrapper:ident, $ctrl_conf_ty:ty, $conf_top_level:ident, $ctrl_conf_top_level:ident, $model_wasm:ident) => {
-        use murrelet_perform::perform::{ControlAppConfig, ControlLazyAppConfig, LazyAppConfig, WithDrawerUpdator};
-        use wasm_bindgen::prelude::*;
         use murrelet_livecode::livecode::LivecodeToControl;
         use murrelet_perform::TopLevelLiveCodeJson;
+        use murrelet_perform::perform::{
+            ControlAppConfig, ControlLazyAppConfig, LazyAppConfig, WithDrawerUpdator,
+        };
 
         #[wasm_bindgen]
         pub struct $conf_ty_wrapper($conf_ty);
@@ -162,7 +167,7 @@ macro_rules! basic_wrapper {
             }
         }
 
-        #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, TopLevelLiveCodeJson)]
+        #[derive(Debug, Clone, Livecode, Lerpable, TopLevelLiveCodeJson)]
         pub struct $conf_top_level {
             pub drawing: $conf_ty,
             pub app: murrelet_perform::AppConfig,
@@ -177,10 +182,11 @@ macro_rules! basic_wrapper {
         }
 
         impl WithDrawerUpdator<$ctrl_conf_ty> for $ctrl_conf_top_level {
-            fn new_from_parts(app: murrelet_perform::ControlAppConfig, drawing: $ctrl_conf_ty) -> Self {
-                $ctrl_conf_top_level {
-                    app, drawing
-                }
+            fn new_from_parts(
+                app: murrelet_perform::ControlAppConfig,
+                drawing: $ctrl_conf_ty,
+            ) -> Self {
+                $ctrl_conf_top_level { app, drawing }
             }
 
             fn parse_drawer(text: &str) -> murrelet_livecode::types::LivecodeResult<$ctrl_conf_ty> {
@@ -206,6 +212,7 @@ macro_rules! basic_wrapper {
             svg_obj: Option<MurreletSvgObj>,
         }
 
+        // non-wasm things
         impl $model_wasm {
             pub fn new_conf_livecode(conf: &str) -> murrelet_livecode::types::LivecodeResult<Self> {
                 let app_mng = murrelet_wasm::interface::AppManager::new();
@@ -239,16 +246,24 @@ macro_rules! basic_wrapper {
                 })
             }
 
-            pub fn set_config_json_internal(&mut self, drawer_str: &str) -> murrelet_livecode::types::LivecodeResult<()> {
-                let control_config = $ctrl_conf_top_level::from_json(&self.app_mng.conf, drawer_str)?;
+            pub fn set_config_json_internal(
+                &mut self,
+                drawer_str: &str,
+            ) -> murrelet_livecode::types::LivecodeResult<()> {
+                let control_config =
+                    $ctrl_conf_top_level::from_json(&self.app_mng.conf, drawer_str)?;
 
                 self.livecode.update_config_directly(control_config)?;
 
                 Ok(())
             }
 
-            pub fn set_config_internal(&mut self, drawer_str: &$conf_ty_wrapper) -> murrelet_livecode::types::LivecodeResult<()> {
-                let control_config = $ctrl_conf_top_level::from_regular(&self.app_mng.conf, drawer_str)?;
+            pub fn set_config_internal(
+                &mut self,
+                drawer_str: &$conf_ty_wrapper,
+            ) -> murrelet_livecode::types::LivecodeResult<()> {
+                let control_config =
+                    $ctrl_conf_top_level::from_regular(&self.app_mng.conf, drawer_str)?;
 
                 self.livecode.update_config_directly(control_config)?;
 
@@ -256,32 +271,46 @@ macro_rules! basic_wrapper {
             }
         }
 
+        // wasm things
         #[wasm_bindgen]
         impl $model_wasm {
             pub fn new_conf(conf: &str) -> Result<Self, wasm_bindgen::JsValue> {
-                Self::new_conf_livecode(conf).map_err(|err| {
-                    wasm_bindgen::JsValue::from_str(&err.to_string())
-                })
+                Self::new_conf_livecode(conf)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
-            pub fn new_conf_wrapper(conf: &$conf_ty_wrapper) -> Result<Self, wasm_bindgen::JsValue> {
-                Self::new_livecode(&conf.0).map_err(|err| {
-                    wasm_bindgen::JsValue::from_str(&err.to_string())
-                })
+            pub fn new_conf_wrapper(
+                conf: &$conf_ty_wrapper,
+            ) -> Result<Self, wasm_bindgen::JsValue> {
+                Self::new_livecode(&conf.0)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
-            pub fn set_config_json(&mut self, drawer_str: &str) -> Result<(), wasm_bindgen::JsValue> {
-                self.set_config_json_internal(drawer_str).map_err(|err| {
-                    wasm_bindgen::JsValue::from_str(&err.to_string())
-                })
+            #[wasm_bindgen]
+            pub fn frame(&self) -> u64 {
+                self.app_mng.frame()
             }
 
-            pub fn set_config(&mut self, conf: &$conf_ty_wrapper) -> Result<(), wasm_bindgen::JsValue> {
-                self.set_config_internal(conf).map_err(|err| {
-                    wasm_bindgen::JsValue::from_str(&err.to_string())
-                })
+            #[wasm_bindgen]
+            pub fn set_config_json(
+                &mut self,
+                drawer_str: &str,
+            ) -> Result<(), wasm_bindgen::JsValue> {
+                self.set_config_json_internal(drawer_str)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
+            pub fn set_config(
+                &mut self,
+                conf: &$conf_ty_wrapper,
+            ) -> Result<(), wasm_bindgen::JsValue> {
+                self.set_config_internal(conf).to_js()
+            }
+
+            pub fn get_config_json(&self) -> Result<String, wasm_bindgen::JsValue> {
+                let conf = &self.livecode.config().drawing;
+                serde_json::to_string(conf).to_js()
+            }
 
             pub fn tick(&mut self) {
                 let app_input = self.app_mng.tick();
@@ -318,6 +347,7 @@ macro_rules! basic_wrapper {
                 self.app_mng.set_mouse_left_is_up();
             }
 
+            #[wasm_bindgen]
             pub fn set_custom_var(&mut self, key: String, value: f32) {
                 self.app_mng.set_custom_var(key, value);
             }
@@ -340,24 +370,27 @@ macro_rules! basic_wrapper {
             $model_wasm::new_conf_wrapper(conf)
         }
 
-    }
+        #[wasm_bindgen]
+        pub fn new_model(conf: &str) -> JsResult<$model_wasm> {
+            $model_wasm::new_conf(conf)
+        }
+    };
 }
 
 #[macro_export]
 macro_rules! bonus_draw_wrapper {
     ($model_ty:ty, $conf_ty:ty, $conf_ty_wrapper:ty, $ctrl_conf_ty:ty, $conf_top_level:ty, $ctrl_conf_top_level:ty, $model_wasm:ty, $draw_opts_ty:ty) => {
-
         use web_sys::{Document, Element, SvgElement, SvgsvgElement, Window};
 
-
         impl $model_wasm {
-            pub fn parse_draw_opts(conf: &str) -> murrelet_livecode::types::LivecodeResult<$draw_opts_ty> {
+            pub fn parse_draw_opts(
+                conf: &str,
+            ) -> murrelet_livecode::types::LivecodeResult<$draw_opts_ty> {
                 serde_json::from_str(&conf).map_err(|err| {
                     murrelet_livecode::types::LivecodeError::JsonParse(err.to_string())
                 })
             }
         }
-
 
         #[wasm_bindgen]
         impl $model_wasm {
@@ -368,10 +401,12 @@ macro_rules! bonus_draw_wrapper {
                 Ok(())
             }
 
-            pub fn draw_paths(&self, draw_opts_str: &str) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
-                let draw_opts: $draw_opts_ty = serde_json::from_str(&draw_opts_str).map_err(|err| {
-                    wasm_bindgen::JsValue::from_str(&err.to_string())
-                })?;
+            pub fn draw_paths(
+                &self,
+                draw_opts_str: &str,
+            ) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
+                let draw_opts: $draw_opts_ty = serde_json::from_str(&draw_opts_str)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))?;
 
                 let svg_draw_config = self.livecode.svg_save_path().with_no_resize();
                 let draw_ctx = murrelet_wasm::draw::WebSDrawCtx::new(&svg_draw_config);
@@ -381,9 +416,8 @@ macro_rules! bonus_draw_wrapper {
 
                 Ok(draw_ctx.make_html_jsvalue(Some(2)))
             }
-
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -397,13 +431,10 @@ macro_rules! bonus_gui_wrapper {
             pub fn make_gui(&self) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
                 serde_json::to_string(&<$conf_ty>::make_gui())
                     .map(|a| wasm_bindgen::JsValue::from_str(&a))
-                    .map_err(|err| {
-                        wasm_bindgen::JsValue::from_str(&err.to_string())
-                    })
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
         }
-
-    }
+    };
 }
 
 #[macro_export]
@@ -414,7 +445,6 @@ macro_rules! bonus_embedding_wrapper {
 
         #[wasm_bindgen]
         impl $model_wasm {
-
             pub fn rn_names(&self) -> Vec<String> {
                 <$conf_ty>::rn_names()
             }
@@ -422,7 +452,6 @@ macro_rules! bonus_embedding_wrapper {
             pub fn to_unclamped_dist(&self) -> Vec<f32> {
                 self.livecode.config().drawing.to_dist()
             }
-
         }
 
         #[wasm_bindgen]
@@ -435,13 +464,17 @@ macro_rules! bonus_embedding_wrapper {
             #[wasm_bindgen(constructor)]
             pub fn new(digits: usize) -> Self {
                 Self {
-                    emb_gen: murrelet_gen::embedding::MemoizedEmbeddingGenerator::new(digits, <$conf_ty>::rn_count()),
+                    emb_gen: murrelet_gen::embedding::MemoizedEmbeddingGenerator::new(
+                        digits,
+                        <$conf_ty>::rn_count(),
+                    ),
                 }
             }
 
             #[wasm_bindgen]
             pub fn from_gen_steps(&self, gen_str: &str) -> JsResult<$conf_ty_wrapper> {
-                let step = murrelet_gen::embedding::EmbeddingGenStep::parse_expr(gen_str).to_js()?;
+                let step =
+                    murrelet_gen::embedding::EmbeddingGenStep::parse_expr(gen_str).to_js()?;
                 let conf = step.compute(&self.emb_gen);
                 // at last! we have a spoonbill!
                 let conf = <$conf_ty>::from_dist(conf);
@@ -460,14 +493,15 @@ macro_rules! bonus_embedding_wrapper {
         pub fn new_generator(digits: usize) -> $model_gen {
             $model_gen::new(digits)
         }
-
-    }
+    };
 }
 
+// chatgpt can write my macro
 #[macro_export]
 macro_rules! export_murrelet_web_model {
-    (gui, $model_ty:ident, $conf_ty:ident) => {
-        paste::paste! {
+    // Entry: Model<Conf> + features...
+    ($model_ty:ident < $conf_ty:ident > $($rest:tt)*) => {
+        $crate::paste::paste! {
             basic_wrapper!(
                 $model_ty,
                 $conf_ty,
@@ -477,7 +511,18 @@ macro_rules! export_murrelet_web_model {
                 [<Control $conf_ty TopLevelLivecode>],
                 [<$model_ty TopLevelWasm>]
             );
+        }
 
+        $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($rest)*);
+    };
+
+
+    (@parse $model_ty:ident, $conf_ty:ident,) => {};
+    (@parse $model_ty:ident, $conf_ty:ident) => {};
+
+    // + gui
+    (@parse $model_ty:ident, $conf_ty:ident, + gui $($tail:tt)*) => {
+        $crate::paste::paste! {
             bonus_gui_wrapper!(
                 $model_ty,
                 $conf_ty,
@@ -488,33 +533,12 @@ macro_rules! export_murrelet_web_model {
                 [<$model_ty TopLevelWasm>]
             );
         }
+        $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
     };
 
-    (all, $model_ty:ident, $conf_ty:ident, $draw_opts_ty:ty) => {
-        paste::paste! {
-
-            basic_wrapper!(
-                $model_ty,
-                $conf_ty,
-                [<$conf_ty Wrapper>],
-                [<Control $conf_ty>],
-                [<$conf_ty TopLevelLivecode>],
-                [<Control $conf_ty TopLevelLivecode>],
-                [<$model_ty TopLevelWasm>]
-            );
-
-
-            bonus_draw_wrapper!(
-                $model_ty,
-                $conf_ty,
-                [<$conf_ty Wrapper>],
-                [<Control $conf_ty>],
-                [<$conf_ty TopLevelLivecode>],
-                [<Control $conf_ty TopLevelLivecode>],
-                [<$model_ty TopLevelWasm>],
-                $draw_opts_ty
-            );
-
+    // + emb
+    (@parse $model_ty:ident, $conf_ty:ident, + emb $($tail:tt)*) => {
+        $crate::paste::paste! {
             bonus_embedding_wrapper!(
                 $model_ty,
                 $conf_ty,
@@ -525,18 +549,36 @@ macro_rules! export_murrelet_web_model {
                 [<$model_ty TopLevelWasm>],
                 [<$model_ty Gen>]
             );
+        }
+        $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
+    };
 
-            bonus_gui_wrapper!(
+    // + draw(MyDrawOpts)
+    (@parse $model_ty:ident, $conf_ty:ident, + draw($draw_opts_ty:ty) $($tail:tt)*) => {
+        $crate::paste::paste! {
+            bonus_draw_wrapper!(
                 $model_ty,
                 $conf_ty,
                 [<$conf_ty Wrapper>],
                 [<Control $conf_ty>],
                 [<$conf_ty TopLevelLivecode>],
                 [<Control $conf_ty TopLevelLivecode>],
-                [<$model_ty TopLevelWasm>]
+                [<$model_ty TopLevelWasm>],
+                $draw_opts_ty
             );
-
         }
+        $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
+    };
+
+    // Friendlier error if someone writes an unknown feature
+    (@parse $model_ty:ident, $conf_ty:ident, + $unknown:tt $($tail:tt)*) => {
+        compile_error!("export_murrelet_web_model!: unknown feature. Use + gui, + emb, or + draw(Type).");
+        $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
+    };
+
+    // Catch-all (usually missing a leading '+')
+    (@parse $model_ty:ident, $conf_ty:ident, $($bad:tt)+) => {
+        compile_error!("export_murrelet_web_model!: expected '+ gui', '+ emb', or '+ draw(Type)'.");
     };
 }
 
