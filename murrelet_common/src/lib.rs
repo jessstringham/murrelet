@@ -591,7 +591,8 @@ impl CustomVars {
     // this is dangerous if you don't keep these in sync!
     pub fn dangerous_set_names(&mut self, values: &[StrId]) {
         self.0.clear();
-        self.0.as_mut_slice().copy_from_slice(values);
+        self.0.extend_from_slice(values);
+        self.1.resize(values.len(), 0.0);
     }
 
     pub fn dangerous_change_data_in_place(&mut self, values: &[f32]) {
