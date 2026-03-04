@@ -42,5 +42,5 @@ murrelet_gui_derive = { path = "murrelet_gui_derive", version = "0.1.3" }
 murrelet_gen = { path = "murrelet_gen", version = "0.1.3" }
 murrelet_gen_derive = { path = "murrelet_gen_derive", version = "0.1.3" }
 murrelet_perform_derive = { path = "murrelet_perform_derive", version = "0.1.3" }
-lerpable = { path = "../lerpable/lerpable", features = ["glam"] }
+lerpable = { path = "/Users/jessica/Projects/lerpable/lerpable", features = ["glam"] }
 getrandom = { version = "0.2.17", features = ["js"] }

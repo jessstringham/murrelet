@@ -588,7 +588,6 @@ impl CustomVars {
         }
     }
 
-    // this is dangerous if you don't keep these in sync!
     pub fn dangerous_set_names(&mut self, values: &[StrId]) {
         self.0.clear();
         self.0.extend_from_slice(values);
@@ -596,8 +595,9 @@ impl CustomVars {
     }
 
     pub fn dangerous_change_data_in_place(&mut self, values: &[f32]) {
-        self.1.clear();
-        self.1.as_mut_slice().copy_from_slice(values);
+        assert_eq!(self.1.len(), values.len(), "custom var len mismatch");
+        self.1.copy_from_slice(values);
+
     }
 
 
