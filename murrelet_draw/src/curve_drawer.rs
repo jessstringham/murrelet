@@ -395,7 +395,7 @@ impl CurveSegment {
                     let first = vec2s[0];
                     let second = vec2s[1];
 
-                    let angle = PointToPoint::new(first, second).angle().perp_to_left();
+                    let angle = PointToPoint::new(first, second).angle();
                     Some(SpotOnCurve::new(first, angle))
                 } else {
                     None

@@ -102,8 +102,8 @@ impl CubicBezier {
     }
 
     pub fn end_to_tangent(&self) -> (SpotOnCurve, f32) {
-        let ctrl_line = PointToPoint::new(self.to, self.ctrl2);
-        (ctrl_line.start_spot(), ctrl_line.length())
+        let ctrl_line = PointToPoint::new(self.ctrl2, self.to);
+        (ctrl_line.end_spot(), ctrl_line.length())
     }
 
     pub fn tangent_at_pct(&self, pct: f32) -> SpotOnCurve {
