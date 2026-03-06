@@ -20,6 +20,7 @@ mod metric;
 mod polyline;
 mod transform;
 pub mod triangulate;
+pub mod timecurve;
 
 pub use assets::*;
 pub use color::*;
@@ -1228,3 +1229,5 @@ impl<T: Clone> MurreletIterHelpers for Vec<T> {
         self
     }
 }
+
+

@@ -150,6 +150,20 @@ pub fn new_svg_obj() -> Result<MurreletSvgObj, wasm_bindgen::JsValue> {
 }
 
 #[macro_export]
+macro_rules! basic_wrapper_conf_only {
+    ($conf_ty:ident, $conf_ty_wrapper:ident, $ctrl_conf_ty:ty) => {
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        pub struct $conf_ty_wrapper($conf_ty);
+
+        impl LivecodeToControl<$ctrl_conf_ty> for $conf_ty_wrapper {
+            fn to_control(&self) -> $ctrl_conf_ty {
+                self.0.to_control()
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! basic_wrapper {
     ($model_ty:ident, $conf_ty:ident, $conf_ty_wrapper:ident, $ctrl_conf_ty:ty, $conf_top_level:ident, $ctrl_conf_top_level:ident, $model_wasm:ident) => {
         use murrelet_livecode::livecode::LivecodeToControl;
@@ -158,14 +172,7 @@ macro_rules! basic_wrapper {
             ControlAppConfig, ControlLazyAppConfig, LazyAppConfig, WithDrawerUpdator,
         };
 
-        #[wasm_bindgen]
-        pub struct $conf_ty_wrapper($conf_ty);
-
-        impl LivecodeToControl<$ctrl_conf_ty> for $conf_ty_wrapper {
-            fn to_control(&self) -> $ctrl_conf_ty {
-                self.0.to_control()
-            }
-        }
+        basic_wrapper_conf_only!($conf_ty, $conf_ty_wrapper, $ctrl_conf_ty);
 
         #[derive(Debug, Clone, Livecode, Lerpable, TopLevelLiveCodeJson)]
         pub struct $conf_top_level {
@@ -204,7 +211,7 @@ macro_rules! basic_wrapper {
             }
         }
 
-        #[wasm_bindgen]
+        #[wasm_bindgen::prelude::wasm_bindgen]
         pub struct $model_wasm {
             livecode: LiveCode,
             model: $model_ty,
@@ -272,7 +279,7 @@ macro_rules! basic_wrapper {
         }
 
         // wasm things
-        #[wasm_bindgen]
+        #[wasm_bindgen::prelude::wasm_bindgen]
         impl $model_wasm {
             pub fn new_conf(conf: &str) -> Result<Self, wasm_bindgen::JsValue> {
                 Self::new_conf_livecode(conf)
@@ -286,12 +293,12 @@ macro_rules! basic_wrapper {
                     .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
-            #[wasm_bindgen]
+            #[wasm_bindgen::prelude::wasm_bindgen]
             pub fn frame(&self) -> u64 {
                 self.app_mng.frame()
             }
 
-            #[wasm_bindgen]
+            #[wasm_bindgen::prelude::wasm_bindgen]
             pub fn set_config_json(
                 &mut self,
                 drawer_str: &str,
@@ -304,12 +311,14 @@ macro_rules! basic_wrapper {
                 &mut self,
                 conf: &$conf_ty_wrapper,
             ) -> Result<(), wasm_bindgen::JsValue> {
-                self.set_config_internal(conf).to_js()
+                self.set_config_internal(conf)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
             pub fn get_config_json(&self) -> Result<String, wasm_bindgen::JsValue> {
                 let conf = &self.livecode.config().drawing;
-                serde_json::to_string(conf).to_js()
+                serde_json::to_string(conf)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
             pub fn tick(&mut self) {
@@ -347,14 +356,14 @@ macro_rules! basic_wrapper {
                 self.app_mng.set_mouse_left_is_up();
             }
 
-            #[wasm_bindgen]
+            #[wasm_bindgen::prelude::wasm_bindgen]
             pub fn set_custom_var(&mut self, key: String, value: f32) {
                 self.app_mng.set_custom_var(key, value);
             }
         }
 
         // use this to get the names into javascript...
-        #[wasm_bindgen]
+        #[wasm_bindgen::prelude::wasm_bindgen]
         pub fn murrelet_export_info() -> String {
             format!(
                 r#"{{"crate":"{}","top_level":"{}","gen":"{}","conf_wrapper":"{}"}}"#,
@@ -365,13 +374,15 @@ macro_rules! basic_wrapper {
             )
         }
 
-        #[wasm_bindgen]
-        pub fn new_model_from_conf(conf: &$conf_ty_wrapper) -> JsResult<$model_wasm> {
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        pub fn new_model_from_conf(
+            conf: &$conf_ty_wrapper,
+        ) -> Result<$model_wasm, wasm_bindgen::JsValue> {
             $model_wasm::new_conf_wrapper(conf)
         }
 
-        #[wasm_bindgen]
-        pub fn new_model(conf: &str) -> JsResult<$model_wasm> {
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        pub fn new_model(conf: &str) -> Result<$model_wasm, wasm_bindgen::JsValue> {
             $model_wasm::new_conf(conf)
         }
     };
@@ -392,7 +403,7 @@ macro_rules! bonus_draw_wrapper {
             }
         }
 
-        #[wasm_bindgen]
+        #[wasm_bindgen::prelude::wasm_bindgen]
         impl $model_wasm {
             pub fn attach_to_div(&mut self) -> Result<(), wasm_bindgen::JsValue> {
                 let obj = murrelet_wasm::interface::new_svg_obj()?;
@@ -423,13 +434,10 @@ macro_rules! bonus_draw_wrapper {
 #[macro_export]
 macro_rules! bonus_gui_wrapper {
     ($model_ty:ty, $conf_ty:ty, $conf_ty_wrapper:ty, $ctrl_conf_ty:ty, $conf_top_level:ty, $ctrl_conf_top_level:ty, $model_wasm:ty) => {
-        use murrelet_gui::CanMakeGUI;
-        use wasm_bindgen::prelude::*;
-
-        #[wasm_bindgen]
+        #[wasm_bindgen::prelude::wasm_bindgen]
         impl $model_wasm {
             pub fn make_gui(&self) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
-                serde_json::to_string(&<$conf_ty>::make_gui())
+                serde_json::to_string(&<$conf_ty as murrelet_gui::CanMakeGUI>::make_gui())
                     .map(|a| wasm_bindgen::JsValue::from_str(&a))
                     .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
@@ -439,59 +447,83 @@ macro_rules! bonus_gui_wrapper {
 
 #[macro_export]
 macro_rules! bonus_embedding_wrapper {
-    ($model_ty:ty, $conf_ty:ty, $conf_ty_wrapper:ident, $ctrl_conf_ty:ty, $conf_top_level:ty, $ctrl_conf_top_level:ty, $model_wasm:ident, $model_gen:ident) => {
-        use murrelet_gen::CanSampleFromDist;
-        use wasm_bindgen::prelude::*;
+    ($model_ty:ty, $conf_ty:ty, $conf_ty_wrapper:ident, $ctrl_conf_ty:ty, $conf_top_level:ty, $ctrl_conf_top_level:ty, $model_wasm:ident, $conf_gen_manager:ident) => {
+        bonus_embedding_wrapper_conf_gen_only!(
+            $conf_ty,
+            $conf_ty_wrapper,
+            $ctrl_conf_ty,
+            $conf_gen_manager
+        );
 
-        #[wasm_bindgen]
+        #[wasm_bindgen::prelude::wasm_bindgen]
         impl $model_wasm {
-            pub fn rn_names(&self) -> Vec<String> {
-                <$conf_ty>::rn_names()
-            }
-
-            pub fn to_unclamped_dist(&self) -> Vec<f32> {
-                self.livecode.config().drawing.to_dist()
-            }
-        }
-
-        #[wasm_bindgen]
-        pub struct $model_gen {
-            emb_gen: murrelet_gen::embedding::MemoizedEmbeddingGenerator,
-        }
-
-        #[wasm_bindgen]
-        impl $model_gen {
-            #[wasm_bindgen(constructor)]
-            pub fn new(digits: usize) -> Self {
-                Self {
-                    emb_gen: murrelet_gen::embedding::MemoizedEmbeddingGenerator::new(
-                        digits,
-                        <$conf_ty>::rn_count(),
-                    ),
-                }
-            }
-
-            #[wasm_bindgen]
-            pub fn from_gen_steps(&self, gen_str: &str) -> JsResult<$conf_ty_wrapper> {
-                let step =
-                    murrelet_gen::embedding::EmbeddingGenStep::parse_expr(gen_str).to_js()?;
-                let conf = step.compute(&self.emb_gen);
-                // at last! we have a spoonbill!
-                let conf = <$conf_ty>::from_dist(conf);
-
-                // wrap it in a wasm type
-                Ok($conf_ty_wrapper(conf))
-            }
-
-            pub fn model_from_gen_steps(&self, gen_str: &str) -> JsResult<$model_wasm> {
-                let conf = self.from_gen_steps(gen_str)?;
+            pub fn from_gen_steps(
+                manager: &$conf_gen_manager,
+                gen_str: &str,
+            ) -> Result<$model_wasm, wasm_bindgen::JsValue> {
+                let conf = manager.from_gen_steps(gen_str)?;
                 $model_wasm::new_conf_wrapper(&conf)
             }
         }
 
-        #[wasm_bindgen]
-        pub fn new_generator(digits: usize) -> $model_gen {
-            $model_gen::new(digits)
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        impl $model_wasm {
+            pub fn rn_names(&self) -> Vec<String> {
+                <$conf_ty as murrelet_gen::CanSampleFromDist>::rn_names()
+            }
+
+            pub fn to_unclamped_dist(&self) -> Vec<f32> {
+                <_ as murrelet_gen::CanSampleFromDist>::to_dist(self.model.get_conf())
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! bonus_embedding_wrapper_conf_gen_only {
+    ($conf_ty:ty, $conf_ty_wrapper:ident, $ctrl_conf_ty:ty, $conf_gen_manager:ident) => {
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        pub struct $conf_gen_manager {
+            emb_gen: murrelet_gen::embedding::MemoizedEmbeddingGenerator,
+        }
+
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        impl $conf_gen_manager {
+            #[wasm_bindgen::prelude::wasm_bindgen(constructor)]
+            pub fn new(digits: usize) -> $conf_gen_manager {
+                $conf_gen_manager {
+                    emb_gen: murrelet_gen::embedding::MemoizedEmbeddingGenerator::new(
+                        digits,
+                        <$conf_ty as murrelet_gen::CanSampleFromDist>::rn_count(),
+                    ),
+                }
+            }
+
+            #[wasm_bindgen::prelude::wasm_bindgen]
+            pub fn from_gen_steps(
+                &self,
+                gen_str: &str,
+            ) -> Result<$conf_ty_wrapper, wasm_bindgen::JsValue> {
+                let step = murrelet_gen::embedding::EmbeddingGenStep::parse_expr(gen_str)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))?;
+                let conf = step.compute(&self.emb_gen);
+                // at last! we have a spoonbill!
+                let conf = <$conf_ty as murrelet_gen::CanSampleFromDist>::from_dist(conf);
+
+                // wrap it in a wasm type
+                Ok($conf_ty_wrapper(conf))
+            }
+        }
+
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        impl $conf_ty_wrapper {
+            pub fn rn_names() -> Vec<String> {
+                <$conf_ty as murrelet_gen::CanSampleFromDist>::rn_names()
+            }
+
+            pub fn to_unclamped_dist(&self) -> Vec<f32> {
+                <_ as murrelet_gen::CanSampleFromDist>::to_dist(&self.0)
+            }
         }
     };
 }
@@ -514,6 +546,21 @@ macro_rules! export_murrelet_web_model {
         }
 
         $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($rest)*);
+    };
+
+    // special case for just doing a conf emb
+    (< $conf_ty:ident > + emb) => {
+        $crate::paste::paste! {
+
+            basic_wrapper_conf_only!($conf_ty, [<$conf_ty Wrapper>], [<Control $conf_ty>]);
+
+            bonus_embedding_wrapper_conf_gen_only!(
+                $conf_ty,
+                [<$conf_ty Wrapper>],
+                [<Control $conf_ty>],
+                [<$conf_ty Gen>]
+            );
+        }
     };
 
 
@@ -547,7 +594,7 @@ macro_rules! export_murrelet_web_model {
                 [<$conf_ty TopLevelLivecode>],
                 [<Control $conf_ty TopLevelLivecode>],
                 [<$model_ty TopLevelWasm>],
-                [<$model_ty Gen>]
+                [<$conf_ty Gen>]
             );
         }
         $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
@@ -591,7 +638,7 @@ pub struct WasmEmbeddingGen(murrelet_gen::embedding::EmbeddingGenStep);
 #[wasm_bindgen]
 impl WasmEmbeddingGen {
     #[wasm_bindgen]
-    pub fn new_emb(s: &str) -> JsResult<Self> {
+    pub fn new_emb(s: &str) -> Result<Self, wasm_bindgen::JsValue> {
         let emb = MurreletQuantizedEmbedding::from_str(s).to_js()?;
         Ok(Self(murrelet_gen::embedding::EmbeddingGenStep::emb(emb)))
     }

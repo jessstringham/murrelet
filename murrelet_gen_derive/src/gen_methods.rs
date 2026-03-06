@@ -93,7 +93,7 @@ impl GenMethod {
                 let for_rn_count = quote! { 1 };
                 let for_rn_names = quote! { vec!["pct".to_string()] };
                 let for_make_gen = quote! { {
-                    let result = rn[rn_start_idx] > #pct;
+                    let result = rn[rn_start_idx] < #pct;
                     rn_start_idx += #for_rn_count;
                     result
                 } };
@@ -181,9 +181,12 @@ impl GenMethod {
                     // let c = (#name + 0.5 * glam::vec2(#width, #height));
                     // vec![c.x / #width, c.y / #height]
 
-                    let c = #name
-                        - glam::vec2(#start_x, #start_y)
-                        + 0.5 * glam::vec2(#width, #height);
+                    // let c = #name
+                    //     - glam::vec2(#start_x, #start_y)
+                    //     + 0.5 * glam::vec2(#width, #height);
+                    // vec![c.x / #width, c.y / #height]
+
+                    let c = #name - glam::vec2(#start_x, #start_y);
                     vec![c.x / #width, c.y / #height]
                 }};
 
@@ -259,9 +262,9 @@ impl GenMethod {
                 let for_to_dist = quote! {{
                     let [h, s, v, _] = #name.into_hsva_components();
                     vec![
-                        h % 1.0,
-                        s % 1.0,
-                        v % 1.0,
+                        clamp(h, 0.0, 1.0),
+                        clamp(s, 0.0, 1.0),
+                        clamp(v, 0.0, 1.0),
                     ]
                 }};
 
@@ -286,10 +289,10 @@ impl GenMethod {
                 let for_to_dist = quote! { {
                     let [h, s, v, a] = #name.into_hsva_components();
                     vec![
-                        h % 1.0,
-                        s % 1.0,
-                        v % 1.0,
-                        a % 1.0,
+                        clamp(h, 0.0, 1.0),
+                        clamp(s, 0.0, 1.0),
+                        clamp(v, 0.0, 1.0),
+                        clamp(a, 0.0, 1.0),
                     ]
                 } };
 
