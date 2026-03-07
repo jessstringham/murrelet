@@ -250,6 +250,7 @@ impl MaskCache {
 
 // should probably move from mask cache to this one...
 
+#[derive(Debug, Clone)]
 pub struct Masker {
     mask: MultiPolygon,
 }
@@ -304,6 +305,10 @@ impl Masker {
         for cd in cds {
             self.union_cd(cd, tolerance);
         }
+    }
+
+    pub fn contains(&self, v: &Vec2) -> bool {
+        self.mask.contains(&v.to_coord())
     }
 
     // pub fn union_many_styled(&mut self, s: &[DrawnShape], tolerance: f32) {

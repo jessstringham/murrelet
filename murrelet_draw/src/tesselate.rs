@@ -1190,11 +1190,11 @@ pub fn tesselate_delauney_no_filter<VertexKind: ToVec2 + Clone>(
         .collect();
     let triangulation = delaunator::triangulate(&points);
 
-    let vertices = v.clone();
     let indices = triangulation
         .triangles
         .iter()
         .map(|x| *x as u32)
         .collect_vec();
-    (indices, vertices, triangulation)
+    (indices, v, triangulation)
 }
+
