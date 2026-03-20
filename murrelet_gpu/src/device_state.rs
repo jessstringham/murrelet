@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use image::GenericImageView;
 
+use murrelet_common::print_expect;
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
 
@@ -159,12 +160,12 @@ fn write_png_to_texture(
         padded_img[start..end].copy_from_slice(data);
     }
 
-    let mut hist = HashMap::new();
-    for value in &padded_img {
-        *hist.entry(value).or_insert(0) += 1;
-    }
+    // let mut hist = HashMap::new();
+    // for value in &padded_img {
+    //     *hist.entry(value).or_insert(0) += 1;
+    // }
 
-    println!("hist {:?}", hist);
+    // println!("hist {:?}", hist);
 
     // buffer for loading the png
     let buffer = device_state
@@ -224,12 +225,12 @@ impl GraphicsAssets {
         }
     }
 
-    pub fn is_some(&self) -> bool {
-        match self {
-            GraphicsAssets::Nothing => true,
-            _ => false,
-        }
-    }
+    // pub fn is_some(&self) -> bool {
+    //     match self {
+    //         GraphicsAssets::Nothing => false,
+    //         _ => true,
+    //     }
+    // }
 
     pub(crate) fn force_path_buf(&self) -> PathBuf {
         match self {
@@ -267,7 +268,7 @@ impl GraphicsAssets {
         match self {
             GraphicsAssets::Nothing => {}
             GraphicsAssets::LocalFilesystem(path) => {
-                write_png_to_texture(device_state, path, input_texture).ok();
+                print_expect(write_png_to_texture(device_state, path, input_texture), "error loading image into texture");
             }
         }
     }
