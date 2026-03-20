@@ -444,7 +444,14 @@ fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2
 
 pub const PREFIX: &str = r#"
 @fragment
-fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>, @location(3) light_space_pos: vec4<f32>, @location(4) world_pos: vec3<f32>) -> FragmentOutput {
+fn main(
+    @location(0) tex_coords: vec2<f32>,
+    @location(1) shad_info: vec4<f32>,
+    @location(2) normal: vec3<f32>,
+    @location(3) light_space_pos: vec4<f32>,
+    @location(4) world_pos: vec3<f32>,
+    @builtin(position) frag_pos: vec4<f32>
+) -> FragmentOutput {
 "#;
 
 pub const COMPUTE_FORMAT_STR: &str = r#"

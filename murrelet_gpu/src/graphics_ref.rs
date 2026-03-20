@@ -551,6 +551,21 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
         )
     }
 
+    pub fn render_with_input_textures(
+        &self,
+        device_state: &DeviceState,
+        output_texture_view: &wgpu::TextureView,
+        input_texture_view: &wgpu::TextureView,
+        input_texture_view_other: Option<&wgpu::TextureView>,
+    ) {
+        self.graphics.borrow().render_with_input_textures(
+            device_state,
+            output_texture_view,
+            input_texture_view,
+            input_texture_view_other,
+        )
+    }
+
     pub fn with_control_graphics<T>(
         &self,
         label: &'static str,
@@ -707,7 +722,7 @@ pub struct TextureAndDesc {
     pub desc: wgpu::TextureDescriptor<'static>,
 }
 impl TextureAndDesc {
-    pub(crate) fn default_view(&self) -> wgpu::TextureView {
+    pub fn default_view(&self) -> wgpu::TextureView {
         self.texture.create_view(&Default::default())
     }
 }
@@ -913,7 +928,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
         input_texture_view: &wgpu::TextureView,
-        input_texture_view_other: &Option<wgpu::TextureView>,
+        input_texture_view_other: Option<&wgpu::TextureView>,
         initial_uniform_buffer: &wgpu::Buffer,
         initial_camera: Option<&wgpu::Buffer>,
         views_for_3d: &Option<TextureFor3d>,
@@ -1268,7 +1283,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             device,
             &bind_group_layout,
             &input_texture_view,
-            &input_texture_view_other,
+            input_texture_view_other.as_ref(),
             &initial_uniform_buffer,
             if conf.input_vertex.is_3d {
                 Some(&vertex_buffers.uniform)
@@ -1310,7 +1325,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             device,
             &self.bind_group_layout,
             texture_view,
-            &self.input_texture_view_other, // i don't know what to do with this, leave it None or let there be one..
+            self.input_texture_view_other.as_ref(), // i don't know what to do with this, leave it None or let there be one..
             &self.uniforms_buffer,
             if self.conf.input_vertex.is_3d {
                 Some(&self.vertex_buffers.uniform)
@@ -1426,6 +1441,31 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
     pub fn render(&self, device: &DeviceState, output_texture_view: &wgpu::TextureView) {
         self.render_with_custom_bind_group(device, output_texture_view, &self.bind_group)
+    }
+
+    pub fn render_with_input_textures(
+        &self,
+        device_state: &DeviceState,
+        output_texture_view: &wgpu::TextureView,
+        input_texture_view: &wgpu::TextureView,
+        input_texture_view_other: Option<&wgpu::TextureView>,
+    ) {
+        let bind_group = Graphics::<VertexKind>::_bind_group(
+            device_state.device(),
+            &self.bind_group_layout,
+            input_texture_view,
+            input_texture_view_other,
+            &self.uniforms_buffer,
+            if self.conf.input_vertex.is_3d {
+                Some(&self.vertex_buffers.uniform)
+            } else {
+                None
+            },
+            &self.textures_for_3d,
+            &self.sampler,
+        );
+
+        self.render_with_custom_bind_group(device_state, output_texture_view, &bind_group)
     }
 
     pub fn update_view(&self, c: &GraphicsWindowConf, view: Mat4, light: Mat4) {
