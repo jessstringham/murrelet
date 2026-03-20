@@ -689,7 +689,7 @@ impl PointToPoint {
     }
 
     pub fn to_norm_dir(&self) -> Vec2 {
-        (self.end - self.start).normalize()
+        (self.end - self.start).normalize_or_zero()
     }
 
     // angle relative to 0
@@ -717,6 +717,7 @@ impl PointToPoint {
         find_intersection_inf(self.to_tuple(), other.to_tuple())
     }
 
+    // looks like it includes endpoints
     pub fn find_intersection(&self, other: PointToPoint) -> Option<Vec2> {
         find_intersection_segments(self.to_tuple(), other.to_tuple())
     }
@@ -740,6 +741,20 @@ impl PointToPoint {
             start: intersection,
             end: closest_point,
         }
+    }
+
+    pub fn closest_pt_to_segment(&self, p: Vec2) -> PointToPoint {
+        let ab = self.end - self.start;
+        let ab_len2 = ab.length_squared();
+
+        let closest = if ab_len2 <= 1.0e-12 {
+            self.start
+        } else {
+            let t = ((p - self.start).dot(ab) / ab_len2).clamp(0.0, 1.0);
+            self.start + t * ab
+        };
+
+        PointToPoint::new(p, closest)
     }
 
     // drop a right angle down from intersection, where does it fall along

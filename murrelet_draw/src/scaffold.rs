@@ -4,11 +4,11 @@ use crate::{
     drawable::{DrawnShape, ToDrawnShape},
     tesselate::ToLyonPath,
 };
-use geo::{BooleanOps, BoundingRect, Contains, MultiPolygon};
+use geo::{BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolygon};
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
-use murrelet_common::SpotOnCurve;
+use murrelet_common::{PointToPoint, SpotOnCurve};
 use murrelet_livecode::types::LivecodeResult;
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
@@ -266,6 +266,7 @@ impl Masker {
             mask: MultiPolygon::new(vec![]),
         }
     }
+
     pub fn from_vec2(v: &[Vec2]) -> Self {
         let mut s = Self::new();
         s.union_vec2(v);
@@ -345,6 +346,12 @@ impl Masker {
         }
 
         Ok(all_the_vecs)
+    }
+
+    pub fn has_intersection_with_segment(&self, p2p: PointToPoint) -> bool {
+        let line = Line::new(p2p.start().to_coord(), p2p.end().to_coord());
+
+        self.mask.intersects(&line)
     }
 
     // pub fn intersect_styled_shapes(

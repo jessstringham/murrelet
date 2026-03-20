@@ -179,3 +179,4 @@ pub fn curr_next_loop_iter<'a, T>(v: &'a [T]) -> Box<dyn Iterator<Item = (&'a T,
     let iter = CurrNextWithLoopIter::new(v);
     Box::new(iter)
 }
+
