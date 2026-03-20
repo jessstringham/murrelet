@@ -1102,8 +1102,10 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         // make a bind group layout
 
         let first_texture_format = texture_src_path.to_format(first_format);
+        // Loaded image textures keep their native size; render targets still use c.dims.
+        let input_dims = texture_src_path.texture_dims(c.dims());
         let texture_and_desc =
-            Graphics::<DefaultVertex>::texture(c.dims, device, first_texture_format);
+            Graphics::<DefaultVertex>::texture(input_dims, device, first_texture_format);
         let input_texture = &texture_and_desc.texture;
 
         // maybe load the image source if we have one

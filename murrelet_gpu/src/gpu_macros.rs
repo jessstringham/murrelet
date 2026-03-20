@@ -856,7 +856,7 @@ macro_rules! build_shader_pipeline {
         {
             println!("add display");
             $pipeline.add_step(
-                TextureRender::new_box(
+                SimpleRender::new_box(
                     $source.graphics(),
                     $dest.graphics(),
                 )
@@ -1256,12 +1256,8 @@ impl ImageTexture {
         c: &GraphicsWindowConf,
         address_mode: wgpu::AddressMode,
     ) -> Self {
-        // load one as dummy to get image
-        // let source_dims = wgpu::Texture::from_path(c.window, src_path).unwrap().size();
-
-        // hrm, when this was set to width/height, it didn't work, it shrunk the whole thing..
-        // let (_, width, height) = crate::device_state::check_img_size(src_path).unwrap();
-        let source_dims = c.dims; //[width, height]; // c.dims; // ??
+        let source_dims =
+            GraphicsAssets::LocalFilesystem(src_path.to_path_buf()).texture_dims(c.dims());
         let target_dims = c.dims;
         println!("source: {:?} {:?}", source_dims, target_dims);
 

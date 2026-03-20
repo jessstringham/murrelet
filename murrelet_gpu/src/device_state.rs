@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 #[allow(dead_code)]
 use std::path::PathBuf;
 
@@ -222,6 +221,21 @@ impl GraphicsAssets {
         match self {
             GraphicsAssets::Nothing => default,
             GraphicsAssets::LocalFilesystem(_) => DEFAULT_LOADED_TEXTURE_FORMAT,
+        }
+    }
+
+    pub(crate) fn texture_dims(&self, default: [u32; 2]) -> [u32; 2] {
+        match self {
+            GraphicsAssets::Nothing => default,
+            GraphicsAssets::LocalFilesystem(path) => {
+                if path.is_file() {
+                    image::image_dimensions(path)
+                        .map(|(width, height)| [width, height])
+                        .unwrap_or(default)
+                } else {
+                    default
+                }
+            }
         }
     }
 
