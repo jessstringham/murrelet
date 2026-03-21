@@ -65,6 +65,10 @@ impl BasicUniform {
         self.more_info_other = more_info
     }
 
+    pub fn dims(&self) -> [u32; 2] {
+        [self.dims[0] as u32, self.dims[1] as u32]
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         bytemuck::bytes_of(self)
     }

@@ -458,6 +458,10 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
         )
     }
 
+    pub fn render_dims(&self) -> [u32; 2] {
+        self.graphics.borrow().uniforms.dims()
+    }
+
     pub fn new_with_src<'a>(
         name: &str,
         c: &GraphicsWindowConf<'a>,
