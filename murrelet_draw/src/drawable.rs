@@ -51,6 +51,8 @@ impl DrawnShape {
         }
         Ok(DrawnShape::new_cds(&new, self.style.clone()))
     }
+
+
 }
 
 pub trait ToDrawnShapeSegments {

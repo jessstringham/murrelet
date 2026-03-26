@@ -285,6 +285,12 @@ impl Masker {
         s
     }
 
+    pub fn union(&self, other: &Self) -> Self {
+        Self {
+            mask: self.mask.union(&other.mask),
+        }
+    }
+
     pub fn union_cd(&mut self, cd: &CurveDrawer, tolerance: f32) {
         self.union_vec2(&cd.flatten_with_lyon(tolerance).unwrap_or_default());
     }

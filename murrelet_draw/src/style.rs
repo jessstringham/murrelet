@@ -461,6 +461,10 @@ pub mod styleconf {
         pub fn stroke_color(&self) -> MurreletColor {
             self.to_style().stroke_color.as_color()
         }
+
+        pub fn with_outline(&self, stroke_weight: f32, stroke_color: MurreletColor) -> StyleConf {
+            Self::outlined_fill(self.fill_color(), stroke_weight, stroke_color)
+        }
     }
 
     impl Default for StyleConf {
@@ -711,7 +715,6 @@ impl ToLyonPath for MurreletPath {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct StyledPath {

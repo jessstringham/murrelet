@@ -626,6 +626,10 @@ impl GenFinal for FieldTokensLazy {
                     let name = Self::new_ident(internal_type);
                     quote! {#name}
                 }
+                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    let internal_type = parsed_type_info.internal_type();
+                    quote! {#internal_type}
+                }
                 HowToControlThis::WithNone(_) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(internal_type);
