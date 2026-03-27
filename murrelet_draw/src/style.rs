@@ -465,6 +465,25 @@ pub mod styleconf {
         pub fn with_outline(&self, stroke_weight: f32, stroke_color: MurreletColor) -> StyleConf {
             Self::outlined_fill(self.fill_color(), stroke_weight, stroke_color)
         }
+
+        pub fn with_fill(&self, fill_color: MurreletColor) -> StyleConf {
+            match self {
+                StyleConf::Fill(m) => {
+                    let mut m = m.clone();
+                    m.color = fill_color;
+                    StyleConf::Fill(m)
+                }
+                StyleConf::Outline(m) => {
+                    let filled = MurreletStyleFilled::new(fill_color, m.stroke_weight, m.color);
+                    StyleConf::Fill(filled)
+                }
+                _ => self.clone(),
+            }
+        }
+
+        pub fn set_alpha(&self, alpha: f32) -> StyleConf {
+            self.with_fill(self.color().with_alpha(alpha))
+        }
     }
 
     impl Default for StyleConf {
