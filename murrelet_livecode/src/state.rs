@@ -146,7 +146,7 @@ impl LivecodeWorldState {
         })
     }
 
-    pub(crate) fn new_dummy() -> Self {
+    pub fn new_dummy() -> Self {
         Self::new_legacy(LivecodeWorldStateInner::new_dummy_with_funcs()).unwrap()
     }
 

@@ -18,8 +18,8 @@ use murrelet_draw::{
 };
 use murrelet_perform::perform::SvgDrawConfig;
 use svg::{
+    node::element::{path::Data, Group},
     Document, Node,
-    node::element::{Group, path::Data},
 };
 
 pub struct MurreletSvgAttributes(Vec<(String, String)>);
@@ -761,6 +761,29 @@ impl SvgPathCache {
     }
 
     pub fn save_doc(&self) {
+        let layer_summaries = self
+            .layers
+            .iter()
+            .map(|(name, layer)| format!("{}:p{}:t{}", name, layer.paths.len(), layer.text.len()))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let total_paths = self
+            .layers
+            .values()
+            .map(|layer| layer.paths.len())
+            .sum::<usize>();
+        let total_text = self
+            .layers
+            .values()
+            .map(|layer| layer.text.len())
+            .sum::<usize>();
+        println!(
+            "svg save: layers={} paths={} text={} [{}]",
+            self.layers.len(),
+            total_paths,
+            total_text,
+            layer_summaries
+        );
         self.config.save_doc(self);
     }
 
@@ -789,6 +812,7 @@ impl ToSvgData for SvgPathDef {
                 murrelet_draw::svg::SvgCmd::ArcTo(svg_arc) => {
                     path = path.elliptical_arc_to(svg_arc.params())
                 }
+                murrelet_draw::svg::SvgCmd::Close => path = path.close(),
             }
         }
 

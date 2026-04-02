@@ -217,6 +217,7 @@ impl MurreletQuantizedEmbedding {
         Self::new(a, conf.digits)
     }
 
+    // silently fails if wrong
     pub fn set(&self, idx: usize, val: f32) -> Self {
         let mut v = self.clone();
         if let Some(a) = v.emb.get_mut(idx) {
@@ -269,6 +270,23 @@ impl MurreletQuantizedEmbedding {
         let unit_l2 = (2.0 - 2.0 * cos).max(0.0).sqrt();
 
         Some(unit_l2)
+    }
+
+    fn overwrite_with(
+        &self,
+        overwrite_with: MurreletQuantizedEmbedding,
+        indices: &[usize],
+    ) -> MurreletQuantizedEmbedding {
+        let mut result = self.clone();
+
+        let other = overwrite_with.as_rn();
+
+        for idx in indices {
+            if let Some(a) = other.get(*idx) {
+                result = result.set(*idx, *a);
+            }
+        }
+        result
     }
 }
 
@@ -436,10 +454,44 @@ pub enum EmbeddingGenStep {
         source_b: Box<EmbeddingGenStep>,
         mix: HashableF32,
     },
+    Lock {
+        source: Box<EmbeddingGenStep>,
+        overwrite_with: Box<EmbeddingGenStep>,
+        lock_indices: String,
+    },
 }
 impl EmbeddingGenStep {
     pub fn seed(seed: u64) -> Self {
         Self::Seed(seed)
+    }
+
+    pub fn mix(
+        parents_1: &EmbeddingGenStep,
+        parents_2: &EmbeddingGenStep,
+        mix_amount: f32,
+    ) -> Self {
+        Self::Mix {
+            source_a: Box::new(parents_1.clone()),
+            source_b: Box::new(parents_2.clone()),
+            mix: mix_amount.into(),
+        }
+    }
+
+    pub fn rerand(source_a: &EmbeddingGenStep, seed: u64, chance: f32) -> Self {
+        Self::NearSeedReRand {
+            source: Box::new(source_a.clone()),
+            rand_seed: seed,
+            rerand_chance: chance.into(),
+        }
+    }
+
+    pub fn gauss(source_a: &EmbeddingGenStep, seed: u64, stdev: f32) -> Self {
+        Self::NearSeedGaussian {
+            // source: (), rand_seed: (), stdev: () } {
+            source: Box::new(source_a.clone()),
+            rand_seed: seed,
+            stdev: stdev.into(),
+        }
     }
 
     // useful if you edited a embedding
@@ -509,6 +561,24 @@ impl EmbeddingGenStep {
             }
             EmbeddingGenStep::Emb(murrelet_quantized_embedding) => {
                 murrelet_quantized_embedding.clone()
+            }
+            EmbeddingGenStep::Lock {
+                source,
+                overwrite_with,
+                lock_indices,
+            } => {
+                let base = source.compute(mconf);
+                let overwrite_with = overwrite_with.compute(mconf);
+
+                // gonna assume since this is all internal it should always be valid
+                let indices = lock_indices
+                    .split(",")
+                    .collect_vec()
+                    .iter()
+                    .map(|x| x.parse::<usize>().unwrap())
+                    .collect_vec();
+
+                base.overwrite_with(overwrite_with, &indices)
             }
         }
     }
@@ -638,6 +708,16 @@ impl EmbeddingGenStep {
                     mix_f
                 ))
             }
+            EmbeddingGenStep::Lock {
+                source,
+                overwrite_with,
+                lock_indices,
+            } => Ok(format!(
+                "l({}, {}, {})",
+                source.to_expr_string()?,
+                overwrite_with.to_expr_string()?,
+                lock_indices
+            )),
         }
     }
 
@@ -709,6 +789,25 @@ impl EmbeddingGenStep {
                 .map_err(|e| EmbeddingError::DecodeParseError(format!("{ctx} parse error: {e}")))
         }
 
+        fn parse_lock_indices(s: &str) -> Result<String, EmbeddingError> {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                return Ok(String::new());
+            }
+
+            let mut parsed = Vec::new();
+            for part in trimmed.split(',') {
+                let idx = part.trim().parse::<usize>().map_err(|e| {
+                    EmbeddingError::DecodeParseError(format!(
+                        "lock indices parse error: {e}"
+                    ))
+                })?;
+                parsed.push(idx.to_string());
+            }
+
+            Ok(parsed.join(","))
+        }
+
         let (name, inner) = parse_call(s)?;
         let lname = name.to_lowercase();
         let args = split_args(&inner)?;
@@ -775,6 +874,22 @@ impl EmbeddingGenStep {
                     source_a,
                     source_b,
                     mix: mix.into(),
+                })
+            }
+            "l" | "lock" => {
+                if args.len() < 3 {
+                    return Err(EmbeddingError::DecodeParseError(
+                        "lock(source, overwrite_with, lock_indices) expects at least 3 arguments".to_string(),
+                    ));
+                }
+                let source = Box::new(EmbeddingGenStep::parse_expr(&args[0])?);
+                let overwrite_with = Box::new(EmbeddingGenStep::parse_expr(&args[1])?);
+                let lock_indices_raw = args[2..].join(",");
+                let lock_indices = parse_lock_indices(&lock_indices_raw)?;
+                Ok(EmbeddingGenStep::Lock {
+                    source,
+                    overwrite_with,
+                    lock_indices,
                 })
             }
             _ => Err(EmbeddingError::DecodeParseError(format!(

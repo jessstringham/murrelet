@@ -37,6 +37,7 @@ lerpable = { workspace = true, features = ["glam"] }
 # anyhow = "1.0.86"
 # murrelet_gen = "0.1.3"
 regex = "1.7.3"
+itertools = "0.10.5"
 
 
 [dependencies.web-sys]

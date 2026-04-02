@@ -122,5 +122,12 @@ export function makeMurreletClient(wasm) {
     }
   }
 
-  return { ensure, getGen, modelFromGenSteps, createTopLevel };
+  function clampedDist(model) {
+    if (!model || typeof model.to_clamped_dist !== "function") {
+      throw new Error("Model does not expose to_clamped_dist().");
+    }
+    return model.to_clamped_dist(_digits ?? 3);
+  }
+
+  return { ensure, getGen, modelFromGenSteps, createTopLevel, clampedDist };
 }

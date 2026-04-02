@@ -1093,6 +1093,9 @@ pub fn parse_svg_path_as_vec2(data: &SvgPathDef, line_space: f32) -> Vec<Vec2> {
                 let (a, b, c, d, e, f, g) = svg_arc.params();
                 cmds = cmds.elliptical_arc_to(vec![a, b, c, d, e, f, g]);
             }
+            crate::svg::SvgCmd::Close => {
+                cmds = cmds.close();
+            }
         }
     }
 
@@ -1197,4 +1200,3 @@ pub fn tesselate_delauney_no_filter<VertexKind: ToVec2 + Clone>(
         .collect_vec();
     (indices, v, triangulation)
 }
-

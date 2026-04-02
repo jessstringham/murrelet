@@ -4,9 +4,11 @@ use glam::vec2;
 use murrelet_common::{MurreletAppInput, ToStrId};
 use murrelet_draw::drawable::MixedDrawableShape;
 use murrelet_gen::embedding::MurreletQuantizedEmbedding;
+use murrelet_livecode::types::LivecodeResult;
 use murrelet_perform::AppConfig;
 use serde::Deserialize;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
+use itertools::Itertools;
 
 pub type JsResult<T> = Result<T, JsValue>;
 
@@ -26,7 +28,7 @@ where
     for<'de> DrawOpts: Deserialize<'de>,
     Conf: Clone,
 {
-    fn draw(&self, conf: &DrawOpts) -> Vec<MixedDrawableShape>;
+    fn draw(&self, conf: &DrawOpts) -> LivecodeResult<Vec<MixedDrawableShape>>;
 }
 
 pub trait IsMurreletWebModel<Conf>
@@ -422,7 +424,10 @@ macro_rules! bonus_draw_wrapper {
                 let svg_draw_config = self.livecode.svg_save_path().with_no_resize();
                 let draw_ctx = murrelet_wasm::draw::WebSDrawCtx::new(&svg_draw_config);
 
-                let mixed_drawables = self.model.draw(&draw_opts);
+                let mixed_drawables = self
+                    .model
+                    .draw(&draw_opts)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))?;
                 draw_ctx.drawn_shapes(&mixed_drawables);
 
                 Ok(draw_ctx.make_html_jsvalue(Some(2)))
@@ -474,6 +479,17 @@ macro_rules! bonus_embedding_wrapper {
 
             pub fn to_unclamped_dist(&self) -> Vec<f32> {
                 <_ as murrelet_gen::CanSampleFromDist>::to_dist(self.model.get_conf())
+            }
+
+            pub fn to_clamped_dist(&self, digits: usize) -> Result<String, wasm_bindgen::JsValue> {
+                let dist = <_ as murrelet_gen::CanSampleFromDist>::to_dist(self.model.get_conf());
+
+                let quantized =
+                    murrelet_gen::embedding::MurreletQuantizedEmbedding::from_rn(&dist, digits);
+                let encoded = quantized
+                    .encode()
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))?;
+                Ok(encoded.to_string())
             }
         }
     };
@@ -678,6 +694,26 @@ impl WasmEmbeddingGen {
             source_a,
             source_b,
             mix: amount.into(),
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn to_expr_string(&self) -> String {
+        self.0.to_expr_string().unwrap()
+    }
+
+    #[wasm_bindgen]
+    pub fn lock_indices(&self, lock_with: &Self, indices: Vec<usize>) -> Self {
+        let source = Box::new(self.0.clone());
+        let overwrite_with = Box::new(lock_with.0.clone());
+        let mut sorted_i = indices.clone();
+        sorted_i.sort();
+        let lock_indices = sorted_i.into_iter().map(|x| x.to_string()).join(",");
+
+        Self(murrelet_gen::embedding::EmbeddingGenStep::Lock {
+            source,
+            overwrite_with,
+            lock_indices,
         })
     }
 }

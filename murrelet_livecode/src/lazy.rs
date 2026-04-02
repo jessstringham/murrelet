@@ -10,8 +10,9 @@ use crate::{
     state::{LivecodeWorldState, WorldWithLocalVariables},
     types::{LivecodeError, LivecodeResult},
 };
-use evalexpr::Node;
+use evalexpr::{Node, build_operator_tree};
 
+use glam::Vec2;
 use itertools::Itertools;
 use lerpable::IsLerpingMethod;
 use lerpable::{Lerpable, step};
@@ -227,6 +228,13 @@ impl LazyNodeF32 {
 
         self.eval_with_ctx(&expr)
     }
+
+    fn new_func(x: &str) -> LazyNodeF32 {
+        LazyNodeF32::new(
+            ControlLazyNodeF32::Expr(build_operator_tree(x).unwrap()),
+            &LivecodeWorldState::new_dummy(),
+        )
+    }
 }
 
 impl Lerpable for LazyNodeF32 {
@@ -304,6 +312,17 @@ pub struct LazyVec2 {
 impl LazyVec2 {
     pub fn new(x: LazyNodeF32, y: LazyNodeF32) -> Self {
         Self { x, y }
+    }
+
+    pub fn from_vec2(v: Vec2) -> Self {
+        Self::new(
+            LazyNodeF32::simple_number(v.x),
+            LazyNodeF32::simple_number(v.y),
+        )
+    }
+
+    pub fn new_funcs(x: &str, y: &str) -> Self {
+        Self::new(LazyNodeF32::new_func(x), LazyNodeF32::new_func(y))
     }
 }
 
@@ -452,6 +471,24 @@ pub struct LazyMurreletColor {
 impl LazyMurreletColor {
     pub fn new(h: LazyNodeF32, s: LazyNodeF32, v: LazyNodeF32, a: LazyNodeF32) -> Self {
         Self { h, s, v, a }
+    }
+
+    pub fn white() -> Self {
+        Self {
+            h: LazyNodeF32::simple_number(0.0),
+            s: LazyNodeF32::simple_number(0.0),
+            v: LazyNodeF32::simple_number(1.0),
+            a: LazyNodeF32::simple_number(1.0),
+        }
+    }
+
+    pub fn black() -> Self {
+        Self {
+            h: LazyNodeF32::simple_number(0.0),
+            s: LazyNodeF32::simple_number(0.0),
+            v: LazyNodeF32::simple_number(0.0),
+            a: LazyNodeF32::simple_number(1.0),
+        }
     }
 }
 
