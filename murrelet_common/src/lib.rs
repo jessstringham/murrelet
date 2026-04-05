@@ -799,6 +799,13 @@ impl ToStrId for str {
     }
 }
 
+impl ToStrId for &str {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self)
+    }
+}
+
 impl ToStrId for String {
     #[inline]
     fn to_strid(&self) -> StrId {
