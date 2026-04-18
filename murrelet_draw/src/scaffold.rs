@@ -376,6 +376,10 @@ impl Masker {
     pub fn to_vec(&self) -> Vec<Vec<Vec2>> {
         multipolygon_to_vec2(&self.mask)
     }
+
+    pub fn clear(&mut self) {
+        self.mask.0.clear();
+    }
 }
 
 impl ToDrawnShape for Masker {
