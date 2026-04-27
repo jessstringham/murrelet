@@ -36,8 +36,10 @@ impl IsLivecodeSrc for MidiMng {
         let midi = &self.values.dials;
         let midi_bool = &self.values.pads;
         let midi_fire = &self.values.pads_changed;
+        let fighter = &self.values.fighter;
+        let fighter_changed = &self.values.fighter_changed;
 
-        let mut vals = Vec::with_capacity(MIDI_COUNT * 3);
+        let mut vals = Vec::with_capacity(MIDI_COUNT * 3 + self.values.fighter_count * 2);
         for idx in 0..MIDI_COUNT {
             vals.push((
                 format!("m{}", idx).to_strid(),
@@ -49,7 +51,17 @@ impl IsLivecodeSrc for MidiMng {
             ));
             vals.push((
                 format!("m{}f", idx).to_strid(),
-                LivecodeValue::Bool(midi_fire[0]),
+                LivecodeValue::Bool(midi_fire[idx]),
+            ));
+        }
+        for idx in 0..self.values.fighter_count {
+            vals.push((
+                format!("f{}t", idx).to_strid(),
+                LivecodeValue::Bool(fighter[idx] % 2 == 1),
+            ));
+            vals.push((
+                format!("f{}f", idx).to_strid(),
+                LivecodeValue::Bool(fighter_changed[idx]),
             ));
         }
         vals
@@ -132,8 +144,8 @@ pub struct MidiValues {
     pads_changed: Vec<bool>,
     last_update: u64,
     fighter: Vec<usize>,
+    fighter_changed: Vec<bool>,
     fighter_times: Vec<Option<MurreletTime>>,
-    #[allow(dead_code)]
     fighter_count: usize,
 }
 
@@ -152,6 +164,7 @@ impl MidiValues {
             pads_changed: vec![false; pad_count],
             last_update: 0,
             fighter: vec![0; fighter_count],
+            fighter_changed: vec![false; fighter_count],
             fighter_times: vec![None; fighter_count],
             fighter_count,
         }
@@ -160,6 +173,7 @@ impl MidiValues {
     pub fn reset(&mut self) {
         self.dials_changed = vec![false; self.dial_count];
         self.pads_changed = vec![false; self.pad_count];
+        self.fighter_changed = vec![false; self.fighter_count];
     }
 
     pub fn pads_bool(&self, idx: usize) -> bool {
@@ -186,11 +200,11 @@ impl MidiValues {
 
     pub fn fighter_update(&mut self, idx: usize) {
         self.fighter[idx] += 1;
+        self.fighter_changed[idx] = true;
         self.fighter_times[idx] = Some(MurreletTime::now()); // could do the time we receive but ah
     }
 
     pub fn release_fighter_update(&mut self, idx: usize) {
-        self.fighter[idx] += 1;
         self.fighter_times[idx] = Some(MurreletTime::now()); // could do the time we receive but ah
     }
 
@@ -200,6 +214,7 @@ impl MidiValues {
                 if msg.stamp - self.last_update > 100 * 1000 {
                     // 100 ms seems to work
                     self.pads_update(idx.into());
+                    self.last_update = msg.stamp;
                 }
             }
             Some(KeyPress::Dial(idx, amount)) => {
@@ -216,7 +231,6 @@ impl MidiValues {
             }
             None => {}
         }
-        self.last_update = msg.stamp;
     }
 }
 
