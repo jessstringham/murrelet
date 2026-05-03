@@ -188,7 +188,7 @@ impl GenFinal for FieldTokensNestEdit {
         let parsed_data_type = ident_from_type(&t);
 
         // in this case, don't update the name, that's not supported yet...
-        let for_nestedit = if parsed_data_type.main_how_to.is_lazy() {
+        let for_nestedit = if parsed_data_type.main_how_to().is_lazy() {
             quote! {
                 (_, #name::#variant_ident(e)) => #name::#variant_ident(e.clone())
             }

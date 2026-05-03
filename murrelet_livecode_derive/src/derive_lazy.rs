@@ -297,7 +297,7 @@ impl GenFinal for FieldTokensLazy {
     fn from_newtype_struct_lazy(idents: StructIdents, _parent_ident: syn::Ident) -> Self {
         let orig_ty = idents.orig_ty();
         let parsed_type_info = ident_from_type(&orig_ty);
-        let internal_type = parsed_type_info.main_type;
+        let internal_type = parsed_type_info.main_type();
 
         let for_struct = {
             let new_inside_type = Self::new_ident(internal_type.clone());
@@ -325,7 +325,7 @@ impl GenFinal for FieldTokensLazy {
     ) -> FieldTokensLazy {
         let orig_ty = idents.orig_ty();
         let parsed_type_info = ident_from_type(&orig_ty);
-        let internal_type = parsed_type_info.main_type;
+        let internal_type = parsed_type_info.main_type();
 
         let for_struct = {
             let new_inside_type = Self::new_ident(internal_type.clone());
@@ -385,12 +385,12 @@ impl GenFinal for FieldTokensLazy {
         let t = unnamed.first().unwrap().clone().ty;
         let parsed_data_type = ident_from_type(&t);
 
-        let is_lazy = parsed_data_type.main_how_to.is_lazy();
+        let is_lazy = parsed_data_type.main_how_to().is_lazy();
         let for_struct = {
             let new_type = if is_lazy {
-                parsed_data_type.main_type.clone()
+                parsed_data_type.main_type().clone()
             } else {
-                update_to_lazy_ident(parsed_data_type.main_type)
+                update_to_lazy_ident(parsed_data_type.main_type())
             };
 
             quote! { #variant_ident(#new_type) }
@@ -493,7 +493,7 @@ impl GenFinal for FieldTokensLazy {
 
         let s = ident_from_type(&idents.orig_ty());
 
-        let ctrl = s.second_how_to.unwrap().get_control_type();
+        let ctrl = s.second_how_to().unwrap().get_control_type();
 
         let for_struct = {
             let t = LazyFieldType(ctrl).to_token();
@@ -747,7 +747,7 @@ impl GenFinal for FieldTokensLazy {
 
         let for_struct = {
             let new_ty = {
-                let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
+                let main_type = ident_from_type(&orig_ty).main_type();
                 let ref_lc_ident = Self::new_ident(main_type.clone());
 
                 quote! {#ref_lc_ident}

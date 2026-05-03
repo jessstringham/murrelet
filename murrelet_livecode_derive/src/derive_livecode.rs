@@ -409,7 +409,7 @@ impl GenFinal for FieldTokensLivecode {
         // we need to get the internal struct type
         let orig_ty = idents.orig_ty();
         let parsed_type_info = ident_from_type(&orig_ty);
-        let internal_type = parsed_type_info.main_type;
+        let internal_type = parsed_type_info.main_type();
 
         let for_struct = {
             if internal_type.to_string().starts_with("Lazy") {
@@ -460,7 +460,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let t = unnamed.first().unwrap().clone().ty;
-            let DataFromType { main_type, .. } = ident_from_type(&t);
+            let main_type = ident_from_type(&t).main_type();
             let new_type = update_to_control_ident(main_type);
             quote! { #variant_ident(#new_type) }
         };
@@ -578,7 +578,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let s = ident_from_type(&idents.orig_ty());
 
-        let ctrl = s.second_how_to.unwrap().get_control_type();
+        let ctrl = s.second_how_to().unwrap().get_control_type();
         let for_struct = {
             let t = LivecodeFieldType(ctrl).to_token();
             quote! {#serde #name: Option<#t>}
@@ -617,7 +617,7 @@ impl GenFinal for FieldTokensLivecode {
         let wrapper = parsed_type_info.wrapper_type();
 
         let inner_is_lazy_struct = parsed_type_info
-            .second_how_to
+            .second_how_to()
             .map(|h| h.is_lazy())
             .unwrap_or(false);
 
@@ -898,7 +898,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let new_ty = {
-                let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
+                let main_type = ident_from_type(&orig_ty).main_type();
                 let ref_lc_ident = Self::new_ident(main_type.clone());
                 quote! {#ref_lc_ident}
             };
@@ -1045,7 +1045,7 @@ impl GenFinal for FieldTokensLivecode {
         let wrapper = parsed_type_info.wrapper_type();
 
         let inner_is_lazy_struct = parsed_type_info
-            .second_how_to
+            .second_how_to()
             .map(|h| h.is_lazy())
             .unwrap_or(false);
 
@@ -1149,7 +1149,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let new_ty = {
-                let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
+                let main_type = ident_from_type(&orig_ty).main_type();
                 // eh, this is hacky
                 catch_special_types(main_type.clone())
             };

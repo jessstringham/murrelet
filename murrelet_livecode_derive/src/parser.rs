@@ -335,7 +335,7 @@ impl LivecodeFieldReceiver {
             HowToControlThis::from_kind(kind)
         } else {
             let type_idents = ident_from_type(&self.ty);
-            HowToControlThis::from_type_str(type_idents.main_type.to_string().as_ref())
+            HowToControlThis::from_type_str(type_idents.main_type().to_string().as_ref())
         }
     }
 
@@ -767,123 +767,95 @@ impl SerdeDefault {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DataFromType {
-    pub(crate) main_type: syn::Ident,
-    pub(crate) second_type: Option<syn::Ident>,
-    pub(crate) third_type: Option<syn::Ident>, // so we coulddd use a vec her
-    pub(crate) fourth_type: Option<syn::Ident>, // so we coulddd use a vec her
+pub(crate) struct IdentWithHowTo {
+    pub(crate) ident: syn::Ident,
+    pub(crate) how_to: HowToControlThis,
+}
 
-    pub(crate) main_how_to: HowToControlThis,
-    pub(crate) second_how_to: Option<HowToControlThis>,
-    pub(crate) third_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
-    pub(crate) fourth_how_to: Option<HowToControlThis>, // so we coulddd use a vec her
+#[derive(Debug, Clone)]
+pub(crate) struct DataFromType {
+    pub(crate) levels: Vec<IdentWithHowTo>,
 }
 impl DataFromType {
     fn new_from_list(types: Vec<syn::Ident>) -> DataFromType {
         assert!(!types.is_empty()); // should be by how it's programmed but...
 
-        let main_type = types[0].clone();
-        let second_type = types.get(1).cloned();
-        let third_type = types.get(2).cloned();
-        let fourth_type = types.get(3).cloned();
+        let levels = types
+            .into_iter()
+            .map(|ident| {
+                let how_to = HowToControlThis::from_type_str(&ident.to_string());
+                IdentWithHowTo { ident, how_to }
+            })
+            .collect();
 
-        let main_how_to = HowToControlThis::from_type_str(&main_type.to_string());
-        let second_how_to = second_type
-            .as_ref()
-            .map(|x| HowToControlThis::from_type_str(&x.to_string()));
-        let third_how_to = third_type
-            .as_ref()
-            .map(|x| HowToControlThis::from_type_str(&x.to_string()));
-        let fourth_how_to = fourth_type
-            .as_ref()
-            .map(|x| HowToControlThis::from_type_str(&x.to_string()));
+        Self { levels }
+    }
 
-        Self {
-            main_type,
-            second_type,
-            third_type,
-            fourth_type,
-            main_how_to,
-            second_how_to,
-            third_how_to,
-            fourth_how_to,
-        }
+    // Field-style accessors preserved as methods so callsites stay readable.
+    pub(crate) fn main_type(&self) -> syn::Ident {
+        self.levels[0].ident.clone()
+    }
+
+    pub(crate) fn main_how_to(&self) -> &HowToControlThis {
+        &self.levels[0].how_to
+    }
+
+    pub(crate) fn second_how_to(&self) -> Option<HowToControlThis> {
+        self.levels.get(1).map(|l| l.how_to.clone())
     }
 
     pub(crate) fn how_to_control_internal(&self) -> &HowToControlThis {
-        if let Some(fourth) = &self.fourth_how_to {
-            fourth
-        } else if let Some(third) = &self.third_how_to {
-            third
-        } else if let Some(second) = &self.second_how_to {
-            second
-        } else {
-            &self.main_how_to
-        }
+        &self.levels.last().unwrap().how_to
     }
 
     pub(crate) fn internal_type(&self) -> syn::Ident {
-        if let Some(third) = &self.third_type {
-            third
-        } else if let Some(second) = &self.second_type {
-            second
-        } else {
-            &self.main_type
-        }
-        .clone()
+        self.levels.last().unwrap().ident.clone()
     }
 
     pub(crate) fn wrapper_type(&self) -> VecDepth {
-        match self.main_how_to {
-            HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
-                match self.second_how_to {
-                    Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec)) => {
-                        VecDepth::VecVec
-                    }
-                    Some(_) => {
-                        // let s = self.second_type.as_ref().map(|x| x.to_string()).clone();
-                        if matches!(
-                            self.third_how_to,
-                            Some(HowToControlThis::WithRecurse(_, RecursiveControlType::Vec))
-                        ) {
-                            VecDepth::VecControlVec
-                        } else {
-                            VecDepth::Vec
-                        }
-                    }
-                    None => unreachable!("vec should have a type??"),
+        let is_vec = |level: &IdentWithHowTo| {
+            matches!(
+                level.how_to,
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Vec)
+            )
+        };
+
+        if !is_vec(&self.levels[0]) {
+            return VecDepth::NotAVec;
+        }
+
+        match self.levels.get(1) {
+            None => unreachable!("vec should have a type??"),
+            Some(second) if is_vec(second) => VecDepth::VecVec,
+            Some(_) => {
+                if self.levels.get(2).map(is_vec).unwrap_or(false) {
+                    VecDepth::VecControlVec
+                } else {
+                    VecDepth::Vec
                 }
             }
-            _ => VecDepth::NotAVec,
         }
     }
 
     pub(crate) fn inside_type(&self) -> Self {
         Self {
-            main_type: self.second_type.clone().unwrap(),
-            second_type: self.third_type.clone(),
-            third_type: self.fourth_type.clone(),
-            fourth_type: None,
-            main_how_to: self.second_how_to.unwrap(),
-            second_how_to: self.third_how_to,
-            third_how_to: self.fourth_how_to,
-            fourth_how_to: None,
+            levels: self.levels[1..].to_vec(),
         }
     }
 
     pub(crate) fn to_quote(&self) -> TokenStream2 {
-        let main_type = self.main_type.clone();
-        match (&self.second_type, &self.third_type, &self.fourth_type) {
-            (None, None, None) => quote! { #main_type },
-            (Some(second_type), None, None) => quote! { #main_type<#second_type> },
-            (Some(second_type), Some(third_type), None) => {
-                quote! { #main_type<#second_type<#third_type>> }
+        fn build(idents: &[syn::Ident]) -> TokenStream2 {
+            let head = &idents[0];
+            if idents.len() == 1 {
+                quote! { #head }
+            } else {
+                let rest = build(&idents[1..]);
+                quote! { #head<#rest> }
             }
-            (Some(second_type), Some(third_type), Some(fourth_type)) => {
-                quote! { #main_type<#second_type<#third_type<#fourth_type>>> }
-            }
-            _ => unreachable!(),
         }
+
+        let idents: Vec<_> = self.levels.iter().map(|l| l.ident.clone()).collect();
+        build(&idents)
     }
 }
 
