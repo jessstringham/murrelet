@@ -371,48 +371,21 @@ impl GenFinal for FieldTokensLazy {
     // enum
     // Arc(CurveArc)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensLazy {
-        let variant_ident = idents.variant_ident();
-        let name = idents.enum_ident();
-        let new_enum_ident = Self::new_ident(name.clone());
-
-        let unnamed = idents.data.fields.fields;
-
-        // for struct
-        if unnamed.len() != 1 {
-            panic!("multiple fields not supported")
-        };
-
-        let t = unnamed.first().unwrap().clone().ty;
-        let parsed_data_type = ident_from_type(&t);
-
-        let is_lazy = parsed_data_type.main_how_to().is_lazy();
-        let for_struct = {
-            let new_type = if is_lazy {
-                parsed_data_type.main_type().clone()
-            } else {
-                update_to_lazy_ident(parsed_data_type.main_type())
-            };
-
-            quote! { #variant_ident(#new_type) }
-        };
-
-        // for world
-        let for_world = if is_lazy {
-            quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.clone()) }
-        } else {
-            quote! { #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.eval_lazy(ctx)?) }
-        };
-
-        let for_more_defs = if is_lazy {
-            quote! { #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.clone()) }
-        } else {
-            quote! { #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.with_more_defs(ctx)?) }
-        };
-
-        FieldTokensLazy {
-            for_struct,
-            for_world,
-            for_more_defs,
+        match idents.single_inner_how_to() {
+            HowToControlThis::WithType(_) => Self::from_unnamed_enum_primitive(idents),
+            HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
+                Self::from_unnamed_enum_vec(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::Option) => {
+                Self::from_unnamed_enum_option(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                Self::from_unnamed_enum_struct(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                Self::from_unnamed_enum_struct_lazy(idents)
+            }
+            e => panic!("(lazy, enum variant) not supported: {:?}", e),
         }
     }
 
@@ -776,5 +749,182 @@ impl GenFinal for FieldTokensLazy {
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
         Self::from_noop_struct(idents)
+    }
+}
+
+impl FieldTokensLazy {
+    // V(MyStruct) -> V(LazyMyStruct)
+    fn from_unnamed_enum_struct(idents: EnumIdents) -> FieldTokensLazy {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_enum_ident = Self::new_ident(name.clone());
+
+        let main_type = ident_from_type(&idents.single_inner_ty()).main_type();
+        let new_type = update_to_lazy_ident(main_type);
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world = quote! {
+            #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.eval_lazy(ctx)?)
+        };
+        let for_more_defs = quote! {
+            #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.with_more_defs(ctx)?)
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+            for_more_defs,
+        }
+    }
+
+    // V(LazyMyStruct) -> V(LazyMyStruct) — already lazy, kept as-is
+    fn from_unnamed_enum_struct_lazy(idents: EnumIdents) -> FieldTokensLazy {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_enum_ident = Self::new_ident(name.clone());
+
+        let new_type = ident_from_type(&idents.single_inner_ty()).main_type();
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world = quote! {
+            #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.clone())
+        };
+        let for_more_defs = quote! {
+            #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.clone())
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+            for_more_defs,
+        }
+    }
+
+    // V(f32) -> V(LazyNodeF32) ; V(Vec2) -> V(LazyVec2) ; etc.
+    fn from_unnamed_enum_primitive(idents: EnumIdents) -> FieldTokensLazy {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_enum_ident = Self::new_ident(name.clone());
+
+        let orig_ty = idents.single_inner_ty();
+        let ctrl = idents.single_inner_how_to().get_control_type();
+        let new_type = LazyFieldType(ctrl).to_token();
+
+        // Mirror LazyFieldType::for_world but bind to `s` instead of `self.#name`.
+        let inner_world_expr = match ctrl {
+            ControlType::F32_2 | ControlType::F32_3 | ControlType::Color => {
+                quote! { s.eval_lazy(ctx)? }
+            }
+            ControlType::Bool => quote! { s.eval_lazy(ctx)? > 0.0 },
+            ControlType::LazyNodeF32 => quote! { s.add_more_defs(ctx)? },
+            ControlType::AnglePi => {
+                quote! { murrelet_common::AnglePi::new(s.eval_lazy(ctx)?) }
+            }
+            _ => quote! { s.eval_lazy(ctx)? as #orig_ty },
+        };
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world = quote! {
+            #new_enum_ident::#variant_ident(s) => #name::#variant_ident(#inner_world_expr)
+        };
+        let for_more_defs = quote! {
+            #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.with_more_defs(ctx)?)
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+            for_more_defs,
+        }
+    }
+
+    // V(Vec<T>) -> V(Vec<LazyControlVecElement<WrappedLazyType<LazyT>>>)
+    fn from_unnamed_enum_vec(idents: EnumIdents) -> FieldTokensLazy {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_enum_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&idents.single_inner_ty());
+        let inner_how_to = parsed.second_how_to().expect("Vec needs an inner type");
+        let inner_type = match inner_how_to {
+            HowToControlThis::WithType(c) => LazyFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = parsed.internal_type();
+                let n = update_to_lazy_ident(t);
+                quote! { #n }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                let t = parsed.internal_type();
+                quote! { #t }
+            }
+            e => panic!("(lazy, enum variant Vec) inner not supported: {:?}", e),
+        };
+
+        let for_struct = quote! {
+            #variant_ident(Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::WrappedLazyType<#inner_type>>>)
+        };
+        let for_world = quote! {
+            #new_enum_ident::#variant_ident(s) => #name::#variant_ident({
+                let expanded = murrelet_livecode::types::lazy_expand_vec_list(s, ctx)?;
+                expanded
+                    .into_iter()
+                    .map(|x| x.eval_lazy(ctx))
+                    .collect::<Result<Vec<_>, _>>()?
+            })
+        };
+        let for_more_defs = quote! {
+            #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(
+                s.iter()
+                    .map(|item| item.with_more_defs(ctx))
+                    .collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
+            )
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+            for_more_defs,
+        }
+    }
+
+    // V(Option<T>) -> V(Option<LazyT>)
+    fn from_unnamed_enum_option(idents: EnumIdents) -> FieldTokensLazy {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_enum_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&idents.single_inner_ty());
+        let inner_how_to = parsed.second_how_to().expect("Option needs an inner type");
+        let inner_type = match inner_how_to {
+            HowToControlThis::WithType(c) => LazyFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = parsed.internal_type();
+                let n = update_to_lazy_ident(t);
+                quote! { #n }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                let t = parsed.internal_type();
+                quote! { #t }
+            }
+            e => panic!("(lazy, enum variant Option) inner not supported: {:?}", e),
+        };
+
+        let for_struct = quote! { #variant_ident(Option<#inner_type>) };
+        let for_world = quote! {
+            #new_enum_ident::#variant_ident(s) => #name::#variant_ident(
+                s.as_ref().map(|x| x.eval_lazy(ctx)).transpose()?
+            )
+        };
+        let for_more_defs = quote! {
+            #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(
+                s.as_ref().map(|x| x.with_more_defs(ctx)).transpose()?
+            )
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+            for_more_defs,
+        }
     }
 }

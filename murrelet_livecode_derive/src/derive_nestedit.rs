@@ -187,19 +187,40 @@ impl GenFinal for FieldTokensNestEdit {
         let t = unnamed.first().unwrap().clone().ty;
         let parsed_data_type = ident_from_type(&t);
 
-        // in this case, don't update the name, that's not supported yet...
-        let for_nestedit = if parsed_data_type.main_how_to().is_lazy() {
-            quote! {
-                (_, #name::#variant_ident(e)) => #name::#variant_ident(e.clone())
-            }
-        } else {
+        // Update: only drill into Struct (StructLazy is immutable from
+        // nestedit's perspective; primitives/Vec/Option have no nest_update).
+        let mutable = matches!(
+            parsed_data_type.main_how_to(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct)
+        );
+        // Get: both Struct and StructLazy impl NestEditable, so nest_get works
+        // on either; primitives/Vec/Option don't.
+        let nestable = matches!(
+            parsed_data_type.main_how_to(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct)
+                | HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
+        );
+
+        let for_nestedit = if mutable {
             quote! {
                 (_, #name::#variant_ident(e)) => #name::#variant_ident(e.nest_update(mods))
             }
+        } else {
+            quote! {
+                (_, #name::#variant_ident(e)) => #name::#variant_ident(e.clone())
+            }
         };
 
-        let for_nestedit_get = quote! {
-            #name::#variant_ident(e) => e.nest_get(getter)
+        let for_nestedit_get = if nestable {
+            quote! {
+                #name::#variant_ident(e) => e.nest_get(getter)
+            }
+        } else {
+            quote! {
+                #name::#variant_ident(_) => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(
+                    format!("non-struct enum variant payload, can't nest_get")
+                ))
+            }
         };
 
         FieldTokensNestEdit {

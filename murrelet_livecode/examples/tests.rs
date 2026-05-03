@@ -59,9 +59,8 @@ enum EnumTest {
     A,
     B(TestLazy),
     C(#[lerpable(method = "skip")] LazyTestLazy),
-    // D(Vec<f32>),
-    // E(f32),
-    // D(LazyTestLazy),
+    D(Vec<f32>),
+    E(f32),
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable, Default)]

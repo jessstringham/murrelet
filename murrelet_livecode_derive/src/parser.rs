@@ -491,6 +491,21 @@ impl EnumIdents {
     pub(crate) fn enum_ident(&self) -> syn::Ident {
         self.enum_name.clone()
     }
+
+    // The type inside a tuple-style variant (the T in Variant(T)).
+    // Single chokepoint for the "multi-field tuple variants not supported"
+    // assertion.
+    pub(crate) fn single_inner_ty(&self) -> syn::Type {
+        let unnamed = &self.data.fields.fields;
+        if unnamed.len() != 1 {
+            panic!("multiple fields not supported");
+        }
+        unnamed.first().unwrap().ty.clone()
+    }
+
+    pub(crate) fn single_inner_how_to(&self) -> HowToControlThis {
+        *ident_from_type(&self.single_inner_ty()).main_how_to()
+    }
 }
 
 #[derive(Clone, Debug)]

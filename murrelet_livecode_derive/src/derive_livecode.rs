@@ -447,44 +447,24 @@ impl GenFinal for FieldTokensLivecode {
 
     // e.g. TileAxisLocs::V(TileAxisVs)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensLivecode {
-        let variant_ident = idents.variant_ident();
-        let name = idents.enum_ident();
-        let new_ident = Self::new_ident(name.clone());
-
-        let unnamed = idents.data.fields.fields;
-
-        // for struct
-        if unnamed.len() != 1 {
-            panic!("multiple fields not supported")
-        };
-
-        let for_struct = {
-            let t = unnamed.first().unwrap().clone().ty;
-            let main_type = ident_from_type(&t).main_type();
-            let new_type = update_to_control_ident(main_type);
-            quote! { #variant_ident(#new_type) }
-        };
-
-        // for world
-        let for_world =
-            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
-
-        let for_to_control =
-            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
-
-        let for_variable_idents =
-            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
-        let for_function_idents =
-            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
-
-        FieldTokensLivecode {
-            for_struct,
-            for_world,
-            for_to_control,
-            for_variable_idents,
-            for_function_idents,
+        match idents.single_inner_how_to() {
+            HowToControlThis::WithType(_) => Self::from_unnamed_enum_primitive(idents),
+            HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
+                Self::from_unnamed_enum_vec(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::Option) => {
+                Self::from_unnamed_enum_option(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                Self::from_unnamed_enum_struct(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                Self::from_unnamed_enum_struct_lazy(idents)
+            }
+            e => panic!("(livecode, enum variant) not supported: {:?}", e),
         }
     }
+
 
     // e.g. TileAxis::Diag
     fn from_unit_enum(idents: EnumIdents) -> FieldTokensLivecode {
@@ -1165,6 +1145,255 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_variable_idents = quote! { self.#name.variable_identifiers() };
         let for_function_idents = quote! { self.#name.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+}
+
+impl FieldTokensLivecode {
+    // V(MyStruct) -> V(ControlMyStruct)
+    fn from_unnamed_enum_struct(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let main_type = ident_from_type(&idents.single_inner_ty()).main_type();
+        let new_type = update_to_control_ident(main_type);
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world =
+            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
+        let for_to_control =
+            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
+        let for_variable_idents =
+            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
+        let for_function_idents =
+            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(LazyMyStruct) -> V(ControlLazyMyStruct).
+    // Uses catch_special_types so that built-in lazy types (LazyVec2,
+    // LazyMurreletColor, ...) get their qualified path instead of a bare
+    // (and nonexistent) ControlLazyVec2 ident.
+    fn from_unnamed_enum_struct_lazy(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let main_type = ident_from_type(&idents.single_inner_ty()).main_type();
+        let new_type = catch_special_types(main_type);
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world =
+            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
+        let for_to_control =
+            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
+        let for_variable_idents =
+            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
+        let for_function_idents =
+            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(f32) -> V(ControlF32) ; V(Vec2) -> V([ControlF32; 2]) ; etc.
+    fn from_unnamed_enum_primitive(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let orig_ty = idents.single_inner_ty();
+        let ctrl = idents.single_inner_how_to().get_control_type();
+        let new_type = LivecodeFieldType(ctrl).to_token();
+
+        // Mirror LivecodeFieldType::for_world_no_name but bind to `s`
+        // (the variant payload binding) instead of `self.#name`.
+        let inner_world_expr = match ctrl {
+            ControlType::F32_2 | ControlType::F32_3 | ControlType::Color => {
+                quote! { s.o(w)? }
+            }
+            ControlType::ColorUnclamped => {
+                quote! { murrelet_livecode::livecode::ControlF32::hsva_unclamped(&s, w)? }
+            }
+            ControlType::LazyNodeF32 => quote! { s.o(w)? },
+            ControlType::AnglePi => quote! { murrelet_common::AnglePi::new(s.o(w)?) },
+            _ => quote! { s.o(w)? as #orig_ty },
+        };
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world = quote! {
+            #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(#inner_world_expr))
+        };
+        let for_to_control =
+            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
+        let for_variable_idents =
+            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
+        let for_function_idents =
+            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(Vec<T>) -> V(Vec<ControlVecElement<ControlT>>)
+    // (or DeserLazyControlVecElement when inner is already lazy-wrapped)
+    fn from_unnamed_enum_vec(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&idents.single_inner_ty());
+        let inner_is_lazy_struct = parsed
+            .second_how_to()
+            .map(|h| h.is_lazy())
+            .unwrap_or(false);
+        let inner_how_to = parsed.second_how_to().expect("Vec needs an inner type");
+        let inner_type = match inner_how_to {
+            HowToControlThis::WithType(c) => LivecodeFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = parsed.internal_type();
+                let n = Self::new_ident(t);
+                quote! { #n }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                catch_special_types(parsed.internal_type())
+            }
+            e => panic!("(livecode, enum variant Vec) inner not supported: {:?}", e),
+        };
+
+        let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
+            quote! { murrelet_livecode::types::DeserLazyControlVecElement }
+        } else {
+            quote! { murrelet_livecode::types::ControlVecElement }
+        };
+
+        let for_struct = quote! {
+            #variant_ident(Vec<#vec_elem_type<#inner_type>>)
+        };
+        let for_world = if inner_is_lazy_struct {
+            quote! {
+                #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(
+                    s.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?
+                ))
+            }
+        } else {
+            quote! {
+                #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(
+                    murrelet_livecode::types::eval_and_expand_vec_list(s, w)?
+                ))
+            }
+        };
+        let for_to_control = if inner_is_lazy_struct {
+            quote! {
+                #name::#variant_ident(s) => #new_ident::#variant_ident(
+                    s.iter().map(|x| x.to_control()).collect::<Vec<_>>()
+                )
+            }
+        } else {
+            quote! {
+                #name::#variant_ident(s) => #new_ident::#variant_ident(
+                    s.iter()
+                        .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
+                        .collect::<Vec<_>>()
+                )
+            }
+        };
+        let for_variable_idents = quote! {
+            #new_ident::#variant_ident(s) => s.iter()
+                .map(|x| x.variable_identifiers())
+                .flatten()
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        };
+        let for_function_idents = quote! {
+            #new_ident::#variant_ident(s) => s.iter()
+                .map(|x| x.function_identifiers())
+                .flatten()
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(Option<T>) -> V(Option<ControlT>)
+    fn from_unnamed_enum_option(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&idents.single_inner_ty());
+        let inner_how_to = parsed.second_how_to().expect("Option needs an inner type");
+        let inner_type = match inner_how_to {
+            HowToControlThis::WithType(c) => LivecodeFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = parsed.internal_type();
+                let n = Self::new_ident(t);
+                quote! { #n }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                catch_special_types(parsed.internal_type())
+            }
+            e => panic!(
+                "(livecode, enum variant Option) inner not supported: {:?}",
+                e
+            ),
+        };
+
+        let for_struct = quote! { #variant_ident(Option<#inner_type>) };
+        let for_world = quote! {
+            #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(
+                s.as_ref().map(|x| x.o(w)).transpose()?
+            ))
+        };
+        let for_to_control = quote! {
+            #name::#variant_ident(s) => #new_ident::#variant_ident(
+                s.as_ref().map(|x| x.to_control())
+            )
+        };
+        let for_variable_idents = quote! {
+            #new_ident::#variant_ident(s) => s.as_ref()
+                .map(|x| x.variable_identifiers())
+                .unwrap_or_default()
+        };
+        let for_function_idents = quote! {
+            #new_ident::#variant_ident(s) => s.as_ref()
+                .map(|x| x.function_identifiers())
+                .unwrap_or_default()
+        };
 
         FieldTokensLivecode {
             for_struct,
