@@ -276,7 +276,7 @@ impl GenFinal for FieldTokensNestEdit {
 
         // we'll just use the trait! (unless it's none, then we bail
         let for_nestedit = match idents.how_to_control_this() {
-            HowToControlThis::WithNone(_) => quote! {
+            HowToControlThis::WithNone => quote! {
                 #name: self.#name.clone()
             },
             _ => quote! {
@@ -307,7 +307,7 @@ impl GenFinal for FieldTokensNestEdit {
 
         // we'll just use the trait! (unless it's none, then we bail
         let for_nestedit = match idents.how_to_control_this() {
-            HowToControlThis::WithNone(_) => quote! {
+            HowToControlThis::WithNone => quote! {
                 #name: self.#name.clone()
             },
             _ => quote! {

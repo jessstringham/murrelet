@@ -76,34 +76,34 @@ where
 
                 match field.how_to_control_this() {
                     // leave this field alone (useful for String and HashMaps)
-                    HowToControlThis::WithNone(_) => {
+                    HowToControlThis::WithNone => {
                         if DEBUG_THIS {
                             println!("-> from_noop_struct");
                         }
                         Self::from_noop_struct(idents)
                     }
                     // creating with a set type
-                    HowToControlThis::WithType(_, _) => {
+                    HowToControlThis::WithType(_) => {
                         if DEBUG_THIS {
                             println!("-> from_type_struct");
                         }
                         Self::from_type_struct(idents)
                     }
                     // creating a Vec<Something>
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
                         if DEBUG_THIS {
                             println!("-> from_recurse_struct_vec");
                         }
                         Self::from_recurse_struct_vec(idents)
                     }
                     // creating a : Something in livecode
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                         if DEBUG_THIS {
                             println!("-> from_recurse_struct_struct");
                         }
                         Self::from_recurse_struct_struct(idents)
                     }
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                         if DEBUG_THIS {
                             println!("-> from_recurse_struct_lazy");
                         }
@@ -111,13 +111,13 @@ where
                     }
 
                     // dealing with UnitCell<something>
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::UnitCell) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::UnitCell) => {
                         if DEBUG_THIS {
                             println!("-> from_recurse_struct_unitcell");
                         }
                         Self::from_recurse_struct_unitcell(idents)
                     }
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Option) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::Option) => {
                         if DEBUG_THIS {
                             println!("-> from_option");
                         }
@@ -206,28 +206,28 @@ where
 
                 match field.how_to_control_this() {
                     // don't change anything
-                    // HowToControlThis::WithNone(_) => Self::from_noop_struct(idents),
+                    // HowToControlThis::WithNone => Self::from_noop_struct(idents),
                     // creating with a set type
-                    HowToControlThis::WithType(_, _) => {
+                    HowToControlThis::WithType(_) => {
                         if DEBUG_THIS {
                             println!("-> from_newtype_struct");
                         }
                         Self::from_newtype_struct(idents, name.clone())
                     }
                     // creating a Vec<Something>
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
                         if DEBUG_THIS {
                             println!("-> from_newtype_recurse_struct_vec");
                         }
                         Self::from_newtype_recurse_struct_vec(idents)
                     }
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                         if DEBUG_THIS {
                             println!("-> from_newtype_struct_struct");
                         }
                         Self::from_newtype_struct_struct(idents, name.clone())
                     }
-                    HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                    HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                         if DEBUG_THIS {
                             println!("-> from_newtype_struct_struct");
                         }
@@ -235,9 +235,9 @@ where
                     }
 
                     // creating a : Something in livecode
-                    // HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => Self::from_recurse_struct_struct(idents),
+                    // HowToControlThis::WithRecurse(RecursiveControlType::Struct) => Self::from_recurse_struct_struct(idents),
                     // dealing with UnitCell<something>
-                    // HowToControlThis::WithRecurse(_, RecursiveControlType::UnitCell) => Self::from_recurse_struct_unitcell(idents),
+                    // HowToControlThis::WithRecurse(RecursiveControlType::UnitCell) => Self::from_recurse_struct_unitcell(idents),
                     _ => panic!(
                         "{:?} for this kind isn't implemented yet",
                         field.how_to_control_this()
@@ -384,12 +384,12 @@ impl LivecodeFieldReceiver {
                     if is_lazy {
                         if matches!(
                             how,
-                            HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy)
+                            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
                         ) {
                             quote! { #[serde(default)] }
                         } else {
                             let serde_func = match &how {
-                                HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                                HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
                                     // weird and hardcoded for things like Lazy Vec2, which get turned into Vec<f32>...
                                     serde.from_control_type(ControlType::LazyNodeF32, true)
                                 }
@@ -516,7 +516,7 @@ impl StructIdents {
 
     pub(crate) fn how_to_control_this_is_none(&self) -> bool {
         match self.how_to_control_this() {
-            HowToControlThis::WithNone(_) => true,
+            HowToControlThis::WithNone => true,
             _ => false,
         }
     }
@@ -561,71 +561,49 @@ pub(crate) enum RecursiveControlType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum OverrideOrInferred {
-    Override,
-    Inferred,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum HowToControlThis {
-    WithType(OverrideOrInferred, ControlType),
-    WithNone(OverrideOrInferred),
-    WithRecurse(OverrideOrInferred, RecursiveControlType),
+    WithType(ControlType),
+    WithNone,
+    WithRecurse(RecursiveControlType),
 }
 impl HowToControlThis {
     pub(crate) fn get_control_type(&self) -> ControlType {
         match self {
-            HowToControlThis::WithType(_, x) => *x,
-            HowToControlThis::WithNone(_) => panic!("control none"),
-            HowToControlThis::WithRecurse(_, _) => panic!("control recurse"),
+            HowToControlThis::WithType(x) => *x,
+            HowToControlThis::WithNone => panic!("control none"),
+            HowToControlThis::WithRecurse(_) => panic!("control recurse"),
         }
     }
 
     pub(crate) fn needs_to_be_evaluated(&self) -> bool {
         match self {
-            HowToControlThis::WithType(_, _) => true,
-            HowToControlThis::WithRecurse(_, _) => true,
-            HowToControlThis::WithNone(_) => false,
+            HowToControlThis::WithType(_) => true,
+            HowToControlThis::WithRecurse(_) => true,
+            HowToControlThis::WithNone => false,
         }
     }
 
     pub(crate) fn is_lazy(&self) -> bool {
         match self {
-            HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => true,
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => true,
             _ => false,
         }
     }
 
     pub(crate) fn from_kind(value: &str) -> HowToControlThis {
         match value {
-            "none" => HowToControlThis::WithNone(OverrideOrInferred::Override),
-            "bool" => HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::F32),
-            "f32" => HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::F32),
-            "f32;2" => HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::F32_2),
-            "[f32;2]" => {
-                HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::F32_2)
-            }
-            "color" => HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::Color),
-            "color unclamped" => HowToControlThis::WithType(
-                OverrideOrInferred::Override,
-                ControlType::ColorUnclamped,
-            ),
-            "s" => HowToControlThis::WithRecurse(
-                OverrideOrInferred::Override,
-                RecursiveControlType::Struct,
-            ),
-            "v" => HowToControlThis::WithRecurse(
-                OverrideOrInferred::Override,
-                RecursiveControlType::Vec,
-            ),
-            "a" => HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::AnglePi),
-            // "expr" => {
-            //     HowToControlThis::WithType(OverrideOrInferred::Override, ControlType::EvalExpr)
-            // }
-            "unitcell" => HowToControlThis::WithRecurse(
-                OverrideOrInferred::Override,
-                RecursiveControlType::UnitCell,
-            ),
+            "none" => HowToControlThis::WithNone,
+            "bool" => HowToControlThis::WithType(ControlType::F32),
+            "f32" => HowToControlThis::WithType(ControlType::F32),
+            "f32;2" => HowToControlThis::WithType(ControlType::F32_2),
+            "[f32;2]" => HowToControlThis::WithType(ControlType::F32_2),
+            "color" => HowToControlThis::WithType(ControlType::Color),
+            "color unclamped" => HowToControlThis::WithType(ControlType::ColorUnclamped),
+            "s" => HowToControlThis::WithRecurse(RecursiveControlType::Struct),
+            "v" => HowToControlThis::WithRecurse(RecursiveControlType::Vec),
+            "a" => HowToControlThis::WithType(ControlType::AnglePi),
+            // "expr" => HowToControlThis::WithType(ControlType::EvalExpr),
+            "unitcell" => HowToControlThis::WithRecurse(RecursiveControlType::UnitCell),
             _ => {
                 panic!("parsing kind, {:?} not none, bool, f32, f32;2, s", value)
             }
@@ -634,52 +612,31 @@ impl HowToControlThis {
 
     pub(crate) fn from_type_str(value: &str) -> HowToControlThis {
         match value {
-            "f32" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32),
-            "f64" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32),
-            "usize" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32),
-            "u32" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32),
-            "u64" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32),
-            "u8" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32),
-            "i32" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32),
-            "bool" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::Bool),
-            "Vec2" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32_2),
-            "Vec" => HowToControlThis::WithRecurse(
-                OverrideOrInferred::Inferred,
-                RecursiveControlType::Vec,
-            ),
-            "Option" => HowToControlThis::WithRecurse(
-                OverrideOrInferred::Inferred,
-                RecursiveControlType::Option,
-            ),
-            "Vec3" => HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::F32_3),
-            "String" => HowToControlThis::WithNone(OverrideOrInferred::Inferred),
+            "f32" => HowToControlThis::WithType(ControlType::F32),
+            "f64" => HowToControlThis::WithType(ControlType::F32),
+            "usize" => HowToControlThis::WithType(ControlType::F32),
+            "u32" => HowToControlThis::WithType(ControlType::F32),
+            "u64" => HowToControlThis::WithType(ControlType::F32),
+            "u8" => HowToControlThis::WithType(ControlType::F32),
+            "i32" => HowToControlThis::WithType(ControlType::F32),
+            "bool" => HowToControlThis::WithType(ControlType::Bool),
+            "Vec2" => HowToControlThis::WithType(ControlType::F32_2),
+            "Vec" => HowToControlThis::WithRecurse(RecursiveControlType::Vec),
+            "Option" => HowToControlThis::WithRecurse(RecursiveControlType::Option),
+            "Vec3" => HowToControlThis::WithType(ControlType::F32_3),
+            "String" => HowToControlThis::WithNone,
             // some special types from this library
-            "MurreletColor" => {
-                HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::Color)
-            }
-            "AdditionalContextNode" => HowToControlThis::WithNone(OverrideOrInferred::Inferred),
-            "UnitCells" => HowToControlThis::WithRecurse(
-                OverrideOrInferred::Inferred,
-                RecursiveControlType::UnitCell,
-            ),
-            "LazyNodeF32" => {
-                HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::LazyNodeF32)
-            }
-            "AnglePi" => {
-                HowToControlThis::WithType(OverrideOrInferred::Inferred, ControlType::AnglePi)
-            }
-            // _ => HowToControlThis::WithNone(OverrideOrInferred::Inferred)
+            "MurreletColor" => HowToControlThis::WithType(ControlType::Color),
+            "AdditionalContextNode" => HowToControlThis::WithNone,
+            "UnitCells" => HowToControlThis::WithRecurse(RecursiveControlType::UnitCell),
+            "LazyNodeF32" => HowToControlThis::WithType(ControlType::LazyNodeF32),
+            "AnglePi" => HowToControlThis::WithType(ControlType::AnglePi),
+            // _ => HowToControlThis::WithNone,
             _ => {
                 if value.starts_with("Lazy") {
-                    HowToControlThis::WithRecurse(
-                        OverrideOrInferred::Inferred,
-                        RecursiveControlType::StructLazy,
-                    )
+                    HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
                 } else {
-                    HowToControlThis::WithRecurse(
-                        OverrideOrInferred::Inferred,
-                        RecursiveControlType::Struct,
-                    )
+                    HowToControlThis::WithRecurse(RecursiveControlType::Struct)
                 }
             }
         }
@@ -816,7 +773,7 @@ impl DataFromType {
         let is_vec = |level: &IdentWithHowTo| {
             matches!(
                 level.how_to,
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Vec)
+                HowToControlThis::WithRecurse(RecursiveControlType::Vec)
             )
         };
 

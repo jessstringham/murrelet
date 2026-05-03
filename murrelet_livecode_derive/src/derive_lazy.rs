@@ -524,13 +524,13 @@ impl GenFinal for FieldTokensLazy {
 
         let for_struct = {
             let internal_type = match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => LazyFieldType(*c).to_token(),
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithType(c) => LazyFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
@@ -552,7 +552,7 @@ impl GenFinal for FieldTokensLazy {
         };
         let for_world = {
             match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => {
+                HowToControlThis::WithType(c) => {
                     // local variable...
                     let x_ident = syn::Ident::new("x", idents.name().span());
                     let c_expr = LazyFieldType(*c).for_world_func(
@@ -570,7 +570,7 @@ impl GenFinal for FieldTokensLazy {
                         }
                     }
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     quote! {
                         #name: {
                             let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.#name, ctx)?;
@@ -581,7 +581,7 @@ impl GenFinal for FieldTokensLazy {
                         }
                     }
                 }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name: self.#name.clone()}
@@ -620,17 +620,17 @@ impl GenFinal for FieldTokensLazy {
 
         let for_struct = {
             let new_ty = match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => LazyFieldType(*c).to_token(),
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithType(c) => LazyFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(internal_type);
                     quote! {#name}
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let internal_type = parsed_type_info.internal_type();
                     quote! {#internal_type}
                 }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(internal_type);
                     quote! {#name}
@@ -642,7 +642,7 @@ impl GenFinal for FieldTokensLazy {
         };
         let for_world = {
             match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => {
+                HowToControlThis::WithType(c) => {
                     let x_ident = syn::Ident::new("x", proc_macro2::Span::call_site());
                     let c_expr = LazyFieldType(*c).for_world_func(
                         x_ident.clone(),
@@ -659,7 +659,7 @@ impl GenFinal for FieldTokensLazy {
                         }
                     }
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     quote! {
                         {
                             let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.0, ctx)?;
@@ -670,7 +670,7 @@ impl GenFinal for FieldTokensLazy {
                         }
                     }
                 }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     quote! {self.0.clone()}
                 }
                 e => panic!("lazy3 for_world need vec something {:?}", e),
@@ -697,13 +697,13 @@ impl GenFinal for FieldTokensLazy {
 
         let for_struct = {
             let new_ty = match how_to_control_internal {
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = update_to_lazy_ident(internal_type);
                     quote! {murrelet_livecode::unitcells::UnitCells<#name>}
                 }
 
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = internal_type;
                     quote! {murrelet_livecode::unitcells::UnitCells<#name>}

@@ -623,31 +623,31 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct: TokenStream2 = {
             let src_type = match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => {
+                HowToControlThis::WithType(c) => {
                     if inner_is_lazy_struct {
                         LivecodeFieldType(*c).to_token_lazy()
                     } else {
                         LivecodeFieldType(*c).to_token()
                     }
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let original_internal_type = parsed_type_info.internal_type();
 
                     catch_special_types(original_internal_type)
                 }
-                // HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                // HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
                 //     // for things like Lazy Vec2...
                 //     println!("parsed_type_info {:?}", parsed_type_info);
                 //     let original_internal_type = parsed_type_info.internal_type();
                 //     let lazy_inner = Self::new_ident(original_internal_type.clone());
                 //     quote! { Vec<#lazy_inner> }
                 // }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     let target_type = parsed_type_info.internal_type();
                     quote! {#target_type}
                 }
@@ -935,13 +935,13 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let new_ty = match how_to_control_internal {
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = update_to_control_ident(internal_type);
                     quote! {#name}
                 }
 
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = update_to_control_ident(internal_type);
                     quote! {#name}
@@ -1057,18 +1057,18 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let internal_type = match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => LivecodeFieldType(*c).to_token(),
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithType(c) => LivecodeFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let original_internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let original_internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     let original_internal_type = parsed_type_info.internal_type();
                     quote! {#original_internal_type}
                 }
