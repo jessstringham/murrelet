@@ -72,33 +72,42 @@ impl LazyFieldType {
 
     fn for_world(&self, idents: StructIdents) -> TokenStream2 {
         let name = idents.name();
-        let orig_ty = idents.orig_ty();
+        let rest = self.for_world_target(
+            quote!(self.#name),
+            idents.orig_ty(),
+            idents.data.f32min,
+            idents.data.f32max,
+        );
+        quote! { #name: #rest }
+    }
+
+    // V(prim) for_world. target is the place to read (`self.foo` / `s`).
+    fn for_world_target(
+        &self,
+        target: TokenStream2,
+        orig_ty: syn::Type,
+        f32min: Option<f32>,
+        f32max: Option<f32>,
+    ) -> TokenStream2 {
         match self.0 {
-            ControlType::F32_2 => {
-                quote! { #name: self.#name.eval_lazy(ctx)? }
-            }
-            ControlType::F32_3 => {
-                quote! { #name: self.#name.eval_lazy(ctx)? }
-            }
-            ControlType::Color => {
-                quote! { #name: self.#name.eval_lazy(ctx)? }
-            }
-            ControlType::Bool => quote! {#name: self.#name.eval_lazy(ctx)? > 0.0},
-            ControlType::LazyNodeF32 => quote! {#name: self.#name.add_more_defs(ctx)? },
+            ControlType::F32_2 => quote! { #target.eval_lazy(ctx)? },
+            ControlType::F32_3 => quote! { #target.eval_lazy(ctx)? },
+            ControlType::Color => quote! { #target.eval_lazy(ctx)? },
+            ControlType::Bool => quote! { #target.eval_lazy(ctx)? > 0.0 },
+            ControlType::LazyNodeF32 => quote! { #target.add_more_defs(ctx)? },
             ControlType::AnglePi => {
-                quote! {#name: murrelet_common::AnglePi::new(self.#name.eval_lazy(ctx)?)}
+                quote! { murrelet_common::AnglePi::new(#target.eval_lazy(ctx)?) }
             }
             _ => {
-                // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
-                let f32_out = match (idents.data.f32min, idents.data.f32max) {
-                    (None, None) => quote! {self.#name.eval_lazy(ctx)?},
-                    (None, Some(max)) => quote! {f32::min(self.#name.eval_lazy(ctx)?, #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.#name.eval_lazy(ctx)?)},
+                let f32_out = match (f32min, f32max) {
+                    (None, None) => quote! { #target.eval_lazy(ctx)? },
+                    (None, Some(max)) => quote! { f32::min(#target.eval_lazy(ctx)?, #max) },
+                    (Some(min), None) => quote! { f32::max(#min, #target.eval_lazy(ctx)?) },
                     (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, self.#name.eval_lazy(ctx)?), #max)}
+                        quote! { f32::min(f32::max(#min, #target.eval_lazy(ctx)?), #max) }
                     }
                 };
-                quote! {#name: #f32_out as #orig_ty}
+                quote! { #f32_out as #orig_ty }
             }
         }
     }
@@ -192,6 +201,34 @@ pub(crate) struct FieldTokensLazy {
     pub(crate) for_struct: TokenStream2,
     pub(crate) for_world: TokenStream2,
     pub(crate) for_more_defs: TokenStream2,
+}
+
+// Shared arm-builders, lazy side. target_ref: passed to lazy_expand_vec_list
+// (`&self.foo` / `s` / `&self.0`). target_iter: receives `.iter()`
+// (`self.foo` / `s` / `self.0`). inner_eval: closure body for each expanded
+// element (`x.eval_lazy(ctx)` for Struct payloads, the LazyFieldType
+// for_world_func output for primitives).
+fn lazy_vec_for_world_expr(
+    target_ref: TokenStream2,
+    inner_eval: TokenStream2,
+) -> TokenStream2 {
+    quote! {
+        {
+            let expanded = murrelet_livecode::types::lazy_expand_vec_list(#target_ref, ctx)?;
+            expanded
+                .into_iter()
+                .map(|x| #inner_eval)
+                .collect::<Result<Vec<_>, _>>()?
+        }
+    }
+}
+
+fn lazy_vec_for_more_defs_expr(target_iter: TokenStream2) -> TokenStream2 {
+    quote! {
+        #target_iter.iter()
+            .map(|item| item.with_more_defs(ctx))
+            .collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
+    }
 }
 impl GenFinal for FieldTokensLazy {
     fn make_newtype_struct_final(
@@ -526,33 +563,18 @@ impl GenFinal for FieldTokensLazy {
         let for_world = {
             match how_to_control_internal {
                 HowToControlThis::WithType(c) => {
-                    // local variable...
                     let x_ident = syn::Ident::new("x", idents.name().span());
                     let c_expr = LazyFieldType(*c).for_world_func(
                         x_ident.clone(),
                         idents.data.f32min,
                         idents.data.f32max,
                     );
-                    quote! {
-                        #name: {
-                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.#name, ctx)?;
-                            expanded
-                                .into_iter()
-                                .map(|#x_ident| #c_expr)
-                                .collect::<Result<Vec<_>, _>>()?
-                        }
-                    }
+                    let expr = lazy_vec_for_world_expr(quote!(&self.#name), c_expr);
+                    quote! { #name: #expr }
                 }
                 HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
-                    quote! {
-                        #name: {
-                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.#name, ctx)?;
-                            expanded
-                                .into_iter()
-                                .map(|x| x.eval_lazy(ctx))
-                                .collect::<Result<Vec<_>, _>>()?
-                        }
-                    }
+                    let expr = lazy_vec_for_world_expr(quote!(&self.#name), quote!(x.eval_lazy(ctx)));
+                    quote! { #name: #expr }
                 }
                 HowToControlThis::WithNone => {
                     let target_type = parsed_type_info.internal_type();
@@ -561,21 +583,11 @@ impl GenFinal for FieldTokensLazy {
                 }
                 e => panic!("lazy2 need vec something {:?}", e),
             }
-
-            // match wrapper {
-            //     VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
-            //     VecDepth::Vec => {
-            //         quote! {#name: self.#name.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
-            //     }
-            //     VecDepth::VecVec => todo!("maybe support vec<vec<>>.."),
-            // }
         };
 
-        let for_more_defs = quote! {
-            #name: self.#name
-                .iter()
-                .map(|item| item.with_more_defs(ctx))
-                .collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
+        let for_more_defs = {
+            let expr = lazy_vec_for_more_defs_expr(quote!(self.#name));
+            quote! { #name: #expr }
         };
 
         FieldTokensLazy {
@@ -613,44 +625,24 @@ impl GenFinal for FieldTokensLazy {
 
             quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::WrappedLazyType<#new_ty>>>}
         };
-        let for_world = {
-            match how_to_control_internal {
-                HowToControlThis::WithType(c) => {
-                    let x_ident = syn::Ident::new("x", proc_macro2::Span::call_site());
-                    let c_expr = LazyFieldType(*c).for_world_func(
-                        x_ident.clone(),
-                        idents.data.f32min,
-                        idents.data.f32max,
-                    );
-                    quote! {
-                        {
-                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.0, ctx)?;
-                            expanded
-                                .into_iter()
-                                .map(|#x_ident| #c_expr)
-                                .collect::<Result<Vec<_>, _>>()?
-                        }
-                    }
-                }
-                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
-                    quote! {
-                        {
-                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.0, ctx)?;
-                            expanded
-                                .into_iter()
-                                .map(|x| x.eval_lazy(ctx))
-                                .collect::<Result<Vec<_>, _>>()?
-                        }
-                    }
-                }
-                HowToControlThis::WithNone => {
-                    quote! {self.0.clone()}
-                }
-                e => panic!("lazy3 for_world need vec something {:?}", e),
+        let for_world = match how_to_control_internal {
+            HowToControlThis::WithType(c) => {
+                let x_ident = syn::Ident::new("x", proc_macro2::Span::call_site());
+                let c_expr = LazyFieldType(*c).for_world_func(
+                    x_ident.clone(),
+                    idents.data.f32min,
+                    idents.data.f32max,
+                );
+                lazy_vec_for_world_expr(quote!(&self.0), c_expr)
             }
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                lazy_vec_for_world_expr(quote!(&self.0), quote!(x.eval_lazy(ctx)))
+            }
+            HowToControlThis::WithNone => quote! {self.0.clone()},
+            e => panic!("lazy3 for_world need vec something {:?}", e),
         };
-        let for_more_defs = {
-            quote! { self.0.iter().map(|x| x.with_more_defs(ctx)).collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()? }
+        let for_more_defs = quote! {
+            self.0.iter().map(|x| x.with_more_defs(ctx)).collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
         };
 
         FieldTokensLazy {
@@ -810,18 +802,9 @@ impl FieldTokensLazy {
         let ctrl = idents.single_inner_how_to().get_control_type();
         let new_type = LazyFieldType(ctrl).to_token();
 
-        // Mirror LazyFieldType::for_world but bind to `s` instead of `self.#name`.
-        let inner_world_expr = match ctrl {
-            ControlType::F32_2 | ControlType::F32_3 | ControlType::Color => {
-                quote! { s.eval_lazy(ctx)? }
-            }
-            ControlType::Bool => quote! { s.eval_lazy(ctx)? > 0.0 },
-            ControlType::LazyNodeF32 => quote! { s.add_more_defs(ctx)? },
-            ControlType::AnglePi => {
-                quote! { murrelet_common::AnglePi::new(s.eval_lazy(ctx)?) }
-            }
-            _ => quote! { s.eval_lazy(ctx)? as #orig_ty },
-        };
+        // No field metadata on enum variants -> no f32min/f32max clamping.
+        let inner_world_expr =
+            LazyFieldType(ctrl).for_world_target(quote!(s), orig_ty, None, None);
 
         let for_struct = quote! { #variant_ident(#new_type) };
         let for_world = quote! {
@@ -860,24 +843,17 @@ impl FieldTokensLazy {
             e => panic!("(lazy, enum variant Vec) inner not supported: {:?}", e),
         };
 
+        let world_expr = lazy_vec_for_world_expr(quote!(s), quote!(x.eval_lazy(ctx)));
+        let more_defs_expr = lazy_vec_for_more_defs_expr(quote!(s));
+
         let for_struct = quote! {
             #variant_ident(Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::WrappedLazyType<#inner_type>>>)
         };
         let for_world = quote! {
-            #new_enum_ident::#variant_ident(s) => #name::#variant_ident({
-                let expanded = murrelet_livecode::types::lazy_expand_vec_list(s, ctx)?;
-                expanded
-                    .into_iter()
-                    .map(|x| x.eval_lazy(ctx))
-                    .collect::<Result<Vec<_>, _>>()?
-            })
+            #new_enum_ident::#variant_ident(s) => #name::#variant_ident(#world_expr)
         };
         let for_more_defs = quote! {
-            #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(
-                s.iter()
-                    .map(|item| item.with_more_defs(ctx))
-                    .collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
-            )
+            #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(#more_defs_expr)
         };
 
         FieldTokensLazy {

@@ -336,6 +336,26 @@ impl NestEditable for LazyVec2 {
     }
 }
 
+impl NestEditable for LazyVec3 {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone()
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("LazyVec3".to_owned()))
+    }
+}
+
+impl NestEditable for LazyMurreletColor {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone()
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("LazyMurreletColor".to_owned()))
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyVec2(Vec<ControlLazyNodeF32>);
