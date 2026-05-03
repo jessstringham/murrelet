@@ -638,10 +638,43 @@ impl GenFinal for FieldTokensLazy {
                 e => panic!("lazy3 need vec something {:?}", e),
             };
 
-            quote! {Vec<#new_ty>}
+            quote! {Vec<murrelet_livecode::types::LazyControlVecElement<murrelet_livecode::lazy::WrappedLazyType<#new_ty>>>}
         };
         let for_world = {
-            quote! {self.0.iter().map(|x| x.eval_lazy(ctx)).collect::<Result<Vec<_>, _>>()?}
+            match how_to_control_internal {
+                HowToControlThis::WithType(_, c) => {
+                    let x_ident = syn::Ident::new("x", proc_macro2::Span::call_site());
+                    let c_expr = LazyFieldType(*c).for_world_func(
+                        x_ident.clone(),
+                        idents.data.f32min,
+                        idents.data.f32max,
+                    );
+                    quote! {
+                        {
+                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.0, ctx)?;
+                            expanded
+                                .into_iter()
+                                .map(|#x_ident| #c_expr)
+                                .collect::<Result<Vec<_>, _>>()?
+                        }
+                    }
+                }
+                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                    quote! {
+                        {
+                            let expanded = murrelet_livecode::types::lazy_expand_vec_list(&self.0, ctx)?;
+                            expanded
+                                .into_iter()
+                                .map(|x| x.eval_lazy(ctx))
+                                .collect::<Result<Vec<_>, _>>()?
+                        }
+                    }
+                }
+                HowToControlThis::WithNone(_) => {
+                    quote! {self.0.clone()}
+                }
+                e => panic!("lazy3 for_world need vec something {:?}", e),
+            }
         };
         let for_more_defs = {
             quote! { self.0.iter().map(|x| x.with_more_defs(ctx)).collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()? }
