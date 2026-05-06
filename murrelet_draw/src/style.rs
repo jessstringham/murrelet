@@ -667,8 +667,16 @@ impl MurreletPathAnnotation {
         &self.0
     }
 
-    fn new_many(annotations: Vec<(String, String)>) -> MurreletPathAnnotation {
+    pub fn new_many(annotations: Vec<(String, String)>) -> MurreletPathAnnotation {
         Self(annotations)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn add(&mut self, key: String, val: String) {
+        self.0.push((key, val));
     }
 }
 

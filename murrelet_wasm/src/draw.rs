@@ -73,9 +73,22 @@ impl WebSDrawCtx {
             let style = shape.style();
             match shape {
                 MixedDrawableShape::Shape(shape) => {
+                    let annotations = shape.annotations();
+                    let ctx = self.with_svg_style(style.to_style());
                     for cd in shape.curves() {
                         let path = MurreletPath::curve(cd.clone()).transform_with_mat4_after(self.transform());
-                        self.with_svg_style(style.to_style()).draw_curve_path(path);
+                        if annotations.is_empty() {
+                            ctx.draw_curve_path(path);
+                        } else {
+                            ctx.svg_draw.add_styled_path(
+                                "",
+                                StyledPath::new_from_path_with_multiple_annotations(
+                                    path,
+                                    ctx.svg_style().clone(),
+                                    annotations.vals().clone(),
+                                ),
+                            );
+                        }
                     }
                 }
                 MixedDrawableShape::Text(text) => {
