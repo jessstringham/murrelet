@@ -4,12 +4,15 @@ use crate::{
     drawable::{DrawnShape, ToDrawnShape},
     tesselate::ToLyonPath,
 };
-use geo::{BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolygon};
+use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolygon};
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
 use murrelet_common::{PointToPoint, SpotOnCurve};
 use murrelet_livecode::types::LivecodeResult;
+
+
+
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
     geo::MultiPolygon::new(vec![line_to_polygon(curves)])
@@ -358,6 +361,10 @@ impl Masker {
         let line = Line::new(p2p.start().to_coord(), p2p.end().to_coord());
 
         self.mask.intersects(&line)
+    }
+
+    pub fn difference_area(&self, other: &Masker) -> f32 {
+        self.mask.difference(&other.mask).unsigned_area() as f32
     }
 
     // pub fn intersect_styled_shapes(
