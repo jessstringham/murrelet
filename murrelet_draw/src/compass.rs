@@ -12,12 +12,13 @@ use murrelet_gui::ValueGUI;
 use murrelet_gui::make_gui_angle;
 use murrelet_gui::make_gui_vec2;
 use murrelet_livecode_derive::Livecode;
+use serde::Serialize;
 
 use crate::cubic::CubicBezier;
 use crate::curve_drawer::ToCurveSegment;
 use crate::curve_drawer::{CurveArc, CurveDrawer, CurvePoints, CurveSegment};
 
-#[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Copy, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub struct CurveStart {
     #[murrelet_gui(func = "make_gui_vec2")]
     loc: Vec2,
@@ -38,7 +39,7 @@ fn empty_string() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub struct CompassDir {
     #[murrelet_gui(func = "make_gui_angle")]
     pub angle_pi: AnglePi,
@@ -60,7 +61,7 @@ impl CompassDir {
     }
 }
 
-#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub struct CompassArc {
     pub radius: f32,
     #[murrelet_gui(func = "make_gui_angle")]
@@ -73,7 +74,7 @@ pub struct CompassArc {
     pub label: String,
 }
 
-#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub struct CompassBezier {
     dist: f32,
     #[murrelet_gui(func = "make_gui_angle")]
@@ -85,7 +86,7 @@ pub struct CompassBezier {
     pub label: String,
 }
 
-#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub struct CompassLine {
     pub length: f32, // how far should we head in the current direction
     #[livecode(serde_default = "murrelet_livecode::livecode::empty_string")]
@@ -97,7 +98,7 @@ pub fn make_gui_vec_vec2() -> MurreletGUISchema {
     MurreletGUISchema::list(MurreletGUISchema::Val(ValueGUI::Vec2))
 }
 
-#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub struct CompassAbsPoints {
     #[lerpable(func = "lerpify_vec_vec2")]
     #[murrelet_gui(func = "make_gui_vec_vec2")]
@@ -107,7 +108,7 @@ pub struct CompassAbsPoints {
     label: String,
 }
 
-#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub enum CompassAction {
     Angle(CompassDir), // abs
     Arc(CompassArc),
@@ -427,7 +428,7 @@ impl InteractiveCompassBuilder {
     }
 }
 
-#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
+#[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable, Serialize)]
 pub struct MurreletCompass {
     start: CurveStart,
     dirs: Vec<CompassAction>,
