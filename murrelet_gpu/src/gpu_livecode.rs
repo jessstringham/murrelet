@@ -10,8 +10,26 @@ use crate::{
     window::GraphicsWindowConf,
 };
 
+pub trait UniformsTarget {
+    fn update_uniforms(&self, c: &GraphicsWindowConf, more_info: [f32; 4]);
+    fn update_uniforms_other_tuple(&self, c: &GraphicsWindowConf, more_info: ([f32; 4], [f32; 4]));
+}
+
+impl<V: GraphicsVertex> UniformsTarget for GraphicsRefCustom<V> {
+    fn update_uniforms(&self, c: &GraphicsWindowConf, more_info: [f32; 4]) {
+        GraphicsRefCustom::<V>::update_uniforms(self, c, more_info)
+    }
+    fn update_uniforms_other_tuple(&self, c: &GraphicsWindowConf, more_info: ([f32; 4], [f32; 4])) {
+        GraphicsRefCustom::<V>::update_uniforms_other_tuple(self, c, more_info)
+    }
+}
+
 pub trait ControlGraphics {
     fn more_info_other_tuple(&self) -> ([f32; 4], [f32; 4]);
+
+    fn update_graphics_ref(&self, c: &GraphicsWindowConf, target: &dyn UniformsTarget) {
+        target.update_uniforms_other_tuple(c, self.more_info_other_tuple());
+    }
 }
 
 impl ControlGraphics for Vec<f32> {
@@ -83,8 +101,7 @@ impl<VertexKind: GraphicsVertex> ControlGraphicsRef<VertexKind> {
     }
 
     pub fn update_graphics(&self, c: &GraphicsWindowConf) {
-        self.graphics
-            .update_uniforms_other_tuple(c, self.control.more_info_other_tuple());
+        self.control.update_graphics_ref(c, &self.graphics);
     }
 }
 
