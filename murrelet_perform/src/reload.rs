@@ -15,7 +15,7 @@ use std::path::Path;
 use crate::perform::ControlAppConfig;
 
 fn murrelet_time_from_system(s: SystemTime) -> MurreletTime {
-    MurreletTime::from_epoch_time(s.duration_since(UNIX_EPOCH).expect("wat").as_millis())
+    MurreletTime::from_epoch_time(s.duration_since(UNIX_EPOCH).expect("wat").as_micros())
 }
 
 // hmm, a lot of this deals with file systems, so there is probably a way to
@@ -100,7 +100,7 @@ pub trait LiveCoderLoader: Sized {
                 modified_time_s
                     .duration_since(UNIX_EPOCH)
                     .expect("wat")
-                    .as_millis(),
+                    .as_micros(),
             );
 
             if modified_time > latest_time {

@@ -42,7 +42,7 @@ use wasm_bindgen::prelude::*;
 // since i can't use SystemTime in wasm.
 // this isn't as clever with duration vs systemtime, but it gets the job done..
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MurreletTime(u128); // millis
+pub struct MurreletTime(u128); // micros
 
 impl MurreletTime {
     pub fn now() -> Self {
@@ -58,7 +58,7 @@ impl MurreletTime {
     }
 
     pub fn in_x_ms(x: u128) -> Self {
-        MurreletTime(epoch_time_ms() + x)
+        MurreletTime(epoch_time_us() + x * 1000)
     }
 
     pub fn in_one_sec() -> Self {
@@ -379,8 +379,8 @@ impl Rect {
 
     pub fn pad(&self, amount: f32) -> Self {
         Self {
-            xy: self.xy + 2.0 * Vec2::ONE * amount,
-            wh: self.wh,
+            xy: self.xy,
+            wh: self.wh + 2.0 * Vec2::ONE * amount,
         }
     }
 
@@ -398,10 +398,10 @@ impl Rect {
             && self.bottom() < other.top();
 
         if has_overlap {
-            let new_left = self.left().min(other.left());
+            let new_left = self.left().max(other.left());
             let new_right = self.right().min(other.right());
             let new_top = self.top().min(other.top());
-            let new_bottom = self.bottom().min(other.bottom());
+            let new_bottom = self.bottom().max(other.bottom());
 
             let new_wh = vec2(new_right - new_left, new_top - new_bottom);
 

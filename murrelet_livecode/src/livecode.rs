@@ -133,11 +133,11 @@ impl LivecodeToControl<[ControlF32; 3]> for Vec3 {
 
 impl LivecodeToControl<[ControlF32; 4]> for MurreletColor {
     fn to_control(&self) -> [ControlF32; 4] {
-        let [r, g, b, a] = self.into_rgba_components();
+        let [h, s, v, a] = self.into_hsva_components();
         [
-            r.to_control(),
-            g.to_control(),
-            b.to_control(),
+            h.to_control(),
+            s.to_control(),
+            v.to_control(),
             a.to_control(),
         ]
     }
@@ -231,7 +231,7 @@ impl GetLivecodeIdentifiers for ControlF32 {
             ControlF32::Bool(_) => vec![],
             ControlF32::Float(_) => vec![],
             ControlF32::Expr(node) => node
-                .iter_variable_identifiers()
+                .iter_function_identifiers()
                 .dedup()
                 .map(LivecodeFunction::from_str)
                 .collect_vec(),
@@ -405,7 +405,7 @@ impl GetLivecodeIdentifiers for ControlBool {
             ControlBool::Raw(_) => vec![],
             ControlBool::Float(_) => vec![],
             ControlBool::Expr(node) => node
-                .iter_variable_identifiers()
+                .iter_function_identifiers()
                 .dedup()
                 .map(LivecodeFunction::from_str)
                 .collect_vec(),

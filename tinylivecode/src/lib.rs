@@ -159,7 +159,7 @@ impl TinyExpr {
                 }
                 ExprNode::Sqrt => {
                     let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
-                    eval_stack.push(x.fract())?;
+                    eval_stack.push(x.sqrt())?;
                 }
                 ExprNode::Floor => {
                     let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;

@@ -608,7 +608,7 @@ impl HowToControlThis {
     pub(crate) fn from_kind(value: &str) -> HowToControlThis {
         match value {
             "none" => HowToControlThis::WithNone,
-            "bool" => HowToControlThis::WithType(ControlType::F32),
+            "bool" => HowToControlThis::WithType(ControlType::Bool),
             "f32" => HowToControlThis::WithType(ControlType::F32),
             "f32;2" => HowToControlThis::WithType(ControlType::F32_2),
             "[f32;2]" => HowToControlThis::WithType(ControlType::F32_2),
