@@ -7,10 +7,7 @@ use lerpable::Lerpable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    SimpleTransform2d, SimpleTransform2dStep,
-    intersection::{find_intersection_inf, find_intersection_segments, within_segment},
-    transform::TransformVec2,
-    triangulate::DefaultVertex,
+    Circle, SimpleTransform2d, SimpleTransform2dStep, intersection::{find_intersection_inf, find_intersection_segments, within_segment}, transform::TransformVec2, triangulate::DefaultVertex
 };
 
 pub fn a_pi(a: f32) -> AnglePi {
@@ -908,4 +905,48 @@ impl ToVec2 for DefaultVertex {
 
 pub fn sagitta_from_arc_len(radius: f32, central_angle: AnglePi) -> f32 {
     radius * (1.0 - (0.5 * central_angle.angle()).cos())
+}
+
+pub fn solve_circle_line_intersection(
+    c: Circle,
+    line_point: Vec2,
+    line_direction: Vec2,
+) -> Vec<Vec2> {
+    solve_circle_def_line_intersection(c.center, c.radius, line_point, line_direction)
+}
+
+// chatgpt
+pub fn solve_circle_def_line_intersection(
+    center: Vec2,
+    radius: f32,
+    line_point: Vec2,
+    line_direction: Vec2,
+) -> Vec<Vec2> {
+    let a = line_direction.dot(line_direction);
+
+    let delta = line_point - center;
+
+    let b = 2.0 * delta.dot(line_direction);
+
+    let c = delta.dot(delta) - radius * radius;
+
+    let discriminant = b * b - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        vec![]
+    } else {
+        // always take sqrt of a non‐negative number
+        let sqrt_disc = discriminant.max(0.0).sqrt();
+        let t1 = (-b + sqrt_disc) / (2.0 * a);
+        let t2 = (-b - sqrt_disc) / (2.0 * a);
+        let p1 = line_point + t1 * line_direction;
+        let p2 = line_point + t2 * line_direction;
+
+        // if t1≈t2 (tangent), return one, otherwise both
+        if (t1 - t2).abs() < 1e-6 {
+            vec![p1]
+        } else {
+            vec![p1, p2]
+        }
+    }
 }

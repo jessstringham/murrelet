@@ -18,9 +18,9 @@ mod idx;
 mod iter;
 mod metric;
 mod polyline;
+pub mod timecurve;
 mod transform;
 pub mod triangulate;
-pub mod timecurve;
 
 pub use assets::*;
 pub use color::*;
@@ -482,6 +482,54 @@ impl Circle {
     pub fn move_center_mat4(&self, transform: glam::Mat4) -> Circle {
         self.set_center(transform.transform_vec2(self.center))
     }
+
+    pub fn line_intersection(&self, p2p: &PointToPoint) -> Vec<Vec2> {
+        solve_circle_line_intersection(self, p2p.start(), p2p.to_norm_dir())
+    }
+}
+
+pub fn solve_circle_line_intersection(
+    c: &Circle,
+    line_point: Vec2,
+    line_direction: Vec2,
+) -> Vec<Vec2> {
+    solve_circle_def_line_intersection(c.center, c.radius, line_point, line_direction)
+}
+
+// chatgpt
+pub fn solve_circle_def_line_intersection(
+    center: Vec2,
+    radius: f32,
+    line_point: Vec2,
+    line_direction: Vec2,
+) -> Vec<Vec2> {
+    let a = line_direction.dot(line_direction);
+
+    let delta = line_point - center;
+
+    let b = 2.0 * delta.dot(line_direction);
+
+    let c = delta.dot(delta) - radius * radius;
+
+    let discriminant = b * b - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        vec![]
+    } else {
+        // always take sqrt of a non‐negative number
+        let sqrt_disc = discriminant.max(0.0).sqrt();
+        let t1 = (-b + sqrt_disc) / (2.0 * a);
+        let t2 = (-b - sqrt_disc) / (2.0 * a);
+        let p1 = line_point + t1 * line_direction;
+        let p2 = line_point + t2 * line_direction;
+
+        // if t1≈t2 (tangent), return one, otherwise both
+        if (t1 - t2).abs() < 1e-6 {
+            vec![p1]
+        } else {
+            vec![p1, p2]
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -598,10 +646,7 @@ impl CustomVars {
     pub fn dangerous_change_data_in_place(&mut self, values: &[f32]) {
         assert_eq!(self.1.len(), values.len(), "custom var len mismatch");
         self.1.copy_from_slice(values);
-
     }
-
-
 }
 
 // what is sent from apps (like nannou)
@@ -1236,5 +1281,3 @@ impl<T: Clone> MurreletIterHelpers for Vec<T> {
         self
     }
 }
-
-
