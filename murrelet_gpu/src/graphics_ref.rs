@@ -1402,7 +1402,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                 shadow_pass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
                 shadow_pass.set_index_buffer(
                     self.vertex_buffers.index.slice(..),
-                    wgpu::IndexFormat::Uint16,
+                    wgpu::IndexFormat::Uint32,
                 );
                 shadow_pass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
                 drop(shadow_pass);

@@ -341,7 +341,7 @@ impl GenFinal for FieldTokensNestEdit {
         };
 
         let for_nestedit_get_newtype = quote! {
-            _ => self.#name.map(|name| name.nest_get(getter)).unwrap_or(Ok("".to_string()))
+            _ => self.#name.as_ref().map(|name| name.nest_get(getter)).unwrap_or(Ok("".to_string()))
         };
 
         FieldTokensNestEdit {

@@ -92,12 +92,34 @@ impl LivecodeFieldType {
         f32max: Option<f32>,
     ) -> TokenStream2 {
         match self.0 {
-            ControlType::F32_2 => quote! {self.#name.map(|name| name.o(w)?)},
-            ControlType::F32_3 => quote! {self.#name.map(|name| name.o(w)?)},
-            ControlType::Color => quote! {self.#name.map(|name| name.o(w)?)},
-            ControlType::ColorUnclamped => {
-                quote! {self.#name.map(|name| murrelet_livecode::livecode::ControlF32::hsva_unclamped(&name, w)?)}
-            }
+            ControlType::F32_2 => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
+            ControlType::F32_3 => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
+            ControlType::Color => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
+            ControlType::ColorUnclamped => quote! {
+                if let Some(name) = &self.#name {
+                    Some(murrelet_livecode::livecode::ControlF32::hsva_unclamped(name, w)?)
+                } else {
+                    None
+                }
+            },
             ControlType::LazyNodeF32 => quote! {
                 if let Some(name) = &self.#name {
                     let a = name.o(w)?;
@@ -117,22 +139,21 @@ impl LivecodeFieldType {
                 }
             }
             _ => {
-                let f32_out = match (f32min, f32max) {
-                    (None, None) => quote! {
-                        if let Some(name) = &self.#name {
-                            let n = name.o(w)?;
-                            Some(n)
-                        } else {
-                            None
-                        }
-                    },
-                    (None, Some(max)) => quote! {f32::min(self.#name.map(|name| name.o(w)?), #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.#name.map(|name| name.o(w)?))},
-                    (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, self.#name.map(|name| name.o(w)?)), #max)}
-                    }
+                let inner_ty = ident_from_type(&orig_ty).inside_type().to_quote();
+                let clamped = match (f32min, f32max) {
+                    (None, None) => quote! { v },
+                    (None, Some(max)) => quote! { f32::min(v, #max) },
+                    (Some(min), None) => quote! { f32::max(#min, v) },
+                    (Some(min), Some(max)) => quote! { f32::min(f32::max(#min, v), #max) },
                 };
-                quote! {#f32_out as #orig_ty}
+                quote! {
+                    if let Some(name) = &self.#name {
+                        let v = name.o(w)?;
+                        Some(#clamped as #inner_ty)
+                    } else {
+                        None
+                    }
+                }
             }
         }
     }

@@ -330,15 +330,15 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
             CellNeighbor::Hex(HexCellNeighbor::Up) => self.get_ij(i, j + 1),
             CellNeighbor::Hex(HexCellNeighbor::UpLeft) => {
                 let jj = if i.is_multiple_of(2) { j + 1 } else { j };
-                self.get_ij(i - 1, jj)
+                self.get_ij(i.checked_sub(1)?, jj)
             }
             CellNeighbor::Hex(HexCellNeighbor::DownLeft) => {
-                let jj = if i.is_multiple_of(2) { j } else { j - 1 };
-                self.get_ij(i - 1, jj)
+                let jj = if i.is_multiple_of(2) { j } else { j.checked_sub(1)? };
+                self.get_ij(i.checked_sub(1)?, jj)
             }
-            CellNeighbor::Hex(HexCellNeighbor::Down) => self.get_ij(i, j - 1),
+            CellNeighbor::Hex(HexCellNeighbor::Down) => self.get_ij(i, j.checked_sub(1)?),
             CellNeighbor::Hex(HexCellNeighbor::DownRight) => {
-                let jj = if i.is_multiple_of(2) { j } else { j - 1 };
+                let jj = if i.is_multiple_of(2) { j } else { j.checked_sub(1)? };
                 self.get_ij(i + 1, jj)
             }
             CellNeighbor::Hex(HexCellNeighbor::UpRight) => {
@@ -350,11 +350,13 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
             CellNeighbor::Grid(GridCellNeighbor::Up) => self.get_ij(i, j + 1),
             CellNeighbor::Grid(GridCellNeighbor::UpLeft) => self.get_ij(i + 1, j + 1),
             CellNeighbor::Grid(GridCellNeighbor::Left) => self.get_ij(i + 1, j),
-            CellNeighbor::Grid(GridCellNeighbor::DownLeft) => self.get_ij(i + 1, j - 1),
-            CellNeighbor::Grid(GridCellNeighbor::Down) => self.get_ij(i, j - 1),
-            CellNeighbor::Grid(GridCellNeighbor::DownRight) => self.get_ij(i - 1, j - 1),
-            CellNeighbor::Grid(GridCellNeighbor::Right) => self.get_ij(i - 1, j),
-            CellNeighbor::Grid(GridCellNeighbor::UpRight) => self.get_ij(i - 1, j + 1),
+            CellNeighbor::Grid(GridCellNeighbor::DownLeft) => self.get_ij(i + 1, j.checked_sub(1)?),
+            CellNeighbor::Grid(GridCellNeighbor::Down) => self.get_ij(i, j.checked_sub(1)?),
+            CellNeighbor::Grid(GridCellNeighbor::DownRight) => {
+                self.get_ij(i.checked_sub(1)?, j.checked_sub(1)?)
+            }
+            CellNeighbor::Grid(GridCellNeighbor::Right) => self.get_ij(i.checked_sub(1)?, j),
+            CellNeighbor::Grid(GridCellNeighbor::UpRight) => self.get_ij(i.checked_sub(1)?, j + 1),
         }
     }
 

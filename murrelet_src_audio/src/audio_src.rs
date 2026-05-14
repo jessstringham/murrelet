@@ -367,8 +367,8 @@ impl CaptureModel {
         for i in 0..self.sample_window_size * 2 {
             let s = self.buffer_audio[i] / max_amp; // normalize
             audio[i] = s;
-            let alpha = 2.0 * std::f32::consts::PI * self.curr_frames as f32
-                / (self.sample_window_size as f32 - 1.0);
+            let alpha = 2.0 * std::f32::consts::PI * i as f32
+                / (self.sample_window_size as f32 * 2.0 - 1.0);
             let window_value = 0.5 * (1.0 - alpha.cos());
             let new_s = s * window_value;
 

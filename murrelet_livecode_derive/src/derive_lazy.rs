@@ -142,26 +142,21 @@ impl LazyFieldType {
             }
             _ => {
                 // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
-                let f32_out = match (idents.data.f32min, idents.data.f32max) {
-                    (None, None) => quote! {
-                        if let Some(name) = &self.#name {
-                            let n = name.eval_lazy(ctx)?;
-                            Some(n)
-                        } else {
-                            None
-                        }
-                    },
-                    (None, Some(max)) => {
-                        quote! {f32::min(self.#name.map(|name| name.eval_lazy(ctx)?, #max))}
-                    }
-                    (Some(min), None) => {
-                        quote! {f32::max(#min, self.#name.map(|name| name.eval_lazy(ctx)?))}
-                    }
-                    (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, self.#name.map(|name| name.eval_lazy(ctx)?), #max))}
-                    }
+                let inner_ty = ident_from_type(&orig_ty).inside_type().to_quote();
+                let clamped = match (idents.data.f32min, idents.data.f32max) {
+                    (None, None) => quote! { v },
+                    (None, Some(max)) => quote! { f32::min(v, #max) },
+                    (Some(min), None) => quote! { f32::max(#min, v) },
+                    (Some(min), Some(max)) => quote! { f32::min(f32::max(#min, v), #max) },
                 };
-                quote! {#name: #f32_out as #orig_ty}
+                quote! {#name: {
+                    if let Some(name) = &self.#name {
+                        let v = name.eval_lazy(ctx)?;
+                        Some(#clamped as #inner_ty)
+                    } else {
+                        None
+                    }
+                }}
             }
         }
     }
@@ -374,7 +369,7 @@ impl GenFinal for FieldTokensLazy {
         };
 
         let for_more_defs = {
-            quote! { self.0.for_more_defs(ctx)? }
+            quote! { self.0.with_more_defs(ctx)? }
         };
 
         FieldTokensLazy {

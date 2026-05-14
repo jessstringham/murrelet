@@ -98,7 +98,7 @@ impl IdxInRange {
 
     pub fn last_i(&self) -> IdxInRange {
         IdxInRange {
-            i: self.i - 1,
+            i: self.total.saturating_sub(1),
             total: self.total,
         }
     }

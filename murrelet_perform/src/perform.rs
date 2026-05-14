@@ -1158,7 +1158,8 @@ where
 
     pub fn should_redraw(&self) -> bool {
         let w = self.world();
-        let redraw_says_so = (w.actual_frame() as u64).is_multiple_of(self.app_config().redraw);
+        let redraw = self.app_config().redraw;
+        let redraw_says_so = redraw >= 1 && (w.actual_frame() as u64).is_multiple_of(redraw);
         let save_says_so = self.app_config().svg.save;
         // might have other things..
         redraw_says_so || save_says_so
