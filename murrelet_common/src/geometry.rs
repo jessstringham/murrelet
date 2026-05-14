@@ -181,8 +181,8 @@ impl Angle {
         Angle(self.angle() * s)
     }
 
-    pub fn hyp_given_opp<L: IsLength>(&self, opp: L) -> Length {
-        Length(opp.len() / self.angle().sin())
+    pub fn hyp_given_opp(&self, opp: f32) -> f32 {
+        opp / self.angle().sin()
     }
 
     pub fn _angle(&self) -> f32 {
@@ -329,90 +329,6 @@ where
     }
 }
 
-// LENGTH
-
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Default)]
-pub struct Length(f32);
-
-impl Length {
-    pub fn new(v: f32) -> Length {
-        Length(v)
-    }
-
-    pub fn scale(&self, scale: f32) -> Length {
-        Length(self.len() + scale)
-    }
-
-    pub fn abs(&self) -> Self {
-        Length(self.len().abs())
-    }
-
-    pub fn minus(&self) -> Length {
-        Length(-self.len())
-    }
-}
-
-impl<A> std::ops::Sub<A> for Length
-where
-    A: IsLength,
-{
-    type Output = Length;
-
-    fn sub(self, rhs: A) -> Self::Output {
-        let other = rhs.len();
-
-        Length(self.0 - other)
-    }
-}
-
-impl<A> std::ops::Add<A> for Length
-where
-    A: IsLength,
-{
-    type Output = Length;
-
-    fn add(self, rhs: A) -> Self::Output {
-        let other = rhs.len();
-
-        Length(self.0 + other)
-    }
-}
-
-impl IsLength for Length {
-    fn len(&self) -> f32 {
-        self.0
-    }
-
-    fn to_length(&self) -> Length {
-        *self
-    }
-}
-
-pub trait IsLength {
-    fn len(&self) -> f32;
-    fn to_length(&self) -> Length;
-}
-
-impl IsLength for f32 {
-    fn len(&self) -> f32 {
-        *self
-    }
-
-    fn to_length(&self) -> Length {
-        Length::new(*self)
-    }
-}
-
-impl IsLength for PointToPoint {
-    fn len(&self) -> f32 {
-        self.start.distance(self.end)
-    }
-
-    fn to_length(&self) -> Length {
-        Length::new(self.len())
-    }
-}
-
 // Special types
 
 // should combine this with Tangent...
@@ -463,8 +379,8 @@ impl SpotOnCurve {
         None
     }
 
-    pub fn to_line<L: IsLength>(&self, length: L) -> LineFromVecAndLen {
-        LineFromVecAndLen::new(self.loc, self.angle, length.to_length())
+    pub fn to_line(&self, length: f32) -> LineFromVecAndLen {
+        LineFromVecAndLen::new(self.loc, self.angle, length)
     }
 
     pub fn turn_left_perp(&self) -> Self {
@@ -481,23 +397,23 @@ impl SpotOnCurve {
         }
     }
 
-    pub fn move_left_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
+    pub fn move_left_perp_dist(&self, length: f32) -> Vec2 {
         self.turn_left_perp()
-            .to_line(length.to_length())
+            .to_line(length)
             .to_last_point()
     }
 
-    pub fn move_left_perp_dist_spot<L: IsLength>(&self, length: L) -> SpotOnCurve {
+    pub fn move_left_perp_dist_spot(&self, length: f32) -> SpotOnCurve {
         SpotOnCurve::new(self.move_left_perp_dist(length), self.angle())
     }
 
-    pub fn move_right_perp_dist_spot<L: IsLength>(&self, length: L) -> SpotOnCurve {
+    pub fn move_right_perp_dist_spot(&self, length: f32) -> SpotOnCurve {
         SpotOnCurve::new(self.move_right_perp_dist(length), self.angle())
     }
 
-    pub fn move_right_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
+    pub fn move_right_perp_dist(&self, length: f32) -> Vec2 {
         self.turn_right_perp()
-            .to_line(length.to_length())
+            .to_line(length)
             .to_last_point()
     }
 
@@ -614,10 +530,10 @@ impl CornerAngleToAngle {
     }
 
     // dist is how far away from the current point. left is positive (inside of angle) (i think)
-    pub fn corner_at_point<L: IsLength>(&self, dist: L) -> Vec2 {
+    pub fn corner_at_point(&self, dist: f32) -> Vec2 {
         // mid-way between the two angles, and then go perpindicular at some point
 
-        let p = if dist.len() < 0.0 {
+        let p = if dist < 0.0 {
             AnglePi(0.5)
         } else {
             AnglePi(-0.5)
@@ -629,7 +545,7 @@ impl CornerAngleToAngle {
         let target_angle_norm_dir = target_angle.to_norm_dir();
         let new_length = new_angle.hyp_given_opp(dist);
 
-        self.point + new_length.len() * target_angle_norm_dir
+        self.point + new_length * target_angle_norm_dir
     }
 }
 
@@ -803,24 +719,24 @@ impl PointToPoint {
 pub struct LineFromVecAndLen {
     start: Vec2,
     angle: Angle,
-    length: Length,
+    length: f32,
 }
 impl LineFromVecAndLen {
-    pub fn new<L: IsLength>(start: Vec2, angle: Angle, length: L) -> Self {
+    pub fn new(start: Vec2, angle: Angle, length: f32) -> Self {
         Self {
             start,
             angle,
-            length: length.to_length(),
+            length,
         }
     }
 
-    pub fn new_centered<L: IsLength>(start: Vec2, angle: Angle, length: L) -> Self {
-        let first_pt = Self::new(start, angle, -0.5 * length.len()).to_last_point();
+    pub fn new_centered(start: Vec2, angle: Angle, length: f32) -> Self {
+        let first_pt = Self::new(start, angle, -0.5 * length).to_last_point();
         Self::new(first_pt, angle, length)
     }
 
     pub fn to_last_point(&self) -> Vec2 {
-        self.start + self.length.len() * self.angle.to_norm_dir()
+        self.start + self.length * self.angle.to_norm_dir()
     }
 
     pub fn to_vec(&self) -> Vec<Vec2> {
@@ -905,48 +821,4 @@ impl ToVec2 for DefaultVertex {
 
 pub fn sagitta_from_arc_len(radius: f32, central_angle: AnglePi) -> f32 {
     radius * (1.0 - (0.5 * central_angle.angle()).cos())
-}
-
-pub fn solve_circle_line_intersection(
-    c: Circle,
-    line_point: Vec2,
-    line_direction: Vec2,
-) -> Vec<Vec2> {
-    solve_circle_def_line_intersection(c.center, c.radius, line_point, line_direction)
-}
-
-// chatgpt
-pub fn solve_circle_def_line_intersection(
-    center: Vec2,
-    radius: f32,
-    line_point: Vec2,
-    line_direction: Vec2,
-) -> Vec<Vec2> {
-    let a = line_direction.dot(line_direction);
-
-    let delta = line_point - center;
-
-    let b = 2.0 * delta.dot(line_direction);
-
-    let c = delta.dot(delta) - radius * radius;
-
-    let discriminant = b * b - 4.0 * a * c;
-
-    if discriminant < 0.0 {
-        vec![]
-    } else {
-        // always take sqrt of a non‐negative number
-        let sqrt_disc = discriminant.max(0.0).sqrt();
-        let t1 = (-b + sqrt_disc) / (2.0 * a);
-        let t2 = (-b - sqrt_disc) / (2.0 * a);
-        let p1 = line_point + t1 * line_direction;
-        let p2 = line_point + t2 * line_direction;
-
-        // if t1≈t2 (tangent), return one, otherwise both
-        if (t1 - t2).abs() < 1e-6 {
-            vec![p1]
-        } else {
-            vec![p1, p2]
-        }
-    }
 }

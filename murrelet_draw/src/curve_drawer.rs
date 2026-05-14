@@ -340,13 +340,13 @@ impl CurveSegment {
         }
     }
 
-    pub fn new_simple_arc<Rad: IsLength, A1: IsAngle, A2: IsAngle>(
+    pub fn new_simple_arc<A1: IsAngle, A2: IsAngle>(
         loc: Vec2,
-        radius: Rad,
+        radius: f32,
         start: A1,
         end: A2,
     ) -> Self {
-        CurveSegment::Arc(CurveArc::new(loc, radius.len(), start, end))
+        CurveSegment::Arc(CurveArc::new(loc, radius, start, end))
     }
 
     pub fn new_simple_circle(loc: Vec2, radius: f32) -> Self {

@@ -262,9 +262,9 @@ impl GenMethod {
                 let for_to_dist = quote! {{
                     let [h, s, v, _] = #name.into_hsva_components();
                     vec![
-                        clamp(h, 0.0, 1.0),
-                        clamp(s, 0.0, 1.0),
-                        clamp(v, 0.0, 1.0),
+                        murrelet_common::clamp(h, 0.0, 1.0),
+                        murrelet_common::clamp(s, 0.0, 1.0),
+                        murrelet_common::clamp(v, 0.0, 1.0),
                     ]
                 }};
 
@@ -289,10 +289,10 @@ impl GenMethod {
                 let for_to_dist = quote! { {
                     let [h, s, v, a] = #name.into_hsva_components();
                     vec![
-                        clamp(h, 0.0, 1.0),
-                        clamp(s, 0.0, 1.0),
-                        clamp(v, 0.0, 1.0),
-                        clamp(a, 0.0, 1.0),
+                        murrelet_common::clamp(h, 0.0, 1.0),
+                        murrelet_common::clamp(s, 0.0, 1.0),
+                        murrelet_common::clamp(v, 0.0, 1.0),
+                        murrelet_common::clamp(a, 0.0, 1.0),
                     ]
                 } };
 
