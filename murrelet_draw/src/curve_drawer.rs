@@ -10,11 +10,13 @@ use svg::node::element::path::Data;
 
 use crate::{
     cubic::CubicBezier,
-    newtypes::*,
-    tesselate::{
-        ToVecVec2, cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
-        flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, segment_arc, segment_vec,
+    line_spacing::{
+        ToVecVec2, flatten_cubic_bezier_path, flatten_cubic_bezier_path_with_tolerance, segment_arc,
+        segment_vec,
     },
+    newtypes::*,
+    svg_read::parse_svg_data_as_vec2,
+    tesselate::cubic_bezier_path_to_lyon,
 };
 
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]

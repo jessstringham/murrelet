@@ -2,7 +2,6 @@
 
 use glam::Vec2;
 use lerpable::Lerpable;
-use lyon::geom::{Point, euclid::Point2D};
 use murrelet_common::{SimpleTransform2d, ToSimpleTransform};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
@@ -277,10 +276,6 @@ impl SvgPathDef {
 
         path
     }
-}
-
-pub fn glam_to_lyon(vec: Vec2) -> Point2D<f32, lyon::geom::euclid::UnknownUnit> {
-    Point::new(vec.x, vec.y)
 }
 
 #[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]

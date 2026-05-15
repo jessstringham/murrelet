@@ -1,7 +1,7 @@
 use glam::Vec2;
 use murrelet_common::{IsAngle, PointToPoint, SpotOnCurve};
 
-use crate::svg::glam_to_lyon;
+use crate::convert::glam_to_lyon;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CubicBezier {
