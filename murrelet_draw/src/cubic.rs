@@ -161,4 +161,42 @@ impl CubicBezier {
     pub fn end_spot(&self) -> SpotOnCurve {
         self.end_to_tangent().0
     }
+
+    // a little chatgpt
+    pub fn dist_to(&self, t: f32, steps: u32) -> f32 {
+        let steps = steps.max(1);
+        let dt = t / steps as f32;
+
+        let mut s = 0.0;
+        let mut prev = self.loc_at_pct(0.0);
+
+        for i in 1..=steps {
+            let ti = dt * i as f32;
+            let p = self.loc_at_pct(ti);
+            s += prev.distance(p);
+            prev = p;
+        }
+
+        s
+    }
+
+    pub fn t_for_arc_len_bisect(&self, s_local: f32, total_len: f32) -> f32 {
+        let target = s_local.clamp(0.0, total_len);
+
+        let mut lo = 0.0f32;
+        let mut hi = 1.0f32;
+
+        for _ in 0..20 {
+            let mid = 0.5 * (lo + hi);
+            let s_mid = self.dist_to(mid, 16);
+
+            if s_mid < target {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+
+        0.5 * (lo + hi)
+    }
 }

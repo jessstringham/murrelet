@@ -288,7 +288,11 @@ impl MidiMessage {
 
         let key = match device {
             MidiDevice::Akai => match message {
-                [_, n] => Some(KeyPress::Pad(*n)),
+                // claude wanted this fixed
+                // Match Program Change (0xC0..=0xCF) only — the original `[_, n]`
+                // also caught channel-pressure (0xD0..=0xDF) and reported them as
+                // pad presses.
+                [opcode, n] if (0xC0..=0xCF).contains(opcode) => Some(KeyPress::Pad(*n)),
                 [176, n @ 70..=77, value] => Some(KeyPress::Dial(n - 70, *value)),
                 _ => {
                     println!("akai missed {:?}", message);

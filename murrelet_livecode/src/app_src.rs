@@ -153,7 +153,7 @@ impl IsLivecodeSrc for AppInputValues {
     fn update(&mut self, src_input: &LivecodeSrcUpdateInput) {
         let app = src_input.app();
 
-        // hacky, but this should work
+        self.keys_changed = [false; 26];
         if let Some(keys) = app.keys {
             for (idx, &k) in keys.iter().enumerate() {
                 if k != self.keys_fire[idx] {
