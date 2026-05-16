@@ -693,7 +693,13 @@ impl CurveSegment {
     ) -> (Vec<CurveSegment>, Option<AnglePi>) {
         let mut last_angle_pi = prev_angle_pi;
         match self {
-            CurveSegment::CubicBezier(_) => todo!(),
+            CurveSegment::CubicBezier(c) => {
+                CurveSegment::Points(c.as_points()).extrude_curve(
+                    prev_angle_pi,
+                    next_angle_pi,
+                    thickness,
+                )
+            }
             CurveSegment::Arc(c) => {
                 let radius = if c.is_ccw() {
                     c.radius - thickness
