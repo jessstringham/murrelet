@@ -394,7 +394,7 @@ pub struct OffsetConf {
 }
 
 pub fn offset_cd(cd: &CurveDrawer, distance: f32, conf: &OffsetConf) -> LivecodeResult<Vec<Vec2>> {
-    let mut points = cd.flatten_with_lyon(conf.flatten_tolerance)?;
+    let points = cd.flatten_with_lyon(conf.flatten_tolerance)?;
 
     offset_outline(&points, distance, conf.miter, cd.closed)
 }
