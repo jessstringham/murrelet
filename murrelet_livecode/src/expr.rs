@@ -276,14 +276,6 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos() * (m * PI * y / b).cos();
             Ok(Value::Float(f))
         }),
-        "len" => Function::new(move |argument| {
-            let tuple = argument.as_fixed_len_tuple(2)?;
-            let (x1, y1) = (
-                tuple[0].as_number()?, tuple[1].as_number()?,
-            );
-            let f = vec2(x1 as f32, y1 as f32).length();
-            Ok(Value::Float(f as f64))
-        }),
         "dist" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(4)?;
             let (x1, y1, x2, y2) = (

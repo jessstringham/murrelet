@@ -339,6 +339,17 @@ pub struct SpotOnCurve {
     pub angle: Angle,
 }
 
+impl Add for SpotOnCurve {
+    type Output = SpotOnCurve;
+
+    fn add(self, rhs: SpotOnCurve) -> Self::Output {
+        SpotOnCurve {
+            loc: self.loc + rhs.loc,
+            angle: self.angle + rhs.angle,
+        }
+    }
+}
+
 impl SpotOnCurve {
     pub fn new<A: IsAngle>(loc: Vec2, angle: A) -> Self {
         Self {
