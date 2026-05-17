@@ -388,6 +388,15 @@ impl ToDrawnShape for Masker {
     }
 }
 
+pub struct OffsetConf {
+    pub flatten_tolerance: f32,
+    pub miter: f32,
+}
+
+pub fn offset_cd(cd: &CurveDrawer, distance: f32, conf: &OffsetConf) -> LivecodeResult<Vec<Vec2>> {
+    offset_outline(&cd.flatten_with_lyon(conf.flatten_tolerance)?, distance, conf.miter)
+}
+
 pub fn offset_outline(points: &[Vec2], distance: f32, miter: f32) -> LivecodeResult<Vec<Vec2>> {
     let mut poly = line_to_polygon(points);
 
