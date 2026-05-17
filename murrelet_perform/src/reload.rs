@@ -40,9 +40,12 @@ pub trait LiveCoderLoader: Sized {
         filename: P,
         includes_dir: P2,
     ) -> Result<Self, LivecodeError> {
-        let mut file = fs::File::open(filename).unwrap();
+        let path = filename.as_ref();
+        let mut file = fs::File::open(path)
+            .map_err(|e| LivecodeError::Io(format!("could not open config {}", path.display()), e))?;
         let mut data = String::new();
-        std::io::Read::read_to_string(&mut file, &mut data).unwrap();
+        std::io::Read::read_to_string(&mut file, &mut data)
+            .map_err(|e| LivecodeError::Io(format!("could not read config {}", path.display()), e))?;
         Self::fs_parse(&data, includes_dir)
     }
 
