@@ -461,6 +461,10 @@ fn _default_redraw_lazy() -> LazyNodeF32 {
     LazyNodeF32::simple_number(1.0)
 }
 
+fn _default_end_at_frame() -> ControlF32 {
+    ControlF32::Int(0)
+}
+
 fn _default_reload() -> ControlBool {
     ControlBool::Raw(true)
 }
@@ -508,6 +512,7 @@ impl Default for ControlAppConfig {
             redraw: _default_redraw(),
             reload: _default_reload(),
             reload_rate: _default_reload_rate(),
+            end_at_frame: _default_end_at_frame(),
             time: _default_time(),
             ctx: _default_ctx(),
             svg: _default_svg(),
@@ -551,6 +556,7 @@ impl AppConfig {
             redraw: 1,
             reload: true,
             reload_rate: 0,
+            end_at_frame: 0,
             time: AppConfigTiming {
                 bpm: 90.0,
                 beats_per_bar: 4.0,
@@ -602,6 +608,8 @@ pub struct AppConfig {
     pub reload: bool, // should reload and draw, good for slow drawing things
     #[livecode(serde_default = "0")]
     pub reload_rate: u64, // controls should_redraw, how many frames between redraw. if < 1, always defer to reload
+    #[livecode(serde_default = "0")]
+    pub end_at_frame: u64, // quit once this frame is reached. if < 1, never auto-quits
     #[livecode(serde_default = "default")]
     pub time: AppConfigTiming,
     #[livecode(kind = "none")]
