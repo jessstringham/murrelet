@@ -394,10 +394,26 @@ pub struct OffsetConf {
 }
 
 pub fn offset_cd(cd: &CurveDrawer, distance: f32, conf: &OffsetConf) -> LivecodeResult<Vec<Vec2>> {
-    offset_outline(&cd.flatten_with_lyon(conf.flatten_tolerance)?, distance, conf.miter)
+    let mut points = cd.flatten_with_lyon(conf.flatten_tolerance)?;
+
+    if points.len() < 2 {
+        return Err("not enough points").to_lc_err();
+    }
+
+    if cd.closed {
+        if points.last().unwrap() != points.first().unwrap() {
+            points.push(*points.first().unwrap());
+        }
+    }
+
+    offset_outline(&points, distance, conf.miter)
 }
 
 pub fn offset_outline(points: &[Vec2], distance: f32, miter: f32) -> LivecodeResult<Vec<Vec2>> {
+    if points.len() < 3 {
+        return Err("not enough points").to_lc_err();
+    }
+
     let mut poly = line_to_polygon(points);
 
     // make sure it's facing the right way
