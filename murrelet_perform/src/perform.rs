@@ -328,8 +328,7 @@ fn _reset_b() -> ControlBool {
 }
 
 fn _reset_b_lazy() -> ControlLazyNodeF32 {
-    // ControlLazyNodeF32::from_control_bool(false)
-    unimplemented!("no lazy bools yet??")
+    ControlLazyNodeF32::Bool(false)
 }
 
 #[allow(dead_code)]
