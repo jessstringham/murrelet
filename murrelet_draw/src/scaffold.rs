@@ -1,18 +1,21 @@
 #![allow(dead_code)]
+// started as masking things, but basically geo things!
 use crate::{
+    convert::glam_to_geo,
     curve_drawer::{CurveDrawer, ToCurveDrawer},
     drawable::{DrawnShape, ToDrawnShape},
     tesselate::ToLyonPath,
+};
+use ::geo::{
+    Buffer,
+    buffer::{BufferStyle, LineJoin},
 };
 use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolygon};
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
 use murrelet_common::{PointToPoint, SpotOnCurve};
-use murrelet_livecode::types::LivecodeResult;
-
-
-
+use murrelet_livecode::types::{LivecodeResult, ToLivecodeResult};
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
     geo::MultiPolygon::new(vec![line_to_polygon(curves)])
@@ -51,16 +54,6 @@ impl ToVec2Griddable for ::geo::Coord {
     }
 }
 
-trait ToCoord {
-    fn to_coord(&self) -> ::geo::Coord;
-}
-
-impl ToCoord for Vec2 {
-    fn to_coord(&self) -> ::geo::Coord {
-        ::geo::coord! {x: self.x as f64, y: self.y as f64}
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct MaskCacheImpl {
     bounding: geo::Rect,
@@ -72,7 +65,7 @@ impl MaskCacheImpl {
     }
 
     fn contains(&self, v: &Vec2) -> bool {
-        self.polygon.contains(&v.to_coord())
+        self.polygon.contains(&glam_to_geo(*v))
     }
 
     // left needs to be inside
@@ -98,7 +91,7 @@ impl MaskCacheImpl {
 // }
 
 fn vec2_to_line_string(vs: &[Vec2]) -> geo::LineString {
-    let coords = vs.iter().map(|x| x.to_coord()).collect_vec();
+    let coords = vs.iter().map(|x| glam_to_geo(*x)).collect_vec();
     geo::LineString::new(coords)
 }
 
@@ -318,7 +311,7 @@ impl Masker {
     }
 
     pub fn contains(&self, v: &Vec2) -> bool {
-        self.mask.contains(&v.to_coord())
+        self.mask.contains(&glam_to_geo(*v))
     }
 
     // pub fn union_many_styled(&mut self, s: &[DrawnShape], tolerance: f32) {
@@ -358,7 +351,7 @@ impl Masker {
     }
 
     pub fn has_intersection_with_segment(&self, p2p: PointToPoint) -> bool {
-        let line = Line::new(p2p.start().to_coord(), p2p.end().to_coord());
+        let line = Line::new(glam_to_geo(p2p.start()), glam_to_geo(p2p.end()));
 
         self.mask.intersects(&line)
     }
@@ -393,4 +386,34 @@ impl ToDrawnShape for Masker {
     fn to_drawn_shape(&self, style: crate::style::styleconf::StyleConf) -> DrawnShape {
         DrawnShape::new_vecvec(self.to_vec(), style)
     }
+}
+
+pub fn offset_outline(points: &[Vec2], distance: f32, miter: f32) -> LivecodeResult<Vec<Vec2>> {
+    let mut poly = line_to_polygon(points);
+
+    // make sure it's facing the right way
+    if poly.signed_area() < 0.0 {
+        let mut rev = points.to_vec();
+        rev.reverse();
+        poly = line_to_polygon(&rev);
+    }
+
+    let buffer_style = BufferStyle::new(distance as f64).line_join(LineJoin::Miter(miter as f64));
+    let grown = poly.buffer_with_style(buffer_style);
+
+    if grown.0.is_empty() {
+        return Err("expand shape failed").to_lc_err(); // fallback to original
+    }
+
+    // some help
+    let largest = grown
+        .iter()
+        .max_by(|a, b| {
+            a.unsigned_area()
+                .partial_cmp(&b.unsigned_area())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .expect("buffer produced no polygons");
+
+    Ok(polygon_to_vec2(largest))
 }
