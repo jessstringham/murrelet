@@ -713,6 +713,10 @@ impl PointToPoint {
     pub fn length(&self) -> f32 {
         self.start.distance(self.end)
     }
+
+    pub fn side_of(&self, v: Vec2) -> f32 {
+        self.to_norm_dir().perp_dot(v - self.start)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]

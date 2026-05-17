@@ -14,7 +14,7 @@ use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolyg
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
-use murrelet_common::{PointToPoint, SpotOnCurve};
+use murrelet_common::{MurreletIterHelpers, PointToPoint, SpotOnCurve};
 use murrelet_livecode::types::{LivecodeResult, ToLivecodeResult};
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
@@ -396,25 +396,37 @@ pub struct OffsetConf {
 pub fn offset_cd(cd: &CurveDrawer, distance: f32, conf: &OffsetConf) -> LivecodeResult<Vec<Vec2>> {
     let mut points = cd.flatten_with_lyon(conf.flatten_tolerance)?;
 
+    offset_outline(&points, distance, conf.miter, cd.closed)
+}
+
+pub fn offset_outline(
+    points: &[Vec2],
+    distance: f32,
+    miter: f32,
+    closed: bool,
+) -> LivecodeResult<Vec<Vec2>> {
     if points.len() < 2 {
         return Err("not enough points").to_lc_err();
     }
 
-    if cd.closed {
-        if points.last().unwrap() != points.first().unwrap() {
-            points.push(*points.first().unwrap());
-        }
+    if closed {
+        offset_outline_closed(&points, distance, miter)
+    } else {
+        offset_outline_open(&points, distance, miter)
     }
-
-    offset_outline(&points, distance, conf.miter)
 }
 
-pub fn offset_outline(points: &[Vec2], distance: f32, miter: f32) -> LivecodeResult<Vec<Vec2>> {
-    if points.len() < 3 {
+fn offset_outline_closed(points: &[Vec2], distance: f32, miter: f32) -> LivecodeResult<Vec<Vec2>> {
+    if points.len() < 2 {
         return Err("not enough points").to_lc_err();
     }
+    let mut points = points.to_vec();
 
-    let mut poly = line_to_polygon(points);
+    if points.last().unwrap() != points.first().unwrap() {
+        points.push(*points.first().unwrap());
+    }
+
+    let mut poly = line_to_polygon(&points);
 
     // make sure it's facing the right way
     if poly.signed_area() < 0.0 {
@@ -441,4 +453,88 @@ pub fn offset_outline(points: &[Vec2], distance: f32, miter: f32) -> LivecodeRes
         .expect("buffer produced no polygons");
 
     Ok(polygon_to_vec2(largest))
+}
+
+fn offset_outline_open(points: &[Vec2], distance: f32, miter: f32) -> LivecodeResult<Vec<Vec2>> {
+    if points.len() < 2 {
+        return Err("not enough points").to_lc_err();
+    }
+
+    let line_string = vec2_to_line_string(&points);
+
+    let buffer_style = BufferStyle::new(distance as f64)
+        .line_join(LineJoin::Miter(miter as f64))
+        .line_cap(geo::buffer::LineCap::Square);
+    let grown = line_string.buffer_with_style(buffer_style);
+
+    if grown.0.is_empty() {
+        return Err("expand shape failed").to_lc_err(); // fallback to original
+    }
+
+    let largest = grown
+        .iter()
+        .max_by(|a, b| {
+            a.unsigned_area()
+                .partial_cmp(&b.unsigned_area())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .expect("buffer produced no polygons");
+
+    // some claude help, so now we need to take this apart. it sounds like we can't
+    // get it out of geo or i_offset
+    let ring = polygon_to_vec2(largest);
+    // signed side of `v` vs the path: >0 = left of path direction, <0 = right
+    let path_side = |v: Vec2| -> f32 {
+        let mut best_d2 = f32::INFINITY;
+        let mut best = 0.0;
+        for w in points.windows(2) {
+            let p2p = PointToPoint::new(w[0], w[1]);
+
+            if p2p.length() < 1.0e-8 {
+                continue;
+            }
+
+            let closest = p2p.closest_pt_to_segment(v).end();
+
+            let d2 = v.distance_squared(closest);
+            if d2 < best_d2 {
+                best_d2 = d2;
+                best = p2p.side_of(v);
+            }
+        }
+        best
+    };
+
+    // keep the longest contiguous run of boundary vertices on the chosen side
+    let want_left = distance >= 0.0;
+    let n = ring.len();
+    let on_side: Vec<bool> = ring
+        .iter()
+        .map(|&v| (path_side(v) > 0.0) == want_left)
+        .collect();
+    let mut best_start = 0;
+    let mut best_len = 0;
+    let mut i = 0;
+    while i < n {
+        if on_side[i] {
+            let mut run_len = 0;
+            while run_len < n && on_side[(i + run_len) % n] {
+                run_len += 1;
+            }
+            if run_len > best_len {
+                best_start = i;
+                best_len = run_len;
+            }
+            i += run_len;
+        } else {
+            i += 1;
+        }
+    }
+
+    if best_len == 0 {
+        return Err("offset: no rail on requested side").to_lc_err();
+    }
+
+    let rail: Vec<Vec2> = (0..best_len).map(|k| ring[(best_start + k) % n]).collect();
+    Ok(rail)
 }
