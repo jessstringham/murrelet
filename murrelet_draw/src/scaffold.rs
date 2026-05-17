@@ -460,9 +460,16 @@ fn offset_outline_open(points: &[Vec2], distance: f32, miter: f32) -> LivecodeRe
         return Err("not enough points").to_lc_err();
     }
 
+    // Offset 0 is the curve itself -- geo cannot buffer a line by 0.
+    if distance.abs() < 1.0e-6 {
+        return Ok(points.to_vec());
+    }
+
     let line_string = vec2_to_line_string(&points);
 
-    let buffer_style = BufferStyle::new(distance as f64)
+    // geo's line buffer needs a positive width; the sign of `distance` only
+    // selects which side's rail to keep (see `want_left` below).
+    let buffer_style = BufferStyle::new(distance.abs() as f64)
         .line_join(LineJoin::Miter(miter as f64))
         .line_cap(geo::buffer::LineCap::Square);
     let grown = line_string.buffer_with_style(buffer_style);
