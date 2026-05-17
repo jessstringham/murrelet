@@ -558,37 +558,21 @@ impl SvgDocCreator {
 
         vec![
             Rect::from_xy_wh(center + vec2(-width * 0.5, -width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(-width * 0.5, width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, -width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(-width * 0.5, -width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(-width * 0.5, width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, -width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
         ]
     }
 

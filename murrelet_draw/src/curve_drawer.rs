@@ -1279,12 +1279,6 @@ impl ToCurveSegment for Vec<Vec2> {
     }
 }
 
-impl ToCurveSegment for Polyline {
-    fn to_segment(&self) -> CurveSegment {
-        CurveSegment::new_simple_points(self.clone_to_vec())
-    }
-}
-
 impl ToCurveSegment for Circle {
     fn to_segment(&self) -> CurveSegment {
         CurveSegment::new_simple_circle(self.center, self.radius)

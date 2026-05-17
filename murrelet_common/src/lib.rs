@@ -330,7 +330,7 @@ impl Rect {
     }
 
     pub fn to_polyline(&self) -> Polyline {
-        Polyline::new(self.to_vec2())
+        self.to_vec2()
     }
 
     pub fn bottom_left(&self) -> Vec2 {
