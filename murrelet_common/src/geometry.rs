@@ -7,7 +7,7 @@ use lerpable::Lerpable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Circle, SimpleTransform2d, SimpleTransform2dStep, intersection::{find_intersection_inf, find_intersection_segments, within_segment}, transform::TransformVec2, triangulate::DefaultVertex
+    SimpleTransform2d, SimpleTransform2dStep, intersection::{find_intersection_inf, find_intersection_segments, within_segment}, transform::TransformVec2, triangulate::DefaultVertex
 };
 
 pub fn a_pi(a: f32) -> AnglePi {

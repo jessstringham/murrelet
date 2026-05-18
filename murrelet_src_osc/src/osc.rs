@@ -138,13 +138,13 @@ impl OscCxn {
                         _ => new_val,
                     };
 
-                    r.smooth_values.insert(name.clone(), actual_new_val);
+                    r.smooth_values.insert(name, actual_new_val);
                 } else {
                     println!("first time seeing name {} with value {:?}", name, new_val);
-                    r.smooth_values.insert(name.clone(), new_val);
+                    r.smooth_values.insert(name, new_val);
                 }
 
-                r.last_values.insert(name.clone(), new_val); // todo, probably good to get timestamp
+                r.last_values.insert(name, new_val); // todo, probably good to get timestamp
             }
         })
     }

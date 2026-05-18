@@ -470,7 +470,7 @@ pub mod styleconf {
         pub fn with_fill(&self, fill_color: MurreletColor) -> StyleConf {
             match self {
                 StyleConf::Fill(m) => {
-                    let mut m = m.clone();
+                    let mut m = *m;
                     m.color = fill_color;
                     StyleConf::Fill(m)
                 }

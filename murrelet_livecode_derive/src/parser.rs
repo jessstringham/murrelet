@@ -773,7 +773,7 @@ impl DataFromType {
     }
 
     pub(crate) fn second_how_to(&self) -> Option<HowToControlThis> {
-        self.levels.get(1).map(|l| l.how_to.clone())
+        self.levels.get(1).map(|l| l.how_to)
     }
 
     pub(crate) fn how_to_control_internal(&self) -> &HowToControlThis {

@@ -49,6 +49,12 @@ pub struct AppManager {
     pub conf: AppConfig,
     pub state: MurreletAppInput,
 }
+impl Default for AppManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AppManager {
     pub fn new() -> Self {
         Self {

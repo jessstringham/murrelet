@@ -398,7 +398,7 @@ impl LayersFromSvg {
 
         let mut layers = HashMap::new();
         for (layer_name, vec) in &vecs {
-            let polylines = vec.iter().map(|x| x.clone()).collect();
+            let polylines = vec.iter().cloned().collect();
             layers.insert(layer_name.clone(), polylines);
         }
 

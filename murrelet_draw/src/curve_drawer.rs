@@ -585,7 +585,7 @@ impl CurveSegment {
                 Self::Arc(CurveArc {
                     start_pi: start,
                     end_pi: end,
-                    ..arc.clone()
+                    ..*arc
                 })
             }
             CurveSegment::Points(_) => {

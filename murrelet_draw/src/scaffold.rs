@@ -14,7 +14,7 @@ use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolyg
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
-use murrelet_common::{MurreletIterHelpers, PointToPoint, SpotOnCurve};
+use murrelet_common::{PointToPoint, SpotOnCurve};
 use murrelet_livecode::types::{LivecodeResult, ToLivecodeResult};
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
@@ -410,9 +410,9 @@ pub fn offset_outline(
     }
 
     if closed {
-        offset_outline_closed(&points, distance, miter)
+        offset_outline_closed(points, distance, miter)
     } else {
-        offset_outline_open(&points, distance, miter)
+        offset_outline_open(points, distance, miter)
     }
 }
 
@@ -465,7 +465,7 @@ fn offset_outline_open(points: &[Vec2], distance: f32, miter: f32) -> LivecodeRe
         return Ok(points.to_vec());
     }
 
-    let line_string = vec2_to_line_string(&points);
+    let line_string = vec2_to_line_string(points);
 
     // geo's line buffer needs a positive width; the sign of `distance` only
     // selects which side's rail to keep (see `want_left` below).

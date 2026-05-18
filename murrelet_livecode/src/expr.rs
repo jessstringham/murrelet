@@ -386,7 +386,7 @@ impl ExprWorldContextValues {
     pub(crate) fn to_vals(&self) -> Vec<(StrId, Value)> {
         self.0
             .iter()
-            .map(|(k, v)| (k.clone(), lc_val_to_expr(v)))
+            .map(|(k, v)| (*k, lc_val_to_expr(v)))
             .collect_vec()
     }
 }

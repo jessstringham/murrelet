@@ -42,14 +42,14 @@ impl WebSDrawCtx {
 
         self.svg_draw.add_styled_path(
             "",
-            StyledPath::new_from_path(transformed_path, self.svg_style().clone()),
+            StyledPath::new_from_path(transformed_path, self.svg_style()),
         );
     }
 
     pub fn draw_curve_path_with_annotation(&self, cd: MurreletPath, annotation: (String, String)) {
         self.svg_draw.add_styled_path(
             "",
-            StyledPath::new_from_path_with_annotation(cd, self.svg_style().clone(), annotation),
+            StyledPath::new_from_path_with_annotation(cd, self.svg_style(), annotation),
         );
     }
 
@@ -61,7 +61,7 @@ impl WebSDrawCtx {
     pub fn new_from_path_with_multiple_annotations(&self, cd: MurreletPath, annotations: Vec<(String, String)>) {
         self.svg_draw.add_styled_path(
             "",
-            StyledPath::new_from_path_with_multiple_annotations(cd, self.svg_style().clone(), annotations),
+            StyledPath::new_from_path_with_multiple_annotations(cd, self.svg_style(), annotations),
         );
     }
 
@@ -84,7 +84,7 @@ impl WebSDrawCtx {
                                 "",
                                 StyledPath::new_from_path_with_multiple_annotations(
                                     path,
-                                    ctx.svg_style().clone(),
+                                    ctx.svg_style(),
                                     annotations.vals().clone(),
                                 ),
                             );
