@@ -1145,8 +1145,14 @@ impl CurveCubicBezier {
     }
 
     fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
-        let v = self.to_cubic().to_vec2_line_space(1.0); // todo, figure out how to manage that
-        CurvePoints::new(v).split_segment(target_dist)
+        let cubic = self.to_cubic();
+        let total = cubic.approx_length();
+        let t = cubic.t_for_arc_len_bisect(target_dist, total);
+        let (left, right) = cubic.split(t);
+        (
+            CurveSegment::CubicBezier(CurveCubicBezier::from_cubic(left)),
+            CurveSegment::CubicBezier(CurveCubicBezier::from_cubic(right)),
+        )
     }
 }
 

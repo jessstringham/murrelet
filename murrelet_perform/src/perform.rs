@@ -115,14 +115,18 @@ impl SvgDrawConfig {
             let translation_to_final = vec2(full_target_width, full_target_width);
             let s = self.target_size / size;
 
+            // SVG is y-down, the engine is y-up — reflect_y first so SVG
+            // output isn't vertically mirrored vs the native render.
             // aiming for 100mm by 100mm, going from 0 to 10
             // operations go right to left!
             SimpleTransform2d::new(vec![
+                SimpleTransform2dStep::reflect_y(),
                 SimpleTransform2dStep::translate(translation_to_final),
                 SimpleTransform2dStep::scale_both(s),
             ])
         } else {
-            SimpleTransform2d::noop()
+            // SVG is y-down, the engine is y-up.
+            SimpleTransform2d::reflect_y()
         }
     }
 

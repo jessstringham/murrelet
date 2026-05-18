@@ -166,10 +166,32 @@ impl CurveDrawerAnalysis {
             .push(PointToPoint::new(cb.from, cb.ctrl1));
         self.cb_ctrl_lines.push(PointToPoint::new(cb.to, cb.ctrl2));
 
-        let len = cb.start_spot().loc.distance(cb.end_spot().loc);
+        // Endpoint tangents normally come from the control handles, but a
+        // collapsed handle (e.g. a strength-0 bezier) gives PointToPoint
+        // a zero-length input and `angle()` returns a meaningless 0. Fall
+        // back to the chord direction so the markers run along the curve.
+        let chord = PointToPoint::new(cb.from, cb.to);
+        let start_handle = PointToPoint::new(cb.from, cb.ctrl1);
+        let end_handle = PointToPoint::new(cb.ctrl2, cb.to);
 
-        self.add_start(&cb.start_spot(), len);
-        self.add_end(&cb.end_spot(), len);
+        let start_angle = if start_handle.length() < 1.0e-6 {
+            chord.angle()
+        } else {
+            start_handle.angle()
+        };
+        let end_angle = if end_handle.length() < 1.0e-6 {
+            chord.angle()
+        } else {
+            end_handle.angle()
+        };
+
+        let start_spot = SpotOnCurve::new(cb.from, start_angle);
+        let end_spot = SpotOnCurve::new(cb.to, end_angle);
+
+        let len = start_spot.loc.distance(end_spot.loc);
+
+        self.add_start(&start_spot, len);
+        self.add_end(&end_spot, len);
     }
 
     pub fn curvature_data(&self, approx_spacing: f32) -> Vec<(SpotOnCurve, f32)> {
