@@ -116,18 +116,30 @@ impl LazyFieldType {
         let name = idents.name();
         let orig_ty = idents.orig_ty();
         match self.0 {
-            ControlType::F32_2 => {
-                quote! { #name: self.#name.map(|name| glam::vec2(name[0].eval_lazy(ctx)? as f32, name[1].eval_lazy(ctx)? as f32))}
+            ControlType::F32_2 | ControlType::F32_3 | ControlType::Color => {
+                quote! {#name: {
+                    if let Some(name) = &self.#name {
+                        Some(name.eval_lazy(ctx)?)
+                    } else {
+                        None
+                    }
+                }}
             }
-            ControlType::F32_3 => {
-                quote! {#name: self.#name.map(|name| glam::vec3(name[0].eval_lazy(ctx)? as f32, name[1].eval_lazy(ctx)? as f32, name[2].eval_lazy(ctx)? as f32))}
-            }
-            ControlType::Color => {
-                quote! {#name: self.#name.map(|name| murrelet_common::MurreletColor::hsva(name[0].eval_lazy(ctx)? as f32, name[1].eval_lazy(ctx)? as f32, name[2].eval_lazy(ctx)? as f32, name[3].eval_lazy(ctx)? as f32))}
-            }
-            ControlType::Bool => quote! {#name: self.#name.map(|name| name.eval_lazy(ctx)? > 0.0)},
+            ControlType::Bool => quote! {#name: {
+                if let Some(name) = &self.#name {
+                    Some(name.eval_lazy(ctx)? > 0.0)
+                } else {
+                    None
+                }
+            }},
             ControlType::AnglePi => {
-                quote! {#name: self.#name.map(|name| murrelet_common::AnglePi::new(name.eval_lazy(ctx)?))}
+                quote! {#name: {
+                    if let Some(name) = &self.#name {
+                        Some(murrelet_common::AnglePi::new(name.eval_lazy(ctx)?))
+                    } else {
+                        None
+                    }
+                }}
             }
             ControlType::LazyNodeF32 => {
                 quote! {#name: {

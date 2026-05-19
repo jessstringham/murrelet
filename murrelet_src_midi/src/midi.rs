@@ -142,7 +142,7 @@ pub struct MidiValues {
     pad_count: usize,
     pads: Vec<usize>,
     pads_changed: Vec<bool>,
-    last_update: u64,
+    last_update: Vec<u64>,
     fighter: Vec<usize>,
     fighter_changed: Vec<bool>,
     fighter_times: Vec<Option<MurreletTime>>,
@@ -157,12 +157,12 @@ impl MidiValues {
     fn new(dial_count: usize, pad_count: usize, fighter_count: usize) -> Self {
         MidiValues {
             dial_count,
-            dials: vec![0.5; pad_count],
-            dials_changed: vec![false; pad_count],
+            dials: vec![0.5; dial_count],
+            dials_changed: vec![false; dial_count],
             pad_count,
             pads: vec![0; pad_count],
             pads_changed: vec![false; pad_count],
-            last_update: 0,
+            last_update: vec![0; pad_count],
             fighter: vec![0; fighter_count],
             fighter_changed: vec![false; fighter_count],
             fighter_times: vec![None; fighter_count],
@@ -171,9 +171,9 @@ impl MidiValues {
     }
 
     pub fn reset(&mut self) {
-        self.dials_changed = vec![false; self.dial_count];
-        self.pads_changed = vec![false; self.pad_count];
-        self.fighter_changed = vec![false; self.fighter_count];
+        self.dials_changed.fill(false);
+        self.pads_changed.fill(false);
+        self.fighter_changed.fill(false);
     }
 
     pub fn pads_bool(&self, idx: usize) -> bool {
@@ -211,10 +211,11 @@ impl MidiValues {
     pub fn update(&mut self, msg: &MidiMessage) {
         match msg.key {
             Some(KeyPress::Pad(idx)) => {
-                if msg.stamp - self.last_update > 100 * 1000 {
+                let idx: usize = idx.into();
+                if msg.stamp - self.last_update[idx] > 100 * 1000 {
                     // 100 ms seems to work
-                    self.pads_update(idx.into());
-                    self.last_update = msg.stamp;
+                    self.pads_update(idx);
+                    self.last_update[idx] = msg.stamp;
                 }
             }
             Some(KeyPress::Dial(idx, amount)) => {
@@ -319,7 +320,7 @@ impl MidiMessage {
             },
             MidiDevice::NanoKontrol2 => {
                 match message {
-                    [176, n @ 0..=8, value] => Some(KeyPress::Dial(*n, *value)),
+                    [176, n @ 0..=7, value] => Some(KeyPress::Dial(*n, *value)),
                     [176, n @ 16..=23, value] => Some(KeyPress::Dial(n - 8, *value)),
                     // S
                     [176, n @ 32..=39, _value @ 127] => Some(KeyPress::Pad(n - 32)),

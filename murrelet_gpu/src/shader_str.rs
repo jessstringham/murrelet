@@ -265,20 +265,20 @@ fn clamp01(p: f32) -> f32 {
   return clamp(p, 0.0, 1.0);
 }
 
-fn clamp3(p: vec3<f32>, min: f32, max: f32) -> vec3<f32> {
+fn clamp3(p: vec3<f32>, lo: f32, hi: f32) -> vec3<f32> {
   return vec3<f32>(
-      clamp(p.x, 0.0, 1.0),
-      clamp(p.y, 0.0, 1.0),
-      clamp(p.z, 0.0, 1.0)
+      clamp(p.x, lo, hi),
+      clamp(p.y, lo, hi),
+      clamp(p.z, lo, hi)
   );
 }
 
-fn clamp4(p: vec4<f32>, min: f32, max: f32) -> vec4<f32> {
+fn clamp4(p: vec4<f32>, lo: f32, hi: f32) -> vec4<f32> {
   return vec4<f32>(
-      clamp(p.x, 0.0, 1.0),
-      clamp(p.y, 0.0, 1.0),
-      clamp(p.z, 0.0, 1.0),
-      clamp(p.a, 0.0, 1.0)
+      clamp(p.x, lo, hi),
+      clamp(p.y, lo, hi),
+      clamp(p.z, lo, hi),
+      clamp(p.a, lo, hi)
   );
 }
 
