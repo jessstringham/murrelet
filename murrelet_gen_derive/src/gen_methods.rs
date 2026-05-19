@@ -91,7 +91,7 @@ impl GenMethod {
             }
             GenMethod::BoolBinomial { pct } => {
                 let for_rn_count = quote! { 1 };
-                let for_rn_names = quote! { vec!["pct".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
                 let for_make_gen = quote! { {
                     let result = rn[rn_start_idx] < #pct;
                     rn_start_idx += #for_rn_count;
@@ -109,7 +109,7 @@ impl GenMethod {
             }
             GenMethod::F32Uniform { start, end } => {
                 let for_rn_count = quote! { 1 };
-                let for_rn_names = quote! { vec!["uniform".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
                 let for_make_gen = quote! { {
                     let result = rn[rn_start_idx] * (#end - #start) + #start;
                     rn_start_idx += #for_rn_count;
@@ -121,7 +121,7 @@ impl GenMethod {
             }
             GenMethod::F32UniformPosNeg { start, end } => {
                 let for_rn_count = quote! { 2 };
-                let for_rn_names = quote! { vec!["uniform".to_string(), "sign".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
                 let for_make_gen = quote! { {
                     let sgn = if(rn[rn_start_idx] > 0.5) { 1.0 } else { -1.0 };
                     let result = rn[rn_start_idx + 1] * (#end - #start) + #start;
@@ -136,16 +136,16 @@ impl GenMethod {
 
                 (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
             }
-            GenMethod::F32Fixed { val } => (
-                quote! { 0 },
-                quote! {vec![]},
-                quote! { #val #maybe_as },
-                quote! {vec![]},
-            ),
+            GenMethod::F32Fixed { val } => {
+                let for_rn_count = quote! { 0 };
+                let for_rn_names = self.slot_names_tokens().unwrap();
+                let for_make_gen = quote! { #val #maybe_as };
+                let for_to_dist = quote! { vec![] };
+                (for_rn_count, for_rn_names, for_make_gen, for_to_dist)
+            }
             GenMethod::F32Normal { mu, sigma } => {
                 let for_rn_count = quote! { 2 };
-                let for_rn_names =
-                    quote! { vec![ "BoxMuller1".to_string(), "BoxMuller2".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
                 let for_make_gen = quote! { {
                     // avoid nans, make sure u1 is positive and non-zero
                     let u1 = rn[rn_start_idx].clamp(std::f32::MIN_POSITIVE, 1.0);
@@ -167,7 +167,7 @@ impl GenMethod {
                 height,
             } => {
                 let for_rn_count = quote! { 2 };
-                let for_rn_names = quote! { vec![ "x".to_string(), "y".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
                 let for_make_gen = quote! {{
                     let width = rn[rn_start_idx] * #width;
                     let height = rn[rn_start_idx + 1] * #height;
@@ -199,7 +199,7 @@ impl GenMethod {
                 height,
             } => {
                 let for_rn_count = quote! { 2 };
-                let for_rn_names = quote! { vec![ "x".to_string(), "y".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
                 let for_make_gen = quote! {{
                     let width = rn[rn_start_idx] * #width;
                     let height = rn[rn_start_idx + 1] * #height;
@@ -223,7 +223,7 @@ impl GenMethod {
             }
             GenMethod::Vec2Circle { x, y, radius } => {
                 let for_rn_count = quote! { 2 };
-                let for_rn_names = quote! { vec![ "theta".to_string(), "rad".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
 
                 let for_make_gen = quote! {{
                     let angle = rn[rn_start_idx] * 2.0 * std::f32::consts::PI;
@@ -248,8 +248,7 @@ impl GenMethod {
             GenMethod::ColorNormal => {
                 let for_rn_count = quote! { 3 };
 
-                let for_rn_names =
-                    quote! { vec![ "hue".to_string(), "sat".to_string(), "val".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
 
                 let for_make_gen = quote! {{
                     let h = rn[rn_start_idx];
@@ -273,7 +272,7 @@ impl GenMethod {
             GenMethod::ColorTransparency => {
                 let for_rn_count = quote! { 4 };
 
-                let for_rn_names = quote! { vec![ "hue".to_string(), "sat".to_string(), "val".to_string(), "alpha".to_string()] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
 
                 let for_make_gen = quote! {
                     {
@@ -303,14 +302,11 @@ impl GenMethod {
                 unreachable!("this location of veclength isn't supported yet!")
             }
             // GenMethod::VecLengthFixed { val: _ } => unreachable!(),
-
             GenMethod::StringChoice { choices } => {
                 let one_hot = choices.len();
                 let for_rn_count = quote! { #one_hot };
 
-                // let for_rn_names = quote! { vec![ "hue", "sat", "val", "alpha"] };
-                let rn_names = choices.iter().map(|(key, _)| quote! { #key.to_string() });
-                let for_rn_names = quote! { vec![#(#rn_names,)*] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
 
                 let weighted_rns = choices
                     .iter()
@@ -342,7 +338,7 @@ impl GenMethod {
             GenMethod::Default => {
                 let for_rn_count = quote! { 0 };
 
-                let for_rn_names = quote! { vec![] };
+                let for_rn_names = self.slot_names_tokens().unwrap();
 
                 let for_make_gen = quote! { {
                     Default::default()
@@ -356,46 +352,69 @@ impl GenMethod {
         }
     }
 
-    /// `Vec<murrelet_gen::RnSpec>` for this method — parallel, one entry per
-    /// rn, to the `for_rn_names` produced by `to_methods`.
-    pub(crate) fn rn_specs_tokens(&self, ty: syn::Type) -> TokenStream2 {
+    // name for json
+    pub(crate) fn method_name(&self) -> &'static str {
         match self {
-            GenMethod::Recurse => quote! { #ty::rn_specs() },
-            GenMethod::BoolBinomial { pct } => quote! {
-                vec![murrelet_gen::RnSpec::new(
-                    "bool_binomial", "pct", vec![("pct".to_string(), #pct)])]
-            },
-            GenMethod::F32Uniform { start, end } => quote! {
-                vec![murrelet_gen::RnSpec::new("f32_uniform", "uniform", vec![
+            GenMethod::Default => "default",
+            GenMethod::Recurse => "recurse",
+            GenMethod::BoolBinomial { .. } => "bool_binomial",
+            GenMethod::F32Uniform { .. } => "f32_uniform",
+            GenMethod::F32UniformPosNeg { .. } => "f32_uniform_pos_neg",
+            GenMethod::F32Normal { .. } => "f32_normal",
+            GenMethod::F32Fixed { .. } => "f32_fixed",
+            GenMethod::Vec2UniformGridStart { .. } => "vec2_uniform_grid_start",
+            GenMethod::Vec2UniformGrid { .. } => "vec2_uniform_grid",
+            GenMethod::Vec2Circle { .. } => "vec2_circle",
+            GenMethod::VecLength { .. } => "vec_length",
+            GenMethod::ColorNormal => "color_normal",
+            GenMethod::ColorTransparency => "color_transparency",
+            GenMethod::StringChoice { .. } => "string_choice",
+            GenMethod::F32Lazy => "f32_lazy",
+        }
+    }
+
+    pub(crate) fn slot_specs_data(&self) -> Option<Vec<(String, TokenStream2)>> {
+        let empty = || quote! { vec![] };
+        match self {
+            GenMethod::Recurse | GenMethod::VecLength { .. } | GenMethod::F32Lazy => None,
+
+            GenMethod::Default | GenMethod::F32Fixed { .. } => Some(vec![]),
+
+            GenMethod::BoolBinomial { pct } => Some(vec![(
+                "pct".into(),
+                quote! { vec![("pct".to_string(), #pct)] },
+            )]),
+
+            GenMethod::F32Uniform { start, end } => {
+                let params = quote! { vec![
                     ("start".to_string(), (#start) as f32),
                     ("end".to_string(), (#end) as f32),
-                ])]
-            },
-            GenMethod::F32UniformPosNeg { start, end } => quote! {
-                vec![
-                    murrelet_gen::RnSpec::new("f32_uniform_pos_neg", "uniform", vec![
-                        ("start".to_string(), (#start) as f32),
-                        ("end".to_string(), (#end) as f32),
-                    ]),
-                    murrelet_gen::RnSpec::new("f32_uniform_pos_neg", "sign", vec![
-                        ("start".to_string(), (#start) as f32),
-                        ("end".to_string(), (#end) as f32),
-                    ]),
-                ]
-            },
-            GenMethod::F32Normal { mu, sigma } => quote! {
-                vec![
-                    murrelet_gen::RnSpec::new("f32_normal", "BoxMuller1", vec![
-                        ("mu".to_string(), (#mu) as f32),
-                        ("sigma".to_string(), (#sigma) as f32),
-                    ]),
-                    murrelet_gen::RnSpec::new("f32_normal", "BoxMuller2", vec![
-                        ("mu".to_string(), (#mu) as f32),
-                        ("sigma".to_string(), (#sigma) as f32),
-                    ]),
-                ]
-            },
-            GenMethod::F32Fixed { .. } => quote! { Vec::<murrelet_gen::RnSpec>::new() },
+                ] };
+                Some(vec![("uniform".into(), params)])
+            }
+
+            GenMethod::F32UniformPosNeg { start, end } => {
+                let params = quote! { vec![
+                    ("start".to_string(), (#start) as f32),
+                    ("end".to_string(), (#end) as f32),
+                ] };
+                Some(vec![
+                    ("uniform".into(), params.clone()),
+                    ("sign".into(), params),
+                ])
+            }
+
+            GenMethod::F32Normal { mu, sigma } => {
+                let params = quote! { vec![
+                    ("mu".to_string(), (#mu) as f32),
+                    ("sigma".to_string(), (#sigma) as f32),
+                ] };
+                Some(vec![
+                    ("BoxMuller1".into(), params.clone()),
+                    ("BoxMuller2".into(), params),
+                ])
+            }
+
             GenMethod::Vec2UniformGridStart {
                 start_x,
                 start_y,
@@ -408,13 +427,9 @@ impl GenMethod {
                     ("width".to_string(), #width),
                     ("height".to_string(), #height),
                 ] };
-                quote! {
-                    vec![
-                        murrelet_gen::RnSpec::new("vec2_uniform_grid_start", "x", #params),
-                        murrelet_gen::RnSpec::new("vec2_uniform_grid_start", "y", #params),
-                    ]
-                }
+                Some(vec![("x".into(), params.clone()), ("y".into(), params)])
             }
+
             GenMethod::Vec2UniformGrid {
                 x,
                 y,
@@ -427,68 +442,73 @@ impl GenMethod {
                     ("width".to_string(), #width),
                     ("height".to_string(), #height),
                 ] };
-                quote! {
-                    vec![
-                        murrelet_gen::RnSpec::new("vec2_uniform_grid", "x", #params),
-                        murrelet_gen::RnSpec::new("vec2_uniform_grid", "y", #params),
-                    ]
-                }
+                Some(vec![("x".into(), params.clone()), ("y".into(), params)])
             }
+
             GenMethod::Vec2Circle { x, y, radius } => {
                 let params = quote! { vec![
                     ("x".to_string(), (#x) as f32),
                     ("y".to_string(), (#y) as f32),
                     ("radius".to_string(), #radius),
                 ] };
-                quote! {
-                    vec![
-                        murrelet_gen::RnSpec::new("vec2_circle", "theta", #params),
-                        murrelet_gen::RnSpec::new("vec2_circle", "rad", #params),
-                    ]
-                }
+                Some(vec![
+                    ("theta".into(), params.clone()),
+                    ("rad".into(), params),
+                ])
             }
-            GenMethod::ColorNormal => quote! {
-                vec![
-                    murrelet_gen::RnSpec::new("color_normal", "hue", vec![]),
-                    murrelet_gen::RnSpec::new("color_normal", "sat", vec![]),
-                    murrelet_gen::RnSpec::new("color_normal", "val", vec![]),
-                ]
-            },
-            GenMethod::ColorTransparency => quote! {
-                vec![
-                    murrelet_gen::RnSpec::new("color_transparency", "hue", vec![]),
-                    murrelet_gen::RnSpec::new("color_transparency", "sat", vec![]),
-                    murrelet_gen::RnSpec::new("color_transparency", "val", vec![]),
-                    murrelet_gen::RnSpec::new("color_transparency", "alpha", vec![]),
-                ]
-            },
-            GenMethod::VecLength { .. } => {
-                unreachable!("this location of veclength isn't supported yet!")
-            }
-            GenMethod::StringChoice { choices } => {
-                let specs = choices.iter().map(|(key, weight)| {
-                    quote! { murrelet_gen::RnSpec::new(
-                        "string_choice", #key, vec![("weight".to_string(), #weight)]) }
-                });
-                quote! { vec![#(#specs,)*] }
-            }
-            GenMethod::Default => quote! { Vec::<murrelet_gen::RnSpec>::new() },
-            GenMethod::F32Lazy => todo!(),
+
+            GenMethod::ColorNormal => Some(vec![
+                ("hue".into(), empty()),
+                ("sat".into(), empty()),
+                ("val".into(), empty()),
+            ]),
+
+            GenMethod::ColorTransparency => Some(vec![
+                ("hue".into(), empty()),
+                ("sat".into(), empty()),
+                ("val".into(), empty()),
+                ("alpha".into(), empty()),
+            ]),
+
+            GenMethod::StringChoice { choices } => Some(
+                choices
+                    .iter()
+                    .map(|(key, weight)| {
+                        (
+                            key.clone(),
+                            quote! { vec![("weight".to_string(), #weight)] },
+                        )
+                    })
+                    .collect(),
+            ),
         }
     }
 
-    // pub(crate) fn from_methods(&self) -> TokenStream2 {
-    //     match self {
-    //         GenMethod::Default => todo!(),
-    //         GenMethod::Recurse => todo!(),
-    //         GenMethod::BoolBinomial { pct } => {
-    //             // put at extremes
+    pub(crate) fn slot_names_tokens(&self) -> Option<TokenStream2> {
+        self.slot_specs_data().map(|specs| {
+            let names: Vec<String> = specs.into_iter().map(|(name, _)| name).collect();
+            quote! { vec![#(#names.to_string(),)*] }
+        })
+    }
 
-    //         },
-    //         GenMethod::F32Uniform { start, end } => {
-
-    //         },
-
-    //     }
-    // }
+    pub(crate) fn rn_specs_tokens(&self, ty: syn::Type) -> TokenStream2 {
+        match self {
+            GenMethod::Recurse => quote! { #ty::rn_specs() },
+            GenMethod::VecLength { .. } => {
+                unreachable!("this location of veclength isn't supported yet!")
+            }
+            GenMethod::F32Lazy => todo!(),
+            _ => {
+                let method = self.method_name();
+                let entries = self
+                    .slot_specs_data()
+                    .expect("fixed-shape variant should provide slot_specs_data")
+                    .into_iter()
+                    .map(|(name, params)| {
+                        quote! { murrelet_gen::RnSpec::new(#method, #name, #params) }
+                    });
+                quote! { vec![#(#entries,)*] }
+            }
+        }
+    }
 }

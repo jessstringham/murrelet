@@ -5,7 +5,8 @@ use crate::embedding::MurreletEmbeddingConf;
 use crate::embedding::MurreletQuantizedEmbedding;
 pub use murrelet_gen_derive::MurreletGen;
 
-// like names, but includes
+// like names, but includes info about the murrelet gen
+// for the frontend
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct RnSpec {
     pub method: String,
