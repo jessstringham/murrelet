@@ -483,6 +483,14 @@ macro_rules! bonus_embedding_wrapper {
                 <$conf_ty as murrelet_gen::CanSampleFromDist>::rn_names()
             }
 
+            // JSON array of RnSpec, parallel to rn_names() — gen method + params per rn slot.
+            pub fn rn_specs(&self) -> Result<String, wasm_bindgen::JsValue> {
+                serde_json::to_string(
+                    &<$conf_ty as murrelet_gen::CanSampleFromDist>::rn_specs(),
+                )
+                .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
+            }
+
             pub fn to_unclamped_dist(&self) -> Vec<f32> {
                 <_ as murrelet_gen::CanSampleFromDist>::to_dist(self.model.get_conf())
             }

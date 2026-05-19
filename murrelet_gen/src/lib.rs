@@ -5,10 +5,30 @@ use crate::embedding::MurreletEmbeddingConf;
 use crate::embedding::MurreletQuantizedEmbedding;
 pub use murrelet_gen_derive::MurreletGen;
 
+// like names, but includes
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct RnSpec {
+    pub method: String,
+    pub name: String,
+    pub params: Vec<(String, f32)>,
+}
+impl RnSpec {
+    pub fn new(method: &str, name: &str, params: Vec<(String, f32)>) -> Self {
+        Self {
+            method: method.to_string(),
+            name: name.to_string(),
+            params,
+        }
+    }
+}
+
 pub trait CanSampleFromDist: Sized {
     // returns the right number of rn needed to generate this.
     fn rn_count() -> usize;
     fn rn_names() -> Vec<String>;
+
+    // one RnSpec per rn, parallel to rn_names() — the gen method + params.
+    fn rn_specs() -> Vec<RnSpec>;
 
     fn sample_dist(rn: &[f32], start_idx: usize) -> Self;
 

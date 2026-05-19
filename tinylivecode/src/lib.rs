@@ -111,6 +111,42 @@ impl TinyExpr {
                     let x = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
                     eval_stack.push((1.0 - z) * x + z * y)?;
                 }
+                ExprNode::If => {
+                    let else_v: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let then_v: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let cond: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    eval_stack.push(if cond != 0.0 { then_v } else { else_v })?;
+                }
+                ExprNode::Lt => {
+                    let b: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let a: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    eval_stack.push(if a < b { 1.0 } else { 0.0 })?;
+                }
+                ExprNode::Gt => {
+                    let b: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let a: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    eval_stack.push(if a > b { 1.0 } else { 0.0 })?;
+                }
+                ExprNode::Le => {
+                    let b: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let a: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    eval_stack.push(if a <= b { 1.0 } else { 0.0 })?;
+                }
+                ExprNode::Ge => {
+                    let b: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let a: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    eval_stack.push(if a >= b { 1.0 } else { 0.0 })?;
+                }
+                ExprNode::Eq => {
+                    let b: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let a: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    eval_stack.push(if a == b { 1.0 } else { 0.0 })?;
+                }
+                ExprNode::Ne => {
+                    let b: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    let a: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
+                    eval_stack.push(if a != b { 1.0 } else { 0.0 })?;
+                }
                 // binary
                 ExprNode::Add => {
                     let y: f32 = eval_stack.pop().ok_or(ParseError::NoValuesInStack)?;
@@ -207,8 +243,16 @@ enum ExprNode {
     Mul,
     Div,
     Sub,
+    // binary comparisons (push 1.0 if true, 0.0 otherwise)
+    Lt,
+    Gt,
+    Le,
+    Ge,
+    Eq,
+    Ne,
     // ternary
     Lerp,
+    If, // `cond then else if` — pops else, then, cond; pushes then if cond != 0.0 else else
 }
 
 impl ExprNode {
@@ -230,6 +274,13 @@ impl ExprNode {
             "div" => Ok(ExprNode::Div),
             "sub" => Ok(ExprNode::Sub),
             "lerp" => Ok(ExprNode::Lerp),
+            "if" => Ok(ExprNode::If),
+            "lt" => Ok(ExprNode::Lt),
+            "gt" => Ok(ExprNode::Gt),
+            "le" => Ok(ExprNode::Le),
+            "ge" => Ok(ExprNode::Ge),
+            "eq" => Ok(ExprNode::Eq),
+            "ne" => Ok(ExprNode::Ne),
             _ => {
                 let float = token
                     .parse::<f32>()
@@ -350,6 +401,51 @@ mod tests {
                 assert!(false)
             }
         }
+    }
+
+    fn ok_eq(r: TestEvalResult, expected: f32) {
+        match r {
+            TestEvalResult::Ok(v) => assert_eq!(v, expected),
+            _ => panic!("expected Ok({}), got error", expected),
+        }
+    }
+
+    #[test]
+    fn comparisons() {
+        ok_eq(evaluate("2.0 5.0 lt", 0.0, 0.0, 0.0), 1.0);
+        ok_eq(evaluate("5.0 2.0 lt", 0.0, 0.0, 0.0), 0.0);
+        ok_eq(evaluate("3.0 3.0 lt", 0.0, 0.0, 0.0), 0.0);
+
+        ok_eq(evaluate("5.0 2.0 gt", 0.0, 0.0, 0.0), 1.0);
+        ok_eq(evaluate("2.0 5.0 gt", 0.0, 0.0, 0.0), 0.0);
+
+        ok_eq(evaluate("3.0 3.0 le", 0.0, 0.0, 0.0), 1.0);
+        ok_eq(evaluate("3.0 3.0 ge", 0.0, 0.0, 0.0), 1.0);
+        ok_eq(evaluate("4.0 3.0 le", 0.0, 0.0, 0.0), 0.0);
+        ok_eq(evaluate("3.0 4.0 ge", 0.0, 0.0, 0.0), 0.0);
+
+        ok_eq(evaluate("3.0 3.0 eq", 0.0, 0.0, 0.0), 1.0);
+        ok_eq(evaluate("3.0 4.0 eq", 0.0, 0.0, 0.0), 0.0);
+        ok_eq(evaluate("3.0 4.0 ne", 0.0, 0.0, 0.0), 1.0);
+        ok_eq(evaluate("3.0 3.0 ne", 0.0, 0.0, 0.0), 0.0);
+
+        // `x < a` style — threshold via vars
+        ok_eq(evaluate("x 0.5 lt", 0.3, 0.0, 0.0), 1.0);
+        ok_eq(evaluate("x 0.5 lt", 0.7, 0.0, 0.0), 0.0);
+    }
+
+    #[test]
+    fn ternary_if() {
+        // `cond then else if`
+        ok_eq(evaluate("1.0 7.0 11.0 if", 0.0, 0.0, 0.0), 7.0);
+        ok_eq(evaluate("0.0 7.0 11.0 if", 0.0, 0.0, 0.0), 11.0);
+        // any nonzero is truthy
+        ok_eq(evaluate("-1.0 7.0 11.0 if", 0.0, 0.0, 0.0), 7.0);
+        ok_eq(evaluate("0.0001 7.0 11.0 if", 0.0, 0.0, 0.0), 7.0);
+
+        // composed: if x < 0.5 then 0.2 else 0.8
+        ok_eq(evaluate("x 0.5 lt 0.2 0.8 if", 0.3, 0.0, 0.0), 0.2);
+        ok_eq(evaluate("x 0.5 lt 0.2 0.8 if", 0.7, 0.0, 0.0), 0.8);
     }
 
     #[test]

@@ -356,6 +356,127 @@ impl GenMethod {
         }
     }
 
+    /// `Vec<murrelet_gen::RnSpec>` for this method — parallel, one entry per
+    /// rn, to the `for_rn_names` produced by `to_methods`.
+    pub(crate) fn rn_specs_tokens(&self, ty: syn::Type) -> TokenStream2 {
+        match self {
+            GenMethod::Recurse => quote! { #ty::rn_specs() },
+            GenMethod::BoolBinomial { pct } => quote! {
+                vec![murrelet_gen::RnSpec::new(
+                    "bool_binomial", "pct", vec![("pct".to_string(), #pct)])]
+            },
+            GenMethod::F32Uniform { start, end } => quote! {
+                vec![murrelet_gen::RnSpec::new("f32_uniform", "uniform", vec![
+                    ("start".to_string(), (#start) as f32),
+                    ("end".to_string(), (#end) as f32),
+                ])]
+            },
+            GenMethod::F32UniformPosNeg { start, end } => quote! {
+                vec![
+                    murrelet_gen::RnSpec::new("f32_uniform_pos_neg", "uniform", vec![
+                        ("start".to_string(), (#start) as f32),
+                        ("end".to_string(), (#end) as f32),
+                    ]),
+                    murrelet_gen::RnSpec::new("f32_uniform_pos_neg", "sign", vec![
+                        ("start".to_string(), (#start) as f32),
+                        ("end".to_string(), (#end) as f32),
+                    ]),
+                ]
+            },
+            GenMethod::F32Normal { mu, sigma } => quote! {
+                vec![
+                    murrelet_gen::RnSpec::new("f32_normal", "BoxMuller1", vec![
+                        ("mu".to_string(), (#mu) as f32),
+                        ("sigma".to_string(), (#sigma) as f32),
+                    ]),
+                    murrelet_gen::RnSpec::new("f32_normal", "BoxMuller2", vec![
+                        ("mu".to_string(), (#mu) as f32),
+                        ("sigma".to_string(), (#sigma) as f32),
+                    ]),
+                ]
+            },
+            GenMethod::F32Fixed { .. } => quote! { Vec::<murrelet_gen::RnSpec>::new() },
+            GenMethod::Vec2UniformGridStart {
+                start_x,
+                start_y,
+                width,
+                height,
+            } => {
+                let params = quote! { vec![
+                    ("start_x".to_string(), (#start_x) as f32),
+                    ("start_y".to_string(), (#start_y) as f32),
+                    ("width".to_string(), #width),
+                    ("height".to_string(), #height),
+                ] };
+                quote! {
+                    vec![
+                        murrelet_gen::RnSpec::new("vec2_uniform_grid_start", "x", #params),
+                        murrelet_gen::RnSpec::new("vec2_uniform_grid_start", "y", #params),
+                    ]
+                }
+            }
+            GenMethod::Vec2UniformGrid {
+                x,
+                y,
+                width,
+                height,
+            } => {
+                let params = quote! { vec![
+                    ("x".to_string(), (#x) as f32),
+                    ("y".to_string(), (#y) as f32),
+                    ("width".to_string(), #width),
+                    ("height".to_string(), #height),
+                ] };
+                quote! {
+                    vec![
+                        murrelet_gen::RnSpec::new("vec2_uniform_grid", "x", #params),
+                        murrelet_gen::RnSpec::new("vec2_uniform_grid", "y", #params),
+                    ]
+                }
+            }
+            GenMethod::Vec2Circle { x, y, radius } => {
+                let params = quote! { vec![
+                    ("x".to_string(), (#x) as f32),
+                    ("y".to_string(), (#y) as f32),
+                    ("radius".to_string(), #radius),
+                ] };
+                quote! {
+                    vec![
+                        murrelet_gen::RnSpec::new("vec2_circle", "theta", #params),
+                        murrelet_gen::RnSpec::new("vec2_circle", "rad", #params),
+                    ]
+                }
+            }
+            GenMethod::ColorNormal => quote! {
+                vec![
+                    murrelet_gen::RnSpec::new("color_normal", "hue", vec![]),
+                    murrelet_gen::RnSpec::new("color_normal", "sat", vec![]),
+                    murrelet_gen::RnSpec::new("color_normal", "val", vec![]),
+                ]
+            },
+            GenMethod::ColorTransparency => quote! {
+                vec![
+                    murrelet_gen::RnSpec::new("color_transparency", "hue", vec![]),
+                    murrelet_gen::RnSpec::new("color_transparency", "sat", vec![]),
+                    murrelet_gen::RnSpec::new("color_transparency", "val", vec![]),
+                    murrelet_gen::RnSpec::new("color_transparency", "alpha", vec![]),
+                ]
+            },
+            GenMethod::VecLength { .. } => {
+                unreachable!("this location of veclength isn't supported yet!")
+            }
+            GenMethod::StringChoice { choices } => {
+                let specs = choices.iter().map(|(key, weight)| {
+                    quote! { murrelet_gen::RnSpec::new(
+                        "string_choice", #key, vec![("weight".to_string(), #weight)]) }
+                });
+                quote! { vec![#(#specs,)*] }
+            }
+            GenMethod::Default => quote! { Vec::<murrelet_gen::RnSpec>::new() },
+            GenMethod::F32Lazy => todo!(),
+        }
+    }
+
     // pub(crate) fn from_methods(&self) -> TokenStream2 {
     //     match self {
     //         GenMethod::Default => todo!(),
