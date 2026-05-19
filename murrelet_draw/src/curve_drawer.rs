@@ -11,8 +11,8 @@ use svg::node::element::path::Data;
 use crate::{
     cubic::CubicBezier,
     line_spacing::{
-        ToVecVec2, flatten_cubic_bezier_path, flatten_cubic_bezier_path_with_tolerance, segment_arc,
-        segment_vec,
+        ToVecVec2, flatten_cubic_bezier_path, flatten_cubic_bezier_path_with_tolerance,
+        segment_arc, segment_vec,
     },
     newtypes::*,
     svg_read::parse_svg_data_as_vec2,
@@ -299,6 +299,21 @@ impl CurveDrawer {
             .collect_vec();
         s.to_cd(self.closed)
     }
+
+    pub fn concat(&self, rhs: &CurveDrawer, is_closed: bool) -> CurveDrawer {
+        [self.segments.clone(), rhs.segments.clone()]
+            .concat()
+            .to_cd(is_closed)
+    }
+
+    pub fn concat_open(&self, rhs: &CurveDrawer) -> CurveDrawer {
+        self.concat(rhs, false)
+    }
+
+    pub fn concat_closed(&self, rhs: &CurveDrawer) -> CurveDrawer {
+        self.concat(rhs, true)
+    }
+
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -506,11 +521,8 @@ impl CurveSegment {
     pub fn tangent_at_pct(&self, pct: f32) -> SpotOnCurve {
         match self {
             CurveSegment::Arc(arc) => {
-                let angle_pi = AnglePi::new(lerp(
-                    arc.start_pi.angle_pi(),
-                    arc.end_pi.angle_pi(),
-                    pct,
-                ));
+                let angle_pi =
+                    AnglePi::new(lerp(arc.start_pi.angle_pi(), arc.end_pi.angle_pi(), pct));
                 let loc = arc.loc + angle_pi.to_norm_dir() * arc.radius;
                 SpotOnCurve::new(loc, angle_pi.perp_to_left())
             }
@@ -693,13 +705,11 @@ impl CurveSegment {
     ) -> (Vec<CurveSegment>, Option<AnglePi>) {
         let mut last_angle_pi = prev_angle_pi;
         match self {
-            CurveSegment::CubicBezier(c) => {
-                CurveSegment::Points(c.as_points()).extrude_curve(
-                    prev_angle_pi,
-                    next_angle_pi,
-                    thickness,
-                )
-            }
+            CurveSegment::CubicBezier(c) => CurveSegment::Points(c.as_points()).extrude_curve(
+                prev_angle_pi,
+                next_angle_pi,
+                thickness,
+            ),
             CurveSegment::Arc(c) => {
                 let radius = if c.is_ccw() {
                     c.radius - thickness
@@ -707,7 +717,10 @@ impl CurveSegment {
                     c.radius + thickness
                 };
                 let a = c.set_radius(radius);
-                (vec![CurveSegment::Arc(a)], Some(c.end_tangent_angle().into()))
+                (
+                    vec![CurveSegment::Arc(a)],
+                    Some(c.end_tangent_angle().into()),
+                )
             }
             CurveSegment::Points(c) => {
                 let mut points = vec![];
@@ -747,19 +760,12 @@ impl CurveSegment {
                     let corner = CornerAngleToAngle::new(*last, last_angle, next_angle);
                     corner.corner_at_point(thickness)
                 } else {
-                    LineFromVecAndLen::new(
-                        *last,
-                        Angle::from(last_angle).perp_to_left(),
-                        thickness,
-                    )
-                    .to_last_point()
+                    LineFromVecAndLen::new(*last, Angle::from(last_angle).perp_to_left(), thickness)
+                        .to_last_point()
                 };
                 points.push(last_point);
 
-                (
-                    vec![CurveSegment::new_simple_points(points)],
-                    last_angle_pi,
-                )
+                (vec![CurveSegment::new_simple_points(points)], last_angle_pi)
             }
         }
     }
@@ -927,8 +933,9 @@ impl CurveArc {
     }
 
     pub fn is_full_circle(&self) -> bool {
-        (self.end_pi - self.start_pi).angle_pi().abs() >= 0.0
-            && (self.end_pi - self.start_pi).angle_pi().rem_euclid(2.0) < 1e-3f32
+        let turns = (self.end_pi - self.start_pi).angle_pi().abs();
+        let rem = turns.rem_euclid(2.0);
+        turns >= 1e-3f32 && (rem < 1e-3f32 || rem > 2.0 - 1e-3f32)
     }
 
     pub fn is_full_circle_then_split(&self) -> Option<(CurveArc, CurveArc)> {
