@@ -9,15 +9,15 @@ pub type Polyline = Vec<Vec2>;
 // IsPolyline traits
 
 pub trait IsPolyline {
-    fn into_iter_vec2<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = Vec2> + 'a>;
+    fn into_iter_vec2(&self) -> impl ExactSizeIterator<Item = Vec2>;
     fn as_polyline(self) -> Polyline;
     fn into_vec(self) -> Vec<Vec2>;
     fn clone_to_vec(&self) -> Vec<Vec2>;
 }
 
 impl IsPolyline for &[Vec2] {
-    fn into_iter_vec2<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = Vec2> + 'a> {
-        Box::new(self.iter().cloned())
+    fn into_iter_vec2(&self) -> impl ExactSizeIterator<Item = Vec2> {
+        self.iter().cloned()
     }
 
     fn as_polyline(self) -> Polyline {
@@ -34,8 +34,8 @@ impl IsPolyline for &[Vec2] {
 }
 
 impl IsPolyline for Vec<Vec2> {
-    fn into_iter_vec2<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = Vec2> + 'a> {
-        Box::new(self.iter().cloned())
+    fn into_iter_vec2(&self) -> impl ExactSizeIterator<Item = Vec2> {
+        self.iter().cloned()
     }
 
     fn as_polyline(self) -> Polyline {
@@ -94,8 +94,8 @@ impl AngledPolyline {
 }
 
 impl IsPolyline for AngledPolyline {
-    fn into_iter_vec2<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = Vec2> + 'a> {
-        Box::new(self.v.iter().map(|x| x.loc()))
+    fn into_iter_vec2(&self) -> impl ExactSizeIterator<Item = Vec2> {
+        self.v.iter().map(|x| x.loc())
     }
 
     fn as_polyline(self) -> Polyline {
@@ -114,7 +114,7 @@ impl IsPolyline for AngledPolyline {
 }
 
 pub trait IsAngledPolyline {
-    fn into_iter_spot<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = SpotOnCurve> + 'a>;
+    fn into_iter_spot(&self) -> impl ExactSizeIterator<Item = SpotOnCurve>;
     fn as_angled_polyline(self) -> AngledPolyline;
     fn into_vec(self) -> Vec<SpotOnCurve>;
     fn clone_to_spot_vec(&self) -> Vec<SpotOnCurve> {
@@ -123,8 +123,8 @@ pub trait IsAngledPolyline {
 }
 
 impl IsAngledPolyline for &[SpotOnCurve] {
-    fn into_iter_spot<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = SpotOnCurve> + 'a> {
-        Box::new(self.iter().cloned())
+    fn into_iter_spot(&self) -> impl ExactSizeIterator<Item = SpotOnCurve> {
+        self.iter().cloned()
     }
 
     fn as_angled_polyline(self) -> AngledPolyline {
@@ -137,8 +137,8 @@ impl IsAngledPolyline for &[SpotOnCurve] {
 }
 
 impl IsAngledPolyline for Vec<SpotOnCurve> {
-    fn into_iter_spot<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = SpotOnCurve> + 'a> {
-        Box::new(self.iter().cloned())
+    fn into_iter_spot(&self) -> impl ExactSizeIterator<Item = SpotOnCurve> {
+        self.iter().cloned()
     }
 
     fn as_angled_polyline(self) -> AngledPolyline {
@@ -151,8 +151,8 @@ impl IsAngledPolyline for Vec<SpotOnCurve> {
 }
 
 impl IsAngledPolyline for AngledPolyline {
-    fn into_iter_spot<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item = SpotOnCurve> + 'a> {
-        Box::new(self.v.iter().cloned())
+    fn into_iter_spot(&self) -> impl ExactSizeIterator<Item = SpotOnCurve> {
+        self.v.iter().cloned()
     }
 
     fn as_angled_polyline(self) -> AngledPolyline {
