@@ -129,5 +129,48 @@ export function makeMurreletClient(wasm) {
     return model.to_clamped_dist(_digits ?? 3);
   }
 
-  return { ensure, getGen, modelFromGenSteps, createTopLevel, clampedDist };
+  // Free-function passthroughs — every `+emb` crate hand-writes these in its
+  // lib.rs; the client exposes them so surface pages never reach for the raw
+  // `@<name>-pkg/<name>.js` namespace.
+  function rn_count() { return wasm.rn_count(); }
+  function rn_names() { return Array.from(wasm.rn_names()); }
+  function lock_values() { return Array.from(wasm.lock_values()); }
+  function gen_from_seed(seed) { return wasm.gen_from_seed(seed); }
+  function gen_from_rn(rns) { return wasm.gen_from_rn(rns); }
+  function murrelet_export_info() { return JSON.parse(wasm.murrelet_export_info()); }
+
+  // Convenience: build a model from a config JSON / object — same path as
+  // createTopLevel but named to match the wasm-side `*TopLevelWasm.new_conf`.
+  async function newConf(confObjOrJson) { return createTopLevel(confObjOrJson); }
+
+  // Direct access to the wasm-side WasmEmbeddingGen class for callers that
+  // build locking / mix / gauss expressions (e.g. infinite scroll). Always
+  // available via murrelet_wasm; throws if not exported.
+  function embeddingGen() {
+    if (typeof wasm.WasmEmbeddingGen !== "function") {
+      throw new Error("WasmEmbeddingGen not exported by this wasm module.");
+    }
+    return wasm.WasmEmbeddingGen;
+  }
+
+  // rn_specs lives only as a `&self` method on TopLevelWasm; cache the result
+  // since it's a function of the conf *type*, not the instance.
+  let _specsP = null;
+  async function rn_specs() {
+    if (!_specsP) {
+      _specsP = (async () => {
+        const model = await modelFromGenSteps("s(0)");
+        try { return JSON.parse(model.rn_specs()); }
+        finally { model.free?.(); }
+      })();
+    }
+    return _specsP;
+  }
+
+  return {
+    ensure, getGen, modelFromGenSteps, createTopLevel, clampedDist,
+    rn_count, rn_names, rn_specs, lock_values,
+    gen_from_seed, gen_from_rn,
+    murrelet_export_info, newConf, embeddingGen,
+  };
 }
