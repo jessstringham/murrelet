@@ -2,13 +2,11 @@ use std::fmt::Display;
 
 use glam::vec2;
 use murrelet_common::{MurreletAppInput, ToStrId};
-use murrelet_draw::drawable::MixedDrawableShape;
 use murrelet_gen::embedding::MurreletQuantizedEmbedding;
-use murrelet_livecode::types::LivecodeResult;
 use murrelet_perform::AppConfig;
-use serde::Deserialize;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use itertools::Itertools;
+pub use murrelet_perform::interface::{IsDrawableMurreletModel, IsMurreletModel};
 
 pub type JsResult<T> = Result<T, JsValue>;
 
@@ -23,26 +21,6 @@ impl<T, E: Display> ToJsResult<T> for Result<T, E> {
     }
 }
 
-pub trait IsDrawableMurreletWebModel<Conf, DrawOpts>
-where
-    for<'de> DrawOpts: Deserialize<'de>,
-    Conf: Clone,
-{
-    fn draw(&self, conf: &DrawOpts) -> LivecodeResult<Vec<MixedDrawableShape>>;
-}
-
-pub trait IsMurreletWebModel<Conf>
-where
-    Conf: Clone,
-{
-    fn init(conf: Conf) -> Self;
-    fn get_conf(&self) -> &Conf;
-    fn set_conf(&mut self, conf: Conf);
-
-    fn reload(&mut self);
-
-    fn update(&mut self, app_input: &MurreletAppInput);
-}
 
 // just so we can manage these things outside of a macro...
 pub struct AppManager {

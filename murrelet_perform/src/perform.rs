@@ -56,6 +56,8 @@ pub struct SvgDrawConfig {
     should_resize: bool, // sorry, something to force it not to resize my shapes on the web!
     bg_color: Option<MurreletColor>,
     output_kind: SvgSaveKind,
+    stroke_width: f32, // absolute mm stroke for the saved file (0.0 = proportional)
+    colors_as_layers: bool, // split saved file into one layer per stroke color
 }
 impl SvgDrawConfig {
     pub fn new(
@@ -65,6 +67,8 @@ impl SvgDrawConfig {
         target_size: f32,
         frame: u64,
         output_kind: SvgSaveKind,
+        stroke_width: f32,
+        colors_as_layers: bool,
     ) -> SvgDrawConfig {
         SvgDrawConfig {
             size,
@@ -76,7 +80,21 @@ impl SvgDrawConfig {
             resolution,
             bg_color: None,
             output_kind,
+            stroke_width,
+            colors_as_layers,
         }
+    }
+
+    pub fn stroke_width(&self) -> f32 {
+        self.stroke_width
+    }
+
+    pub fn should_resize(&self) -> bool {
+        self.should_resize
+    }
+
+    pub fn colors_as_layers(&self) -> bool {
+        self.colors_as_layers
     }
 
     pub fn with_bg_color(&self, bg_color: MurreletColor) -> Self {
@@ -115,14 +133,10 @@ impl SvgDrawConfig {
             let translation_to_final = vec2(full_target_width, full_target_width);
             let s = self.target_size / size;
 
-            // SVG is y-down, the engine is y-up — reflect_y first so SVG
-            // output isn't vertically mirrored vs the native render.
-            // aiming for 100mm by 100mm, going from 0 to 10
-            // operations go right to left!
             SimpleTransform2d::new(vec![
+                SimpleTransform2dStep::scale_both(s),
                 SimpleTransform2dStep::reflect_y(),
                 SimpleTransform2dStep::translate(translation_to_final),
-                SimpleTransform2dStep::scale_both(s),
             ])
         } else {
             // SVG is y-down, the engine is y-up.
@@ -265,6 +279,20 @@ fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(false)
 }
 
+fn _default_svg_stroke_width() -> ControlF32 {
+    ControlF32::Raw(0.0)
+}
+fn _default_svg_stroke_width_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Float(0.0)
+}
+
+fn _default_svg_colors_as_layers() -> ControlBool {
+    ControlBool::Raw(false)
+}
+fn _default_svg_colors_as_layers_lazy() -> ControlLazyNodeF32 {
+    ControlLazyNodeF32::Bool(false)
+}
+
 impl Default for ControlAppConfigTiming {
     fn default() -> Self {
         Self {
@@ -344,6 +372,12 @@ pub struct SvgConfig {
     pub save: bool,
     #[livecode(serde_default = "_default_svg_kind")]
     output_kind: SvgSaveKind, // trigger for svg save
+    // actual stroke width in mm
+    #[livecode(serde_default = "_default_svg_stroke_width")]
+    pub stroke_width: f32,
+    // split colors into layers, maybe easier than doing it by hand
+    #[livecode(serde_default = "_default_svg_colors_as_layers")]
+    pub colors_as_layers: bool,
 }
 impl Default for ControlSvgConfig {
     fn default() -> Self {
@@ -351,6 +385,8 @@ impl Default for ControlSvgConfig {
             size: _default_svg_size(),
             save: _default_svg_save(),
             output_kind: _default_svg_kind(),
+            stroke_width: _default_svg_stroke_width(),
+            colors_as_layers: _default_svg_colors_as_layers(),
         }
     }
 }
@@ -361,6 +397,8 @@ impl Default for ControlLazySvgConfig {
             size: _default_svg_size_lazy(),
             save: _default_svg_save_lazy(),
             output_kind: _default_svg_kind_lazy(),
+            stroke_width: _default_svg_stroke_width_lazy(),
+            colors_as_layers: _default_svg_colors_as_layers_lazy(),
         }
     }
 }
@@ -571,6 +609,8 @@ impl AppConfig {
                 size: 100.0,
                 save: false,
                 output_kind: SvgSaveKind::HTML,
+                stroke_width: 0.0,
+                colors_as_layers: false,
             },
             gpu: GpuConfig {
                 debug_next: false,
@@ -704,6 +744,8 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
         lil_liveconfig.app_config.svg.size,
         lil_liveconfig.w.actual_frame_u64(),
         lil_liveconfig.app_config.svg.output_kind,
+        lil_liveconfig.app_config.svg.stroke_width,
+        lil_liveconfig.app_config.svg.colors_as_layers,
     )
 }
 
