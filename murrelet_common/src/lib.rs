@@ -1219,9 +1219,11 @@ pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
     let g = clamp(g, 0.0, 1.0);
     let b = clamp(b, 0.0, 1.0);
 
-    let r = (r * 255.0) as u8;
-    let g = (g * 255.0) as u8;
-    let b = (b * 255.0) as u8;
+    // round, not truncate — truncation biases every channel dark by up to
+    // 1/255 (e.g. white round-trips through HSVA to ~0.9999 -> 254 = 0xFE).
+    let r = (r * 255.0).round() as u8;
+    let g = (g * 255.0).round() as u8;
+    let b = (b * 255.0).round() as u8;
 
     format!("#{:02X}{:02X}{:02X}", r, g, b)
 }

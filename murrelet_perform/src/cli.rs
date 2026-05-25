@@ -69,6 +69,12 @@ pub struct BaseConfigArgs {
     #[arg(long)]
     pub earlystop: Option<u64>,
 
+    // Override config fields by dotted schema path before parsing, e.g.
+    // `--set drawing.filename=bird_001.png`. Repeatable. Lets a batch wrapper
+    // vary one field per run without authoring a yaml per input.
+    #[arg(long = "set", value_name = "PATH=VALUE")]
+    pub overrides: Vec<String>,
+
     #[arg(trailing_var_arg = true)]
     pub sketch_args: Vec<String>,
 }

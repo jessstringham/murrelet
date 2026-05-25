@@ -4,6 +4,7 @@ pub mod editable_shaders;
 pub mod gpu_livecode;
 pub mod gpu_macros;
 pub mod graphics_ref;
+pub mod headless;
 pub mod shader_str;
 pub mod uniforms;
 pub mod window;

@@ -3,7 +3,7 @@ use itertools::Itertools;
 use lerpable::Lerpable;
 use lyon::path::Path;
 use murrelet_common::*;
-use murrelet_livecode::types::{LivecodeError, LivecodeResult};
+use murrelet_livecode::types::LivecodeResult;
 use murrelet_livecode_derive::*;
 use serde::{Deserialize, Serialize};
 use svg::node::element::path::Data;
@@ -260,19 +260,16 @@ impl CurveDrawer {
     }
 
     pub fn maybe_transform<T: ToSimpleTransform>(&self, transform: &T) -> LivecodeResult<Self> {
-        let mut segments = vec![];
-
+        // Points and beziers transform correctly under any affine transform
+        // (skew, non-uniform scale included). Arc segments self-protect inside
+        // force_transform: a non-similarity transform can't be represented as a
+        // circular arc, so those are left untransformed (+ a one-shot warn).
         let transform = transform.to_simple_transform();
-
-        if !transform.is_similarity_transform() {
-            return Err(LivecodeError::raw("not a similarity transform"));
-        }
-
-        for cd in &self.segments {
-            // we've ran our check, so we can just do it now..
-            segments.push(cd.force_transform(&transform));
-        }
-
+        let segments = self
+            .segments
+            .iter()
+            .map(|cd| cd.force_transform(&transform))
+            .collect();
         Ok(Self::new(segments, self.closed))
     }
 
@@ -314,6 +311,17 @@ impl CurveDrawer {
         self.concat(rhs, true)
     }
 
+}
+
+fn warn_arc_skew_once() {
+    static WARN: std::sync::Once = std::sync::Once::new();
+    WARN.call_once(|| {
+        println!(
+            "[curve_drawer] a skew / non-uniform-scale transform left an Arc segment \
+             untransformed — an arc can't represent the resulting ellipse. Use lines or \
+             beziers if you need to skew. (warns once)"
+        );
+    });
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -459,7 +467,12 @@ impl CurveSegment {
         let transform = transform.to_simple_transform();
         match self {
             CurveSegment::Arc(curve_arc) => {
-                CurveSegment::Arc(curve_arc.force_transform(&transform))
+                if transform.is_similarity_transform() {
+                    CurveSegment::Arc(curve_arc.force_transform(&transform))
+                } else {
+                    warn_arc_skew_once();
+                    CurveSegment::Arc(curve_arc.clone())
+                }
             }
             CurveSegment::Points(curve_points) => {
                 CurveSegment::Points(curve_points.force_transform(&transform))

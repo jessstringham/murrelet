@@ -40,13 +40,37 @@ pub trait LiveCoderLoader: Sized {
         filename: P,
         includes_dir: P2,
     ) -> Result<Self, LivecodeError> {
+        Self::fs_parse_data_with_overrides(filename, includes_dir, &[])
+    }
+
+    // Like fs_parse_data, but applies dotted-path `PATH=VALUE` overrides to the
+    // preprocessed yaml before deserializing (so deny_unknown_fields + typing
+    // still validate the result). See BaseConfigArgs::overrides / `--set`.
+    fn fs_parse_data_with_overrides<P: AsRef<Path>, P2: AsRef<Path>>(
+        filename: P,
+        includes_dir: P2,
+        overrides: &[String],
+    ) -> Result<Self, LivecodeError> {
         let path = filename.as_ref();
         let mut file = fs::File::open(path)
             .map_err(|e| LivecodeError::Io(format!("could not open config {}", path.display()), e))?;
         let mut data = String::new();
         std::io::Read::read_to_string(&mut file, &mut data)
             .map_err(|e| LivecodeError::Io(format!("could not read config {}", path.display()), e))?;
-        Self::fs_parse(&data, includes_dir)
+
+        if overrides.is_empty() {
+            return Self::fs_parse(&data, includes_dir);
+        }
+
+        let preprocessed = crate::load::preprocess_yaml(&data, includes_dir);
+        let mut value: serde_yaml::Value = serde_yaml::from_str(&preprocessed)
+            .map_err(|e| LivecodeError::Raw(format!("config yaml parse before override: {e}")))?;
+        for spec in overrides {
+            apply_yaml_override(&mut value, spec)?;
+        }
+        let merged = serde_yaml::to_string(&value)
+            .map_err(|e| LivecodeError::Raw(format!("re-serialize after override: {e}")))?;
+        Self::parse(&merged)
     }
 
     fn _fs_load() -> Result<Self, LivecodeError> {
@@ -193,6 +217,86 @@ pub trait LiveCoderLoader: Sized {
         } else {
             Ok(None)
         }
+    }
+}
+
+// Apply one `dotted.path=value` override onto a yaml value, creating
+// intermediate mappings as needed. The value is parsed as yaml (so `5.0` is a
+// number, `true` a bool, bare text a string); typed deserialization validates
+// it afterward.
+fn apply_yaml_override(root: &mut serde_yaml::Value, spec: &str) -> LivecodeResult<()> {
+    let (path, raw) = spec
+        .split_once('=')
+        .ok_or_else(|| LivecodeError::raw(&format!("--set expects PATH=VALUE, got '{spec}'")))?;
+    if path.is_empty() {
+        return Err(LivecodeError::raw(&format!("--set has an empty path: '{spec}'")));
+    }
+    let parsed: serde_yaml::Value =
+        serde_yaml::from_str(raw).unwrap_or_else(|_| serde_yaml::Value::String(raw.to_string()));
+
+    let keys: Vec<&str> = path.split('.').collect();
+    let mut cur = root;
+    for key in &keys[..keys.len() - 1] {
+        if !cur.is_mapping() {
+            *cur = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
+        }
+        let map = cur.as_mapping_mut().unwrap();
+        cur = map
+            .entry(serde_yaml::Value::String((*key).to_string()))
+            .or_insert_with(|| serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+    }
+    if !cur.is_mapping() {
+        *cur = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
+    }
+    cur.as_mapping_mut().unwrap().insert(
+        serde_yaml::Value::String(keys[keys.len() - 1].to_string()),
+        parsed,
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod override_tests {
+    use super::apply_yaml_override;
+    use serde_yaml::Value;
+
+    fn doc() -> Value {
+        serde_yaml::from_str("drawing:\n  filename: old.png\n  stroke_weight: 1.0\n").unwrap()
+    }
+
+    fn at<'a>(v: &'a Value, path: &str) -> &'a Value {
+        let mut cur = v;
+        for k in path.split('.') {
+            cur = &cur[k];
+        }
+        cur
+    }
+
+    #[test]
+    fn sets_nested_string() {
+        let mut v = doc();
+        apply_yaml_override(&mut v, "drawing.filename=bird_001.png").unwrap();
+        assert_eq!(at(&v, "drawing.filename").as_str(), Some("bird_001.png"));
+    }
+
+    #[test]
+    fn coerces_number() {
+        let mut v = doc();
+        apply_yaml_override(&mut v, "drawing.stroke_weight=4.5").unwrap();
+        assert_eq!(at(&v, "drawing.stroke_weight").as_f64(), Some(4.5));
+    }
+
+    #[test]
+    fn creates_missing_intermediates() {
+        let mut v = doc();
+        apply_yaml_override(&mut v, "app.svg.size=2400").unwrap();
+        assert_eq!(at(&v, "app.svg.size").as_u64(), Some(2400));
+    }
+
+    #[test]
+    fn bad_spec_errors() {
+        let mut v = doc();
+        assert!(apply_yaml_override(&mut v, "no_equals_sign").is_err());
     }
 }
 

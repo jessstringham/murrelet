@@ -817,9 +817,20 @@ where
         livecode_src: LivecodeSrc,
         load_funcs: &AssetLoaders,
     ) -> LiveCoder<ConfType, ControlConfType> {
-        let controlconfig = ControlConfType::fs_load();
-
         let args = BaseConfigArgs::parse();
+
+        let controlconfig = if args.overrides.is_empty() {
+            ControlConfType::fs_load()
+        } else {
+            match ControlConfType::fs_parse_data_with_overrides(
+                &args.config_path,
+                &args.template_path,
+                &args.overrides,
+            ) {
+                Ok(x) => x,
+                Err(err) => panic!("{}", err),
+            }
+        };
 
         let result = Self::new_full(
             controlconfig,
@@ -953,6 +964,13 @@ where
     pub fn svg_save_path_with_prefix(&self, prefix: &str) -> SvgDrawConfig {
         // unwrapping here, should check if this could fail
         svg_save_path_with_prefix(&self.to_lil_liveconfig().unwrap(), prefix)
+    }
+
+    // png counterpart of svg_save_path: where a headless gpu render should land.
+    // Same path convention as capture() — capture_frame_name(frame, "") + ".png".
+    pub fn png_capture_path(&self) -> Option<PathBuf> {
+        self.capture_frame_name(self.world().actual_frame_u64(), "")
+            .map(|p| p.with_extension("png"))
     }
 
     // sorry i'm near getting this to work so leaving this hacky and confusing
