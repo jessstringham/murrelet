@@ -109,6 +109,12 @@ impl SvgDrawConfig {
         c
     }
 
+    pub fn with_capture_path(&self, capture_path: PathBuf) -> Self {
+        let mut c = self.clone();
+        c.capture_path = Some(capture_path);
+        c
+    }
+
     pub fn full_target_width(&self) -> f32 {
         self.target_size + 2.0 * self.margin_size
     }
@@ -817,15 +823,29 @@ where
         livecode_src: LivecodeSrc,
         load_funcs: &AssetLoaders,
     ) -> LiveCoder<ConfType, ControlConfType> {
+        Self::new_with_overrides(save_path, livecode_src, load_funcs, &[])
+    }
+
+    // Like `new`, plus extra `--set`-style overrides applied on top of the global
+    // `--set` (a `--batch` job's per-job `set`).
+    pub fn new_with_overrides(
+        save_path: PathBuf,
+        livecode_src: LivecodeSrc,
+        load_funcs: &AssetLoaders,
+        extra_overrides: &[String],
+    ) -> LiveCoder<ConfType, ControlConfType> {
         let args = BaseConfigArgs::parse();
 
-        let controlconfig = if args.overrides.is_empty() {
+        let mut all_overrides = args.overrides.clone();
+        all_overrides.extend_from_slice(extra_overrides);
+
+        let controlconfig = if all_overrides.is_empty() {
             ControlConfType::fs_load()
         } else {
             match ControlConfType::fs_parse_data_with_overrides(
                 &args.config_path,
                 &args.template_path,
-                &args.overrides,
+                &all_overrides,
             ) {
                 Ok(x) => x,
                 Err(err) => panic!("{}", err),
@@ -963,14 +983,26 @@ where
 
     pub fn svg_save_path_with_prefix(&self, prefix: &str) -> SvgDrawConfig {
         // unwrapping here, should check if this could fail
-        svg_save_path_with_prefix(&self.to_lil_liveconfig().unwrap(), prefix)
+        let conf = svg_save_path_with_prefix(&self.to_lil_liveconfig().unwrap(), prefix);
+        match self.output_override() {
+            Some(out) => conf.with_capture_path(out),
+            None => conf,
+        }
     }
 
     // png counterpart of svg_save_path: where a headless gpu render should land.
     // Same path convention as capture() — capture_frame_name(frame, "") + ".png".
     pub fn png_capture_path(&self) -> Option<PathBuf> {
+        if let Some(out) = self.output_override() {
+            return Some(out);
+        }
         self.capture_frame_name(self.world().actual_frame_u64(), "")
             .map(|p| p.with_extension("png"))
+    }
+
+    // `--output` if given — overrides the config-derived capture path.
+    fn output_override(&self) -> Option<PathBuf> {
+        self.maybe_args.as_ref().and_then(|a| a.output.clone())
     }
 
     // sorry i'm near getting this to work so leaving this hacky and confusing
