@@ -14,6 +14,64 @@ use murrelet_common::clamp;
 
 use murrelet_common::MurreletColor;
 use serde::Deserialize;
+use serde::Serialize;
+
+// Newtype that carries an evalexpr `Node` alongside the source string it was
+// parsed from, so the Control config can round-trip through serde (the bare
+// `Node`'s `Display` is lossy prefix notation that won't re-parse).
+#[derive(Debug, Clone)]
+pub struct ExprNode {
+    src: String,
+    node: Node,
+}
+
+impl ExprNode {
+    pub fn from_src(src: String) -> LivecodeResult<Self> {
+        let node = build_operator_tree(&src)
+            .map_err(|err| LivecodeError::EvalExpr("error parsing expr".to_string(), err))?;
+        Ok(Self { src, node })
+    }
+
+    // fallback for Node-only construction (src is lossy Display — only for
+    // non-config paths)
+    pub fn from_node(node: Node) -> Self {
+        Self {
+            src: node.to_string(),
+            node,
+        }
+    }
+
+    pub fn node(&self) -> &Node {
+        &self.node
+    }
+}
+
+impl std::ops::Deref for ExprNode {
+    type Target = Node;
+    fn deref(&self) -> &Node {
+        &self.node
+    }
+}
+
+impl Serialize for ExprNode {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        s.serialize_str(&self.src)
+    }
+}
+
+impl<'de> Deserialize<'de> for ExprNode {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(d)?;
+        let node = build_operator_tree(&s).map_err(serde::de::Error::custom)?;
+        Ok(ExprNode { src: s, node })
+    }
+}
 
 use crate::lazy::ControlLazyNodeF32;
 use crate::lazy::LazyNodeF32;
@@ -514,7 +572,7 @@ pub fn _auto_default_bool_true() -> ControlBool {
     ControlBool::Raw(true)
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlF32 {
@@ -522,7 +580,7 @@ pub enum ControlF32 {
     Bool(bool),
     Float(f32),
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
-    Expr(Node),
+    Expr(ExprNode),
 }
 
 impl ControlF32 {
@@ -535,7 +593,7 @@ impl ControlF32 {
     }
 
     pub fn force_from_str(s: &str) -> ControlF32 {
-        match build_operator_tree(s) {
+        match ExprNode::from_src(s.to_string()) {
             Ok(e) => Self::Expr(e),
             Err(err) => {
                 println!("{:?}", err);
@@ -576,7 +634,7 @@ impl Default for ControlBool {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlBool {
@@ -584,11 +642,11 @@ pub enum ControlBool {
     Int(i32),
     Float(f32),
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
-    Expr(Node),
+    Expr(ExprNode),
 }
 impl ControlBool {
     pub fn force_from_str(s: &str) -> ControlBool {
-        match build_operator_tree(s) {
+        match ExprNode::from_src(s.to_string()) {
             Ok(e) => Self::Expr(e),
             Err(err) => {
                 println!("{:?}", err);
@@ -623,6 +681,51 @@ impl ControlBool {
             ControlBool::Int(x) => *x > 0,
             ControlBool::Float(x) => *x > 0.0,
             ControlBool::Expr(_) => false, // eh
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lazy::ControlLazyNodeF32;
+
+    const EXPR: &str = "(1.0 + 2.0) * 3.0";
+
+    #[test]
+    fn control_f32_expr_round_trips() {
+        let parsed = ControlF32::force_from_str(EXPR);
+        let json = serde_json::to_string(&parsed).unwrap();
+        let back: ControlF32 = serde_json::from_str(&json).unwrap();
+
+        match back {
+            ControlF32::Expr(ref e) => {
+                assert_eq!(e.src, EXPR);
+                let v = parsed.o_dummy().unwrap();
+                assert_eq!(v, 9.0);
+                let v_back = back.o_dummy().unwrap();
+                assert_eq!(v_back, 9.0);
+            }
+            other => panic!("expected Expr, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn control_lazy_node_f32_expr_round_trips() {
+        let parsed = ControlLazyNodeF32::Expr(ExprNode::from_src(EXPR.to_string()).unwrap());
+        let json = serde_json::to_string(&parsed).unwrap();
+        let back: ControlLazyNodeF32 = serde_json::from_str(&json).unwrap();
+
+        match back {
+            ControlLazyNodeF32::Expr(ref e) => {
+                assert_eq!(e.src, EXPR);
+                let lazy = back.o_dummy().unwrap();
+                let v = lazy
+                    .eval_with_ctx(&crate::expr::MixedEvalDefs::new())
+                    .unwrap();
+                assert_eq!(v, 9.0);
+            }
+            other => panic!("expected Expr, got {:?}", other),
         }
     }
 }

@@ -104,6 +104,93 @@ impl OwnedDeviceState {
     }
 }
 
+#[cfg(all(target_arch = "wasm32", not(feature = "nannou")))]
+fn get_or_create_canvas(canvas_id: &str) -> Result<web_sys::HtmlCanvasElement, wasm_bindgen::JsValue> {
+    use wasm_bindgen::JsCast;
+
+    let window = web_sys::window().ok_or_else(|| wasm_bindgen::JsValue::from_str("no window"))?;
+    let document = window
+        .document()
+        .ok_or_else(|| wasm_bindgen::JsValue::from_str("no document"))?;
+
+    if let Some(existing) = document.get_element_by_id(canvas_id) {
+        return existing
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .map_err(|_| wasm_bindgen::JsValue::from_str("element is not an HtmlCanvasElement"));
+    }
+
+    let canvas = document.create_element("canvas")?;
+    canvas.set_id(canvas_id);
+    document
+        .body()
+        .ok_or_else(|| wasm_bindgen::JsValue::from_str("no body"))?
+        .append_child(&canvas)?;
+    canvas
+        .dyn_into::<web_sys::HtmlCanvasElement>()
+        .map_err(|_| wasm_bindgen::JsValue::from_str("element is not an HtmlCanvasElement"))
+}
+
+#[cfg(all(target_arch = "wasm32", not(feature = "nannou")))]
+impl OwnedDeviceState {
+    /// Bind a wgpu surface to a specific DOM `<canvas>` (resolved or created by
+    /// id) and build the device/queue from it. The web sibling of
+    /// [`OwnedDeviceState::new_from_native`].
+    pub async fn new_from_web(
+        canvas_id: &str,
+        dims: [u32; 2],
+    ) -> Result<(OwnedDeviceState, wgpu::Surface<'static>), wasm_bindgen::JsValue> {
+        let canvas = get_or_create_canvas(canvas_id)?;
+
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            ..Default::default()
+        });
+
+        let surface = instance
+            .create_surface(wgpu::SurfaceTarget::Canvas(canvas))
+            .map_err(|e| wasm_bindgen::JsValue::from_str(&format!("create_surface: {e}")))?;
+
+        let adapter =
+            wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
+                .await
+                .ok_or_else(|| wasm_bindgen::JsValue::from_str("failed to get adapter"))?;
+
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_features: adapter.features(),
+                    required_limits: adapter.limits(),
+                    label: Some("Web Canvas Device"),
+                },
+                None,
+            )
+            .await
+            .map_err(|e| wasm_bindgen::JsValue::from_str(&format!("request_device: {e}")))?;
+
+        // Pick a surface format the adapter actually supports rather than
+        // hard-coding one.
+        let caps = surface.get_capabilities(&adapter);
+        let format = caps
+            .formats
+            .first()
+            .copied()
+            .ok_or_else(|| wasm_bindgen::JsValue::from_str("surface has no supported formats"))?;
+
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            width: dims[0],
+            height: dims[1],
+            present_mode: wgpu::PresentMode::Fifo,
+            desired_maximum_frame_latency: 2,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![format],
+        };
+        surface.configure(&device, &config);
+
+        Ok((OwnedDeviceState::new(device, queue), surface))
+    }
+}
+
 // borrowing from bevy
 pub fn align_byte_size(value: u32) -> u32 {
     if !value.is_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) {

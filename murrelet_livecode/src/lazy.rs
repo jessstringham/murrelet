@@ -3,23 +3,23 @@ use std::sync::Arc;
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs},
     livecode::{
-        GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
+        ExprNode, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
         LivecodeVariable,
     },
     nestedit::{NestEditable, NestedMod},
     state::{LivecodeWorldState, WorldWithLocalVariables},
     types::{LivecodeError, LivecodeResult},
 };
-use evalexpr::{Node, build_operator_tree};
+use evalexpr::Node;
 
 use glam::Vec2;
 use itertools::Itertools;
 use lerpable::IsLerpingMethod;
 use lerpable::{Lerpable, step};
 use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlLazyNodeF32 {
@@ -27,14 +27,14 @@ pub enum ControlLazyNodeF32 {
     Bool(bool),
     Float(f32),
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
-    Expr(Node),
+    Expr(ExprNode),
 }
 
 impl ControlLazyNodeF32 {
     pub const ZERO: Self = ControlLazyNodeF32::Float(0.0);
 
     pub fn new(n: Node) -> Self {
-        Self::Expr(n)
+        Self::Expr(ExprNode::from_node(n))
     }
 
     pub fn new_f32(n: f32) -> Self {
@@ -143,7 +143,9 @@ pub enum LazyNodeF32 {
 impl LazyNodeF32 {
     pub fn new(def: ControlLazyNodeF32, world: &LivecodeWorldState) -> Self {
         match def {
-            ControlLazyNodeF32::Expr(n) => Self::Node(LazyNodeF32Inner::new(n, world.clone())),
+            ControlLazyNodeF32::Expr(n) => {
+                Self::Node(LazyNodeF32Inner::new(n.node().clone(), world.clone()))
+            }
             _ => Self::NoCtxNode(def),
         }
     }
@@ -231,7 +233,7 @@ impl LazyNodeF32 {
 
     fn new_func(x: &str) -> LazyNodeF32 {
         LazyNodeF32::new(
-            ControlLazyNodeF32::Expr(build_operator_tree(x).unwrap()),
+            ControlLazyNodeF32::Expr(ExprNode::from_src(x.to_string()).unwrap()),
             &LivecodeWorldState::new_dummy(),
         )
     }
@@ -356,7 +358,7 @@ impl NestEditable for LazyMurreletColor {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyVec2(Vec<ControlLazyNodeF32>);
 
@@ -421,7 +423,7 @@ impl LazyVec3 {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyVec3(Vec<ControlLazyNodeF32>);
 impl LivecodeFromWorld<LazyVec3> for ControlLazyVec3 {
@@ -512,7 +514,7 @@ impl LazyMurreletColor {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyMurreletColor(Vec<ControlLazyNodeF32>);
 

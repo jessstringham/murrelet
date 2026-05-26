@@ -132,6 +132,20 @@ struct BatchJob {
     resolution: Option<String>,
 }
 
+/// A run is headless when it either asks for an explicit output path
+/// (`--output <PATH>` for one render, `--batch <JOBS.yaml>` for many) or sets
+/// the `HEADLESS` env var. The env var is the path-less form: render to the
+/// config's own save path with no window (penplot's plotter pipeline runs
+/// birdmap_render this way — see testprint.py). The `sketch_main!` arms call
+/// this to pick window vs headless.
+pub fn is_headless() -> bool {
+    if std::env::var_os("HEADLESS").is_some() {
+        return true;
+    }
+    let args = BaseConfigArgs::parse();
+    args.output.is_some() || args.batch.is_some()
+}
+
 // The headless jobs to run: many from `--batch`, else a single job carrying the
 // global `--output`. Global `--set` is applied separately (in new_with_overrides),
 // so a single job needs no extra overrides.

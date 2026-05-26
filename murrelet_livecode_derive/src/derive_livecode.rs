@@ -242,7 +242,7 @@ impl GenFinal for FieldTokensLivecode {
         let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize)]
+            #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
             #[allow(unexpected_cfgs)]
             #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
             #[cfg_attr(feature = "schemars", schemars(deny_unknown_fields))]
@@ -305,7 +305,7 @@ impl GenFinal for FieldTokensLivecode {
         let enum_tag = idents.tags;
 
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize)]
+            #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
             #[allow(unexpected_cfgs)]
             #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
             #[cfg_attr(feature = "schemars", schemars(deny_unknown_fields))]
@@ -361,7 +361,7 @@ impl GenFinal for FieldTokensLivecode {
         let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize)]
+            #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
             #[allow(unexpected_cfgs)]
             #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
             #[cfg_attr(feature = "schemars", schemars(deny_unknown_fields))]

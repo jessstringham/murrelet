@@ -4,7 +4,9 @@ version = "0.1.3"
 edition = "2024"
 
 [features]
-# murrelet_gpu = []
+# Opt-in GPU canvas support (multi-canvas wgpu surfaces). SVG-only builds
+# don't pay for wgpu unless this is enabled.
+gpu = ["dep:murrelet_gpu", "dep:wgpu"]
 
 # default = ["schemars"]
 # schemars = [
@@ -27,12 +29,11 @@ murrelet_gui = { workspace = true }
 murrelet_perform = { workspace = true, features = ["for_the_web"] }
 murrelet_livecode_derive = { workspace = true, default-features = false } # no schemars
 murrelet_gen = { workspace = true }
-# murrelet_gpu = { version = "0.1.3", features = ["no_nannou"] }
-# murrelet = "0.1.3"
+murrelet_gpu = { workspace = true, optional = true, features = ["no_nannou"] }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.48"
 glam = { version = "0.28.0", features = ["serde"] }
-# wgpu = { version = "0.20.1", features = ["webgpu", "webgl"] }
+wgpu = { version = "0.20.1", optional = true, features = ["webgpu", "webgl"] }
 lerpable = { workspace = true, features = ["glam"] }
 # anyhow = "1.0.86"
 # murrelet_gen = "0.1.3"

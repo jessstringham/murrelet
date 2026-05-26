@@ -1,18 +1,19 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use evalexpr::{EvalexprError, HashMapContext, Node, build_operator_tree};
+use evalexpr::{EvalexprError, HashMapContext};
 use itertools::Itertools;
 use lerpable::{Lerpable, step};
 use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, StrId, print_expect};
 use murrelet_gui::CanMakeGUI;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use crate::{
     expr::{IntoExprWorldContext, MixedEvalDefs, ToMixedDefs},
     lazy::{ControlLazyNodeF32, IsLazy, LazyNodeF32, WrappedLazyType},
     livecode::{
-        ControlF32, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeToControl, LivecodeVariable,
+        ControlF32, ExprNode, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeToControl,
+        LivecodeVariable,
     },
     state::LivecodeWorldState,
     unitcells::UnitCellIdx,
@@ -76,10 +77,12 @@ impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(transparent)]
-pub struct AdditionalContextNode(#[cfg_attr(feature = "schemars", schemars(with = "String"))] Node);
+pub struct AdditionalContextNode(
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))] ExprNode,
+);
 
 fn _default_ctx() -> AdditionalContextNode {
     AdditionalContextNode::new_dummy()
@@ -91,7 +94,7 @@ fn _default_ctx_lazy() -> AdditionalContextNode {
 
 impl Default for AdditionalContextNode {
     fn default() -> Self {
-        Self(build_operator_tree("").unwrap())
+        Self(ExprNode::from_src(String::new()).unwrap())
     }
 }
 
@@ -112,7 +115,7 @@ impl AdditionalContextNode {
     }
 
     pub fn new_dummy() -> AdditionalContextNode {
-        AdditionalContextNode(build_operator_tree("").unwrap())
+        AdditionalContextNode(ExprNode::from_src(String::new()).unwrap())
     }
 }
 
@@ -128,14 +131,14 @@ impl Lerpable for AdditionalContextNode {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlBlendRepeatMethod {
     count: ControlF32,
     blend: ControlF32,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlVecElementRepeatMethod {
@@ -193,14 +196,14 @@ impl ControlVecElementRepeatMethod {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyBlendRepeatMethod {
     count: ControlLazyNodeF32,
     blend: ControlLazyNodeF32,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum DeserLazyControlVecElementRepeatMethod {
@@ -233,7 +236,7 @@ impl DeserLazyControlVecElementRepeatMethod {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct DeserLazyControlVecElementRepeat<DeserSource: Clone + Debug> {
     repeat: DeserLazyControlVecElementRepeatMethod,
@@ -338,6 +341,23 @@ where
             "ControlVecElement {}",
             errors.join(" ")
         )))
+    }
+}
+
+// mirror of the untagged Deserialize: Single is the bare Source, Repeat is the
+// repeat object.
+impl<Source> Serialize for DeserLazyControlVecElement<Source>
+where
+    Source: Serialize + Clone + Debug,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            DeserLazyControlVecElement::Single(s) => s.serialize(serializer),
+            DeserLazyControlVecElement::Repeat(r) => r.serialize(serializer),
+        }
     }
 }
 
@@ -563,7 +583,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlVecElementRepeat<Source: Clone + Debug> {
     repeat: ControlVecElementRepeatMethod,
@@ -1023,6 +1043,23 @@ where
             "ControlVecElement {}",
             errors.join(" ")
         )))
+    }
+}
+
+// mirror of the untagged Deserialize: Single is the bare Source, Repeat is the
+// repeat object.
+impl<Source> Serialize for ControlVecElement<Source>
+where
+    Source: Serialize + Clone + Debug,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ControlVecElement::Single(s) => s.serialize(serializer),
+            ControlVecElement::Repeat(r) => r.serialize(serializer),
+        }
     }
 }
 

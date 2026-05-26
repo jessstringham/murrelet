@@ -43,6 +43,7 @@ palette = "0.7.6"
 lerpable = { workspace = true, features = ["glam"] }
 schemars = "0.8.21"
 murrelet_gui = { workspace = true, features = ["glam"] }
+serde_json = "1.0"
 
 [[example]]
 name = "tests"

@@ -302,8 +302,7 @@ macro_rules! basic_wrapper {
             }
 
             pub fn get_config_json(&self) -> Result<String, wasm_bindgen::JsValue> {
-                let conf = &self.livecode.config().drawing;
-                serde_json::to_string(conf)
+                serde_json::to_string(&self.livecode.get_control_config().drawing)
                     .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
