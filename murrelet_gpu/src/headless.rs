@@ -22,6 +22,14 @@ pub trait IsHeadlessGraphic {
     type Vertex: GraphicsVertex;
     fn render_passes(&self, render_device: &DeviceStateForRender);
     fn output(&self) -> &GraphicsRefCustom<Self::Vertex>;
+
+    /// Optional headless prep, run once before `render_passes`: fill any CPU-side
+    /// drawer / sync GPU inputs from config — the per-frame `update()` work the
+    /// windowed path does but the headless path otherwise skips. **Default no-op**,
+    /// so pure-shader sketches need nothing and there's no separate arm to choose;
+    /// drawer-fed sketches (lily, ethereal) override it. Forgetting to override just
+    /// yields the pre-hook behavior (a thin/blank drawer), never a miscompile.
+    fn prepare(&mut self, _c: &GraphicsWindowConf) {}
 }
 
 // A window-free wgpu device, ready for headless rendering. The GPU analog of

@@ -454,6 +454,16 @@ impl AudioMng {
         }
     }
 
+    // Device-free audio source: no capture connection, values stay zeroed. Use
+    // for headless renders so audio expr vars (`a`, `ac`, `fft0..6`) are bound
+    // (to 0) instead of erroring as unbound, without opening an audio device.
+    pub fn silent() -> AudioMng {
+        AudioMng {
+            cxn: None,
+            values: AudioValues::new(),
+        }
+    }
+
     pub fn exists(&self) -> bool {
         self.cxn.is_some()
     }

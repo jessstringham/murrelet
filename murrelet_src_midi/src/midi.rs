@@ -132,6 +132,18 @@ impl MidiMng {
             out,
         }
     }
+
+    // Device-free MIDI source: no input connection thread, no output devices.
+    // Values stay at their MidiValues::new defaults (dials 0.5), so MIDI expr
+    // vars (`m0..m15`, `m{n}t`, `m{n}f`, `f{n}*`) are bound for headless renders
+    // instead of erroring as unbound, without touching any MIDI hardware.
+    pub fn silent() -> MidiMng {
+        MidiMng {
+            cxn: MidiCxn::silent(),
+            values: MidiValues::new(16, 16, 16),
+            out: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -447,6 +459,17 @@ impl MidiCxn {
         MidiCxn {
             _midi_cxn: handle,
             rx: event_rx,
+        }
+    }
+
+    // No real MIDI connection: a channel whose sender is dropped immediately, so
+    // check_and_maybe_update always returns Err(Disconnected) and the values are
+    // never updated (they keep their defaults). For headless / device-free runs.
+    pub fn silent() -> MidiCxn {
+        let (_tx, rx) = mpsc::channel::<MidiMessage>();
+        MidiCxn {
+            _midi_cxn: thread::spawn(|| {}),
+            rx,
         }
     }
 
