@@ -20,14 +20,20 @@
 // pulling `murrelet_svg` into `murrelet_gpu`'s dep graph.
 
 /// Headless SVG render body (config-driven, no window). Loops over jobs() — one
-/// job normally, many under --batch. Build closure shape: `fn(&Conf) -> Model`.
+/// job normally, many under --batch. Build closure shape: `fn(&Conf) -> Model`,
+/// where `Model: ToMixedDrawables`. The trait bound is enforced via a static
+/// `_assert_to_mixed_drawables(&model)` helper so a wrong-arm pick (e.g. a build
+/// returning an `IsHeadlessGraphic` instead) errors at the macro invocation site,
+/// not deep inside `render_to_svg`.
 #[macro_export]
 macro_rules! headless_svg {
     ($harness:ty, $build:expr) => {{
+        fn _assert_to_mixed_drawables<T: ::murrelet_draw::drawable::ToMixedDrawables>(_: &T) {}
         let build: fn(&_) -> _ = $build;
         for job in <$harness as $crate::HeadlessHarness>::jobs() {
             let harness = <$harness as $crate::HeadlessHarness>::build_with_overrides(&job.overrides);
             let model = build(<$harness as $crate::HeadlessHarness>::config(&harness));
+            _assert_to_mixed_drawables(&model);
             let svg_conf = match job.output {
                 Some(out) => <$harness as $crate::HeadlessHarness>::default_svg_path(&harness)
                     .with_capture_path(out),
@@ -45,14 +51,24 @@ macro_rules! headless_svg {
 /// tick the model's own state. Requires the model to be `IsMurreletModel`
 /// (`set_conf` + `update_with_world`); plain `headless_svg!` only needs
 /// `ToMixedDrawables`. Assumes the `TopLevelLiveCode` `.drawing` convention.
+/// Both bounds enforced via static `_assert_*` helpers so a wrong-arm pick
+/// errors at the macro invocation site, not deep inside `set_conf` /
+/// `render_to_svg`.
 #[macro_export]
 macro_rules! headless_svg_stateful {
     ($harness:ty, $build:expr) => {{
+        fn _assert_to_mixed_drawables<T: ::murrelet_draw::drawable::ToMixedDrawables>(_: &T) {}
+        fn _assert_is_murrelet_model<
+            C: Clone,
+            T: ::murrelet_perform::IsMurreletModel<C>,
+        >(_: &T) {}
         let build: fn(&_) -> _ = $build;
         for job in <$harness as $crate::HeadlessHarness>::jobs() {
             let mut harness =
                 <$harness as $crate::HeadlessHarness>::build_with_overrides(&job.overrides);
             let mut model = build(<$harness as $crate::HeadlessHarness>::config(&harness));
+            _assert_to_mixed_drawables(&model);
+            _assert_is_murrelet_model(&model);
             let earlystop = <$harness as $crate::HeadlessHarness>::earlystop(&harness)
                 .unwrap_or(100);
             for frame in 0..earlystop {
@@ -83,10 +99,15 @@ macro_rules! headless_svg_stateful {
 /// is built once; jobs() loops (one job normally, many under --batch). Render
 /// size: per-job `--resolution`, else `harness.default_dims()` — matching the
 /// windowed path's `GraphicsWindowConf`. Build closure shape:
-/// `fn(&GraphicsWindowConf, &Conf) -> Graphic`.
+/// `fn(&GraphicsWindowConf, &Conf) -> Graphic`, where `Graphic: IsHeadlessGraphic`.
+/// The trait bound is enforced via a static `_assert_is_headless_graphic(&graphic)`
+/// so a wrong-arm pick (e.g. a build closure returning a `ToMixedDrawables`
+/// model instead) errors at the macro invocation site, not at `.prepare()` /
+/// `render_headless_graphic_to_png`.
 #[macro_export]
 macro_rules! headless_png {
     ($harness:ty, $build:expr) => {{
+        fn _assert_is_headless_graphic<T: $crate::headless::IsHeadlessGraphic>(_: &T) {}
         let owned = $crate::headless::new_native_device();
         let c_device = owned.to_borrowed();
         let build: fn(&_, &_) -> _ = $build;
@@ -102,6 +123,7 @@ macro_rules! headless_png {
                 $crate::device_state::GraphicsAssets::Nothing,
             );
             let mut graphic = build(&c, <$harness as $crate::HeadlessHarness>::config(&harness));
+            _assert_is_headless_graphic(&graphic);
             // headless prep hook (default no-op): drawer-fed sketches fill their
             // CPU drawer here, the work the windowed update() does. Pure-shader
             // sketches inherit the no-op, so there's no separate arm to pick.
@@ -125,10 +147,13 @@ macro_rules! headless_png {
 /// is what lets GPU feedback (e.g. `res_feedback`) accumulate — windowed runs
 /// do the same. `tick()` and `prepare()` default to no-op, so stateless gpu
 /// sketches behave like `headless_png!` plus a few redundant GPU passes (cheap,
-/// no state buildup). One readback at the end.
+/// no state buildup). One readback at the end. `IsHeadlessGraphic` bound
+/// enforced via a static `_assert_is_headless_graphic(&graphic)` so a wrong-arm
+/// pick errors at the macro invocation site.
 #[macro_export]
 macro_rules! headless_png_stateful {
     ($harness:ty, $build:expr) => {{
+        fn _assert_is_headless_graphic<T: $crate::headless::IsHeadlessGraphic>(_: &T) {}
         let owned = $crate::headless::new_native_device();
         let c_device = owned.to_borrowed();
         let build: fn(&_, &_) -> _ = $build;
@@ -144,6 +169,7 @@ macro_rules! headless_png_stateful {
                 $crate::device_state::GraphicsAssets::Nothing,
             );
             let mut graphic = build(&c, <$harness as $crate::HeadlessHarness>::config(&harness));
+            _assert_is_headless_graphic(&graphic);
             let earlystop = <$harness as $crate::HeadlessHarness>::earlystop(&harness)
                 .unwrap_or(100);
             for _ in 0..earlystop {

@@ -493,11 +493,11 @@ impl IsLivecodeSrc for AudioMng {
     }
 
     fn to_exec_funcs(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
-        // Silent (no capture device): emit a small positive default so audio-
-        // scaled config values come out nonzero in headless renders. See
+        // Silent (no capture device): emit zero for every audio signal so
+        // audio-scaled config values resolve to 0 in headless renders. See
         // BUG-L348 + the `silent` ctor docs.
         if self.cxn.is_none() {
-            let v = LivecodeValue::Float(0.1);
+            let v = LivecodeValue::Float(0.0);
             return vec![
                 ("a".to_strid(), v.clone()),
                 ("ac".to_strid(), v.clone()),
