@@ -1,4 +1,4 @@
-use murrelet_draw::drawable::{MixedDrawableShape, ToMixedDrawables};
+use murrelet_draw::drawable::{DrawTarget, MixedDrawableShape, ToMixedDrawables};
 use murrelet_draw::style::{MurreletPath, StyledPath};
 use murrelet_perform::perform::SvgDrawConfig;
 
@@ -6,8 +6,10 @@ use crate::svg::{StyledText, SvgPathCache, SvgPathCacheRef};
 
 
 // claude added this for being able to produce svgs without making a nannou window or web app.
+// Headless svg is the DrawTarget::Svg medium, so a sketch that overrides
+// to_mixed_drawables_for can return pen-friendly geometry here.
 pub fn add_mixed_drawables<D: ToMixedDrawables>(cache: &SvgPathCacheRef, v: &D) {
-    for shape in v.to_mixed_drawables() {
+    for shape in v.to_mixed_drawables_for(DrawTarget::Svg) {
         let style = shape.style();
         match shape {
             MixedDrawableShape::Shape(s) => {

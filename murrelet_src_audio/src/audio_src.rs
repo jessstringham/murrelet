@@ -454,9 +454,11 @@ impl AudioMng {
         }
     }
 
-    // Device-free audio source: no capture connection, values stay zeroed. Use
-    // for headless renders so audio expr vars (`a`, `ac`, `fft0..6`) are bound
-    // (to 0) instead of erroring as unbound, without opening an audio device.
+    // Device-free audio source: no capture connection. In headless renders the
+    // audio expr vars (`a`, `ac`, `fft0..6`) are bound to a small positive
+    // constant (0.1, see `to_exec_funcs`) so audio-scaled config values
+    // (e.g. `brush_size = 20 + a*100`) come out nonzero / non-degenerate
+    // instead of collapsing to their pure-noise-floor offsets. BUG-L348.
     pub fn silent() -> AudioMng {
         AudioMng {
             cxn: None,
@@ -491,6 +493,24 @@ impl IsLivecodeSrc for AudioMng {
     }
 
     fn to_exec_funcs(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
+        // Silent (no capture device): emit a small positive default so audio-
+        // scaled config values come out nonzero in headless renders. See
+        // BUG-L348 + the `silent` ctor docs.
+        if self.cxn.is_none() {
+            let v = LivecodeValue::Float(0.1);
+            return vec![
+                ("a".to_strid(), v.clone()),
+                ("ac".to_strid(), v.clone()),
+                ("fft0".to_strid(), v.clone()),
+                ("fft1".to_strid(), v.clone()),
+                ("fft2".to_strid(), v.clone()),
+                ("fft3".to_strid(), v.clone()),
+                ("fft4".to_strid(), v.clone()),
+                ("fft5".to_strid(), v.clone()),
+                ("fft6".to_strid(), v),
+            ];
+        }
+
         let [fft0, fft1, fft2, fft3, fft4, fft5, fft6] = self.values.fft();
 
         let audio = self.values.amp_pct();

@@ -1,12 +1,12 @@
 use std::fmt::Display;
 
 use glam::vec2;
+use itertools::Itertools;
 use murrelet_common::{MurreletAppInput, ToStrId};
 use murrelet_gen::embedding::MurreletQuantizedEmbedding;
 use murrelet_perform::AppConfig;
-use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
-use itertools::Itertools;
 pub use murrelet_perform::interface::{IsDrawableMurreletModel, IsMurreletModel};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 pub type JsResult<T> = Result<T, JsValue>;
 
@@ -20,7 +20,6 @@ impl<T, E: Display> ToJsResult<T> for Result<T, E> {
         self.map_err(|e| JsValue::from_str(&e.to_string()))
     }
 }
-
 
 // just so we can manage these things outside of a macro...
 pub struct AppManager {
@@ -104,6 +103,31 @@ impl MurreletSvgObj {
     pub fn clear_paths(&self) {
         let el: &Element = self.paths_g_el.as_ref();
         el.set_inner_html("");
+    }
+
+    // node-render mode: replace the paths group's contents with one DOM node per
+    // shape (vs set_paths_inner_html, which injects all shapes as a single blob).
+    // Each fragment is parsed in a throwaway <g>, then its node is moved into the
+    // live group, so every shape ends up an individually-addressable element.
+    pub fn set_paths_nodes(&self, fragments: &[String]) -> Result<(), wasm_bindgen::JsValue> {
+        let document: Document = window()
+            .ok_or("no window")?
+            .document()
+            .ok_or("no document")?;
+        let svg_ns = Some("http://www.w3.org/2000/svg");
+
+        let g: &Element = self.paths_g_el.as_ref();
+        g.set_inner_html("");
+
+        for frag in fragments {
+            let tmpl = document.create_element_ns(svg_ns, "g")?;
+            tmpl.set_inner_html(frag);
+            while let Some(child) = tmpl.first_element_child() {
+                g.append_child(&child)?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn svg_outer_html(&self) -> String {
@@ -312,7 +336,7 @@ macro_rules! basic_wrapper {
 
                 // send the config to the user's model... (maybe this can be Rc or something...)
                 self.model.set_conf(self.livecode.config().drawing.clone()); //hmm
-                self.model.update(&app_input);
+                self.model.update_with_world(&app_input, self.livecode.world());
             }
 
             // update app_mng state and configs related to it
@@ -415,6 +439,36 @@ macro_rules! bonus_draw_wrapper {
 
                 Ok(draw_ctx.make_html_jsvalue(Some(2)))
             }
+
+            // node-render alternative to draw_paths: instead of returning a markup
+            // blob for JS to inject, build one DOM node per shape directly into the
+            // attached svg_obj's <g>. Call attach_to_div() first. Returns the shape
+            // count. JS chooses draw_paths vs render_nodes — that's the switch.
+            pub fn render_nodes(
+                &self,
+                draw_opts_str: &str,
+            ) -> Result<usize, wasm_bindgen::JsValue> {
+                let svg_obj = self.svg_obj.as_ref().ok_or_else(|| {
+                    wasm_bindgen::JsValue::from_str("render_nodes: call attach_to_div() first")
+                })?;
+
+                let draw_opts: $draw_opts_ty = serde_json::from_str(&draw_opts_str)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))?;
+
+                let svg_draw_config = self.livecode.svg_save_path().with_no_resize();
+                let draw_ctx = murrelet_wasm::draw::WebSDrawCtx::new(&svg_draw_config);
+
+                let mixed_drawables = self
+                    .model
+                    .draw(&draw_opts)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))?;
+                draw_ctx.drawn_shapes(&mixed_drawables);
+
+                let (_defs, fragments) = draw_ctx.make_html_fragments();
+                svg_obj.set_paths_nodes(&fragments)?;
+
+                Ok(fragments.len())
+            }
         }
     };
 }
@@ -462,10 +516,8 @@ macro_rules! bonus_embedding_wrapper {
 
             // JSON array of RnSpec, parallel to rn_names() — gen method + params per rn slot.
             pub fn rn_specs(&self) -> Result<String, wasm_bindgen::JsValue> {
-                serde_json::to_string(
-                    &<$conf_ty as murrelet_gen::CanSampleFromDist>::rn_specs(),
-                )
-                .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
+                serde_json::to_string(&<$conf_ty as murrelet_gen::CanSampleFromDist>::rn_specs())
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
             pub fn to_unclamped_dist(&self) -> Vec<f32> {

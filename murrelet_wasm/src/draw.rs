@@ -2,7 +2,7 @@ use glam::*;
 use murrelet_common::*;
 use murrelet_draw::{
     draw::{CoreSDrawCtx, MurreletStyle, Sdraw},
-    drawable::{MixedDrawableShape, ToMixedDrawables},
+    drawable::{DrawTarget, MixedDrawableShape, ToMixedDrawables},
     style::{MurreletPath, StyledPath},
 };
 use murrelet_perform::perform::SvgDrawConfig;
@@ -69,7 +69,10 @@ impl WebSDrawCtx {
     where
         D: ToMixedDrawables,
     {
-        for shape in v.to_mixed_drawables() {
+        // The interactive web view is on-screen-like → DrawTarget::Screen.
+        // (Keeping this Screen matches today's behavior exactly; the default
+        // to_mixed_drawables_for delegates to to_mixed_drawables regardless.)
+        for shape in v.to_mixed_drawables_for(DrawTarget::Screen) {
             let style = shape.style();
             match shape {
                 MixedDrawableShape::Shape(shape) => {
@@ -102,6 +105,11 @@ impl WebSDrawCtx {
 
     pub fn make_html(&self) -> (String, String) {
         self.svg_draw.make_html()
+    }
+
+    // (defs, one markup fragment per shape) for node-render mode.
+    pub fn make_html_fragments(&self) -> (String, Vec<String>) {
+        self.svg_draw.make_html_fragments()
     }
 
     pub fn make_html_jsvalue(&self, maybe_decimals: Option<usize>) -> JsValue {

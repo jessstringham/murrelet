@@ -550,6 +550,35 @@ impl SvgDocCreator {
         (doc, defs.into_iter().join("\n"))
     }
 
+    // like make_html, but keeps each path/text as its own markup fragment instead of
+    // concatenating them into one <g>. Lets a consumer build one DOM node per shape
+    // (web-sys node-render mode) while reusing the exact same serialization.
+    fn make_node_fragments(&self, paths: &SvgPathCache) -> (Vec<String>, String) {
+        let mut fragments = Vec::new();
+        let mut defs = vec![];
+
+        for (_name, layer) in self.output_layers(paths).iter() {
+            let mut seen_pattern_keys = HashSet::new();
+
+            for path in layer.paths.iter() {
+                if let Some(g) = path.make_group() {
+                    if let Some((key, pattern)) = path.make_pattern() {
+                        if seen_pattern_keys.insert(key) {
+                            defs.push(pattern.to_string());
+                        }
+                    }
+                    fragments.push(g.to_string());
+                }
+            }
+
+            for text in layer.text.iter() {
+                fragments.push(self.make_text(text).to_string());
+            }
+        }
+
+        (fragments, defs.into_iter().join("\n"))
+    }
+
     // this one's meant for svgs for pen plotters, so it drops fill styles
     fn make_doc(&self, paths: &SvgPathCache) -> Document {
         let target_size = self.svg_draw_config.full_target_width(); // guides are at 10x 10x, gives 1cm margin
@@ -720,6 +749,11 @@ impl SvgPathCacheRef {
     pub fn make_html(&self) -> (String, String) {
         self.0.borrow().make_html()
     }
+
+    // (defs, one markup fragment per shape) — see SvgPathCache::make_html_fragments.
+    pub fn make_html_fragments(&self) -> (String, Vec<String>) {
+        self.0.borrow().make_html_fragments()
+    }
 }
 
 impl fmt::Debug for SvgPathCacheRef {
@@ -845,6 +879,14 @@ impl SvgPathCache {
         let (paths, defs) = self.config.make_html(self);
 
         (defs.to_string(), paths.to_string())
+    }
+
+    // same shapes as make_html, but each shape stays a separate markup fragment
+    // (returns (defs, fragments)) so a consumer can build one DOM node per shape.
+    pub fn make_html_fragments(&self) -> (String, Vec<String>) {
+        let (fragments, defs) = self.config.make_node_fragments(self);
+
+        (defs, fragments)
     }
 }
 

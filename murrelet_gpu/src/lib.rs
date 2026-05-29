@@ -5,8 +5,11 @@ pub mod gpu_livecode;
 pub mod gpu_macros;
 pub mod graphics_ref;
 pub mod headless;
+pub mod headless_harness;
+pub mod headless_macros;
 pub mod shader_str;
 pub mod uniforms;
 pub mod window;
 
+pub use headless_harness::{HeadlessHarness, HeadlessJob};
 pub use murrelet_gpu_derive::*;

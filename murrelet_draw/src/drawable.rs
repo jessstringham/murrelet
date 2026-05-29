@@ -264,8 +264,38 @@ impl ToMixedDrawable for DrawnShape {
     }
 }
 
+/// Which medium a draw is headed for. Threaded through the draw seam so a
+/// sketch CAN return different geometry for the on-screen window vs the
+/// svg/plotter output (e.g. filled circles on screen, continuous polylines
+/// for a pen). Sketches that don't care never see it (see the default
+/// `ToMixedDrawables::to_mixed_drawables_for`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DrawTarget {
+    /// The on-screen nannou window (and, today, the interactive web view).
+    Screen,
+    /// SVG output — headless svg render or plotter.
+    Svg,
+}
+
 pub trait ToMixedDrawables {
     fn to_mixed_drawables(&self) -> Vec<MixedDrawableShape>;
+
+    /// Target-aware entry point. Defaults to `to_mixed_drawables()`, so a
+    /// sketch that doesn't override this is behaviorally identical for every
+    /// target. Override this (and keep `to_mixed_drawables` for the
+    /// target-agnostic / Screen case) to diverge screen-vs-svg — e.g.:
+    ///
+    /// ```ignore
+    /// fn to_mixed_drawables_for(&self, target: DrawTarget) -> Vec<MixedDrawableShape> {
+    ///     match target {
+    ///         DrawTarget::Svg => self.vein_polylines(),  // pen wants strokes
+    ///         DrawTarget::Screen => self.vein_circles(),  // filled dots on screen
+    ///     }
+    /// }
+    /// ```
+    fn to_mixed_drawables_for(&self, _target: DrawTarget) -> Vec<MixedDrawableShape> {
+        self.to_mixed_drawables()
+    }
 }
 
 impl ToMixedDrawables for MixedDrawableShape {

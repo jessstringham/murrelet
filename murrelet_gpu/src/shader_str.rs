@@ -481,7 +481,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   #SUFFIX_CODEHERE#
 
-  textureStore(out_img, vec2<i32>(gid.xy), result);
+  // Flip y at the store so compute textures come out nannou-upright (world y+
+  // at the top), matching rendered textures. Pure output mirror — evaluation,
+  // cell_id, CSR cull all stay computed for the true gid.
+  textureStore(out_img, vec2<i32>(i32(gid.x), i32(h) - 1 - i32(gid.y)), result);
 }
 "#;
 
@@ -516,6 +519,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   #BASIC#
 
-  textureStore(out_img, vec2<i32>(gid.xy), result);
+  // Flip y at the store so compute textures come out nannou-upright (world y+
+  // at the top), matching rendered textures. Pure output mirror — evaluation,
+  // cell_id, CSR cull all stay computed for the true gid.
+  textureStore(out_img, vec2<i32>(i32(gid.x), i32(h) - 1 - i32(gid.y)), result);
 }
 "#;

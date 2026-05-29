@@ -1,6 +1,7 @@
 //! Backend-neutral sketch interface (nannou / headless / wasm).
 use murrelet_common::MurreletAppInput;
 use murrelet_draw::drawable::MixedDrawableShape;
+use murrelet_livecode::state::LivecodeWorldState;
 use murrelet_livecode::types::LivecodeResult;
 use serde::Deserialize;
 
@@ -23,4 +24,8 @@ where
     fn reload(&mut self);
 
     fn update(&mut self, app_input: &MurreletAppInput);
+
+    fn update_with_world(&mut self, app_input: &MurreletAppInput, _world: &LivecodeWorldState) {
+        self.update(app_input);
+    }
 }

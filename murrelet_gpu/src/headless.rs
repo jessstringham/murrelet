@@ -6,6 +6,7 @@ use std::error::Error;
 use std::path::Path;
 
 use image::ColorType;
+use murrelet_livecode::state::LivecodeWorldState;
 #[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 #[cfg(feature = "nannou")]
@@ -30,6 +31,17 @@ pub trait IsHeadlessGraphic {
     /// drawer-fed sketches (lily, ethereal) override it. Forgetting to override just
     /// yields the pre-hook behavior (a thin/blank drawer), never a miscompile.
     fn prepare(&mut self, _c: &GraphicsWindowConf) {}
+
+    /// Optional per-frame state advance for the `nannou + gpu + stateful` arm: the
+    /// arm loops `tick → prepare → render_passes` N times (the `--earlystop` count)
+    /// so a GPU sketch whose CPU-side state accumulates (physics / growth / packing)
+    /// can settle headless AND any feedback in its GPU pipeline (e.g. `res_feedback`)
+    /// accumulates across the per-frame render_passes the way it would windowed.
+    /// **Default no-op** (stateless gpu sketches inherit it — no separate arm to pick).
+    /// A stateful gpu sketch stores its Drawing in the graphic and advances it here;
+    /// `prepare` then fills the drawer from the settled state, and the per-frame
+    /// `render_passes` from the arm drives the GPU side.
+    fn tick(&mut self, _c: &GraphicsWindowConf, _world: &LivecodeWorldState) {}
 }
 
 // A window-free wgpu device, ready for headless rendering. The GPU analog of
@@ -47,10 +59,34 @@ pub fn render_headless_graphic_to_png<G: IsHeadlessGraphic>(
     graphic: &G,
     out_path: &Path,
 ) -> Result<(), Box<dyn Error>> {
+    render_headless_graphic_passes(owned, c, graphic);
+    capture_headless_graphic_to_png(c, graphic, out_path)
+}
+
+// Just the render half: build a fresh off-screen DISPLAY view and run the graphic's
+// passes once. Safe to call repeatedly — feedback state lives inside the graphic's
+// own ping-pong textures, not in the DISPLAY view. Pair with
+// `capture_headless_graphic_to_png` for the final readback. Used by the
+// `@headless_png_stateful` arm to loop tick→prepare→render_passes per frame so GPU
+// feedback (e.g. `res_feedback`) accumulates the way windowed runs do.
+pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
+    owned: &OwnedDeviceState,
+    c: &GraphicsWindowConf,
+    graphic: &G,
+) {
     let display = quick_texture(c.dims(), c.device());
     let display_view = display.default_view();
     let render_device = DeviceStateForRender::new(owned.to_borrowed(), display_view);
     graphic.render_passes(&render_device);
+}
+
+// Just the capture half: read back the graphic's output texture and save it to PNG.
+// Use after one or more `render_headless_graphic_passes` calls.
+pub fn capture_headless_graphic_to_png<G: IsHeadlessGraphic>(
+    c: &GraphicsWindowConf,
+    graphic: &G,
+    out_path: &Path,
+) -> Result<(), Box<dyn Error>> {
     save_graphic_png(c, graphic.output(), out_path)
 }
 

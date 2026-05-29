@@ -844,7 +844,7 @@ where
         } else {
             match ControlConfType::fs_parse_data_with_overrides(
                 &args.config_path,
-                &args.template_path,
+                crate::reload::templates_dir_for(&args.config_path),
                 &all_overrides,
             ) {
                 Ok(x) => x,

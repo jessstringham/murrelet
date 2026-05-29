@@ -83,6 +83,11 @@ pub struct AppInputValues {
     click_cycle: u32,
     click_loc: Vec2,
     mouse_loc: Vec2, // doesn't need a click
+    // When true, `update()` won't overwrite `mouse_loc` from incoming app input.
+    // Headless arms pass a default MurreletAppInput (mouse at Vec2::ZERO) every
+    // frame, which would otherwise clobber any non-zero seed and collapse
+    // `[mx, my]`-driven config geometry. See BUG-L348.
+    freeze_mouse_loc: bool,
     // can refactor. for now, this is a quick way to exclude, say, keyboard things from livecode web
     include_keyboard: bool,
     custom_vars: CustomVars,
@@ -167,7 +172,9 @@ impl IsLivecodeSrc for AppInputValues {
             }
         }
 
-        self.mouse_loc = app.mouse_position;
+        if !self.freeze_mouse_loc {
+            self.mouse_loc = app.mouse_position;
+        }
         // only update clicks if they are clicking!
         self.click_fire = false;
         self.click_changed = false;
@@ -251,6 +258,22 @@ impl AppInputValues {
         self.click_fire
     }
 
+    // Headless variant: seeds `mouse_loc` to a non-zero default so configs
+    // whose geometry derives from `[mx, my]` (e.g. leafed's blade.loc) don't
+    // collapse to (0,0) and render degenerate. Leaves uses centered-at-origin
+    // world coords with sketches typically seeded below center (e.g. leafed
+    // seeds at y=-100..-250); (0, -200) lands the headless mouse inside that
+    // typical seeded region so the auxin/vein geometry can actually grow.
+    // The companion `freeze_mouse_loc` flag prevents `update()` from clobbering
+    // this value with the default Vec2::ZERO from `MurreletAppInput`.
+    // See BUG-L348.
+    pub fn new_centered(include_keyboard: bool) -> AppInputValues {
+        let mut v = Self::new(include_keyboard);
+        v.mouse_loc = vec2(0.0, -200.0);
+        v.freeze_mouse_loc = true;
+        v
+    }
+
     pub fn new(include_keyboard: bool) -> AppInputValues {
         let lookup = Self::VALID_KEYS
             .iter()
@@ -275,6 +298,7 @@ impl AppInputValues {
             click_cycle: 0,
             mouse_loc: Vec2::ZERO,
             click_loc: Vec2::ZERO,
+            freeze_mouse_loc: false,
             include_keyboard,
             custom_vars: CustomVars::default(),
             key_trigger_names,

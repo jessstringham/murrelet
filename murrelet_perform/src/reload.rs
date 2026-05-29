@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use clap::Parser;
 use evalexpr::HashMapContext;
 use murrelet_common::AssetsRef;
 use murrelet_common::{LivecodeSrc, MurreletTime};
@@ -8,11 +9,25 @@ use murrelet_livecode::types::{AdditionalContextNode, LivecodeError, LivecodeRes
 
 // todo, maybe only includde this if not wasm?
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{env, fs};
+use std::fs;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use crate::cli::BaseConfigArgs;
 use crate::perform::ControlAppConfig;
+
+// Sibling-of-the-config-dir lookup for `[[name]]` template includes.
+// `configs/polygonatum/fall.yaml` → `configs/_templates`. Returns a
+// bare `_templates` if the config has no parents to climb (shouldn't
+// happen in practice); a non-existent dir is handled by callers as
+// "no templates".
+pub fn templates_dir_for(config: &Path) -> PathBuf {
+    config
+        .parent()
+        .and_then(Path::parent)
+        .map(|p| p.join("_templates"))
+        .unwrap_or_else(|| PathBuf::from("_templates"))
+}
 
 fn murrelet_time_from_system(s: SystemTime) -> MurreletTime {
     MurreletTime::from_epoch_time(s.duration_since(UNIX_EPOCH).expect("wat").as_micros())
@@ -74,15 +89,15 @@ pub trait LiveCoderLoader: Sized {
     }
 
     fn _fs_load() -> Result<Self, LivecodeError> {
-        let args: Vec<String> = env::args().collect();
-        Self::fs_parse_data(&args[1], &args[2])
+        let config = BaseConfigArgs::parse().config_path;
+        Self::fs_parse_data(&config, templates_dir_for(&config))
     }
 
     fn fs_load() -> Self {
         // todo, make this return a result..
-        let args: Vec<String> = env::args().collect();
-        // Self::fs_load_from_filename(&args[1], &args[2])
-        Self::fs_load_from_filename(&args[1], &args[2])
+        let config = BaseConfigArgs::parse().config_path;
+        let templates = templates_dir_for(&config);
+        Self::fs_load_from_filename(config, templates)
     }
 
     // refactor this
@@ -97,24 +112,29 @@ pub trait LiveCoderLoader: Sized {
         }
     }
 
-    // TODO, update all this to use clap isntead!
     fn fs_config_filename() -> String {
-        let args: Vec<String> = env::args().collect();
-        args[1].clone()
+        BaseConfigArgs::parse().config_path.to_string_lossy().into_owned()
     }
 
     fn fs_template_foldername() -> String {
-        let args: Vec<String> = env::args().collect();
-        args[2].clone()
+        let config = BaseConfigArgs::parse().config_path;
+        templates_dir_for(&config).to_string_lossy().into_owned()
     }
 
     fn latest_template_update_time() -> LivecodeResult<MurreletTime> {
         let dir = Self::fs_template_foldername();
 
+        let entries = match fs::read_dir(&dir) {
+            Ok(d) => d,
+            // No `_templates/` sibling — sketch doesn't use includes.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(MurreletTime::epoch());
+            }
+            Err(e) => return Err(LivecodeError::Io("template error".to_string(), e)),
+        };
+
         let mut latest_time = MurreletTime::epoch();
-        for entry in
-            fs::read_dir(dir).map_err(|e| LivecodeError::Io("template error".to_string(), e))?
-        {
+        for entry in entries {
             let entry = entry.map_err(|e| LivecodeError::Io("template error".to_string(), e))?;
             let metadata = entry
                 .metadata()
