@@ -28,7 +28,7 @@
 #[macro_export]
 macro_rules! headless_svg {
     ($harness:ty, $build:expr) => {{
-        fn _assert_to_mixed_drawables<T: ::murrelet_draw::drawable::ToMixedDrawables>(_: &T) {}
+        fn _assert_to_mixed_drawables<T: $crate::ToMixedDrawables>(_: &T) {}
         let build: fn(&_) -> _ = $build;
         for job in <$harness as $crate::HeadlessHarness>::jobs() {
             let harness = <$harness as $crate::HeadlessHarness>::build_with_overrides(&job.overrides);
@@ -57,7 +57,7 @@ macro_rules! headless_svg {
 #[macro_export]
 macro_rules! headless_svg_stateful {
     ($harness:ty, $build:expr) => {{
-        fn _assert_to_mixed_drawables<T: ::murrelet_draw::drawable::ToMixedDrawables>(_: &T) {}
+        fn _assert_to_mixed_drawables<T: $crate::ToMixedDrawables>(_: &T) {}
         fn _assert_is_murrelet_model<
             C: Clone,
             T: ::murrelet_perform::IsMurreletModel<C>,
