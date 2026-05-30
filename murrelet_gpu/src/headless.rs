@@ -13,7 +13,9 @@ use wgpu_for_latest as wgpu;
 use wgpu_for_nannou as wgpu;
 
 use crate::device_state::{DeviceStateForRender, OwnedDeviceState};
-use crate::graphics_ref::{GraphicsRefCustom, GraphicsVertex, quick_texture};
+use crate::build_shader; // recurses by bare name, so import it directly
+use crate::gpu_macros::ShaderStr; // build_shader! expands to an unqualified ShaderStr
+use crate::graphics_ref::{GraphicsCreator, GraphicsRefCustom, GraphicsVertex, quick_texture};
 use crate::window::GraphicsWindowConf;
 
 // A GPU pipeline that can render one frame off-screen: run its passes, then hand
@@ -102,20 +104,53 @@ pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
     c: &GraphicsWindowConf,
     graphic: &GraphicsRefCustom<VertexKind>,
 ) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
-    fn f16_to_u8(v: u16) -> u8 {
-        (half::f16::from_bits(v).to_f32().clamp(0.0, 1.0) * 255.0).round() as u8
-    }
-
     let dims = graphic.render_dims();
     let export_c = c.with_dims(dims);
 
-    let rendered = quick_texture(dims, export_c.device.device());
-    let rendered_view = rendered.default_view();
+    // Render into a linear working texture (DEFAULT_TEXTURE_FORMAT = Rgba16Float).
+    let linear = quick_texture(dims, export_c.device.device());
+    let linear_view = linear.default_view();
+    graphic.render_to_texture(export_c.device, &linear_view);
 
-    graphic.render_to_texture(export_c.device, &rendered_view);
+    // Final sRGB pass (BUG-L374). The windowed path presents through nannou's
+    // sRGB swapchain, so the GPU applies the linear->sRGB OETF on store. The
+    // headless readback must match or darks crush to black and midtones come out
+    // too dark. Blit the linear texture through an identity shader whose target is
+    // Rgba8UnormSrgb; the GPU encodes the gamma on store, exactly like the
+    // windowed present-blit. (sRGB formats can't be STORAGE textures, so this
+    // target uses a hand-rolled descriptor rather than quick_texture.)
+    let rendered = export_c.device.device().create_texture(&wgpu::TextureDescriptor {
+        size: wgpu::Extent3d {
+            width: dims[0],
+            height: dims[1],
+            depth_or_array_layers: 1,
+        },
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::COPY_SRC,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        label: Some("srgb readback target"),
+        view_formats: &[],
+    });
+    let rendered_view = rendered.create_view(&wgpu::TextureViewDescriptor::default());
 
-    let bytes_per_pixel = match rendered.desc.format {
-        wgpu::TextureFormat::Rgba8Unorm => 4,
+    let blit_shader: String = build_shader! {
+        (
+            raw r###"
+                let result: vec4<f32> = textureSample(tex, tex_sampler, tex_coords);
+            "###;
+        )
+    };
+    let srgb_blit = GraphicsCreator::default()
+        .with_dst_format(wgpu::TextureFormat::Rgba8UnormSrgb)
+        .to_graphics_ref(&export_c, "srgb_readback_blit", &blit_shader);
+    srgb_blit.render_with_input_textures(export_c.device, &rendered_view, &linear_view, None);
+
+    let bytes_per_pixel = match rendered.format() {
+        wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => 4,
         wgpu::TextureFormat::Rgba16Float => 8,
         format => {
             return Err(format!("unsupported texture format for png export: {format:?}").into());
@@ -151,7 +186,7 @@ pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
 
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
-                texture: &rendered.texture,
+                texture: &rendered,
                 mip_level: 0,
                 origin: wgpu::Origin3d {
                     x: 0,
@@ -192,22 +227,9 @@ pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
             .chunks(padded_bytes_per_row as usize)
             .take(chunk_rows as usize)
         {
+            // The sRGB blit target is 8-bit; bytes are already gamma-encoded.
             let row = &row[..unpadded_bytes_per_row as usize];
-            match rendered.desc.format {
-                wgpu::TextureFormat::Rgba8Unorm => pixels.extend_from_slice(row),
-                wgpu::TextureFormat::Rgba16Float => {
-                    let row_u16: &[u16] = bytemuck::cast_slice(row);
-                    pixels.extend(row_u16.chunks_exact(4).flat_map(|px| {
-                        [
-                            f16_to_u8(px[0]),
-                            f16_to_u8(px[1]),
-                            f16_to_u8(px[2]),
-                            f16_to_u8(px[3]),
-                        ]
-                    }));
-                }
-                _ => unreachable!(),
-            }
+            pixels.extend_from_slice(row);
         }
         drop(data);
         buffer.unmap();
