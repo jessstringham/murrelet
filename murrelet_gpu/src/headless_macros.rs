@@ -201,6 +201,7 @@ macro_rules! headless_png_stateful {
             let earlystop = <$harness as $crate::HeadlessHarness>::earlystop(&harness)
                 .unwrap_or(100);
             let mut __frame_ms: Vec<f64> = Vec::new();
+            let mut __display = None;
             for _ in 0..earlystop {
                 let __t = ::std::time::Instant::now();
                 graphic.tick(
@@ -208,7 +209,8 @@ macro_rules! headless_png_stateful {
                     <$harness as $crate::HeadlessHarness>::world(&harness),
                 );
                 graphic.prepare(&c);
-                $crate::headless::render_headless_graphic_passes(&owned, &c, &graphic);
+                __display =
+                    Some($crate::headless::render_headless_graphic_passes(&owned, &c, &graphic));
                 __frame_ms.push(__t.elapsed().as_secs_f64() * 1000.0);
             }
             let out = job
@@ -218,8 +220,9 @@ macro_rules! headless_png_stateful {
             if let Some(parent) = out.parent() {
                 let _ = ::std::fs::create_dir_all(parent);
             }
+            let __display = __display.expect("stateful headless render ran zero frames");
             let __tc = ::std::time::Instant::now();
-            $crate::headless::capture_headless_graphic_to_png(&c, &graphic, &out)
+            $crate::headless::capture_display_to_png(&c, &__display, &out)
                 .expect("headless png capture failed");
             let __capture_ms = __tc.elapsed().as_secs_f64() * 1000.0;
             // Per-frame settle-loop speed + the one-time final readback. BUG-L377.

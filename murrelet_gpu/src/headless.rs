@@ -15,16 +15,19 @@ use wgpu_for_nannou as wgpu;
 use crate::device_state::{DeviceStateForRender, OwnedDeviceState};
 use crate::build_shader; // recurses by bare name, so import it directly
 use crate::gpu_macros::ShaderStr; // build_shader! expands to an unqualified ShaderStr
-use crate::graphics_ref::{GraphicsCreator, GraphicsRefCustom, GraphicsVertex, quick_texture};
+use crate::graphics_ref::{
+    GraphicsCreator, GraphicsRefCustom, GraphicsVertex, TextureAndDesc, quick_texture,
+};
 use crate::window::GraphicsWindowConf;
 
-// A GPU pipeline that can render one frame off-screen: run its passes, then hand
-// back the graphic to read out. This is the single-conversion unit a headless
-// PNG entry point (or a batch runner over many) drives.
+// A GPU pipeline that can render one frame off-screen: run its passes into the
+// DISPLAY view, then the headless plumbing reads that view back. This is the
+// single-conversion unit a headless PNG entry point (or a batch runner over
+// many) drives. There's no `output()` to wire: capture reads the DISPLAY
+// texture `render_passes` wrote, exactly the present target the windowed path
+// shows — so the final `-> DISPLAY` pass is always what lands in the PNG.
 pub trait IsHeadlessGraphic {
-    type Vertex: GraphicsVertex;
     fn render_passes(&self, render_device: &DeviceStateForRender);
-    fn output(&self) -> &GraphicsRefCustom<Self::Vertex>;
 
     /// Optional headless prep, run once before `render_passes`: fill any CPU-side
     /// drawer / sync GPU inputs from config — the per-frame `update()` work the
@@ -61,35 +64,42 @@ pub fn render_headless_graphic_to_png<G: IsHeadlessGraphic>(
     graphic: &G,
     out_path: &Path,
 ) -> Result<(), Box<dyn Error>> {
-    render_headless_graphic_passes(owned, c, graphic);
-    capture_headless_graphic_to_png(c, graphic, out_path)
+    let display = render_headless_graphic_passes(owned, c, graphic);
+    capture_display_to_png(c, &display, out_path)
 }
 
-// Just the render half: build a fresh off-screen DISPLAY view and run the graphic's
-// passes once. Safe to call repeatedly — feedback state lives inside the graphic's
-// own ping-pong textures, not in the DISPLAY view. Pair with
-// `capture_headless_graphic_to_png` for the final readback. Used by the
-// `@headless_png_stateful` arm to loop tick→prepare→render_passes per frame so GPU
-// feedback (e.g. `res_feedback`) accumulates the way windowed runs do.
+// Just the render half: build a fresh off-screen DISPLAY texture and run the
+// graphic's passes once into it, returning that texture for readback. Safe to
+// call repeatedly — feedback state lives inside the graphic's own ping-pong
+// textures, not in the DISPLAY texture. Pair with `capture_display_to_png` for
+// the final readback. Used by the `@headless_png_stateful` arm to loop
+// tick→prepare→render_passes per frame so GPU feedback (e.g. `res_feedback`)
+// accumulates the way windowed runs do; capture the returned texture from the
+// last frame.
 pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
     owned: &OwnedDeviceState,
     c: &GraphicsWindowConf,
     graphic: &G,
-) {
+) -> TextureAndDesc {
     let display = quick_texture(c.dims(), c.device());
     let display_view = display.default_view();
     let render_device = DeviceStateForRender::new(owned.to_borrowed(), display_view);
     graphic.render_passes(&render_device);
+    display
 }
 
-// Just the capture half: read back the graphic's output texture and save it to PNG.
-// Use after one or more `render_headless_graphic_passes` calls.
-pub fn capture_headless_graphic_to_png<G: IsHeadlessGraphic>(
+// Just the capture half: read back the DISPLAY texture the passes rendered into
+// and save it to PNG. Use after a `render_headless_graphic_passes` call — pass
+// the texture it returned. This is the present target the windowed path shows,
+// so the final `-> DISPLAY` pass is captured exactly.
+pub fn capture_display_to_png(
     c: &GraphicsWindowConf,
-    graphic: &G,
+    display: &TextureAndDesc,
     out_path: &Path,
 ) -> Result<(), Box<dyn Error>> {
-    save_graphic_png(c, graphic.output(), out_path)
+    let (dims, pixels) = render_display_rgba8(c, display)?;
+    image::save_buffer(out_path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
 }
 
 fn align_copy_bytes_per_row(value: u32) -> u32 {
@@ -111,6 +121,21 @@ pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
     let linear = quick_texture(dims, export_c.device.device());
     let linear_view = linear.default_view();
     graphic.render_to_texture(export_c.device, &linear_view);
+
+    render_display_rgba8(&export_c, &linear)
+}
+
+// Read back an already-rendered linear DISPLAY texture (DEFAULT_TEXTURE_FORMAT =
+// Rgba16Float) as sRGB-encoded rgba8. The shared back half of the readback path:
+// the DISPLAY capture feeds its texture straight in; `render_graphic_rgba8`
+// first renders a graphic into a linear texture, then delegates here.
+pub fn render_display_rgba8(
+    c: &GraphicsWindowConf,
+    linear: &TextureAndDesc,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let dims = [linear.desc.size.width, linear.desc.size.height];
+    let export_c = c.with_dims(dims);
+    let linear_view = linear.default_view();
 
     // Final sRGB pass (BUG-L374). The windowed path presents through nannou's
     // sRGB swapchain, so the GPU applies the linear->sRGB OETF on store. The

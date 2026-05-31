@@ -886,7 +886,9 @@ macro_rules! pipeline_add_label {
 
 #[macro_export]
 macro_rules! build_shader_pipeline {
-    () => {}; // empty
+    // an empty body falls through to the entry arm below, yielding an empty
+    // GPUPipeline (renders nothing) rather than `()` — so a pipeline can be
+    // blanked out without dummy steps.
     (@parse $pipeline:ident ()) => {}; // done!
 
     // write to display: a -> DISPLAY, this is the view that will be passed in the pipeline render call

@@ -473,6 +473,74 @@ macro_rules! bonus_draw_wrapper {
     };
 }
 
+// + yaml: same generated entry points as the native program reads configs —
+// parse a YAML string into the `Control<Conf>` drawing conf, then build/update
+// the top-level livecode. Keeps crates whose configs are authored in YAML (e.g.
+// mockingbird) on the unified `sketch_main!(wasm, ...)` surface without forcing a
+// JS-side yaml->json step. Only `+ yaml` crates need `serde_yaml` in their deps.
+#[macro_export]
+macro_rules! bonus_yaml_wrapper {
+    ($model_ty:ty, $conf_ty:ty, $conf_ty_wrapper:ty, $ctrl_conf_ty:ty, $conf_top_level:ty, $ctrl_conf_top_level:ty, $model_wasm:ty) => {
+        impl $model_wasm {
+            fn yaml_to_control_config(
+                app: &murrelet_perform::AppConfig,
+                yaml: &str,
+            ) -> murrelet_livecode::types::LivecodeResult<$ctrl_conf_top_level> {
+                use murrelet_livecode::livecode::LivecodeToControl;
+                let drawing: $ctrl_conf_ty = serde_yaml::from_str(yaml).map_err(|err| {
+                    murrelet_livecode::types::LivecodeError::JsonParse(err.to_string())
+                })?;
+                Ok(<$ctrl_conf_top_level as murrelet_perform::perform::WithDrawerUpdator<
+                    $ctrl_conf_ty,
+                >>::new_from_parts(app.to_control(), drawing))
+            }
+
+            pub fn new_conf_yaml_livecode(
+                yaml: &str,
+            ) -> murrelet_livecode::types::LivecodeResult<Self> {
+                let app_mng = murrelet_wasm::interface::AppManager::new();
+                let control_config = Self::yaml_to_control_config(&app_mng.conf, yaml)?;
+                let livecode = LiveCode::new_wasm(control_config)?;
+                let model = <$model_ty>::init(livecode.config().drawing.clone());
+
+                Ok(Self {
+                    model,
+                    app_mng,
+                    livecode,
+                    svg_obj: None,
+                })
+            }
+
+            pub fn set_config_yaml_internal(
+                &mut self,
+                yaml: &str,
+            ) -> murrelet_livecode::types::LivecodeResult<()> {
+                let control_config = Self::yaml_to_control_config(&self.app_mng.conf, yaml)?;
+                self.livecode.update_config_directly(control_config)?;
+                // push straight to the model so a set_config + draw works without an
+                // intervening tick() (mockingbird is static-iterate, not animated).
+                self.model
+                    .set_conf(self.livecode.config().drawing.clone());
+                Ok(())
+            }
+        }
+
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        impl $model_wasm {
+            pub fn set_config_yaml(&mut self, yaml: &str) -> Result<(), wasm_bindgen::JsValue> {
+                self.set_config_yaml_internal(yaml)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
+            }
+        }
+
+        #[wasm_bindgen::prelude::wasm_bindgen]
+        pub fn new_model_from_yaml(yaml: &str) -> Result<$model_wasm, wasm_bindgen::JsValue> {
+            <$model_wasm>::new_conf_yaml_livecode(yaml)
+                .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! bonus_gui_wrapper {
     ($model_ty:ty, $conf_ty:ty, $conf_ty_wrapper:ty, $ctrl_conf_ty:ty, $conf_top_level:ty, $ctrl_conf_top_level:ty, $model_wasm:ty) => {
@@ -676,9 +744,25 @@ macro_rules! export_murrelet_web_model {
         $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
     };
 
+    // + yaml
+    (@parse $model_ty:ident, $conf_ty:ident, + yaml $($tail:tt)*) => {
+        $crate::paste::paste! {
+            bonus_yaml_wrapper!(
+                $model_ty,
+                $conf_ty,
+                [<$conf_ty Wrapper>],
+                [<Control $conf_ty>],
+                [<$conf_ty TopLevelLivecode>],
+                [<Control $conf_ty TopLevelLivecode>],
+                [<$model_ty TopLevelWasm>]
+            );
+        }
+        $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
+    };
+
     // Friendlier error if someone writes an unknown feature
     (@parse $model_ty:ident, $conf_ty:ident, + $unknown:tt $($tail:tt)*) => {
-        compile_error!("export_murrelet_web_model!: unknown feature. Use + gui, + emb, or + draw(Type).");
+        compile_error!("export_murrelet_web_model!: unknown feature. Use + gui, + emb, + yaml, or + draw(Type).");
         $crate::export_murrelet_web_model!(@parse $model_ty, $conf_ty, $($tail)*);
     };
 
