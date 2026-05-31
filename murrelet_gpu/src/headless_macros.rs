@@ -39,7 +39,15 @@ macro_rules! headless_svg {
                     .with_capture_path(out),
                 None => <$harness as $crate::HeadlessHarness>::default_svg_path(&harness),
             };
+            let __t = ::std::time::Instant::now();
             ::murrelet_svg::headless::render_to_svg(&model, &svg_conf);
+            let __ms = __t.elapsed().as_secs_f64() * 1000.0;
+            // Per-frame render speed (one frame for the stateless arm). Parsed by
+            // render-systems.py into the systems-thumbs manifest. BUG-L377.
+            println!(
+                "HEADLESS_TIMING {{\"frames\":1,\"frame_ms_mean\":{:.3},\"frame_ms\":[{:.3}]}}",
+                __ms, __ms
+            );
         }
     }};
 }
@@ -71,7 +79,9 @@ macro_rules! headless_svg_stateful {
             _assert_is_murrelet_model(&model);
             let earlystop = <$harness as $crate::HeadlessHarness>::earlystop(&harness)
                 .unwrap_or(100);
+            let mut __frame_ms: Vec<f64> = Vec::new();
             for frame in 0..earlystop {
+                let __t = ::std::time::Instant::now();
                 let app_input =
                     ::murrelet_common::MurreletAppInput::default_with_frames(frame);
                 <$harness as $crate::HeadlessHarness>::update_for_frame(&mut harness, frame);
@@ -84,13 +94,24 @@ macro_rules! headless_svg_stateful {
                     &app_input,
                     <$harness as $crate::HeadlessHarness>::world(&harness),
                 );
+                __frame_ms.push(__t.elapsed().as_secs_f64() * 1000.0);
             }
             let svg_conf = match job.output {
                 Some(out) => <$harness as $crate::HeadlessHarness>::default_svg_path(&harness)
                     .with_capture_path(out),
                 None => <$harness as $crate::HeadlessHarness>::default_svg_path(&harness),
             };
+            let __tr = ::std::time::Instant::now();
             ::murrelet_svg::headless::render_to_svg(&model, &svg_conf);
+            let __render_ms = __tr.elapsed().as_secs_f64() * 1000.0;
+            // Per-frame settle-loop speed + the one-time final render. BUG-L377.
+            let __mean = if __frame_ms.is_empty() { 0.0 }
+                else { __frame_ms.iter().sum::<f64>() / __frame_ms.len() as f64 };
+            let __list: Vec<String> = __frame_ms.iter().map(|m| format!("{:.3}", *m)).collect();
+            println!(
+                "HEADLESS_TIMING {{\"frames\":{},\"frame_ms_mean\":{:.3},\"frame_ms\":[{}],\"render_ms\":{:.3}}}",
+                __frame_ms.len(), __mean, __list.join(","), __render_ms
+            );
         }
     }};
 }
@@ -127,6 +148,7 @@ macro_rules! headless_png {
             // headless prep hook (default no-op): drawer-fed sketches fill their
             // CPU drawer here, the work the windowed update() does. Pure-shader
             // sketches inherit the no-op, so there's no separate arm to pick.
+            let __t = ::std::time::Instant::now();
             graphic.prepare(&c);
             let out = job
                 .output
@@ -137,6 +159,12 @@ macro_rules! headless_png {
             }
             $crate::headless::render_headless_graphic_to_png(&owned, &c, &graphic, &out)
                 .expect("headless png render failed");
+            let __ms = __t.elapsed().as_secs_f64() * 1000.0;
+            // Per-frame render speed (one frame for the stateless arm). BUG-L377.
+            println!(
+                "HEADLESS_TIMING {{\"frames\":1,\"frame_ms_mean\":{:.3},\"frame_ms\":[{:.3}]}}",
+                __ms, __ms
+            );
         }
     }};
 }
@@ -172,13 +200,16 @@ macro_rules! headless_png_stateful {
             _assert_is_headless_graphic(&graphic);
             let earlystop = <$harness as $crate::HeadlessHarness>::earlystop(&harness)
                 .unwrap_or(100);
+            let mut __frame_ms: Vec<f64> = Vec::new();
             for _ in 0..earlystop {
+                let __t = ::std::time::Instant::now();
                 graphic.tick(
                     &c,
                     <$harness as $crate::HeadlessHarness>::world(&harness),
                 );
                 graphic.prepare(&c);
                 $crate::headless::render_headless_graphic_passes(&owned, &c, &graphic);
+                __frame_ms.push(__t.elapsed().as_secs_f64() * 1000.0);
             }
             let out = job
                 .output
@@ -187,8 +218,18 @@ macro_rules! headless_png_stateful {
             if let Some(parent) = out.parent() {
                 let _ = ::std::fs::create_dir_all(parent);
             }
+            let __tc = ::std::time::Instant::now();
             $crate::headless::capture_headless_graphic_to_png(&c, &graphic, &out)
                 .expect("headless png capture failed");
+            let __capture_ms = __tc.elapsed().as_secs_f64() * 1000.0;
+            // Per-frame settle-loop speed + the one-time final readback. BUG-L377.
+            let __mean = if __frame_ms.is_empty() { 0.0 }
+                else { __frame_ms.iter().sum::<f64>() / __frame_ms.len() as f64 };
+            let __list: Vec<String> = __frame_ms.iter().map(|m| format!("{:.3}", *m)).collect();
+            println!(
+                "HEADLESS_TIMING {{\"frames\":{},\"frame_ms_mean\":{:.3},\"frame_ms\":[{}],\"capture_ms\":{:.3}}}",
+                __frame_ms.len(), __mean, __list.join(","), __capture_ms
+            );
         }
     }};
 }
