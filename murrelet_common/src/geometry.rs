@@ -220,11 +220,12 @@ impl Angle {
     }
 
     pub fn is_vertical(&self) -> bool {
-        (self.angle_pi() - 0.5 % 1.0) < 1e-2
+        (self.angle_pi().rem_euclid(1.0) - 0.5).abs() < 1e-2
     }
 
     pub fn is_horizontal(&self) -> bool {
-        (self.angle_pi() - 0.0 % 1.0) < 1e-2
+        let r = self.angle_pi().rem_euclid(1.0);
+        r.min(1.0 - r) < 1e-2
     }
 
     // todo: mirror across angle

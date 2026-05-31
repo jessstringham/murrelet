@@ -146,7 +146,7 @@ impl IdxInRange {
     }
 
     pub fn is_last(&self) -> bool {
-        self.i == self.total - 1
+        self.i + 1 == self.total
     }
 
     pub fn amount_from_end(&self) -> u64 {

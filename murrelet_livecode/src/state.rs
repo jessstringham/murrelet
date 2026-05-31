@@ -486,7 +486,7 @@ impl LiveCodeTimeInstantInfo {
             let render_time = self.system_timing.last_render_time;
             render_time.as_secs_f32()
         } else {
-            let prev_frame = self.system_timing.frame - 1;
+            let prev_frame = self.system_timing.frame.saturating_sub(1);
             prev_frame as f32 / self.timing_config.fps
         };
 
