@@ -17,7 +17,7 @@ impl LivecodeFieldType {
             ControlType::Bool => quote! {murrelet_livecode::livecode::ControlBool},
             ControlType::F32_2 => quote! {[murrelet_livecode::livecode::ControlF32; 2]},
             ControlType::F32_3 => quote! {[murrelet_livecode::livecode::ControlF32; 3]},
-            ControlType::Color => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
+            ControlType::Color => quote! {murrelet_livecode::livecode::ControlMurreletColor},
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
@@ -28,7 +28,7 @@ impl LivecodeFieldType {
         match self.0 {
             ControlType::F32_2 => quote! { murrelet_livecode::lazy::ControlLazyVec2 },
             ControlType::F32_3 => quote! { murrelet_livecode::lazy::ControlLazyVec3 },
-            ControlType::Color => quote! { murrelet_livecode::lazy::ControlMurreletColor },
+            ControlType::Color => quote! { murrelet_livecode::lazy::ControlLazyMurreletColor },
             ControlType::ColorUnclamped => {
                 todo!() //quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> }
             }

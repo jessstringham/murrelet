@@ -201,6 +201,94 @@ impl LivecodeToControl<[ControlF32; 4]> for MurreletColor {
     }
 }
 
+// A color in a config can be written a few ways, picked by shape:
+//   [h, s, v, a]              four numbers, hsva
+//   {rgb: [r, g, b], a}       rgba
+//   {gray: g}                 a gray value
+//   {hue: h}                  a fully-saturated hue
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum ControlMurreletColor {
+    Hsva([ControlF32; 4]),
+    Rgba {
+        rgb: [ControlF32; 3],
+        a: ControlF32,
+    },
+    Gray {
+        gray: ControlF32,
+    },
+    Hue {
+        hue: ControlF32,
+    },
+}
+
+impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<MurreletColor> {
+        match self {
+            // by default, clamp saturation and value
+            ControlMurreletColor::Hsva(hsva) => Ok(MurreletColor::hsva(
+                hsva[0].o(w)?,
+                clamp(hsva[1].o(w)?, 0.0, 1.0),
+                clamp(hsva[2].o(w)?, 0.0, 1.0),
+                hsva[3].o(w)?,
+            )),
+            ControlMurreletColor::Rgba { rgb, a } => Ok(MurreletColor::rgba(
+                rgb[0].o(w)?,
+                rgb[1].o(w)?,
+                rgb[2].o(w)?,
+                a.o(w)?,
+            )),
+            ControlMurreletColor::Gray { gray } => Ok(MurreletColor::gray(gray.o(w)?)),
+            ControlMurreletColor::Hue { hue } => Ok(MurreletColor::hue(hue.o(w)?)),
+        }
+    }
+}
+
+impl LivecodeToControl<ControlMurreletColor> for MurreletColor {
+    fn to_control(&self) -> ControlMurreletColor {
+        let [h, s, v, a] = self.into_hsva_components();
+        ControlMurreletColor::Hsva([
+            h.to_control(),
+            s.to_control(),
+            v.to_control(),
+            a.to_control(),
+        ])
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlMurreletColor {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        let nodes: Vec<&ControlF32> = match self {
+            ControlMurreletColor::Hsva(hsva) => hsva.iter().collect(),
+            ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
+            ControlMurreletColor::Gray { gray } => vec![gray],
+            ControlMurreletColor::Hue { hue } => vec![hue],
+        };
+        nodes
+            .iter()
+            .flat_map(|x| x.variable_identifiers())
+            .collect::<HashSet<LivecodeVariable>>()
+            .into_iter()
+            .collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        let nodes: Vec<&ControlF32> = match self {
+            ControlMurreletColor::Hsva(hsva) => hsva.iter().collect(),
+            ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
+            ControlMurreletColor::Gray { gray } => vec![gray],
+            ControlMurreletColor::Hue { hue } => vec![hue],
+        };
+        nodes
+            .iter()
+            .flat_map(|x| x.function_identifiers())
+            .collect::<HashSet<LivecodeFunction>>()
+            .into_iter()
+            .collect_vec()
+    }
+}
+
 impl LivecodeToControl<ControlF32> for usize {
     fn to_control(&self) -> ControlF32 {
         ControlF32::Raw(*self as f32)
@@ -548,21 +636,21 @@ pub fn _auto_default_vec2_1_lazy() -> [ControlLazyNodeF32; 2] {
     ]
 }
 
-pub fn _auto_default_color_0() -> [ControlF32; 4] {
-    [
+pub fn _auto_default_color_0() -> ControlMurreletColor {
+    ControlMurreletColor::Hsva([
         ControlF32::Raw(0.0),
         ControlF32::Raw(0.0),
         ControlF32::Raw(0.0),
         ControlF32::Raw(0.0),
-    ]
+    ])
 }
-pub fn _auto_default_color_1() -> [ControlF32; 4] {
-    [
+pub fn _auto_default_color_1() -> ControlMurreletColor {
+    ControlMurreletColor::Hsva([
         ControlF32::Raw(1.0),
         ControlF32::Raw(1.0),
         ControlF32::Raw(1.0),
         ControlF32::Raw(1.0),
-    ]
+    ])
 }
 
 pub fn _auto_default_bool_false() -> ControlBool {
@@ -708,6 +796,43 @@ mod tests {
             }
             other => panic!("expected Expr, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn control_murrelet_color_reads_hsva_array() {
+        let c: ControlMurreletColor = serde_yaml::from_str("[0.5, 1.0, 1.0, 0.8]").unwrap();
+        assert!(matches!(c, ControlMurreletColor::Hsva(_)));
+        let color = c.o_dummy().unwrap();
+        let [h, s, v, a] = color.into_hsva_components();
+        assert_eq!([h, s, v, a], [0.5, 1.0, 1.0, 0.8]);
+    }
+
+    #[test]
+    fn control_murrelet_color_reads_rgba_map() {
+        let c: ControlMurreletColor = serde_yaml::from_str("{rgb: [1.0, 0.0, 0.0], a: 0.5}").unwrap();
+        assert!(matches!(c, ControlMurreletColor::Rgba { .. }));
+        let color = c.o_dummy().unwrap();
+        let [r, g, b, a] = color.into_rgba_components();
+        assert!((r - 1.0).abs() < 1e-5, "r was {}", r);
+        assert!(g.abs() < 1e-5, "g was {}", g);
+        assert!(b.abs() < 1e-5, "b was {}", b);
+        assert!((a - 0.5).abs() < 1e-5, "a was {}", a);
+    }
+
+    #[test]
+    fn control_murrelet_color_reads_gray_map() {
+        let c: ControlMurreletColor = serde_yaml::from_str("{gray: 0.5}").unwrap();
+        assert!(matches!(c, ControlMurreletColor::Gray { .. }));
+        let expected = MurreletColor::gray(0.5).into_hsva_components();
+        assert_eq!(c.o_dummy().unwrap().into_hsva_components(), expected);
+    }
+
+    #[test]
+    fn control_murrelet_color_reads_hue_map() {
+        let c: ControlMurreletColor = serde_yaml::from_str("{hue: 0.3}").unwrap();
+        assert!(matches!(c, ControlMurreletColor::Hue { .. }));
+        let expected = MurreletColor::hue(0.3).into_hsva_components();
+        assert_eq!(c.o_dummy().unwrap().into_hsva_components(), expected);
     }
 
     #[test]

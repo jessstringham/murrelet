@@ -12,17 +12,20 @@ use lerpable::Lerpable;
 use md5::{Digest, Md5};
 use murrelet_common::*;
 use murrelet_gui::{CanMakeGUI, MurreletGUI};
-use murrelet_livecode::{lazy::ControlLazyMurreletColor, livecode::ControlF32};
+use murrelet_livecode::{
+    lazy::ControlLazyMurreletColor,
+    livecode::{ControlF32, ControlMurreletColor},
+};
 use murrelet_livecode_derive::Livecode;
 use styleconf::StyleConf;
 
-fn _black() -> [ControlF32; 4] {
-    [
+fn _black() -> ControlMurreletColor {
+    ControlMurreletColor::Hsva([
         ControlF32::Raw(0.0),
         ControlF32::Raw(0.0),
         ControlF32::Raw(0.0),
         ControlF32::Raw(1.0),
-    ]
+    ])
 }
 
 fn _black_lazy() -> ControlLazyMurreletColor {

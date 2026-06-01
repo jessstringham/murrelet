@@ -258,13 +258,13 @@ fn _default_clear_bg_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(true)
 }
 
-fn _default_bg_color() -> [ControlF32; 4] {
-    [
+fn _default_bg_color() -> ControlMurreletColor {
+    ControlMurreletColor::Hsva([
         ControlF32::Raw(0.0),
         ControlF32::Raw(0.0),
         ControlF32::Raw(0.0),
         ControlF32::Raw(1.0),
-    ]
+    ])
 }
 
 fn _default_bg_color_lazy() -> ControlLazyMurreletColor {
