@@ -567,12 +567,17 @@ impl Default for ControlAppConfig {
             reload_on_bar: _default_reload_on_bar(),
             assets: _default_assets(),
             lerp_rate: _default_lerp_rate(),
+            only_render_on_update: _default_only_render_on_update(),
         }
     }
 }
 
 fn _default_lerp_rate() -> ControlF32 {
     ControlF32::Int(0)
+}
+
+fn _default_only_render_on_update() -> ControlF32 {
+    ControlF32::Raw(0.0)
 }
 
 fn _default_assets() -> ControlAssetFilenames {
@@ -626,6 +631,7 @@ impl AppConfig {
             reload_on_bar: false,
             assets: AssetFilenames::empty(),
             lerp_rate: 0.0,
+            only_render_on_update: 0.0,
         }
     }
 }
@@ -677,6 +683,10 @@ pub struct AppConfig {
     pub assets: AssetFilenames, // for svg files!
     #[livecode(serde_default = "0")] // if 0, it won't run at all
     pub lerp_rate: f32,
+    // seconds to keep rendering after a config-file change; <= 0 renders every
+    // frame as usual.
+    #[livecode(serde_default = "0")]
+    pub only_render_on_update: f32,
 }
 impl AppConfig {
     pub fn should_clear_bg(&self) -> bool {
@@ -1270,6 +1280,14 @@ where
 
     pub fn should_save_svg(&self) -> bool {
         self.app_config().svg.save
+    }
+
+    // When `only_render_on_update > 0`, only render for that many seconds after
+    // the config file last changed (so a slow sketch idles when nothing's
+    // happening). <= 0 keeps the usual every-frame behaviour.
+    pub fn should_render(&self) -> bool {
+        let window = self.app_config().only_render_on_update;
+        window <= 0.0 || self.world().time().seconds_since_reload() <= window
     }
 
     pub fn should_show_gpu_debug(&self) -> bool {
