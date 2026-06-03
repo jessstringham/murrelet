@@ -69,17 +69,17 @@ impl LivecodeFieldType {
             ControlType::AnglePi => {
                 quote! {murrelet_common::AnglePi::new(#target.o(w)?)}
             }
-            _ => {
-                let f32_out = match (f32min, f32max) {
-                    (None, None) => quote! {#target.o(w)?},
-                    (None, Some(max)) => quote! {f32::min(#target.o(w)?, #max)},
-                    (Some(min), None) => quote! {f32::max(#min, #target.o(w)?)},
-                    (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, #target.o(w)?), #max)}
-                    }
-                };
-                quote! {#f32_out as #orig_ty}
-            }
+            ControlType::Bool => quote! {#target.o(w)?},
+            _ => match (f32min, f32max) {
+                // `let v: f32` pins the LivecodeFromWorld<f32> impl; ControlF32 now also
+                // implements integer targets, so a bare `.o(w)? as T` would be ambiguous.
+                (None, None) => quote! {{ let v: f32 = #target.o(w)?; v as #orig_ty }},
+                (None, Some(max)) => quote! {f32::min(#target.o(w)?, #max) as #orig_ty},
+                (Some(min), None) => quote! {f32::max(#min, #target.o(w)?) as #orig_ty},
+                (Some(min), Some(max)) => {
+                    quote! {f32::min(f32::max(#min, #target.o(w)?), #max) as #orig_ty}
+                }
+            },
         }
     }
 
@@ -138,6 +138,13 @@ impl LivecodeFieldType {
                     }
                 }
             }
+            ControlType::Bool => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
             _ => {
                 let inner_ty = ident_from_type(&orig_ty).inside_type().to_quote();
                 let clamped = match (f32min, f32max) {
@@ -148,7 +155,7 @@ impl LivecodeFieldType {
                 };
                 quote! {
                     if let Some(name) = &self.#name {
-                        let v = name.o(w)?;
+                        let v: f32 = name.o(w)?;
                         Some(#clamped as #inner_ty)
                     } else {
                         None
@@ -193,15 +200,15 @@ impl LivecodeFieldType {
             ControlType::AnglePi => {
                 quote! {murrelet_common::AnglePi::new(self.0.o(w)?)}
             }
-            _ => {
-                let f32_out = match (idents.data.f32min, idents.data.f32max) {
-                    (None, None) => quote! {self.0.o(w)?},
-                    (None, Some(max)) => quote! {f32::min(self.0.o(w)?, #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.0.o(w)?)},
-                    (Some(min), Some(max)) => quote! {f32::min(f32::max(#min, self.0.o(w)?), #max)},
-                };
-                quote! {#f32_out as #orig_ty}
-            }
+            ControlType::Bool => quote! { self.0.o(w)? },
+            _ => match (idents.data.f32min, idents.data.f32max) {
+                (None, None) => quote! {{ let v: f32 = self.0.o(w)?; v as #orig_ty }},
+                (None, Some(max)) => quote! {f32::min(self.0.o(w)?, #max) as #orig_ty},
+                (Some(min), None) => quote! {f32::max(#min, self.0.o(w)?) as #orig_ty},
+                (Some(min), Some(max)) => {
+                    quote! {f32::min(f32::max(#min, self.0.o(w)?), #max) as #orig_ty}
+                }
+            },
         }
     }
 

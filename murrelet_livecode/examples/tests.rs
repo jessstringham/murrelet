@@ -19,6 +19,9 @@ pub struct BasicTypes {
     list_of_vec2: Vec<Vec2>,
     option_f32: Option<f32>,
     // option_vec2: Option<Vec2>,
+    a_usize: usize,
+    list_of_usize: Vec<usize>,
+    list_of_u32: Vec<u32>,
 }
 
 fn empty_string() -> String {

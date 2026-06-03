@@ -161,7 +161,8 @@ impl ControlVecElementRepeatMethod {
     fn iter(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<IdxInRange2d>> {
         let v = match self {
             ControlVecElementRepeatMethod::Single(s) => {
-                IdxInRange::enumerate_count(s.o(w)? as usize)
+                let n: f32 = s.o(w)?;
+                IdxInRange::enumerate_count(n as usize)
                     .iter()
                     .map(|x| x.to_2d())
                     .collect_vec()
@@ -171,7 +172,9 @@ impl ControlVecElementRepeatMethod {
                 IdxInRange2d::enumerate_counts(rr.x as usize, rr.y as usize)
             }
             ControlVecElementRepeatMethod::Blend(b) => {
-                IdxInRange::enumerate_count((b.count.o(w)? + b.blend.o(w)?) as usize)
+                let count: f32 = b.count.o(w)?;
+                let blend: f32 = b.blend.o(w)?;
+                IdxInRange::enumerate_count((count + blend) as usize)
                     .iter()
                     .map(|x| x.to_2d())
                     .collect_vec()
@@ -183,7 +186,8 @@ impl ControlVecElementRepeatMethod {
     fn next_blend(&self, w: &LivecodeWorldState) -> Option<BlendWith> {
         match self {
             ControlVecElementRepeatMethod::Blend(b) => {
-                let blend = b.blend.o(w).unwrap_or_default() as usize;
+                let blend_amt: f32 = b.blend.o(w).unwrap_or_default();
+                let blend = blend_amt as usize;
                 if blend > 0 {
                     Some(BlendWith::new(blend))
                 } else {

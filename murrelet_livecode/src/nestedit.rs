@@ -105,6 +105,26 @@ impl NestEditable for u64 {
     }
 }
 
+impl NestEditable for u32 {
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        mods.get_curr_as_f32().map(|x| x as u32).unwrap_or(*self)
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self))
+    }
+}
+
+impl NestEditable for f64 {
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        mods.get_curr_as_f32().map(|x| x as f64).unwrap_or(*self)
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        nest_default(getter, format!("{}", self))
+    }
+}
+
 impl NestEditable for u8 {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr_as_f32().map(|x| x as u8).unwrap_or(*self)

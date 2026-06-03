@@ -100,6 +100,44 @@ impl LivecodeFromWorld<f32> for ControlF32 {
     }
 }
 
+// ControlF32 backs every numeric field; these let it evaluate directly to the
+// narrowed type so `Vec<usize>` etc. work via eval_and_expand_vec_list.
+impl LivecodeFromWorld<f64> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f64> {
+        Ok(self._o(w)? as f64)
+    }
+}
+
+impl LivecodeFromWorld<usize> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
+        Ok(self._o(w)? as usize)
+    }
+}
+
+impl LivecodeFromWorld<u8> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<u8> {
+        Ok(self._o(w)? as u8)
+    }
+}
+
+impl LivecodeFromWorld<u32> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<u32> {
+        Ok(self._o(w)? as u32)
+    }
+}
+
+impl LivecodeFromWorld<u64> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<u64> {
+        Ok(self._o(w)? as u64)
+    }
+}
+
+impl LivecodeFromWorld<i32> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<i32> {
+        Ok(self._o(w)? as i32)
+    }
+}
+
 impl LivecodeFromWorld<Vec2> for [ControlF32; 2] {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec2> {
         Ok(vec2(self[0].o(w)?, self[1].o(w)?))
@@ -296,6 +334,12 @@ impl LivecodeToControl<ControlF32> for usize {
 }
 
 impl LivecodeToControl<ControlF32> for u64 {
+    fn to_control(&self) -> ControlF32 {
+        ControlF32::Raw(*self as f32)
+    }
+}
+
+impl LivecodeToControl<ControlF32> for f64 {
     fn to_control(&self) -> ControlF32 {
         ControlF32::Raw(*self as f32)
     }
@@ -789,9 +833,9 @@ mod tests {
         match back {
             ControlF32::Expr(ref e) => {
                 assert_eq!(e.src, EXPR);
-                let v = parsed.o_dummy().unwrap();
+                let v: f32 = parsed.o_dummy().unwrap();
                 assert_eq!(v, 9.0);
-                let v_back = back.o_dummy().unwrap();
+                let v_back: f32 = back.o_dummy().unwrap();
                 assert_eq!(v_back, 9.0);
             }
             other => panic!("expected Expr, got {:?}", other),

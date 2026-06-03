@@ -34,9 +34,12 @@ impl LazyFieldType {
         }
     }
 
+    // orig_ty is the Vec element type; the numeric arm narrows each f32 to it
+    // (e.g. `Vec<usize>`), mirroring the scalar `as #orig_ty` on for_world_target.
     fn for_world_func(
         &self,
         ident: syn::Ident,
+        orig_ty: syn::Ident,
         f32min: Option<f32>,
         f32max: Option<f32>,
     ) -> TokenStream2 {
@@ -57,15 +60,18 @@ impl LazyFieldType {
             }
             _ => {
                 // for number-like things, we also enable clamping! (it's a bit experimental though, be careful)
-                let f32_out = match (f32min, f32max) {
-                    (None, None) => quote! {#ident.eval_lazy(ctx)},
-                    (None, Some(max)) => quote! {Ok(f32::min(#ident.eval_lazy(ctx)?, #max))},
-                    (Some(min), None) => quote! {Ok(f32::max(#min, #ident.eval_lazy(ctx)?))},
-                    (Some(min), Some(max)) => {
-                        quote! {Ok(f32::min(f32::max(#min, #ident.eval_lazy(ctx)?), #max))}
+                match (f32min, f32max) {
+                    (None, None) => quote! {#ident.eval_lazy(ctx).map(|v| v as #orig_ty)},
+                    (None, Some(max)) => {
+                        quote! {Ok(f32::min(#ident.eval_lazy(ctx)?, #max) as #orig_ty)}
                     }
-                };
-                quote! {#f32_out}
+                    (Some(min), None) => {
+                        quote! {Ok(f32::max(#min, #ident.eval_lazy(ctx)?) as #orig_ty)}
+                    }
+                    (Some(min), Some(max)) => {
+                        quote! {Ok(f32::min(f32::max(#min, #ident.eval_lazy(ctx)?), #max) as #orig_ty)}
+                    }
+                }
             }
         }
     }
@@ -573,6 +579,7 @@ impl GenFinal for FieldTokensLazy {
                     let x_ident = syn::Ident::new("x", idents.name().span());
                     let c_expr = LazyFieldType(*c).for_world_func(
                         x_ident.clone(),
+                        parsed_type_info.internal_type(),
                         idents.data.f32min,
                         idents.data.f32max,
                     );
@@ -637,6 +644,7 @@ impl GenFinal for FieldTokensLazy {
                 let x_ident = syn::Ident::new("x", proc_macro2::Span::call_site());
                 let c_expr = LazyFieldType(*c).for_world_func(
                     x_ident.clone(),
+                    parsed_type_info.internal_type(),
                     idents.data.f32min,
                     idents.data.f32max,
                 );
