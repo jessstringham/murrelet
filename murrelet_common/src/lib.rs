@@ -664,6 +664,12 @@ pub struct MurreletAppInput {
     pub shift_is_down: bool,
     #[serde(default)]
     pub backspace_is_down: bool,
+    #[serde(default)]
+    pub space_is_down: bool,
+    #[serde(default)]
+    pub left_is_down: bool,
+    #[serde(default)]
+    pub right_is_down: bool,
 }
 
 impl MurreletAppInput {
@@ -683,6 +689,9 @@ impl MurreletAppInput {
             custom_vars: CustomVars::default(),
             shift_is_down: false,
             backspace_is_down: false,
+            space_is_down: false,
+            left_is_down: false,
+            right_is_down: false,
         }
     }
 
@@ -702,6 +711,9 @@ impl MurreletAppInput {
             custom_vars: CustomVars::new(custom_vars),
             shift_is_down: false,
             backspace_is_down: false,
+            space_is_down: false,
+            left_is_down: false,
+            right_is_down: false,
         }
     }
 
