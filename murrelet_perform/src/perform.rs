@@ -568,6 +568,7 @@ impl Default for ControlAppConfig {
             assets: _default_assets(),
             lerp_rate: _default_lerp_rate(),
             only_render_on_update: _default_only_render_on_update(),
+            save_size_multi: ControlF32::Int(1),
         }
     }
 }
@@ -632,6 +633,7 @@ impl AppConfig {
             assets: AssetFilenames::empty(),
             lerp_rate: 0.0,
             only_render_on_update: 0.0,
+            save_size_multi: 1.0,
         }
     }
 }
@@ -687,10 +689,21 @@ pub struct AppConfig {
     // frame as usual.
     #[livecode(serde_default = "0")]
     pub only_render_on_update: f32,
+    // High-res export ("save full"): a multiplier on the live texture dims for a
+    // one-off off-screen render written to PNG — so the on-screen window can stay
+    // small while the export is huge. `save_size_multi <= 1` is a no-op (render at
+    // the live dims, no save); anything higher enables the save and scales by it.
+    #[livecode(serde_default = "1")]
+    pub save_size_multi: f32,
 }
 impl AppConfig {
     pub fn should_clear_bg(&self) -> bool {
         self.bg_alpha > 0.5 || self.clear_bg
+    }
+
+    // whether to do the high-res off-screen export (the old `save_full`)
+    pub fn should_save_full(&self) -> bool {
+        self.save_size_multi > 1.0
     }
 
     pub fn time(&self) -> LivecodeTimingConfig {
