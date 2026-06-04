@@ -85,6 +85,28 @@ impl SvgDrawConfig {
         }
     }
 
+    /// The headless `SvgDrawConfig` the windowed-GPU sketches hand-build in their
+    /// `IsHeadlessGraphic::prepare` (no `svg_save_path` from the harness offscreen):
+    /// an 8-arg `HTML` config sized to the render dims, no capture path, frame 0.
+    /// Centralizes the form every drawer-fed GPU sketch copied byte-for-byte
+    /// except its dims (PLAN-64 candidate 2). `dims` is `[width, height]` (matches
+    /// `GraphicsWindowConf::dims()`).
+    pub fn for_headless(dims: [u32; 2]) -> SvgDrawConfig {
+        SvgDrawConfig::new(
+            dims[0] as f32,
+            Some(TextureDimensions {
+                width: dims[0],
+                height: dims[1],
+            }),
+            None,
+            100.0,
+            0,
+            SvgSaveKind::HTML,
+            0.0,
+            false,
+        )
+    }
+
     pub fn stroke_width(&self) -> f32 {
         self.stroke_width
     }

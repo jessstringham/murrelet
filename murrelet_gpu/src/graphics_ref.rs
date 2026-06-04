@@ -534,6 +534,13 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
         self.graphics.borrow_mut().update_view(c, view, light);
     }
 
+    // In-place fragment-shader swap (keeps textures/feedback). Since this is the
+    // shared `Rc<RefCell<Graphics>>`, any pipeline holding the same handle picks up
+    // the new shader on its next render.
+    pub fn update_shader(&self, c: &GraphicsWindowConf, fs_shader_data: &str) {
+        self.graphics.borrow_mut().update_shader(c, fs_shader_data);
+    }
+
     pub fn render_to_texture(&self, device_state: &DeviceState, texture: &wgpu::TextureView) {
         self.graphics.borrow_mut().render(device_state, texture)
     }
@@ -795,6 +802,23 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             more_info_other,
         } = more_info;
         self.update_uniforms_other(c, more_info, more_info_other)
+    }
+
+    // Swap the fragment shader in place: rebuild only the render pipeline (same conf,
+    // same bind group layout) and keep the textures/bind group/uniforms. A live
+    // shader edit then preserves any accumulated feedback in the existing textures
+    // instead of allocating fresh blank ones. Mirrors `update_tri`'s in-place rebuild.
+    pub fn update_shader(&mut self, c: &GraphicsWindowConf, fs_shader_data: &str) {
+        let device = c.device.device();
+        let fs_mod = shader_from_path(device, fs_shader_data);
+        let dst_format = self.conf.dst_texture.format;
+        self.render_pipeline = Graphics::<VertexKind>::_render_pipeline(
+            &self.conf,
+            device,
+            &self.bind_group_layout,
+            &fs_mod,
+            dst_format,
+        );
     }
 
     // create a texture
