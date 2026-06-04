@@ -658,6 +658,12 @@ pub struct MurreletAppInput {
     pub mouse_left_is_down: bool,
     pub elapsed_frames: u64,
     pub custom_vars: CustomVars,
+    // Named edit/modifier keys the a-z `keys` array can't carry. Levels (held),
+    // not edges — callers derive press edges by diffing across frames.
+    #[serde(default)]
+    pub shift_is_down: bool,
+    #[serde(default)]
+    pub backspace_is_down: bool,
 }
 
 impl MurreletAppInput {
@@ -675,6 +681,8 @@ impl MurreletAppInput {
             mouse_left_is_down,
             elapsed_frames,
             custom_vars: CustomVars::default(),
+            shift_is_down: false,
+            backspace_is_down: false,
         }
     }
 
@@ -692,6 +700,8 @@ impl MurreletAppInput {
             mouse_left_is_down,
             elapsed_frames,
             custom_vars: CustomVars::new(custom_vars),
+            shift_is_down: false,
+            backspace_is_down: false,
         }
     }
 
