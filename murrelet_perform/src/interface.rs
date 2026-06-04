@@ -1,5 +1,5 @@
 //! Backend-neutral sketch interface (nannou / headless / wasm).
-use murrelet_common::MurreletAppInput;
+use murrelet_common::{LivecodeValue, MurreletAppInput};
 use murrelet_draw::drawable::MixedDrawableShape;
 use murrelet_livecode::state::LivecodeWorldState;
 use murrelet_livecode::types::LivecodeResult;
@@ -27,5 +27,10 @@ where
 
     fn update_with_world(&mut self, app_input: &MurreletAppInput, _world: &LivecodeWorldState) {
         self.update(app_input);
+    }
+
+    // used to send osc and midi out
+    fn outgoing_msgs(&self) -> Vec<(String, String, LivecodeValue)> {
+        vec![]
     }
 }
