@@ -6,7 +6,7 @@ use crate::{
 };
 use lerpable::Lerpable;
 use murrelet_common::triangulate::DefaultVertex;
-use murrelet_livecode::types::LivecodeResult;
+use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 use murrelet_livecode_derive::Livecode;
 use naga;
 #[cfg(feature = "nannou")]
@@ -197,5 +197,138 @@ pub trait CustomShaderString: Sized {
                 raw shader;
             )
         }
+    }
+}
+
+// State holder for a sketch's live-uploadable shader(s). Owns the currently-built
+// shaders (for change detection) plus a `needs_init` flag the windowed harness reads
+// to force one feedback re-seed after a full (re)build. A live shader edit is applied
+// in place via `GraphicsRefCustom::update_shader` (keeping the feedback textures), so
+// the accumulation continues instead of flashing; a full rebuild is the opt-in clear.
+pub struct CustomShaderState<S: CustomShaderString> {
+    built: S,
+    needs_init: std::cell::Cell<bool>,
+}
+
+impl<S: CustomShaderString + PartialEq> CustomShaderState<S> {
+    pub fn new(built: S) -> Self {
+        Self {
+            built,
+            needs_init: std::cell::Cell::new(true),
+        }
+    }
+
+    pub fn built(&self) -> &S {
+        &self.built
+    }
+
+    // Read-and-clear the "freshly (re)built, re-seed feedback next frame" flag. The
+    // windowed harness ORs this into `global_reset` in `render_in`.
+    pub fn take_needs_init(&self) -> bool {
+        self.needs_init.replace(false)
+    }
+
+    // Mark that the feedback should be re-seeded next frame (the opt-in clear).
+    pub fn mark_needs_init(&self) {
+        self.needs_init.set(true);
+    }
+
+    // If `candidate` differs from the current built shaders AND parses (naga), hand it
+    // to `apply` — the sketch hot-swaps each shader into its pipeline via
+    // `GraphicsRefCustom::update_shader` — then record it as the new built. Returns
+    // whether a swap happened. A shader that doesn't parse keeps the last good one on
+    // screen (naga prints the error; `built` is left untouched).
+    pub fn swap_if_changed<VertexKind: GraphicsVertex>(
+        &mut self,
+        candidate: S,
+        apply: impl FnOnce(&S),
+    ) -> bool {
+        if candidate == self.built {
+            return false;
+        }
+        if !candidate.naga_if_needed::<VertexKind>() {
+            return false;
+        }
+        apply(&candidate);
+        self.built = candidate;
+        true
+    }
+
+    // Build the candidate from config `ShaderStrings` first (a missing shader keeps the
+    // old one), then `swap_if_changed`.
+    pub fn swap_if_changed_from<VertexKind: GraphicsVertex>(
+        &mut self,
+        shaders: &ShaderStrings,
+        apply: impl FnOnce(&S),
+    ) -> bool {
+        match S::from_shader_str(shaders) {
+            Ok(candidate) => self.swap_if_changed::<VertexKind>(candidate, apply),
+            Err(_) => false,
+        }
+    }
+
+    // For sketches that rebuild the WHOLE graphic on a shader change instead of
+    // hot-swapping in place (e.g. when a shader drives a compute pipeline that has no
+    // in-place swap, and there's no feedback accumulation to preserve): a non-mutating
+    // predicate for the `needs_rebuild` hook. True when `force` or the candidate
+    // differs from the current built shaders, AND it parses (naga) — so a typo keeps
+    // the last good graphic. The rebuilt graphic constructs a fresh state.
+    pub fn should_full_rebuild<VertexKind: GraphicsVertex>(
+        &self,
+        candidate: &S,
+        force: bool,
+    ) -> bool {
+        if !(force || candidate != &self.built) {
+            return false;
+        }
+        candidate.naga_if_needed::<VertexKind>()
+    }
+}
+
+// Shortcut `CustomShaderString` for a sketch with a single fragment shader (the
+// `build_shader!` form), so it doesn't have to hand-write a strings struct. Holds the
+// BUILT shader string; build it from raw config text with `SingleShader::build`.
+#[derive(Clone, PartialEq)]
+pub struct SingleShader(String);
+impl SingleShader {
+    pub fn build(raw: &str) -> Self {
+        SingleShader(<Self as CustomShaderString>::shader(raw))
+    }
+    pub fn built_str(&self) -> &str {
+        &self.0
+    }
+}
+impl CustomShaderString for SingleShader {
+    fn from_shader_str(c: &ShaderStrings) -> LivecodeResult<Self> {
+        let s = c
+            .get_shader("shader")
+            .ok_or(LivecodeError::raw("missing shader"))?;
+        Ok(SingleShader::build(&s))
+    }
+    fn built_shaders_for_validation(&self) -> Vec<(&str, String)> {
+        vec![("shader", self.0.clone())]
+    }
+}
+
+// Single-shader shortcut for the two-texture (`build_shader_2tex!`) form.
+#[derive(Clone, PartialEq)]
+pub struct SingleShader2Tex(String);
+impl SingleShader2Tex {
+    pub fn build(raw: &str) -> Self {
+        SingleShader2Tex(<Self as CustomShaderString>::shader2tex(raw))
+    }
+    pub fn built_str(&self) -> &str {
+        &self.0
+    }
+}
+impl CustomShaderString for SingleShader2Tex {
+    fn from_shader_str(c: &ShaderStrings) -> LivecodeResult<Self> {
+        let s = c
+            .get_shader("shader")
+            .ok_or(LivecodeError::raw("missing shader"))?;
+        Ok(SingleShader2Tex::build(&s))
+    }
+    fn built_shaders_for_validation(&self) -> Vec<(&str, String)> {
+        vec![("shader", self.0.clone())]
     }
 }

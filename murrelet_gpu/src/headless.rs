@@ -37,8 +37,9 @@ pub trait IsHeadlessGraphic {
     /// yields the pre-hook behavior (a thin/blank drawer), never a miscompile.
     fn prepare(&mut self, _c: &GraphicsWindowConf) {}
 
-    /// Optional per-frame state advance for the `nannou + gpu + stateful` arm: the
-    /// arm loops `tick → prepare → render_passes` N times (the `--earlystop` count)
+    /// Optional per-frame state advance for the headless gpu settle loop: the
+    /// `headless_png!` macro loops `tick → prepare → render_passes` N times (the
+    /// `--earlystop` CLI flag, default 1 = one-shot)
     /// so a GPU sketch whose CPU-side state accumulates (physics / growth / packing)
     /// can settle headless AND any feedback in its GPU pipeline (e.g. `res_feedback`)
     /// accumulates across the per-frame render_passes the way it would windowed.
@@ -72,7 +73,7 @@ pub fn render_headless_graphic_to_png<G: IsHeadlessGraphic>(
 // graphic's passes once into it, returning that texture for readback. Safe to
 // call repeatedly — feedback state lives inside the graphic's own ping-pong
 // textures, not in the DISPLAY texture. Pair with `capture_display_to_png` for
-// the final readback. Used by the `@headless_png_stateful` arm to loop
+// the final readback. Used by the `headless_png!` settle loop to run
 // tick→prepare→render_passes per frame so GPU feedback (e.g. `res_feedback`)
 // accumulates the way windowed runs do; capture the returned texture from the
 // last frame.

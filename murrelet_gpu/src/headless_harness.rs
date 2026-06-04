@@ -1,10 +1,10 @@
 // Shared headless-entry interface (PLAN-backend-switch step 1).
 //
-// The 4 internal arms of leaves' `sketch_main!` (@headless_svg, @headless_svg_stateful,
-// @headless_png, @headless_png_stateful) all reach into the leaves `LiveCode` type for
-// the same handful of operations: enumerate batch jobs, build a fresh livecode with
-// per-job overrides, ask for the texture dims / capture path / svg-save config, and —
-// for the stateful arms — advance one frame of update and hand back the world.
+// The internal arms of leaves' `sketch_main!` (@headless_svg, @headless_png) all
+// reach into the leaves `LiveCode` type for the same handful of operations:
+// enumerate batch jobs, build a fresh livecode with per-job overrides, ask for the
+// texture dims / capture path / svg-save config, advance one frame of update (the
+// settle loop, length = `earlystop`), and hand back the world.
 //
 // `HeadlessHarness` is that interface. Promoting it into murrelet (next to
 // `IsHeadlessGraphic`) lets the headless entry-loop macros (step 3) live in
