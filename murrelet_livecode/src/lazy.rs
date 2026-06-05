@@ -702,6 +702,10 @@ pub enum LazyMurreletString {
         fmt: String,
         fill: Vec<LazyNodeF32>,
     },
+    FmtFloat {
+        fmt_f: String,
+        fill: Vec<LazyNodeF32>,
+    },
 }
 
 impl Default for LazyMurreletString {
@@ -717,6 +721,11 @@ pub enum ControlLazyMurreletString {
     Raw(String),
     Fmt {
         fmt: String,
+        #[serde(default)]
+        fill: Vec<ControlLazyNodeF32>,
+    },
+    FmtFloat {
+        fmt_f: String,
         #[serde(default)]
         fill: Vec<ControlLazyNodeF32>,
     },
@@ -736,6 +745,12 @@ impl LivecodeFromWorld<LazyMurreletString> for ControlLazyMurreletString {
                 fmt: fmt.clone(),
                 fill: fill.iter().map(|f| f.o(w)).collect::<Result<Vec<_>, _>>()?,
             }),
+            ControlLazyMurreletString::FmtFloat { fmt_f, fill } => {
+                Ok(LazyMurreletString::FmtFloat {
+                    fmt_f: fmt_f.clone(),
+                    fill: fill.iter().map(|f| f.o(w)).collect::<Result<Vec<_>, _>>()?,
+                })
+            }
         }
     }
 }
@@ -744,7 +759,8 @@ impl GetLivecodeIdentifiers for ControlLazyMurreletString {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         match self {
             ControlLazyMurreletString::Raw(_) => vec![],
-            ControlLazyMurreletString::Fmt { fill, .. } => fill
+            ControlLazyMurreletString::Fmt { fill, .. }
+            | ControlLazyMurreletString::FmtFloat { fill, .. } => fill
                 .iter()
                 .flat_map(|f| f.variable_identifiers())
                 .collect_vec(),
@@ -754,7 +770,8 @@ impl GetLivecodeIdentifiers for ControlLazyMurreletString {
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         match self {
             ControlLazyMurreletString::Raw(_) => vec![],
-            ControlLazyMurreletString::Fmt { fill, .. } => fill
+            ControlLazyMurreletString::Fmt { fill, .. }
+            | ControlLazyMurreletString::FmtFloat { fill, .. } => fill
                 .iter()
                 .flat_map(|f| f.function_identifiers())
                 .collect_vec(),
@@ -770,6 +787,12 @@ impl LivecodeToControl<ControlLazyMurreletString> for LazyMurreletString {
                 fmt: fmt.clone(),
                 fill: fill.iter().map(|f| f.to_control()).collect_vec(),
             },
+            LazyMurreletString::FmtFloat { fmt_f, fill } => {
+                ControlLazyMurreletString::FmtFloat {
+                    fmt_f: fmt_f.clone(),
+                    fill: fill.iter().map(|f| f.to_control()).collect_vec(),
+                }
+            }
         }
     }
 }
@@ -787,6 +810,13 @@ impl IsLazy for LazyMurreletString {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(MurreletString::new(crate::livecode::fill_fmt(fmt, &filled)?))
             }
+            LazyMurreletString::FmtFloat { fmt_f, fill } => {
+                let filled = fill
+                    .iter()
+                    .map(|f| f.eval_lazy(ctx).map(|x| x as f64))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(MurreletString::new(crate::livecode::fill_fmt_f64(fmt_f, &filled)?))
+            }
         }
     }
 
@@ -795,6 +825,13 @@ impl IsLazy for LazyMurreletString {
             LazyMurreletString::Raw(s) => Ok(LazyMurreletString::Raw(s.clone())),
             LazyMurreletString::Fmt { fmt, fill } => Ok(LazyMurreletString::Fmt {
                 fmt: fmt.clone(),
+                fill: fill
+                    .iter()
+                    .map(|f| f.with_more_defs(ctx))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+            LazyMurreletString::FmtFloat { fmt_f, fill } => Ok(LazyMurreletString::FmtFloat {
+                fmt_f: fmt_f.clone(),
                 fill: fill
                     .iter()
                     .map(|f| f.with_more_defs(ctx))

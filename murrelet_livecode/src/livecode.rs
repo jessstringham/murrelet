@@ -913,11 +913,13 @@ impl LivecodeToControl<ControlMurreletString> for MurreletString {
     }
 }
 
+
 impl GetLivecodeIdentifiers for ControlMurreletString {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         match self {
             ControlMurreletString::Raw(_) => vec![],
-            ControlMurreletString::Fmt { fill, .. } => fill
+            ControlMurreletString::Fmt { fill, .. }
+            | ControlMurreletString::FmtFloat { fill, .. } => fill
                 .iter()
                 .flat_map(|f| f.variable_identifiers())
                 .collect_vec(),
@@ -927,7 +929,8 @@ impl GetLivecodeIdentifiers for ControlMurreletString {
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         match self {
             ControlMurreletString::Raw(_) => vec![],
-            ControlMurreletString::Fmt { fill, .. } => fill
+            ControlMurreletString::Fmt { fill, .. }
+            | ControlMurreletString::FmtFloat { fill, .. } => fill
                 .iter()
                 .flat_map(|f| f.function_identifiers())
                 .collect_vec(),
@@ -947,6 +950,11 @@ pub enum ControlMurreletString {
     Raw(String),
     Fmt {
         fmt: String,
+        #[serde(default)]
+        fill: Vec<ControlF32>,
+    },
+    FmtFloat {
+        fmt_f: String,
         #[serde(default)]
         fill: Vec<ControlF32>,
     },
@@ -972,6 +980,14 @@ impl ControlMurreletString {
                     .map(|f| f.o(w).map(|x: f32| x.round() as i64))
                     .collect::<Result<Vec<_>, _>>()?;
                 let out = fill_fmt(fmt, &filled)?;
+                Ok(MurreletString::new(out))
+            }
+            ControlMurreletString::FmtFloat { fmt_f, fill } => {
+                let filled = fill
+                    .iter()
+                    .map(|f| f.o(w).map(|x: f32| x as f64))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let out = fill_fmt_f64(fmt_f, &filled)?;
                 Ok(MurreletString::new(out))
             }
         }
@@ -1015,6 +1031,51 @@ pub(crate) fn fill_fmt(fmt: &str, fill: &[i64]) -> LivecodeResult<String> {
                 } else {
                     return Err(LivecodeError::Raw(format!(
                         "MurreletString fmt {:?} has an unmatched }}",
+                        fmt
+                    )));
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    Ok(out)
+}
+
+pub(crate) fn fill_fmt_f64(fmt: &str, fill: &[f64]) -> LivecodeResult<String> {
+    let mut out = String::new();
+    let mut next = 0;
+    let mut chars = fmt.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '{' => {
+                if chars.peek() == Some(&'{') {
+                    chars.next();
+                    out.push('{');
+                } else if chars.peek() == Some(&'}') {
+                    chars.next();
+                    let v = fill.get(next).ok_or_else(|| {
+                        LivecodeError::Raw(format!(
+                            "MurreletString fmt_f {:?} has more placeholders than fills ({})",
+                            fmt,
+                            fill.len()
+                        ))
+                    })?;
+                    out.push_str(&v.to_string());
+                    next += 1;
+                } else {
+                    return Err(LivecodeError::Raw(format!(
+                        "MurreletString fmt_f {:?} only supports empty {{}} placeholders",
+                        fmt
+                    )));
+                }
+            }
+            '}' => {
+                if chars.peek() == Some(&'}') {
+                    chars.next();
+                    out.push('}');
+                } else {
+                    return Err(LivecodeError::Raw(format!(
+                        "MurreletString fmt_f {:?} has an unmatched }}",
                         fmt
                     )));
                 }
