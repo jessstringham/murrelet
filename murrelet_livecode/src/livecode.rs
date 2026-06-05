@@ -898,3 +898,129 @@ mod tests {
         }
     }
 }
+
+// ===== MurreletString (PLAN-70): format strings in livecode config strings =====
+use murrelet_common::MurreletString;
+impl LivecodeFromWorld<MurreletString> for ControlMurreletString {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<MurreletString> {
+        self._o(w)
+    }
+}
+
+impl LivecodeToControl<ControlMurreletString> for MurreletString {
+    fn to_control(&self) -> ControlMurreletString {
+        ControlMurreletString::Raw(self.as_string())
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlMurreletString {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        match self {
+            ControlMurreletString::Raw(_) => vec![],
+            ControlMurreletString::Fmt { fill, .. } => fill
+                .iter()
+                .flat_map(|f| f.variable_identifiers())
+                .collect_vec(),
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        match self {
+            ControlMurreletString::Raw(_) => vec![],
+            ControlMurreletString::Fmt { fill, .. } => fill
+                .iter()
+                .flat_map(|f| f.function_identifiers())
+                .collect_vec(),
+        }
+    }
+}
+
+
+// A livecode string: either a literal, or a format string whose `{}` holes are
+// filled positionally by f32 expressions evaluated against the world (formatted
+// as integers). Modeled on ControlF32/ControlMurreletColor. Plain `String`
+// fields stay literal passthroughs; opt into formatting with `MurreletString`.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum ControlMurreletString {
+    Raw(String),
+    Fmt {
+        fmt: String,
+        #[serde(default)]
+        fill: Vec<ControlF32>,
+    },
+}
+
+impl Default for ControlMurreletString {
+    fn default() -> Self {
+        ControlMurreletString::Raw(String::new())
+    }
+}
+
+impl ControlMurreletString {
+    pub fn raw(s: impl Into<String>) -> Self {
+        ControlMurreletString::Raw(s.into())
+    }
+
+    pub fn _o(&self, w: &LivecodeWorldState) -> LivecodeResult<MurreletString> {
+        match self {
+            ControlMurreletString::Raw(s) => Ok(MurreletString::new(s.clone())),
+            ControlMurreletString::Fmt { fmt, fill } => {
+                let filled = fill
+                    .iter()
+                    .map(|f| f.o(w).map(|x: f32| x.round() as i64))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let out = fill_fmt(fmt, &filled)?;
+                Ok(MurreletString::new(out))
+            }
+        }
+    }
+}
+
+// substitute `{}` placeholders in `fmt` positionally (Rust-style, left-to-right)
+// with the integer fill values. `{{` and `}}` are literal braces.
+pub(crate) fn fill_fmt(fmt: &str, fill: &[i64]) -> LivecodeResult<String> {
+    let mut out = String::new();
+    let mut next = 0;
+    let mut chars = fmt.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '{' => {
+                if chars.peek() == Some(&'{') {
+                    chars.next();
+                    out.push('{');
+                } else if chars.peek() == Some(&'}') {
+                    chars.next();
+                    let v = fill.get(next).ok_or_else(|| {
+                        LivecodeError::Raw(format!(
+                            "MurreletString fmt {:?} has more placeholders than fills ({})",
+                            fmt,
+                            fill.len()
+                        ))
+                    })?;
+                    out.push_str(&v.to_string());
+                    next += 1;
+                } else {
+                    return Err(LivecodeError::Raw(format!(
+                        "MurreletString fmt {:?} only supports empty {{}} placeholders",
+                        fmt
+                    )));
+                }
+            }
+            '}' => {
+                if chars.peek() == Some(&'}') {
+                    chars.next();
+                    out.push('}');
+                } else {
+                    return Err(LivecodeError::Raw(format!(
+                        "MurreletString fmt {:?} has an unmatched }}",
+                        fmt
+                    )));
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    Ok(out)
+}

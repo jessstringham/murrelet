@@ -30,6 +30,9 @@ impl LazyFieldType {
             ControlType::AnglePi => {
                 quote! { murrelet_livecode::lazy::LazyNodeF32 }
             }
+            ControlType::MurreletString => {
+                quote! { murrelet_livecode::lazy::LazyMurreletString }
+            }
             _ => panic!("unitcell doesn't have this one yet"),
         }
     }
@@ -51,6 +54,9 @@ impl LazyFieldType {
                 quote! { #ident.eval_lazy(ctx) }
             }
             ControlType::Color => {
+                quote! { #ident.eval_lazy(ctx) }
+            }
+            ControlType::MurreletString => {
                 quote! { #ident.eval_lazy(ctx) }
             }
             ControlType::Bool => quote! {#ident.eval_lazy(ctx)? > 0.0},
@@ -99,6 +105,7 @@ impl LazyFieldType {
             ControlType::F32_2 => quote! { #target.eval_lazy(ctx)? },
             ControlType::F32_3 => quote! { #target.eval_lazy(ctx)? },
             ControlType::Color => quote! { #target.eval_lazy(ctx)? },
+            ControlType::MurreletString => quote! { #target.eval_lazy(ctx)? },
             ControlType::Bool => quote! { #target.eval_lazy(ctx)? > 0.0 },
             ControlType::LazyNodeF32 => quote! { #target.add_more_defs(ctx)? },
             ControlType::AnglePi => {
@@ -147,6 +154,17 @@ impl LazyFieldType {
                     }
                 }}
             }
+            ControlType::MurreletString => {
+                quote! {#name: {
+                        if let Some(name) = &self.#name {
+                            let a = name.eval_lazy(ctx)?;
+                            Some(a)
+                        } else {
+                            None
+                        }
+                    }
+                }
+            }
             ControlType::LazyNodeF32 => {
                 quote! {#name: {
                         if let Some(name) = &self.#name {
@@ -189,6 +207,9 @@ impl LazyFieldType {
                 quote! { self.0.eval_lazy(ctx)? }
             }
             ControlType::Color => {
+                quote! { self.0.eval_lazy(ctx)? }
+            }
+            ControlType::MurreletString => {
                 quote! { self.0.eval_lazy(ctx)? }
             }
             ControlType::Bool => quote! {self.0.eval_lazy(ctx)? > 0.0},

@@ -563,6 +563,7 @@ pub enum ControlType {
     ColorUnclamped,
     LazyNodeF32,
     AnglePi,
+    MurreletString,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -614,6 +615,7 @@ impl HowToControlThis {
             "[f32;2]" => HowToControlThis::WithType(ControlType::F32_2),
             "color" => HowToControlThis::WithType(ControlType::Color),
             "color unclamped" => HowToControlThis::WithType(ControlType::ColorUnclamped),
+            "string" => HowToControlThis::WithType(ControlType::MurreletString),
             "s" => HowToControlThis::WithRecurse(RecursiveControlType::Struct),
             "v" => HowToControlThis::WithRecurse(RecursiveControlType::Vec),
             "a" => HowToControlThis::WithType(ControlType::AnglePi),
@@ -642,6 +644,7 @@ impl HowToControlThis {
             "String" => HowToControlThis::WithNone,
             // some special types from this library
             "MurreletColor" => HowToControlThis::WithType(ControlType::Color),
+            "MurreletString" => HowToControlThis::WithType(ControlType::MurreletString),
             "AdditionalContextNode" => HowToControlThis::WithNone,
             "UnitCells" => HowToControlThis::WithRecurse(RecursiveControlType::UnitCell),
             "LazyNodeF32" => HowToControlThis::WithType(ControlType::LazyNodeF32),
@@ -712,6 +715,8 @@ impl SerdeDefault {
             }
             (ControlType::Color, SerdeDefault::CustomFunction(x), _) => x.clone(),
             (ControlType::ColorUnclamped, SerdeDefault::CustomFunction(x), _) => x.to_string(),
+
+            (ControlType::MurreletString, SerdeDefault::CustomFunction(x), _) => x.clone(),
 
             (ControlType::LazyNodeF32, SerdeDefault::Zeros, false) => {
                 "murrelet_livecode::livecode::_auto_default_f32_0_lazy".to_string()

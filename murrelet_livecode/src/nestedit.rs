@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use evalexpr::Node;
 use glam::{Vec2, Vec3, vec2, vec3};
-use murrelet_common::{AnglePi, MurreletColor};
+use murrelet_common::{AnglePi, MurreletColor, MurreletString};
 
 use crate::lazy::LazyNodeF32;
 use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
@@ -267,6 +267,24 @@ impl NestEditable for bool {
 impl NestEditable for String {
     fn nest_update(&self, mods: NestedMod) -> Self {
         mods.get_curr().unwrap_or(self.clone())
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [] => Ok(format!("{:?}", self)),
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a string, but got {}",
+                extra.join(".")
+            ))),
+        }
+    }
+}
+
+impl NestEditable for MurreletString {
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        mods.get_curr()
+            .map(MurreletString::new)
+            .unwrap_or_else(|| self.clone())
     }
 
     fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {

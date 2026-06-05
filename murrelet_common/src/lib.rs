@@ -18,6 +18,7 @@ mod idx;
 mod iter;
 mod metric;
 mod polyline;
+mod string;
 pub mod timecurve;
 mod transform;
 pub mod triangulate;
@@ -29,6 +30,7 @@ pub use idx::*;
 pub use iter::*;
 pub use metric::*;
 pub use polyline::*;
+pub use string::*;
 pub use transform::*;
 
 #[cfg(target_arch = "wasm32")]

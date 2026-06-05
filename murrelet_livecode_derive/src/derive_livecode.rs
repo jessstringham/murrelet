@@ -21,6 +21,9 @@ impl LivecodeFieldType {
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
+            ControlType::MurreletString => {
+                quote! {murrelet_livecode::livecode::ControlMurreletString}
+            }
         }
     }
 
@@ -36,6 +39,9 @@ impl LivecodeFieldType {
             ControlType::Bool => quote! {murrelet_livecode::livecode::ControlBool},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
+            ControlType::MurreletString => {
+                quote! {murrelet_livecode::lazy::ControlLazyMurreletString}
+            }
         }
     }
 
@@ -62,6 +68,7 @@ impl LivecodeFieldType {
             ControlType::F32_2 => quote! {#target.o(w)?},
             ControlType::F32_3 => quote! {#target.o(w)?},
             ControlType::Color => quote! {#target.o(w)?},
+            ControlType::MurreletString => quote! {#target.o(w)?},
             ControlType::ColorUnclamped => {
                 quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&#target, w)?}
             }
@@ -109,6 +116,14 @@ impl LivecodeFieldType {
             ControlType::Color => quote! {
                 if let Some(name) = &self.#name {
                     Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
+            ControlType::MurreletString => quote! {
+                if let Some(name) = &self.#name {
+                    let n = name.o(w)?;
+                    Some(n)
                 } else {
                     None
                 }
@@ -193,6 +208,7 @@ impl LivecodeFieldType {
             ControlType::F32_2 => quote! { self.0.o(&w)? },
             ControlType::F32_3 => quote! { self.0.o(&w)? },
             ControlType::Color => quote! { self.0.o(&w)? },
+            ControlType::MurreletString => quote! { self.0.o(&w)? },
             ControlType::LazyNodeF32 => quote! { self.0.o(&w)? },
             ControlType::ColorUnclamped => {
                 quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)?}
@@ -1439,6 +1455,7 @@ fn catch_special_types(original_internal_type: syn::Ident) -> TokenStream2 {
         "LazyNodeF32" => quote! { murrelet_livecode::lazy::ControlLazyNodeF32 },
         "LazyVec3" => quote! { murrelet_livecode::lazy::ControlLazyVec3 },
         "LazyMurreletColor" => quote! { murrelet_livecode::lazy::ControlLazyMurreletColor },
+        "LazyMurreletString" => quote! { murrelet_livecode::lazy::ControlLazyMurreletString },
         _ => quote! { #ctrl_ident },
     }
 }
