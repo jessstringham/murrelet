@@ -330,13 +330,35 @@ macro_rules! basic_wrapper {
                     .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))
             }
 
-            pub fn tick(&mut self) {
-                let app_input = self.app_mng.tick();
-                self.livecode.update(&app_input, false).ok();
+            pub fn tick(&mut self) -> Result<(), wasm_bindgen::JsValue> {
+                let app_input = self.app_mng.tick().clone();
+                // Previously `.ok()` swallowed a failed reprocess (e.g. a bad config
+                // push that didn't validate); surface it as a clean JsValue instead.
+                self.livecode
+                    .update(&app_input, false)
+                    .map_err(|err| wasm_bindgen::JsValue::from_str(&err.to_string()))?;
 
-                // send the config to the user's model... (maybe this can be Rc or something...)
-                self.model.set_conf(self.livecode.config().drawing.clone()); //hmm
-                self.model.update_with_world(&app_input, self.livecode.world());
+                // The model's solve/draw-prep runs here and is the likeliest panic
+                // site on bad config/runtime state. A panic crossing the wasm-bindgen
+                // FFI boundary leaves this object's borrow guard locked, so every later
+                // call throws "recursive use of an object detected" (BUG-L482). Catch
+                // the unwind here and surface it as a clean error string; the panic hook
+                // (console_error_panic_hook) still logs the real message to the console.
+                let drawing = self.livecode.config().drawing.clone();
+                let model = &mut self.model;
+                let world = self.livecode.world();
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    // send the config to the user's model... (maybe this can be Rc or something...)
+                    model.set_conf(drawing); //hmm
+                    model.update_with_world(&app_input, world);
+                }))
+                .map_err(|_| {
+                    wasm_bindgen::JsValue::from_str(
+                        "tick panicked (see console for the real message)",
+                    )
+                })?;
+
+                Ok(())
             }
 
             // update app_mng state and configs related to it
