@@ -87,6 +87,12 @@ impl MurreletTime {
     pub fn as_micro(&self) -> u128 {
         self.0
     }
+
+    // Wall-clock time of day (UTC) as hh:mm:ss, e.g. to prefix log lines.
+    pub fn as_hms(&self) -> String {
+        let s = self.as_secs() % 86400;
+        format!("{:02}:{:02}:{:02}", s / 3600, (s % 3600) / 60, s % 60)
+    }
 }
 
 impl std::ops::Sub for MurreletTime {
