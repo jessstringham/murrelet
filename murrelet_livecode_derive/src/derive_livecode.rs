@@ -649,6 +649,20 @@ impl GenFinal for FieldTokensLivecode {
         let how_to_control_internal = parsed_type_info.how_to_control_internal();
         let wrapper = parsed_type_info.wrapper_type();
 
+        // Noop element (e.g. Vec<String>): the inner type is left alone, just
+        // like a standalone WithNone field, so the control struct keeps the
+        // whole Vec as-is and clones it rather than wrapping each element in a
+        // ControlVecElement it can't build.
+        if matches!(how_to_control_internal, HowToControlThis::WithNone) {
+            return FieldTokensLivecode {
+                for_struct: quote! {#serde #name: #orig_ty},
+                for_world: quote! {#name: self.#name.clone()},
+                for_to_control: quote! {#name: self.#name.clone()},
+                for_variable_idents: quote! { vec![] },
+                for_function_idents: quote! { vec![] },
+            };
+        }
+
         let inner_is_lazy_struct = parsed_type_info
             .second_how_to()
             .map(|h| h.is_lazy())

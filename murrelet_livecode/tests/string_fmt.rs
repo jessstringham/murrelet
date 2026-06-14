@@ -1,5 +1,7 @@
 use lerpable::Lerpable;
 use murrelet_common::MurreletString;
+use murrelet_livecode::expr::MixedEvalDefs;
+use murrelet_livecode::lazy::IsLazy;
 use murrelet_livecode::livecode::{ControlMurreletString, LivecodeFromWorld};
 use murrelet_livecode_derive::Livecode;
 
@@ -85,4 +87,30 @@ name: literal_name
     let c2: ControlHasString = serde_yaml::from_str(yaml_raw).unwrap();
     let out2: HasString = c2.o_dummy().unwrap();
     assert_eq!(out2.name.as_str(), "literal_name");
+}
+
+// BUG-L567: a bare `Vec<String>` field is left alone (noop), like a standalone
+// String, on both the control and lazy sides.
+#[derive(Debug, Clone, Default, Livecode, Lerpable)]
+pub struct HasStrings {
+    items: Vec<String>,
+}
+
+#[test]
+fn vec_string_control_round_trip() {
+    let yaml = r#"
+items: ["a", "b", "c"]
+"#;
+    let c: ControlHasStrings = serde_yaml::from_str(yaml).unwrap();
+    let out: HasStrings = c.o_dummy().unwrap();
+    assert_eq!(out.items, vec!["a", "b", "c"]);
+}
+
+#[test]
+fn vec_string_lazy_passthrough() {
+    let lazy = LazyHasStrings {
+        items: vec!["x".to_string(), "y".to_string()],
+    };
+    let out = lazy.eval_lazy(&MixedEvalDefs::new()).unwrap();
+    assert_eq!(out.items, vec!["x", "y"]);
 }
