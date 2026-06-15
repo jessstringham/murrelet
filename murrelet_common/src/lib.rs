@@ -795,7 +795,7 @@ impl LivecodeSrc {
     }
 }
 
-const MAX_STRID_LEN: usize = 16;
+const MAX_STRID_LEN: usize = 32;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StrId([u8; MAX_STRID_LEN]);
@@ -820,9 +820,13 @@ impl<'de> Deserialize<'de> for StrId {
 // from chatgpt
 impl StrId {
     pub fn new(s: &str) -> Self {
+        assert!(
+            s.len() <= MAX_STRID_LEN,
+            "StrId name too long ({} > {MAX_STRID_LEN} bytes): {s:?} — livecode/OSC var names must fit MAX_STRID_LEN",
+            s.len()
+        );
         let mut bytes = [0u8; MAX_STRID_LEN];
-        let len = s.len().min(MAX_STRID_LEN);
-        bytes[..len].copy_from_slice(&s.as_bytes()[..len]);
+        bytes[..s.len()].copy_from_slice(s.as_bytes());
         StrId(bytes)
     }
 
@@ -1311,5 +1315,24 @@ impl<T: Clone> MurreletIterHelpers for Vec<T> {
 
     fn as_vec_ref(&self) -> &Vec<Self::T> {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strid_roundtrips_long_names() {
+        // BUG-L572: names up to MAX_STRID_LEN must round-trip, not truncate.
+        let name = "oo_face_mouth_center_x"; // 22 chars, used to truncate at 16
+        assert!(name.len() <= MAX_STRID_LEN);
+        assert_eq!(StrId::new(name).as_str(), name);
+    }
+
+    #[test]
+    #[should_panic(expected = "StrId name too long")]
+    fn strid_panics_on_overlong_name() {
+        StrId::new(&"x".repeat(MAX_STRID_LEN + 1));
     }
 }
