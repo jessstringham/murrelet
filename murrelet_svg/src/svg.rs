@@ -607,9 +607,10 @@ impl SvgDocCreator {
             doc = doc.add(bg_rect);
         }
 
-        // todo, maybe figure out defs?
-        let (group, _) = self.make_html(paths);
-        doc = doc.add(group);
+        for (name, layer) in self.output_layers(paths).iter() {
+            let (g, _patterns) = self.make_layer(name, layer, self.svg_draw_config.make_layers());
+            doc = doc.add(g);
+        }
 
         doc
     }
@@ -730,6 +731,10 @@ impl SvgPathCacheRef {
         self.0.borrow_mut().add_guides();
     }
 
+    pub fn to_svg_string(&self) -> String {
+        self.0.borrow().to_svg_string()
+    }
+
     pub fn save_doc(&self) {
         self.0.borrow().save_doc();
     }
@@ -844,6 +849,10 @@ impl SvgPathCache {
 
     fn add_closed_default_layer(&mut self, shape: Vec<Vec2>) {
         self.add_closed("default", shape)
+    }
+
+    pub fn to_svg_string(&self) -> String {
+        self.config.make_doc(self).to_string()
     }
 
     pub fn save_doc(&self) {
@@ -988,6 +997,10 @@ impl ToSvgData for CurveDrawer {
                     }
                 }
             }
+        }
+
+        if self.closed {
+            path = path.close();
         }
 
         Some(path)

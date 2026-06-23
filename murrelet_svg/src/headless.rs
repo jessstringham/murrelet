@@ -45,3 +45,9 @@ pub fn render_to_svg<D: ToMixedDrawables>(v: &D, svg_draw_config: &SvgDrawConfig
     add_mixed_drawables(&cache, v);
     cache.save_doc();
 }
+
+pub fn build_svg_string<D: ToMixedDrawables>(v: &D, svg_draw_config: &SvgDrawConfig) -> String {
+    let cache = SvgPathCache::svg_draw(svg_draw_config);
+    add_mixed_drawables(&cache, v);
+    cache.to_svg_string()
+}

@@ -119,6 +119,16 @@ impl SvgDrawConfig {
         self.colors_as_layers
     }
 
+    pub fn with_output_kind(mut self, kind: SvgSaveKind) -> Self {
+        self.output_kind = kind;
+        self
+    }
+
+    pub fn with_colors_as_layers(mut self, on: bool) -> Self {
+        self.colors_as_layers = on;
+        self
+    }
+
     pub fn with_bg_color(&self, bg_color: MurreletColor) -> Self {
         let mut c = self.clone();
         c.bg_color = Some(bg_color);
