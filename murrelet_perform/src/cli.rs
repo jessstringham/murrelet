@@ -45,12 +45,12 @@ impl Default for TextureDimensions {
             // height: 2000,
             // width: 3840,
             // height: 1646,
-            width: 1920,
-            height: 1080,
+            // width: 1920,
+            // height: 1080,
             // width: 2000,
             // height: 2000,
-            // width: 750,
-            // height: 750,
+            width: 800,
+            height: 800,
         }
     }
 }
