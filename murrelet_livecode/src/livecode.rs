@@ -370,6 +370,83 @@ where
     }
 }
 
+pub trait LivecodeToControlLazy<ControlT> {
+    fn to_control_lazy(&self) -> ControlT;
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for f32 {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Float(*self)
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for i32 {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Int(*self)
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for u32 {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Float(*self as f32)
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for u8 {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Float(*self as f32)
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for usize {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Float(*self as f32)
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for u64 {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Float(*self as f32)
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for f64 {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Float(*self as f32)
+    }
+}
+
+// we represent bools with lazynodef32
+impl LivecodeToControlLazy<ControlLazyNodeF32> for bool {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Bool(*self)
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyNodeF32> for AnglePi {
+    fn to_control_lazy(&self) -> ControlLazyNodeF32 {
+        ControlLazyNodeF32::Float(self._angle_pi())
+    }
+}
+
+impl<Source, Target> LivecodeToControlLazy<Vec<Target>> for Vec<Source>
+where
+    Source: LivecodeToControlLazy<Target>,
+{
+    fn to_control_lazy(&self) -> Vec<Target> {
+        self.iter().map(|x| x.to_control_lazy()).collect_vec()
+    }
+}
+
+impl<T, ControlType> LivecodeToControlLazy<Option<ControlType>> for Option<T>
+where
+    T: LivecodeToControlLazy<ControlType> + Clone,
+{
+    fn to_control_lazy(&self) -> Option<ControlType> {
+        self.as_ref().map(|s| s.to_control_lazy())
+    }
+}
+
 // wrappers around identifiers evalexpr gives us, right now
 // just to control midi controller
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -715,6 +792,22 @@ pub enum ControlF32 {
     Expr(ExprNode),
 }
 
+impl From<f32> for ControlF32 {
+    fn from(v: f32) -> Self {
+        ControlF32::Float(v)
+    }
+}
+impl From<i32> for ControlF32 {
+    fn from(v: i32) -> Self {
+        ControlF32::Int(v)
+    }
+}
+impl From<bool> for ControlF32 {
+    fn from(v: bool) -> Self {
+        ControlF32::Bool(v)
+    }
+}
+
 impl ControlF32 {
     pub const ZERO: ControlF32 = ControlF32::Float(0.0);
 
@@ -776,6 +869,23 @@ pub enum ControlBool {
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     Expr(ExprNode),
 }
+
+impl From<bool> for ControlBool {
+    fn from(v: bool) -> Self {
+        ControlBool::Raw(v)
+    }
+}
+impl From<i32> for ControlBool {
+    fn from(v: i32) -> Self {
+        ControlBool::Int(v)
+    }
+}
+impl From<f32> for ControlBool {
+    fn from(v: f32) -> Self {
+        ControlBool::Float(v)
+    }
+}
+
 impl ControlBool {
     pub fn force_from_str(s: &str) -> ControlBool {
         match ExprNode::from_src(s.to_string()) {
@@ -910,6 +1020,12 @@ impl LivecodeFromWorld<MurreletString> for ControlMurreletString {
 impl LivecodeToControl<ControlMurreletString> for MurreletString {
     fn to_control(&self) -> ControlMurreletString {
         ControlMurreletString::Raw(self.as_string())
+    }
+}
+
+impl LivecodeToControlLazy<crate::lazy::ControlLazyMurreletString> for MurreletString {
+    fn to_control_lazy(&self) -> crate::lazy::ControlLazyMurreletString {
+        crate::lazy::ControlLazyMurreletString::Raw(self.as_string())
     }
 }
 

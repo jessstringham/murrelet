@@ -4,7 +4,7 @@ use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs},
     livecode::{
         ExprNode, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
-        LivecodeVariable,
+        LivecodeToControlLazy, LivecodeVariable,
     },
     nestedit::{NestEditable, NestedMod},
     state::{LivecodeWorldState, WorldWithLocalVariables},
@@ -28,6 +28,22 @@ pub enum ControlLazyNodeF32 {
     Float(f32),
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     Expr(ExprNode),
+}
+
+impl From<f32> for ControlLazyNodeF32 {
+    fn from(v: f32) -> Self {
+        ControlLazyNodeF32::Float(v)
+    }
+}
+impl From<i32> for ControlLazyNodeF32 {
+    fn from(v: i32) -> Self {
+        ControlLazyNodeF32::Int(v)
+    }
+}
+impl From<bool> for ControlLazyNodeF32 {
+    fn from(v: bool) -> Self {
+        ControlLazyNodeF32::Bool(v)
+    }
 }
 
 impl ControlLazyNodeF32 {
@@ -405,6 +421,12 @@ impl LivecodeToControl<ControlLazyVec2> for LazyVec2 {
     }
 }
 
+impl LivecodeToControlLazy<ControlLazyVec2> for Vec2 {
+    fn to_control_lazy(&self) -> ControlLazyVec2 {
+        ControlLazyVec2::new(self.x.to_control_lazy(), self.y.to_control_lazy())
+    }
+}
+
 impl IsLazy for LazyVec2 {
     type Target = glam::Vec2;
 
@@ -468,6 +490,16 @@ impl LivecodeToControl<ControlLazyVec3> for LazyVec3 {
             self.x.to_control(),
             self.y.to_control(),
             self.z.to_control(),
+        ])
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyVec3> for glam::Vec3 {
+    fn to_control_lazy(&self) -> ControlLazyVec3 {
+        ControlLazyVec3(vec![
+            self.x.to_control_lazy(),
+            self.y.to_control_lazy(),
+            self.z.to_control_lazy(),
         ])
     }
 }
@@ -664,6 +696,18 @@ impl LivecodeToControl<ControlLazyMurreletColor> for LazyMurreletColor {
                 a: self.a.to_control(),
             },
         }
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyMurreletColor> for MurreletColor {
+    fn to_control_lazy(&self) -> ControlLazyMurreletColor {
+        let [h, s, v, a] = self.into_hsva_components();
+        ControlLazyMurreletColor::Hsva(vec![
+            h.to_control_lazy(),
+            s.to_control_lazy(),
+            v.to_control_lazy(),
+            a.to_control_lazy(),
+        ])
     }
 }
 
