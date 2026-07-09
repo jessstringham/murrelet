@@ -1,6 +1,7 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
+use crate::derive_livecode::update_to_control_ident;
 use crate::parser::*;
 
 pub(crate) fn update_to_lazy_ident(name: syn::Ident) -> syn::Ident {
@@ -197,6 +198,14 @@ impl LazyFieldType {
         }
     }
 
+
+    fn for_control_lazy_target(&self, target: TokenStream2) -> TokenStream2 {
+        match self.0 {
+            ControlType::LazyNodeF32 => quote! { #target.to_control() },
+            _ => quote! { #target.to_control_lazy() },
+        }
+    }
+
     fn for_newtype_world(&self, idents: StructIdents) -> TokenStream2 {
         let orig_ty = idents.orig_ty();
         match self.0 {
@@ -235,6 +244,7 @@ pub(crate) struct FieldTokensLazy {
     pub(crate) for_struct: TokenStream2,
     pub(crate) for_world: TokenStream2,
     pub(crate) for_more_defs: TokenStream2,
+    pub(crate) for_control_lazy: TokenStream2,
 }
 
 // Shared arm-builders, lazy side. target_ref: passed to lazy_expand_vec_list
@@ -276,6 +286,8 @@ impl GenFinal for FieldTokensLazy {
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
         let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
+        let for_control_lazy = variants.iter().map(|x| x.for_control_lazy.clone());
+        let control_lazy_ident = update_to_control_ident(lc_ident.clone());
 
         quote! {
             #[derive(Debug, Clone, Default, murrelet_livecode::LivecodeOnly)]
@@ -291,6 +303,13 @@ impl GenFinal for FieldTokensLazy {
                 }
             }
 
+            impl murrelet_livecode::livecode::LivecodeToControlLazy<#control_lazy_ident> for #name {
+                #[allow(unreachable_code)]
+                fn to_control_lazy(&self) -> #control_lazy_ident {
+                    #control_lazy_ident(#(#for_control_lazy,)*)
+                }
+            }
+
         }
     }
 
@@ -302,6 +321,8 @@ impl GenFinal for FieldTokensLazy {
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
         let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
+        let for_control_lazy = variants.iter().map(|x| x.for_control_lazy.clone());
+        let control_lazy_ident = update_to_control_ident(lc_ident.clone());
 
         quote! {
             #[derive(Debug, Clone, Default, murrelet_livecode::LivecodeOnly)]
@@ -323,6 +344,15 @@ impl GenFinal for FieldTokensLazy {
                     })
                 }
             }
+
+            impl murrelet_livecode::livecode::LivecodeToControlLazy<#control_lazy_ident> for #name {
+                #[allow(unreachable_code)]
+                fn to_control_lazy(&self) -> #control_lazy_ident {
+                    #control_lazy_ident {
+                        #(#for_control_lazy,)*
+                    }
+                }
+            }
         }
     }
 
@@ -335,6 +365,8 @@ impl GenFinal for FieldTokensLazy {
         let for_struct = variants.iter().map(|x| x.for_struct.clone());
         let for_world = variants.iter().map(|x| x.for_world.clone());
         let for_more_defs = variants.iter().map(|x| x.for_more_defs.clone());
+        let for_control_lazy = variants.iter().map(|x| x.for_control_lazy.clone());
+        let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
 
         quote! {
             #[derive(Debug, Clone, Default, murrelet_livecode::LivecodeOnly)]
@@ -362,6 +394,15 @@ impl GenFinal for FieldTokensLazy {
                     })
                 }
             }
+
+            impl murrelet_livecode::livecode::LivecodeToControlLazy<#control_lazy_ident> for #name {
+                #[allow(unreachable_code)]
+                fn to_control_lazy(&self) -> #control_lazy_ident {
+                    match self {
+                        #(#for_control_lazy,)*
+                    }
+                }
+            }
         }
     }
 
@@ -383,10 +424,13 @@ impl GenFinal for FieldTokensLazy {
             quote! { self.0.with_more_defs(ctx)? }
         };
 
+        let for_control_lazy = quote! { self.0.to_control() };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -411,10 +455,13 @@ impl GenFinal for FieldTokensLazy {
             quote! { self.0.with_more_defs(ctx)? }
         };
 
+        let for_control_lazy = quote! { self.0.to_control_lazy() };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -432,10 +479,13 @@ impl GenFinal for FieldTokensLazy {
             quote! { self.0.with_more_defs(ctx)? }
         };
 
+        let for_control_lazy = LazyFieldType(ctrl).for_control_lazy_target(quote!(self.0));
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -476,10 +526,14 @@ impl GenFinal for FieldTokensLazy {
             quote! { #new_enum_ident::#variant_ident => #new_enum_ident::#variant_ident }
         };
 
+        let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
+        let for_control_lazy = quote! { #name::#variant_ident => #control_lazy_ident::#variant_ident };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -499,10 +553,13 @@ impl GenFinal for FieldTokensLazy {
             quote! { #name: self.#name.clone() }
         };
 
+        let for_control_lazy = quote! { #name: self.#name.clone() };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -524,10 +581,16 @@ impl GenFinal for FieldTokensLazy {
             quote! { #name: self.#name.with_more_defs(ctx)? }
         };
 
+        let for_control_lazy = {
+            let expr = LazyFieldType(ctrl).for_control_lazy_target(quote!(self.#name));
+            quote! { #name: #expr }
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -549,10 +612,13 @@ impl GenFinal for FieldTokensLazy {
             quote! { #name: if let Some(value) = &self.#name { Some(value.with_more_defs(ctx)?) } else { None } }
         };
 
+        let for_control_lazy = quote! { #name: self.#name.to_control_lazy() };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -574,6 +640,7 @@ impl GenFinal for FieldTokensLazy {
                 for_struct: quote! {#back_to_quote #name: #orig_ty},
                 for_world: quote! {#name: self.#name.clone()},
                 for_more_defs: quote! {#name: self.#name.clone()},
+                for_control_lazy: quote! {#name: self.#name.clone()},
             };
         }
 
@@ -636,10 +703,13 @@ impl GenFinal for FieldTokensLazy {
             quote! { #name: #expr }
         };
 
+        let for_control_lazy = quote! { #name: todo!("to_control_lazy: Vec fields not yet supported") };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -692,10 +762,13 @@ impl GenFinal for FieldTokensLazy {
             self.0.iter().map(|x| x.with_more_defs(ctx)).collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
         };
 
+        let for_control_lazy = quote! { todo!("to_control_lazy: Vec fields not yet supported") };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -745,10 +818,14 @@ impl GenFinal for FieldTokensLazy {
             quote! { #name: self.#name.clone() }
         };
 
+        let for_control_lazy =
+            quote! { #name: todo!("to_control_lazy: unitcell fields not yet supported") };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -775,10 +852,13 @@ impl GenFinal for FieldTokensLazy {
             quote! { #name: self.#name.with_more_defs(ctx)? }
         };
 
+        let for_control_lazy = quote! { #name: self.#name.to_control_lazy() };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -787,7 +867,10 @@ impl GenFinal for FieldTokensLazy {
     }
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
-        Self::from_noop_struct(idents)
+        let name = idents.name();
+        let mut base = Self::from_noop_struct(idents);
+        base.for_control_lazy = quote! { #name: self.#name.to_control() };
+        base
     }
 }
 
@@ -809,10 +892,16 @@ impl FieldTokensLazy {
             #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.with_more_defs(ctx)?)
         };
 
+        let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
+        let for_control_lazy = quote! {
+            #name::#variant_ident(s) => #control_lazy_ident::#variant_ident(s.to_control_lazy())
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -832,10 +921,16 @@ impl FieldTokensLazy {
             #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.clone())
         };
 
+        let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
+        let for_control_lazy = quote! {
+            #name::#variant_ident(s) => #control_lazy_ident::#variant_ident(s.to_control())
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -861,10 +956,17 @@ impl FieldTokensLazy {
             #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.with_more_defs(ctx)?)
         };
 
+        let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
+        let leaf_expr = LazyFieldType(ctrl).for_control_lazy_target(quote!(s));
+        let for_control_lazy = quote! {
+            #name::#variant_ident(s) => #control_lazy_ident::#variant_ident(#leaf_expr)
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -903,10 +1005,15 @@ impl FieldTokensLazy {
             #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(#more_defs_expr)
         };
 
+        let for_control_lazy = quote! {
+            #name::#variant_ident(s) => todo!("to_control_lazy: Vec enum payloads not yet supported")
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 
@@ -944,10 +1051,16 @@ impl FieldTokensLazy {
             )
         };
 
+        let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
+        let for_control_lazy = quote! {
+            #name::#variant_ident(s) => #control_lazy_ident::#variant_ident(s.to_control_lazy())
+        };
+
         FieldTokensLazy {
             for_struct,
             for_world,
             for_more_defs,
+            for_control_lazy,
         }
     }
 }

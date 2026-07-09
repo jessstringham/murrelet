@@ -15,6 +15,8 @@ use murrelet_common::clamp;
 use murrelet_common::MurreletColor;
 use serde::Deserialize;
 use serde::Serialize;
+use murrelet_common::MurreletString;
+
 
 // Newtype that carries an evalexpr `Node` alongside the source string it was
 // parsed from, so the Control config can round-trip through serde (the bare
@@ -1009,8 +1011,6 @@ mod tests {
     }
 }
 
-// ===== MurreletString (PLAN-70): format strings in livecode config strings =====
-use murrelet_common::MurreletString;
 impl LivecodeFromWorld<MurreletString> for ControlMurreletString {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<MurreletString> {
         self._o(w)

@@ -211,38 +211,54 @@ pub fn _default_false() -> bool {
     false
 }
 
-// app config
+fn _default_seed_val() -> f32 {
+    42.0
+}
 fn _default_seed() -> ControlF32 {
-    ControlF32::Raw(42.0)
+    _default_seed_val().to_control()
+}
+fn _default_seed_lazy() -> ControlLazyNodeF32 {
+    _default_seed_val().to_control_lazy()
+}
+
+fn _default_width_val() -> f32 {
+    400.0
 }
 fn _default_width() -> ControlF32 {
-    ControlF32::Raw(400.0)
-}
-
-fn _default_seed_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(42.0)
+    _default_width_val().to_control()
 }
 fn _default_width_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(400.0)
+    _default_width_val().to_control_lazy()
 }
 
+fn _default_bpm_val() -> f32 {
+    90.0
+}
 fn _default_bpm() -> ControlF32 {
-    ControlF32::Raw(90.0)
+    _default_bpm_val().to_control()
 }
 fn _default_bpm_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(90.0)
+    _default_bpm_val().to_control_lazy()
+}
+
+fn _default_fps_val() -> f32 {
+    30.0
 }
 fn _default_fps() -> ControlF32 {
-    ControlF32::Raw(30.0)
+    _default_fps_val().to_control()
 }
 fn _default_fps_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(30.0)
+    _default_fps_val().to_control_lazy()
+}
+
+fn _default_beats_per_bar_val() -> f32 {
+    4.0
 }
 fn _default_beats_per_bar() -> ControlF32 {
-    ControlF32::Raw(4.0)
+    _default_beats_per_bar_val().to_control()
 }
 fn _default_beats_per_bar_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(4.0)
+    _default_beats_per_bar_val().to_control_lazy()
 }
 
 fn _default_bg_alpha() -> ControlF32 {
@@ -290,45 +306,54 @@ fn _default_clear_bg_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(true)
 }
 
+fn _default_bg_color_val() -> MurreletColor {
+    MurreletColor::hsva(0.0, 0.0, 0.0, 1.0)
+}
 fn _default_bg_color() -> ControlMurreletColor {
-    ControlMurreletColor::Hsva([
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(1.0),
-    ])
+    _default_bg_color_val().to_control()
 }
-
 fn _default_bg_color_lazy() -> ControlLazyMurreletColor {
-    ControlLazyMurreletColor::new_default(0.0, 0.0, 0.0, 1.0)
+    _default_bg_color_val().to_control_lazy()
 }
 
+fn _default_svg_size_val() -> f32 {
+    100.0
+}
 fn _default_svg_size() -> ControlF32 {
-    ControlF32::Raw(100.0)
+    _default_svg_size_val().to_control()
+}
+fn _default_svg_size_lazy() -> ControlLazyNodeF32 {
+    _default_svg_size_val().to_control_lazy()
+}
+
+fn _default_svg_save_val() -> bool {
+    false
 }
 fn _default_svg_save() -> ControlBool {
-    ControlBool::Raw(false)
-}
-
-fn _default_svg_size_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(100.0)
+    _default_svg_save_val().to_control()
 }
 fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Bool(false)
+    _default_svg_save_val().to_control_lazy()
 }
 
+fn _default_svg_stroke_width_val() -> f32 {
+    0.0
+}
 fn _default_svg_stroke_width() -> ControlF32 {
-    ControlF32::Raw(0.0)
+    _default_svg_stroke_width_val().to_control()
 }
 fn _default_svg_stroke_width_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(0.0)
+    _default_svg_stroke_width_val().to_control_lazy()
 }
 
+fn _default_svg_colors_as_layers_val() -> bool {
+    false
+}
 fn _default_svg_colors_as_layers() -> ControlBool {
-    ControlBool::Raw(false)
+    _default_svg_colors_as_layers_val().to_control()
 }
 fn _default_svg_colors_as_layers_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Bool(false)
+    _default_svg_colors_as_layers_val().to_control_lazy()
 }
 
 impl Default for ControlAppConfigTiming {
@@ -442,13 +467,16 @@ impl Default for ControlLazySvgConfig {
 }
 
 // set this in websites!
+fn _default_svg_kind_val() -> SvgSaveKind {
+    SvgSaveKind::Inkscape
+}
 fn _default_svg_kind_lazy() -> ControlLazySvgSaveKind {
-    ControlLazySvgSaveKind::Inkscape
+    _default_svg_kind_val().to_control_lazy()
+}
+fn _default_svg_kind() -> ControlSvgSaveKind {
+    _default_svg_kind_val().to_control()
 }
 
-fn _default_svg_kind() -> ControlSvgSaveKind {
-    ControlSvgSaveKind::Inkscape
-}
 fn _default_gpu_debug_next() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
@@ -471,8 +499,11 @@ fn _default_gpu_debug() -> ControlBool {
     }
 }
 
+fn _default_gpu_color_channel_val() -> usize {
+    0
+}
 fn _default_gpu_color_channel() -> ControlF32 {
-    ControlF32::Int(0)
+    _default_gpu_color_channel_val().to_control()
 }
 
 fn _default_gpu_debug_next_lazy() -> ControlLazyNodeF32 {
@@ -484,7 +515,7 @@ fn _default_gpu_debug_lazy() -> ControlLazyNodeF32 {
 }
 
 fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Int(0)
+    _default_gpu_color_channel_val().to_control_lazy()
 }
 
 #[allow(dead_code)]

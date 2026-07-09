@@ -14,22 +14,19 @@ use murrelet_common::*;
 use murrelet_gui::{CanMakeGUI, MurreletGUI};
 use murrelet_livecode::{
     lazy::ControlLazyMurreletColor,
-    livecode::{ControlF32, ControlMurreletColor},
+    livecode::{ControlMurreletColor, LivecodeToControl, LivecodeToControlLazy},
 };
 use murrelet_livecode_derive::Livecode;
 use styleconf::StyleConf;
 
-fn _black() -> ControlMurreletColor {
-    ControlMurreletColor::Hsva([
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(1.0),
-    ])
+fn _black_val() -> MurreletColor {
+    MurreletColor::hsva(0.0, 0.0, 0.0, 1.0)
 }
-
+fn _black() -> ControlMurreletColor {
+    _black_val().to_control()
+}
 fn _black_lazy() -> ControlLazyMurreletColor {
-    ControlLazyMurreletColor::new_default(0.0, 0.0, 0.0, 1.0)
+    _black_val().to_control_lazy()
 }
 
 #[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
