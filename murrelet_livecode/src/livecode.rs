@@ -13,10 +13,12 @@ use murrelet_common::AnglePi;
 use murrelet_common::clamp;
 
 use murrelet_common::MurreletColor;
+use murrelet_common::MurreletString;
 use serde::Deserialize;
 use serde::Serialize;
-use murrelet_common::MurreletString;
 
+#[doc(hidden)]
+pub use paste;
 
 // Newtype that carries an evalexpr `Node` alongside the source string it was
 // parsed from, so the Control config can round-trip through serde (the bare
@@ -251,16 +253,9 @@ impl LivecodeToControl<[ControlF32; 4]> for MurreletColor {
 #[serde(untagged)]
 pub enum ControlMurreletColor {
     Hsva([ControlF32; 4]),
-    Rgba {
-        rgb: [ControlF32; 3],
-        a: ControlF32,
-    },
-    Gray {
-        gray: ControlF32,
-    },
-    Hue {
-        hue: ControlF32,
-    },
+    Rgba { rgb: [ControlF32; 3], a: ControlF32 },
+    Gray { gray: ControlF32 },
+    Hue { hue: ControlF32 },
 }
 
 impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
@@ -965,7 +960,8 @@ mod tests {
 
     #[test]
     fn control_murrelet_color_reads_rgba_map() {
-        let c: ControlMurreletColor = serde_yaml::from_str("{rgb: [1.0, 0.0, 0.0], a: 0.5}").unwrap();
+        let c: ControlMurreletColor =
+            serde_yaml::from_str("{rgb: [1.0, 0.0, 0.0], a: 0.5}").unwrap();
         assert!(matches!(c, ControlMurreletColor::Rgba { .. }));
         let color = c.o_dummy().unwrap();
         let [r, g, b, a] = color.into_rgba_components();
@@ -1029,7 +1025,6 @@ impl LivecodeToControlLazy<crate::lazy::ControlLazyMurreletString> for MurreletS
     }
 }
 
-
 impl GetLivecodeIdentifiers for ControlMurreletString {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         match self {
@@ -1053,7 +1048,6 @@ impl GetLivecodeIdentifiers for ControlMurreletString {
         }
     }
 }
-
 
 // A livecode string: either a literal, or a format string whose `{}` holes are
 // filled positionally by f32 expressions evaluated against the world (formatted
@@ -1201,3 +1195,49 @@ pub(crate) fn fill_fmt_f64(fmt: &str, fill: &[f64]) -> LivecodeResult<String> {
     }
     Ok(out)
 }
+
+#[macro_export]
+macro_rules! livecode_default {
+    ($name:ident: $ty:ty = $value:expr) => {
+        murrelet_livecode::paste::paste! {
+            fn [<$name _val>]() -> $ty {
+                $value
+            }
+
+            fn $name() -> [<Control $ty>] {
+                [<$name _val>]().to_control()
+            }
+
+            fn [<$name _lazy>]() -> [<ControlLazy $ty>] {
+                [<$name _val>]().to_control_lazy()
+            }
+        }
+    };
+}
+// macro_rules! list_default {
+//     ($field:ident: $elem:ident = $default:expr) => {
+//         murrelet_livecode::paste::paste! {
+//             fn [<$field >]()
+//                 -> Vec<murrelet_livecode::types::ControlVecElement<[<Control $elem>]>>
+//             {
+//                 ($default)
+//                     .into_iter()
+//                     .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
+//                     .collect()
+//             }
+
+//             fn [<$field _to_lazy>]()
+//                 -> Vec<murrelet_livecode::types::DeserLazyControlVecElement<[<ControlLazy $elem>]>>
+//             {
+//                 ($default)
+//                     .into_iter()
+//                     .map(|x| murrelet_livecode::types::DeserLazyControlVecElement::raw(x.to_control_lazy()))
+//                     .collect()
+//             }
+//         }
+//     };
+
+//     ($field:ident: $elem:ident) => {
+//         $crate::list_default!($field: $elem = Vec::new());
+//     };
+// }

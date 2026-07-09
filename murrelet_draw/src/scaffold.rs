@@ -14,8 +14,12 @@ use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolyg
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
-use murrelet_common::{PointToPoint, SpotOnCurve, poly_area_unsigned};
+use murrelet_common::{MurreletString, PointToPoint, SpotOnCurve, poly_area_unsigned};
 use murrelet_livecode::types::{LivecodeResult, ToLivecodeResult};
+use std::collections::{HashMap, HashSet};
+
+use crate::convert::glam_to_geo_pt;
+use geo::Point;
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
     geo::MultiPolygon::new(vec![line_to_polygon(curves)])
@@ -51,7 +55,6 @@ pub fn rings_to_cds(rings: &[Vec<Vec2>], min_area: f32) -> Vec<CurveDrawer> {
         .map(|r| r.to_cd_closed())
         .collect()
 }
-
 
 pub fn mp_to_cds(rings: &MultiPolygon, min_area: f32) -> Vec<CurveDrawer> {
     rings_to_cds(&multipolygon_to_vec2(&rings), min_area)
@@ -558,4 +561,338 @@ fn offset_outline_open(points: &[Vec2], distance: f32, miter: f32) -> LivecodeRe
 
     let rail: Vec<Vec2> = (0..best_len).map(|k| ring[(best_start + k) % n]).collect();
     Ok(rail)
+}
+
+// this will convert things to a list of list of vec2s.
+// there are two kinds: a boolean operation that combines shapes
+// and then select, this fines the smallest region containing the provided point.
+// originally written by claude and then tidied up by me!
+
+// remove things that are too small
+const MIN_UNIVERSE_AREA: f32 = 1e-2;
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RegionName(String);
+impl RegionName {
+    pub fn to_string(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn new(n: &str) -> Self {
+        Self(n.to_string())
+    }
+}
+
+#[derive(Clone)]
+pub struct RegionList(Vec<RegionName>);
+impl RegionList {
+    pub fn new(region_names: Vec<RegionName>) -> Self {
+        Self(region_names)
+    }
+
+    pub fn regions(&self) -> &Vec<RegionName> {
+        &self.0
+    }
+
+    pub fn new_from_mstrings(s: &[MurreletString]) -> Self {
+        RegionList::new(s.iter().map(|n| RegionName::new(&n.to_string())).collect())
+    }
+}
+
+pub enum RegionKindBool {
+    Union(RegionList),
+    Intersection(RegionList),
+    Difference(RegionList),
+    Xor(RegionList),
+}
+impl RegionKindBool {
+    fn members(&self) -> RegionList {
+        match &self {
+            RegionKindBool::Union(region_list) => region_list.clone(),
+            RegionKindBool::Intersection(region_list) => region_list.clone(),
+            RegionKindBool::Difference(region_list) => region_list.clone(),
+            RegionKindBool::Xor(region_list) => region_list.clone(),
+        }
+    }
+
+    fn eval(
+        &self,
+        universe: &RegionUniverse,
+        shape_scope: &ShapeScope,
+    ) -> LivecodeResult<MultiPolygon> {
+        let operands = universe.lookup_many(&self.members(), shape_scope)?;
+
+        let mut operand_iter = operands.into_iter();
+
+        if let Some(first) = operand_iter.next() {
+            let mut acc = first.clone();
+
+            for mp in operand_iter {
+                acc = match &self {
+                    RegionKindBool::Union(_) => acc.union(mp),
+                    RegionKindBool::Intersection(_) => acc.intersection(mp),
+                    RegionKindBool::Difference(_) => acc.difference(mp),
+                    RegionKindBool::Xor(_) => acc.xor(mp),
+                };
+            }
+            Ok(acc)
+        } else {
+            Ok(MultiPolygon::new(vec![]))
+        }
+    }
+}
+
+pub enum RegionKindSelectPoint {
+    ByCoord(Vec2),
+    ByPoint(String),
+}
+impl RegionKindSelectPoint {
+    fn to_pt(&self, universe: &RegionUniverse) -> LivecodeResult<Vec2> {
+        match self {
+            RegionKindSelectPoint::ByCoord(vec2) => Ok(*vec2),
+            RegionKindSelectPoint::ByPoint(name) => universe
+                .lookup_point(name)
+                .map(|x| *x)
+                .ok_or_else(|| "missing name")
+                .to_lc_err(),
+        }
+    }
+}
+
+pub enum RegionKindSelect {
+    ByRegion {
+        inside: RegionList,
+        outside: RegionList,
+    },
+    ByLoc(RegionKindSelectPoint),
+}
+impl RegionKindSelect {
+    pub fn empty() -> Self {
+        RegionKindSelect::ByRegion {
+            inside: RegionList::new(vec![]),
+            outside: RegionList::new(vec![]),
+        }
+    }
+
+    pub fn from_loc_coord(loc: Vec2) -> Self {
+        RegionKindSelect::ByLoc(RegionKindSelectPoint::ByCoord(loc))
+    }
+
+    pub fn from_region(inside: RegionList, outside: RegionList) -> Self {
+        RegionKindSelect::ByRegion { inside, outside }
+    }
+
+    pub fn eval(
+        &self,
+        universe: &RegionUniverse,
+        shape_scope: &ShapeScope,
+    ) -> LivecodeResult<MultiPolygon> {
+        let (marker, inside_region_list, outside_region_list) = match self {
+            RegionKindSelect::ByRegion { inside, outside } => {
+                (None, inside.clone(), outside.clone())
+            }
+            RegionKindSelect::ByLoc(pt) => {
+                let v = pt.to_pt(universe)?;
+                let pt = glam_to_geo_pt(v);
+                let (ins, outs) = universe.get_in_out(pt);
+                (Some(v), ins, outs)
+            }
+        };
+
+        let inside = universe
+            .lookup_many(&inside_region_list, shape_scope)?
+            .clone();
+        let outside = universe
+            .lookup_many(&outside_region_list, shape_scope)?
+            .clone();
+
+        let mut inside_iter = inside.into_iter();
+
+        let mut acc = if let Some(n) = inside_iter.next() {
+            n.clone()
+        } else {
+            return Ok(MultiPolygon::new(vec![]));
+        };
+
+        for mp in inside_iter {
+            acc = acc.intersection(mp);
+        }
+
+        for mp in outside.into_iter() {
+            acc = acc.difference(mp);
+        }
+
+        // if there are multiple polygons, find the nearest one...
+        if let Some(m) = marker {
+            if acc.0.len() > 1 {
+                if let Some(poly) = acc.0.iter().find(|p| p.contains(&glam_to_geo_pt(m))) {
+                    return Ok(MultiPolygon::new(vec![poly.clone()]));
+                }
+            }
+        }
+        // hrm, what to do if there are multiple but no marker??
+        Ok(acc)
+    }
+}
+
+pub enum RegionKind {
+    Bool(RegionKindBool),
+    Select(RegionKindSelect),
+}
+
+pub enum ShapeScope {
+    All,
+    LimitTo(HashSet<String>),   // filter to these
+    AllExcept(HashSet<String>), // do all except for
+}
+impl ShapeScope {
+    pub fn all_except(s: HashSet<String>) -> Self {
+        Self::AllExcept(s)
+    }
+
+    pub fn limit_to(s: HashSet<String>) -> Self {
+        Self::LimitTo(s)
+    }
+
+    fn allows_for(&self, m: &RegionName) -> bool {
+        match self {
+            ShapeScope::All => true,
+            ShapeScope::LimitTo(items) => items.contains(&m.to_string().to_owned()),
+            ShapeScope::AllExcept(items) => !items.contains(&m.to_string().to_owned()),
+        }
+    }
+}
+
+/// One region to resolve. If `name` is set, the region's output is registered
+/// under that name so a later region can reference it as a member.
+pub struct RegionSpec {
+    pub kind: RegionKind,
+    pub name: String,
+    pub shape_scope: ShapeScope,
+}
+impl RegionSpec {
+    fn eval(&self, universe: &RegionUniverse) -> LivecodeResult<MultiPolygon> {
+        match &self.kind {
+            RegionKind::Bool(region_kind_bool) => {
+                region_kind_bool.eval(universe, &self.shape_scope)
+            }
+            RegionKind::Select(region_kind_select) => {
+                region_kind_select.eval(universe, &self.shape_scope)
+            }
+        }
+    }
+}
+
+pub struct RegionUniverseConf {
+    pub tolerance: f32,
+}
+
+enum IdKind {
+    Pt,
+    Cd,
+}
+
+// this tracks multiple regions
+pub struct RegionUniverse {
+    conf: RegionUniverseConf,
+    pt_map: HashMap<String, Vec2>,
+    shape_map: HashMap<String, CurveDrawer>,
+    mp_map: HashMap<RegionName, MultiPolygon>,
+}
+impl RegionUniverse {
+    pub fn new(conf: RegionUniverseConf, shapes: &[(String, CurveDrawer)]) -> LivecodeResult<Self> {
+        let tolerance = conf.tolerance;
+        let mut shape_map = HashMap::new();
+        let mut mp_map = HashMap::new();
+        let pt_map = HashMap::new();
+
+        for (n, cd) in shapes.iter() {
+            shape_map.insert(n.clone(), cd.clone()); // we'll keep this around cuz sometimes it's nice to query it
+
+            if cd.is_closed() {
+                let mp = line_to_multipolygon(&cd.flatten_with_lyon(tolerance)?);
+                mp_map.insert(RegionName::new(n), mp);
+            }
+        }
+
+        Ok(RegionUniverse {
+            conf,
+            shape_map,
+            mp_map,
+            pt_map,
+        })
+    }
+
+    pub fn query_specs(
+        &mut self,
+        specs: &[RegionSpec],
+    ) -> LivecodeResult<Vec<(String, Vec<CurveDrawer>)>> {
+        let mut out = Vec::with_capacity(specs.len());
+        for spec in specs {
+            let result = spec.eval(&self)?;
+            self.add_region(RegionName::new(&spec.name), result.clone());
+            let cds = mp_to_cds(&result, self.conf.tolerance);
+            out.push((spec.name.clone(), cds));
+        }
+        Ok(out)
+    }
+
+    fn lookup_many(
+        &self,
+        members: &RegionList,
+        shape_scope: &ShapeScope,
+    ) -> LivecodeResult<Vec<&MultiPolygon>> {
+        let mut operands = Vec::new();
+        for m in members.regions() {
+            if let Ok(Some(mp)) = self.lookup(m, shape_scope) {
+                operands.push(mp);
+            }
+        }
+        Ok(operands)
+    }
+
+    fn lookup(
+        &self,
+        m: &RegionName,
+        shape_scope: &ShapeScope,
+    ) -> LivecodeResult<Option<&MultiPolygon>> {
+        if shape_scope.allows_for(m) {
+            self.mp_map
+                .get(m)
+                .map(|x| Some(x))
+                .ok_or_else(|| "missing")
+                .to_lc_err()
+        } else {
+            // not an error, but excluded
+            Ok(None)
+        }
+    }
+
+    fn lookup_point(&self, v: &str) -> Option<&Vec2> {
+        self.pt_map.get(v)
+    }
+
+    fn get_in_out(&self, pt: Point) -> (RegionList, RegionList) {
+        let mut ins = Vec::new();
+        let mut outs = Vec::new();
+
+        for (name, mp) in self.mp_map.iter() {
+            // we know this is a cd
+
+            if (mp.unsigned_area() as f32) < MIN_UNIVERSE_AREA {
+                continue;
+            }
+            if mp.contains(&pt) {
+                ins.push(name.clone());
+            } else {
+                outs.push(name.clone());
+            }
+        }
+
+        (RegionList(ins), RegionList(outs))
+    }
+
+    fn add_region(&mut self, name: RegionName, mp: MultiPolygon) {
+        self.mp_map.insert(name, mp);
+    }
 }
