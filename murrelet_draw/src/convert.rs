@@ -15,3 +15,8 @@ pub fn glam_to_geo(v: Vec2) -> Coord<f64> {
         y: v.y as f64,
     }
 }
+
+
+pub fn glam_to_geo_pt(v: Vec2) -> geo::Point {
+    geo::Point::from(glam_to_geo(v))
+}
