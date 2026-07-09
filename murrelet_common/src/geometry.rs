@@ -838,3 +838,20 @@ impl ToVec2 for DefaultVertex {
 pub fn sagitta_from_arc_len(radius: f32, central_angle: AnglePi) -> f32 {
     radius * (1.0 - (0.5 * central_angle.angle()).cos())
 }
+
+
+// claude, shoelace
+pub fn poly_area_signed(r: &[Vec2]) -> f32 {
+    let n = r.len();
+    let mut a = 0.0;
+    for i in 0..n {
+        let p = r[i];
+        let q = r[(i + 1) % n];
+        a += p.x * q.y - q.x * p.y;
+    }
+    a * 0.5
+}
+
+pub fn poly_area_unsigned(r: &[Vec2]) -> f32 {
+    poly_area_signed(r).abs()
+}

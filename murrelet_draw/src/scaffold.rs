@@ -14,7 +14,7 @@ use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolyg
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
-use murrelet_common::{PointToPoint, SpotOnCurve};
+use murrelet_common::{PointToPoint, SpotOnCurve, poly_area_unsigned};
 use murrelet_livecode::types::{LivecodeResult, ToLivecodeResult};
 
 pub fn line_to_multipolygon(curves: &[Vec2]) -> geo::MultiPolygon {
@@ -41,6 +41,14 @@ pub fn polygon_to_vec2(p: &geo::Polygon) -> Vec<Vec2> {
     }
 
     coords
+}
+
+pub fn rings_to_cds(rings: &[Vec<Vec2>], min_area: f32) -> Vec<CurveDrawer> {
+    rings
+        .iter()
+        .filter(|r| r.len() >= 3 && poly_area_unsigned(r) >= min_area)
+        .map(|r| r.to_cd_closed())
+        .collect()
 }
 
 trait ToVec2Griddable {
