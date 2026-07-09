@@ -43,12 +43,18 @@ pub fn polygon_to_vec2(p: &geo::Polygon) -> Vec<Vec2> {
     coords
 }
 
+// useful after polygon...
 pub fn rings_to_cds(rings: &[Vec<Vec2>], min_area: f32) -> Vec<CurveDrawer> {
     rings
         .iter()
         .filter(|r| r.len() >= 3 && poly_area_unsigned(r) >= min_area)
         .map(|r| r.to_cd_closed())
         .collect()
+}
+
+
+pub fn mp_to_cds(rings: &MultiPolygon, min_area: f32) -> Vec<CurveDrawer> {
+    rings_to_cds(&multipolygon_to_vec2(&rings), min_area)
 }
 
 trait ToVec2Griddable {
