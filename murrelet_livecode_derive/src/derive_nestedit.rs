@@ -185,21 +185,28 @@ impl GenFinal for FieldTokensNestEdit {
         };
 
         let t = unnamed.first().unwrap().clone().ty;
-        let parsed_data_type = ident_from_type(&t);
+
+        // An array payload (`Variant([T; N])`) has no nest_update/nest_get and
+        // would panic `ident_from_type` (Type::Array); treat it like a primitive
+        // (clone on update, error on get). Consumers wanting real array editing
+        // use `nestedit = "manual"` and hand-impl NestEditable.
+        let is_array = matches!(t, syn::Type::Array(_));
 
         // Update: only drill into Struct (StructLazy is immutable from
-        // nestedit's perspective; primitives/Vec/Option have no nest_update).
-        let mutable = matches!(
-            parsed_data_type.main_how_to(),
-            HowToControlThis::WithRecurse(RecursiveControlType::Struct)
-        );
+        // nestedit's perspective; primitives/Vec/Option/array have no nest_update).
+        let mutable = !is_array
+            && matches!(
+                ident_from_type(&t).main_how_to(),
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct)
+            );
         // Get: both Struct and StructLazy impl NestEditable, so nest_get works
-        // on either; primitives/Vec/Option don't.
-        let nestable = matches!(
-            parsed_data_type.main_how_to(),
-            HowToControlThis::WithRecurse(RecursiveControlType::Struct)
-                | HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
-        );
+        // on either; primitives/Vec/Option/array don't.
+        let nestable = !is_array
+            && matches!(
+                ident_from_type(&t).main_how_to(),
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct)
+                    | HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
+            );
 
         let for_nestedit = if mutable {
             quote! {

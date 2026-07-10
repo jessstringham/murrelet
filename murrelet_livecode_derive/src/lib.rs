@@ -33,6 +33,9 @@ fn lazy_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
 }
 
 fn nestedit_parse_ast(rec: LivecodeReceiver) -> TokenStream2 {
+    if rec.skip_nestedit() {
+        return quote!();
+    }
     FieldTokensNestEdit::from_ast(rec)
 }
 

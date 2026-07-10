@@ -500,6 +500,9 @@ impl GenFinal for FieldTokensLivecode {
 
     // e.g. TileAxisLocs::V(TileAxisVs)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensLivecode {
+        if let Some((elem, n)) = idents.inner_array() {
+            return Self::from_unnamed_enum_array(idents, elem, n);
+        }
         match idents.single_inner_how_to() {
             HowToControlThis::WithType(_) => Self::from_unnamed_enum_primitive(idents),
             HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
@@ -1283,8 +1286,18 @@ impl FieldTokensLivecode {
             LivecodeFieldType(ctrl).for_world_target(quote!(s), orig_ty, None, None);
 
         let for_struct = quote! { #variant_ident(#new_type) };
-        let for_world = quote! {
-            #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(#inner_world_expr))
+        let for_world = if let Some(validate) = idents.validate_hook() {
+            quote! {
+                #new_ident::#variant_ident(s) => {
+                    let v = #inner_world_expr;
+                    #validate(&v).map_err(murrelet_livecode::types::LivecodeError::Raw)?;
+                    Ok(#name::#variant_ident(v))
+                }
+            }
+        } else {
+            quote! {
+                #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(#inner_world_expr))
+            }
         };
         let for_to_control =
             quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
@@ -1292,6 +1305,84 @@ impl FieldTokensLivecode {
             quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
         let for_function_idents =
             quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V([T; N]) -> V([ControlT; N]). Unrolled on the known N so each element
+    // eval can use `?`. Element may be a struct (SolverScalarInput), an
+    // already-lazy struct (when LivecodeOnly re-derives the generated Lazy
+    // enum), or a primitive.
+    fn from_unnamed_enum_array(
+        idents: EnumIdents,
+        elem: syn::Type,
+        n: usize,
+    ) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&elem);
+        let elem_how_to = *parsed.main_how_to();
+        let elem_ctrl_ty = match elem_how_to {
+            HowToControlThis::WithType(c) => LivecodeFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = update_to_control_ident(parsed.main_type());
+                quote! { #t }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                catch_special_types(parsed.main_type())
+            }
+            e => panic!(
+                "(livecode, enum variant [T;N]) element not supported: {:?}",
+                e
+            ),
+        };
+
+        let binds: Vec<syn::Ident> = (0..n).map(|i| quote::format_ident!("a{}", i)).collect();
+        let world_elems: Vec<TokenStream2> = binds
+            .iter()
+            .map(|ai| match elem_how_to {
+                HowToControlThis::WithType(c) => {
+                    LivecodeFieldType(c).for_world_target(quote!(#ai), elem.clone(), None, None)
+                }
+                _ => quote! { #ai.o(w)? },
+            })
+            .collect();
+        let to_control_elems: Vec<TokenStream2> =
+            binds.iter().map(|ai| quote! { #ai.to_control() }).collect();
+
+        let for_struct = quote! { #variant_ident([#elem_ctrl_ty; #n]) };
+        let for_world = quote! {
+            #new_ident::#variant_ident([#(#binds),*]) =>
+                Ok(#name::#variant_ident([#(#world_elems),*]))
+        };
+        let for_to_control = quote! {
+            #name::#variant_ident([#(#binds),*]) =>
+                #new_ident::#variant_ident([#(#to_control_elems),*])
+        };
+        let for_variable_idents = quote! {
+            #new_ident::#variant_ident([#(#binds),*]) =>
+                vec![#(#binds.variable_identifiers()),*].concat()
+                    .into_iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>()
+        };
+        let for_function_idents = quote! {
+            #new_ident::#variant_ident([#(#binds),*]) =>
+                vec![#(#binds.function_identifiers()),*].concat()
+                    .into_iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>()
+        };
 
         FieldTokensLivecode {
             for_struct,

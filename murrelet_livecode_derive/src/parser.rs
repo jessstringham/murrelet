@@ -433,6 +433,13 @@ impl LivecodeFieldReceiver {
 pub(crate) struct LivecodeVariantReceiver {
     pub(crate) ident: syn::Ident,
     pub(crate) fields: ast::Fields<LivecodeFieldReceiver>,
+    // `#[livecode(validate = "path::to::fn")]` — a post-eval hook spliced after
+    // the variant's eval expression on both the livecode (`o`) and lazy
+    // (`eval_lazy`) sides. `fn(&Target) -> Result<(), String>`; a returned Err
+    // surfaces as `LivecodeError::Raw` at config-eval time. Lets a derived
+    // untagged enum keep a hand type's config-time validation (e.g. the
+    // shapesolver expr check) instead of deferring it to solve time.
+    pub(crate) validate: Option<String>,
 }
 
 #[derive(Debug, Clone, FromDeriveInput)]
@@ -442,8 +449,16 @@ pub(crate) struct LivecodeReceiver {
     vis: syn::Visibility,
     data: ast::Data<LivecodeVariantReceiver, LivecodeFieldReceiver>,
     enum_tag: Option<String>,
+    nestedit: Option<String>,
 }
 impl LivecodeReceiver {
+    // `#[livecode(nestedit = "manual")]` opts out of the derived NestEditable
+    // impl so the type can hand-write one (e.g. variant-switching editors the
+    // derived enum nestedit can't express).
+    pub(crate) fn skip_nestedit(&self) -> bool {
+        self.nestedit.as_deref() == Some("manual")
+    }
+
     fn serde_enum_type(&self) -> TokenStream2 {
         let default = quote! {#[serde(tag = "type")]};
         if let Some(ex) = &self.enum_tag {
@@ -505,6 +520,38 @@ impl EnumIdents {
 
     pub(crate) fn single_inner_how_to(&self) -> HowToControlThis {
         *ident_from_type(&self.single_inner_ty()).main_how_to()
+    }
+
+    // The `#[livecode(validate = "path::fn")]` hook for this variant, parsed as
+    // a path ready to call. See `LivecodeVariantReceiver::validate`.
+    pub(crate) fn validate_hook(&self) -> Option<syn::Path> {
+        self.data.validate.as_ref().map(|s| {
+            syn::parse_str::<syn::Path>(s)
+                .unwrap_or_else(|_| panic!("livecode(validate) not a valid path: {}", s))
+        })
+    }
+
+    // If the tuple variant holds a fixed-size array (`Variant([T; N])`), return
+    // the element type and N. Checked BEFORE `single_inner_how_to`, which would
+    // otherwise panic in `recursive_ident_from_path` on a `Type::Array`.
+    pub(crate) fn inner_array(&self) -> Option<(syn::Type, usize)> {
+        match self.single_inner_ty() {
+            syn::Type::Array(syn::TypeArray { elem, len, .. }) => {
+                let n = match &len {
+                    syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Int(li),
+                        ..
+                    }) => li
+                        .base10_parse::<usize>()
+                        .expect("livecode enum array payload: bad length literal"),
+                    _ => panic!(
+                        "livecode enum array payload: only literal lengths supported (no const generics)"
+                    ),
+                };
+                Some((*elem, n))
+            }
+            _ => None,
+        }
     }
 }
 

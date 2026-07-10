@@ -492,6 +492,9 @@ impl GenFinal for FieldTokensLazy {
     // enum
     // Arc(CurveArc)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensLazy {
+        if let Some((elem, n)) = idents.inner_array() {
+            return Self::from_unnamed_enum_array(idents, elem, n);
+        }
         match idents.single_inner_how_to() {
             HowToControlThis::WithType(_) => Self::from_unnamed_enum_primitive(idents),
             HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
@@ -949,8 +952,18 @@ impl FieldTokensLazy {
             LazyFieldType(ctrl).for_world_target(quote!(s), orig_ty, None, None);
 
         let for_struct = quote! { #variant_ident(#new_type) };
-        let for_world = quote! {
-            #new_enum_ident::#variant_ident(s) => #name::#variant_ident(#inner_world_expr)
+        let for_world = if let Some(validate) = idents.validate_hook() {
+            quote! {
+                #new_enum_ident::#variant_ident(s) => {
+                    let v = #inner_world_expr;
+                    #validate(&v).map_err(murrelet_livecode::types::LivecodeError::Raw)?;
+                    #name::#variant_ident(v)
+                }
+            }
+        } else {
+            quote! {
+                #new_enum_ident::#variant_ident(s) => #name::#variant_ident(#inner_world_expr)
+            }
         };
         let for_more_defs = quote! {
             #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.with_more_defs(ctx)?)
@@ -960,6 +973,84 @@ impl FieldTokensLazy {
         let leaf_expr = LazyFieldType(ctrl).for_control_lazy_target(quote!(s));
         let for_control_lazy = quote! {
             #name::#variant_ident(s) => #control_lazy_ident::#variant_ident(#leaf_expr)
+        };
+
+        FieldTokensLazy {
+            for_struct,
+            for_world,
+            for_more_defs,
+            for_control_lazy,
+        }
+    }
+
+    // V([T; N]) -> V([LazyT; N]). Unrolled on the known N so each element eval
+    // can use `?`. Mirrors the livecode array arm.
+    fn from_unnamed_enum_array(idents: EnumIdents, elem: syn::Type, n: usize) -> FieldTokensLazy {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_enum_ident = Self::new_ident(name.clone());
+        let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
+
+        let parsed = ident_from_type(&elem);
+        let elem_how_to = *parsed.main_how_to();
+        let elem_lazy_ty = match elem_how_to {
+            HowToControlThis::WithType(c) => LazyFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = update_to_lazy_ident(parsed.main_type());
+                quote! { #t }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                let t = parsed.main_type();
+                quote! { #t }
+            }
+            e => panic!("(lazy, enum variant [T;N]) element not supported: {:?}", e),
+        };
+
+        let binds: Vec<syn::Ident> = (0..n).map(|i| quote::format_ident!("a{}", i)).collect();
+        let world_elems: Vec<TokenStream2> = binds
+            .iter()
+            .map(|ai| match elem_how_to {
+                HowToControlThis::WithType(c) => {
+                    LazyFieldType(c).for_world_target(quote!(#ai), elem.clone(), None, None)
+                }
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                    quote! { #ai.clone() }
+                }
+                _ => quote! { #ai.eval_lazy(ctx)? },
+            })
+            .collect();
+        let more_defs_elems: Vec<TokenStream2> = binds
+            .iter()
+            .map(|ai| match elem_how_to {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                    quote! { #ai.clone() }
+                }
+                _ => quote! { #ai.with_more_defs(ctx)? },
+            })
+            .collect();
+        let control_lazy_elems: Vec<TokenStream2> = binds
+            .iter()
+            .map(|ai| match elem_how_to {
+                HowToControlThis::WithType(c) => LazyFieldType(c).for_control_lazy_target(quote!(#ai)),
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                    quote! { #ai.to_control() }
+                }
+                _ => quote! { #ai.to_control_lazy() },
+            })
+            .collect();
+
+        let for_struct = quote! { #variant_ident([#elem_lazy_ty; #n]) };
+        let for_world = quote! {
+            #new_enum_ident::#variant_ident([#(#binds),*]) =>
+                #name::#variant_ident([#(#world_elems),*])
+        };
+        let for_more_defs = quote! {
+            #new_enum_ident::#variant_ident([#(#binds),*]) =>
+                #new_enum_ident::#variant_ident([#(#more_defs_elems),*])
+        };
+        let for_control_lazy = quote! {
+            #name::#variant_ident([#(#binds),*]) =>
+                #control_lazy_ident::#variant_ident([#(#control_lazy_elems),*])
         };
 
         FieldTokensLazy {
