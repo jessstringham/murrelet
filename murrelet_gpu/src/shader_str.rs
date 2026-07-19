@@ -199,13 +199,13 @@ fn noise2(n: vec2<f32>) -> f32 {
   return mix(mix(rand2(b), rand2(b + d.yx), f.x), mix(rand2(b + d.xy), rand2(b + d.yy), f.x), f.y);
 }
 
-fn pixel_noise2(tex_coords: vec2<f32>) -> f32 {
-  let n = fract(tex_coords * uniforms.dims.y);
-  let d = vec2<f32>(0., 1.);
-  let b = floor(n);
-  let f = smoothStep(vec2<f32>(0.), vec2<f32>(1.), fract(n));
-  return mix(mix(rand2(b), rand2(b + d.yx), f.x), mix(rand2(b + d.xy), rand2(b + d.yy), f.x), f.y);
-}
+// fn pixel_noise2(tex_coords: vec2<f32>) -> f32 {
+//   let n = fract(tex_coords * uniforms.dims.y);
+//   let d = vec2<f32>(0., 1.);
+//   let b = floor(n);
+//   let f = smoothStep(vec2<f32>(0.), vec2<f32>(1.), fract(n));
+//   return mix(mix(rand2(b), rand2(b + d.yx), f.x), mix(rand2(b + d.xy), rand2(b + d.yy), f.x), f.y);
+// }
 
 fn mod3(what_to_mod: vec3<f32>, what: vec3<f32>) -> vec3<f32> {
     return what_to_mod - floor(what_to_mod * 1.0 / what) * what;
