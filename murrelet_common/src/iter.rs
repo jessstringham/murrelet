@@ -180,3 +180,13 @@ pub fn curr_next_loop_iter<'a, T>(v: &'a [T]) -> Box<dyn Iterator<Item = (&'a T,
     Box::new(iter)
 }
 
+pub fn curr_next_loop_option_iter<'a, T>(
+    is_closed: bool,
+    v: &'a [T],
+) -> Box<dyn Iterator<Item = (&'a T, &'a T)> + 'a> {
+    if is_closed {
+        curr_next_loop_iter(v)
+    } else {
+        curr_next_no_loop_iter(v)
+    }
+}

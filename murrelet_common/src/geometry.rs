@@ -855,3 +855,20 @@ pub fn poly_area_signed(r: &[Vec2]) -> f32 {
 pub fn poly_area_unsigned(r: &[Vec2]) -> f32 {
     poly_area_signed(r).abs()
 }
+
+
+pub fn point_in_polygon(pts: &[Vec2], p: Vec2) -> bool {
+    let n = pts.len();
+    let mut inside = false;
+    let mut j = n - 1;
+    for i in 0..n {
+        let (pi, pj) = (pts[i], pts[j]);
+        if (pi.y > p.y) != (pj.y > p.y)
+            && p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x
+        {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
+}
