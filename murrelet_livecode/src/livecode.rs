@@ -1204,40 +1204,13 @@ macro_rules! livecode_default {
                 $value
             }
 
-            fn $name() -> [<Control $ty>] {
+            pub fn $name() -> [<Control $ty>] {
                 [<$name _val>]().to_control()
             }
 
-            fn [<$name _lazy>]() -> [<ControlLazy $ty>] {
+            pub fn [<$name _lazy>]() -> [<ControlLazy $ty>] {
                 [<$name _val>]().to_control_lazy()
             }
         }
     };
 }
-// macro_rules! list_default {
-//     ($field:ident: $elem:ident = $default:expr) => {
-//         murrelet_livecode::paste::paste! {
-//             fn [<$field >]()
-//                 -> Vec<murrelet_livecode::types::ControlVecElement<[<Control $elem>]>>
-//             {
-//                 ($default)
-//                     .into_iter()
-//                     .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
-//                     .collect()
-//             }
-
-//             fn [<$field _to_lazy>]()
-//                 -> Vec<murrelet_livecode::types::DeserLazyControlVecElement<[<ControlLazy $elem>]>>
-//             {
-//                 ($default)
-//                     .into_iter()
-//                     .map(|x| murrelet_livecode::types::DeserLazyControlVecElement::raw(x.to_control_lazy()))
-//                     .collect()
-//             }
-//         }
-//     };
-
-//     ($field:ident: $elem:ident) => {
-//         $crate::list_default!($field: $elem = Vec::new());
-//     };
-// }
