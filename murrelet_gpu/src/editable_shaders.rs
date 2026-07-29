@@ -200,11 +200,7 @@ pub trait CustomShaderString: Sized {
     }
 }
 
-// State holder for a sketch's live-uploadable shader(s). Owns the currently-built
-// shaders (for change detection) plus a `needs_init` flag the windowed harness reads
-// to force one feedback re-seed after a full (re)build. A live shader edit is applied
-// in place via `GraphicsRefCustom::update_shader` (keeping the feedback textures), so
-// the accumulation continues instead of flashing; a full rebuild is the opt-in clear.
+
 pub struct CustomShaderState<S: CustomShaderString> {
     built: S,
     needs_init: std::cell::Cell<bool>,
@@ -222,22 +218,14 @@ impl<S: CustomShaderString + PartialEq> CustomShaderState<S> {
         &self.built
     }
 
-    // Read-and-clear the "freshly (re)built, re-seed feedback next frame" flag. The
-    // windowed harness ORs this into `global_reset` in `render_in`.
     pub fn take_needs_init(&self) -> bool {
         self.needs_init.replace(false)
     }
 
-    // Mark that the feedback should be re-seeded next frame (the opt-in clear).
     pub fn mark_needs_init(&self) {
         self.needs_init.set(true);
     }
 
-    // If `candidate` differs from the current built shaders AND parses (naga), hand it
-    // to `apply` — the sketch hot-swaps each shader into its pipeline via
-    // `GraphicsRefCustom::update_shader` — then record it as the new built. Returns
-    // whether a swap happened. A shader that doesn't parse keeps the last good one on
-    // screen (naga prints the error; `built` is left untouched).
     pub fn swap_if_changed<VertexKind: GraphicsVertex>(
         &mut self,
         candidate: S,
@@ -254,7 +242,6 @@ impl<S: CustomShaderString + PartialEq> CustomShaderState<S> {
         true
     }
 
-    // Build the candidate from config `ShaderStrings` first (a missing shader keeps the
     // old one), then `swap_if_changed`.
     pub fn swap_if_changed_from<VertexKind: GraphicsVertex>(
         &mut self,
@@ -267,12 +254,6 @@ impl<S: CustomShaderString + PartialEq> CustomShaderState<S> {
         }
     }
 
-    // For sketches that rebuild the WHOLE graphic on a shader change instead of
-    // hot-swapping in place (e.g. when a shader drives a compute pipeline that has no
-    // in-place swap, and there's no feedback accumulation to preserve): a non-mutating
-    // predicate for the `needs_rebuild` hook. True when `force` or the candidate
-    // differs from the current built shaders, AND it parses (naga) — so a typo keeps
-    // the last good graphic. The rebuilt graphic constructs a fresh state.
     pub fn should_full_rebuild<VertexKind: GraphicsVertex>(
         &self,
         candidate: &S,
@@ -285,9 +266,6 @@ impl<S: CustomShaderString + PartialEq> CustomShaderState<S> {
     }
 }
 
-// Shortcut `CustomShaderString` for a sketch with a single fragment shader (the
-// `build_shader!` form), so it doesn't have to hand-write a strings struct. Holds the
-// BUILT shader string; build it from raw config text with `SingleShader::build`.
 #[derive(Clone, PartialEq)]
 pub struct SingleShader(String);
 impl SingleShader {
