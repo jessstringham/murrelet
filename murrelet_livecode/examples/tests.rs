@@ -167,3 +167,109 @@ pub struct NewTypeWithStructLazy(LazyBasicTypes);
 // }
 
 fn main() {}
+
+#[cfg(test)]
+mod nestedit_container_tests {
+    use super::*;
+    use murrelet_livecode::nestedit::{NestEditable, NestedMod};
+
+    fn mods(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    fn apply<T: NestEditable>(x: &T, pairs: &[(&str, &str)]) -> T {
+        let m = mods(pairs);
+        x.nest_update(NestedMod::from_dict(&m))
+    }
+
+    fn sample() -> BasicTypesWithDefaults {
+        BasicTypesWithDefaults {
+            something: vec![1.0, 2.0, 3.0],
+            list_of_vec2: vec![vec2(0.0, 0.0), vec2(5.0, 6.0)],
+            label: "hi".to_owned(),
+            b: mods(&[("k", "v"), ("other", "w")]),
+            list_test: vec![
+                BasicTypes {
+                    a_number: 1.0,
+                    ..Default::default()
+                },
+                BasicTypes {
+                    a_number: 2.0,
+                    option_f32: Some(7.0),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        }
+    }
+
+    // BUG-M316: these all used to silently return the original value.
+    #[test]
+    fn vec_of_primitives() {
+        let got = apply(&sample(), &[("something.1", "9.5")]);
+        assert_eq!(got.something, vec![1.0, 9.5, 3.0]);
+    }
+
+    #[test]
+    fn vec_of_structs_reaches_nested_leaf() {
+        let got = apply(&sample(), &[("list_test.1.a_number", "9.5")]);
+        assert_eq!(got.list_test[0].a_number, 1.0, "sibling untouched");
+        assert_eq!(got.list_test[1].a_number, 9.5);
+    }
+
+    #[test]
+    fn vec_of_structs_reaches_through_a_second_container() {
+        let got = apply(&sample(), &[("list_test.0.list_of_vec2.0.x", "4")]);
+        assert_eq!(got.list_test[0].list_of_vec2, Vec::<Vec2>::new());
+
+        let mut base = sample();
+        base.list_test[0].list_of_vec2 = vec![vec2(1.0, 2.0)];
+        let got = apply(&base, &[("list_test.0.list_of_vec2.0.x", "4")]);
+        assert_eq!(got.list_test[0].list_of_vec2[0], vec2(4.0, 2.0));
+    }
+
+    #[test]
+    fn vec_of_vec2_subfields() {
+        let got = apply(&sample(), &[("list_of_vec2.1.y", "8")]);
+        assert_eq!(got.list_of_vec2[1], vec2(5.0, 8.0));
+        assert_eq!(got.list_of_vec2[0], vec2(0.0, 0.0));
+    }
+
+    #[test]
+    fn option_is_transparent() {
+        let got = apply(&sample(), &[("list_test.1.option_f32", "3.5")]);
+        assert_eq!(got.list_test[1].option_f32, Some(3.5));
+        // None stays None — there's nothing to descend into.
+        assert_eq!(got.list_test[0].option_f32, None);
+    }
+
+    #[test]
+    fn hashmap_keys() {
+        let got = apply(&sample(), &[("b.k", "changed")]);
+        assert_eq!(got.b.get("k").unwrap(), "changed");
+        assert_eq!(got.b.get("other").unwrap(), "w");
+    }
+
+    #[test]
+    fn unmatched_path_is_a_noop_not_a_panic() {
+        let got = apply(&sample(), &[("something.99", "1"), ("b.nope", "1")]);
+        assert_eq!(got.something, vec![1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn get_round_trips_the_write() {
+        let got = apply(&sample(), &[("list_test.1.a_number", "9.5")]);
+        assert_eq!(got.nest_getter("list_test.1.a_number").unwrap(), "9.5");
+        assert_eq!(got.nest_getter("list_of_vec2.1.y").unwrap(), "6");
+        assert_eq!(got.nest_getter("b.k").unwrap(), "\"v\"");
+    }
+
+    #[test]
+    fn get_out_of_range_index_errors_instead_of_panicking() {
+        assert!(sample().nest_getter("something.99").is_err());
+        assert!(sample().nest_getter("something.notanumber").is_err());
+    }
+}

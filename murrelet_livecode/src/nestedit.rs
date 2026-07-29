@@ -330,32 +330,78 @@ impl NestEditable for LazyNodeF32 {
     }
 }
 
+// Containers consume one path segment (index for Vec, stringified key for
+// HashMap) and hand the rest to the element. Option is transparent.
 impl<T: NestEditable + Clone> NestEditable for Vec<T> {
-    fn nest_update(&self, _mods: NestedMod) -> Self {
-        self.clone() // noop
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        self.iter()
+            .enumerate()
+            .map(|(i, x)| x.nest_update(mods.next_loc(&i.to_string())))
+            .collect()
     }
 
-    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
-        Err(LivecodeError::NestGetExtra("Vec<T>".to_owned())) // maybe in the future!
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [num, rest @ ..] => {
+                let index = num.parse::<usize>().map_err(|_| {
+                    LivecodeError::NestGetExtra(format!("at a vec, but got {}", num))
+                })?;
+                self.get(index)
+                    .ok_or_else(|| {
+                        LivecodeError::NestGetExtra(format!(
+                            "vec index {} out of range (len {})",
+                            index,
+                            self.len()
+                        ))
+                    })?
+                    .nest_get(rest)
+            }
+            [] => Err(LivecodeError::NestGetExtra(
+                "at a vec, expected an index".to_owned(),
+            )),
+        }
     }
 }
 
 impl<T: NestEditable + Clone> NestEditable for Option<T> {
-    fn nest_update(&self, _mods: NestedMod) -> Self {
-        self.clone() // noop
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        self.as_ref().map(|x| x.nest_update(mods))
     }
 
-    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
-        Err(LivecodeError::NestGetExtra("Option<T>".to_owned())) // maybe in the future!
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match self {
+            Some(x) => x.nest_get(getter),
+            None => Ok("".to_owned()),
+        }
     }
 }
 
-impl<K: Clone, V: Clone> NestEditable for HashMap<K, V> {
-    fn nest_update(&self, _mods: NestedMod) -> Self {
-        self.clone() // noop
+impl<K, V> NestEditable for HashMap<K, V>
+where
+    K: Clone + Eq + std::hash::Hash + std::fmt::Display,
+    V: NestEditable + Clone,
+{
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        self.iter()
+            .map(|(k, v)| (k.clone(), v.nest_update(mods.next_loc(&k.to_string()))))
+            .collect()
     }
 
-    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
-        Err(LivecodeError::NestGetExtra("HashMap".to_owned())) // maybe in the future!
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [key, rest @ ..] => self
+                .iter()
+                .find(|(k, _)| k.to_string() == *key)
+                .map(|(_, v)| v.nest_get(rest))
+                .unwrap_or_else(|| {
+                    Err(LivecodeError::NestGetExtra(format!(
+                        "no key {} in hashmap",
+                        key
+                    )))
+                }),
+            [] => Err(LivecodeError::NestGetExtra(
+                "at a hashmap, expected a key".to_owned(),
+            )),
+        }
     }
 }

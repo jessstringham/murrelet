@@ -281,11 +281,11 @@ impl GenFinal for FieldTokensNestEdit {
         };
 
         let for_nestedit_get = quote! {
-            [#name_str, rest @ ..] => Err(murrelet_livecode::types::LivecodeError::NestGetExtra("string".to_owned()))
+            [#name_str, rest @ ..] => self.#name.nest_get(rest)
         };
 
         let for_nestedit_get_newtype = quote! {
-            _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra("string".to_owned()))
+            _ => self.#name.nest_get(getter)
         };
 
         FieldTokensNestEdit {
@@ -361,33 +361,22 @@ impl GenFinal for FieldTokensNestEdit {
     }
 
     // v: Vec<f32>
+    // The index segment is consumed by `impl NestEditable for Vec<T>`, so this
+    // is just an ordinary recurse.
     fn from_recurse_struct_vec(idents: StructIdents) -> FieldTokensNestEdit {
         let name = idents.name();
         let yaml_name = name.to_string();
 
-        let for_nestedit = {
-            // todo, just clone for now
-            quote! {
-                #name: self.#name.clone()
-            }
+        let for_nestedit = quote! {
+            #name: self.#name.nest_update(mods.next_loc(#yaml_name))
         };
 
         let for_nestedit_get = quote! {
-            [#yaml_name, num, rest @ ..] => {
-                match num.parse::<usize>() {
-                    Ok(index) => self.#name[index].nest_get(rest),
-                    Err(_) => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("couldn't parse as num {}", num)))
-                }
-            }
+            [#yaml_name, rest @ ..] => self.#name.nest_get(rest)
         };
 
         let for_nestedit_get_newtype = quote! {
-            [num, rest @ ..] => {
-                match num.parse::<usize>() {
-                    Ok(index) => self.0[index].nest_get(rest),
-                    Err(_) => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("couldn't parse as num {}", num)))
-                }
-            }
+            _ => self.#name.nest_get(getter)
         };
 
         FieldTokensNestEdit {
@@ -401,11 +390,8 @@ impl GenFinal for FieldTokensNestEdit {
 
     // i don't remember what this is...
     fn from_newtype_recurse_struct_vec(_idents: StructIdents) -> Self {
-        let for_nestedit = {
-            // todo, just clone for now
-            quote! {
-                self.0.clone()
-            }
+        let for_nestedit = quote! {
+            self.0.nest_update(mods)
         };
 
         let for_nestedit_get = quote! {
@@ -413,12 +399,7 @@ impl GenFinal for FieldTokensNestEdit {
         };
 
         let for_nestedit_get_newtype = quote! {
-            [num, rest @ ..] => {
-                match num.parse::<usize>() {
-                    Ok(index) => self.0[index].nest_get(rest),
-                    Err(_) => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("couldn't parse as num {}", num)))
-                }
-            }
+            _ => self.0.nest_get(getter)
         };
 
         FieldTokensNestEdit {
