@@ -1,5 +1,5 @@
 use geo::Coord;
-use glam::Vec2;
+use glam::{Vec2, vec2};
 
 pub fn glam_to_lyon(v: Vec2) -> lyon::math::Point {
     lyon::math::point(v.x, v.y)
@@ -16,7 +16,10 @@ pub fn glam_to_geo(v: Vec2) -> Coord<f64> {
     }
 }
 
-
 pub fn glam_to_geo_pt(v: Vec2) -> geo::Point {
     geo::Point::from(glam_to_geo(v))
+}
+
+pub fn lyon_to_glam(v: lyon::math::Point) -> Vec2 {
+    vec2(v.x, v.y)
 }

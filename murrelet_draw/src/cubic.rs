@@ -140,13 +140,17 @@ impl CubicBezier {
         }
     }
 
-    pub fn approx_length(&self) -> f32 {
-        let lyon_cubic = lyon::geom::CubicBezierSegment {
+    pub fn to_lyon(&self) -> lyon::geom::CubicBezierSegment<f32> {
+        lyon::geom::CubicBezierSegment {
             from: glam_to_lyon(self.from),
             ctrl1: glam_to_lyon(self.ctrl1),
             ctrl2: glam_to_lyon(self.ctrl2),
             to: glam_to_lyon(self.to),
-        };
+        }
+    }
+
+    pub fn approx_length(&self) -> f32 {
+        let lyon_cubic = self.to_lyon();
         lyon_cubic.approximate_length(0.1)
     }
 
