@@ -494,10 +494,50 @@ impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex
 {
     fn render(&self, device_state_for_render: &DeviceStateForRender) {
         // write source to pipeline source
+
         self.source.render(
             device_state_for_render.device_state(),
             &self.pipeline.source(),
         );
+
+        self.pipeline.render(device_state_for_render);
+    }
+
+    fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        self.pipeline.debug_print()
+    }
+
+    fn dest_view(&self) -> Option<wgpu::TextureView> {
+        Some(self.dest.texture_view())
+    }
+
+    fn dest_view_other(&self) -> Option<wgpu::TextureView> {
+        self.dest.texture_view_other()
+    }
+}
+
+pub struct SourcelessPipelineRender<GraphicsConf, VertexKindDest: GraphicsVertex> {
+    pub pipeline: GPUPipelineRef<GraphicsConf>,
+    pub dest: GraphicsRefCustom<VertexKindDest>,
+}
+
+impl<GraphicsConf, VertexKindDest: GraphicsVertex>
+    SourcelessPipelineRender<GraphicsConf, VertexKindDest>
+{
+    pub fn new_box(
+        pipeline: GPUPipelineRef<GraphicsConf>,
+        dest: GraphicsRefCustom<VertexKindDest>,
+    ) -> Box<Self> {
+        Box::new(Self {
+            pipeline,
+            dest,
+        })
+    }
+}
+impl<GraphicsConf, VertexKindDest: GraphicsVertex> RenderTrait
+    for SourcelessPipelineRender<GraphicsConf, VertexKindDest>
+{
+    fn render(&self, device_state_for_render: &DeviceStateForRender) {
         self.pipeline.render(device_state_for_render);
     }
 
@@ -1028,6 +1068,23 @@ macro_rules! build_shader_pipeline {
                 )
             );
             pipeline_add_label!($pipeline, $source);
+            pipeline_add_label!($pipeline, $dest);
+
+            build_shader_pipeline!(@parse $pipeline ($($tail)*));
+        }
+    };
+
+    // no source pipeline
+    (@parse $pipeline:ident ($subpipe:ident => $dest:ident;$($tail:tt)*)) => {
+        {
+            println!("add pipeline");
+            let $dest = $subpipe.out().clone();
+            $pipeline.add_step(
+                SourcelessPipelineRender::new_box(
+                    $subpipe.gpu_pipeline(),
+                    $dest.graphics()
+                )
+            );
             pipeline_add_label!($pipeline, $dest);
 
             build_shader_pipeline!(@parse $pipeline ($($tail)*));
