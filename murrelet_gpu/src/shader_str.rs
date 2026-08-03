@@ -387,6 +387,23 @@ fn toroid_noise(r1: f32, r2: f32, xy: vec2<f32>) -> f32 {
   let rn = noise3(torus_coords);
   return rn;
 }
+
+
+fn is_about_eq(src: f32, tgt: f32) -> bool {
+  return abs(src - tgt) < 0.5;
+}
+
+fn is_about_eq_f32(src: f32, tgt: f32) -> f32 {
+  return f32(is_about_eq(src, tgt));
+}
+
+fn is_eq_eps(src: f32, tgt: f32, eps: f32) -> bool {
+  return abs(src - tgt) < eps;
+}
+
+fn is_eq_eps_f32(src: f32, tgt: f32, eps: f32) -> f32 {
+  return f32(is_eq_eps(src, tgt, eps));
+}
 "#;
 
 pub const VERTEX_SHADER: &str = "
