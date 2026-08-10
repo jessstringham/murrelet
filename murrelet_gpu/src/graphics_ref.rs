@@ -47,7 +47,15 @@ pub trait GraphicsVertex: NoUninit + Copy + Clone + std::fmt::Debug + 'static {
     }
 
     fn fragment_prefix() -> &'static str;
+
+    /// Must line up with the `@location(..)` inputs of `vertex_shader()`.
+    fn vertex_attrs() -> &'static [wgpu::VertexAttribute] {
+        &DEFAULT_VERTEX_ATTRS
+    }
 }
+
+pub const DEFAULT_VERTEX_ATTRS: [wgpu::VertexAttribute; 3] =
+    wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
 
 impl GraphicsVertex for DefaultVertex {
     fn vertex_shader() -> &'static str {
@@ -863,7 +871,8 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         let mut bind_group_layout_entries = Vec::new();
         bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding: 0_u32, // needs to line up with @group(0) @binding(1)
-            visibility: wgpu::ShaderStages::FRAGMENT,
+            // VERTEX too, so a vertex shader can textureLoad its own input
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
             ty: wgpu::BindingType::Texture {
                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 view_dimension: wgpu::TextureViewDimension::D2,
@@ -897,7 +906,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         // and finally the uniforms
         bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding: bind_group_offset + 2,
-            visibility: wgpu::ShaderStages::FRAGMENT,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
@@ -1031,9 +1040,9 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         let pipeline_layout = Graphics::<VertexKind>::_pipeline_layout(device, bind_group_layout);
 
         let vertex_buffer_layouts = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<DefaultVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<VertexKind>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+            attributes: VertexKind::vertex_attrs(),
         };
 
         let primitive = wgpu::PrimitiveState {
@@ -1257,9 +1266,9 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
             // needs to be same
             let vertex_buffer_layouts = wgpu::VertexBufferLayout {
-                array_stride: std::mem::size_of::<DefaultVertex>() as wgpu::BufferAddress,
+                array_stride: std::mem::size_of::<VertexKind>() as wgpu::BufferAddress,
                 step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                attributes: VertexKind::vertex_attrs(),
             };
 
             let shadow_pipeline_layout =
