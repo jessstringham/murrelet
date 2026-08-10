@@ -47,7 +47,8 @@ struct Uniforms {
 
 // from JFA_SEED_CODEC_WGSL
 fn jfa_unpack_seed(p: vec4<f32>) -> vec2<f32> {
-    return vec2<f32>(p.x + p.y * (1.0 / 64.0), p.z + p.w * (1.0 / 64.0));
+    let lo = (vec2<f32>(p.y, p.w) - 0.5) * 2.0;
+    return vec2<f32>(p.x, p.z) + lo * (1.0 / 64.0);
 }
 
 struct VertexOutput {
@@ -197,29 +198,58 @@ fn luma(rgb: vec3<f32>) -> f32 {
   return pow(l, 1.0 / 2.2);
 }
 
-fn rand(n: f32) -> f32 { return fract(sin(n) * 43758.5453123); }
+// Hashes, all PCG (Jarzynski & Olano, "Hash Functions for GPU Rendering"). Integer
+// arithmetic, so unlike the fract()-of-a-big-float hashes these lose nothing to float
+// precision.
+//
+// Every hash here used to end in fract() of a large value, which caps the output at the
+// f32 ULP of that magnitude: hash22 fracted ~5000 (ULP 4.9e-4, ~25k distinct values no
+// matter how many inputs), rand/rand2 fracted up to ~43758 (ULP 3.9e-3, ~7.2k measured).
+// Worse than coarse, the levels are log-spaced, so anything that round-trips a value
+// through a hash or through the JFA seed codec accumulates onto the lattice -- that is
+// what put a 1/64-pitch grid in textureparticles.
+//
+// Shrinking the magnitude with an intermediate fract() does fix distinctness, but the
+// wrapping is exactly what those hashes rely on to uniformise: doing that to hash22 took
+// chi2/dof from 1.0 to 310. Integer mixing gets distinctness and uniformity together.
+fn pcg(v_in: u32) -> u32 {
+  let state = v_in * 747796405u + 2891336453u;
+  let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+  return (word >> 22u) ^ word;
+}
+
+fn pcg2d(v_in: vec2<u32>) -> vec2<u32> {
+  var v = v_in * 1664525u + 1013904223u;
+  v.x = v.x + v.y * 1664525u;
+  v.y = v.y + v.x * 1476376679u;
+  v = v ^ (v >> vec2<u32>(16u));
+  v.x = v.x + v.y * 1664525u;
+  v.y = v.y + v.x * 1476376679u;
+  v = v ^ (v >> vec2<u32>(16u));
+  return v;
+}
+
+fn hash22(p: vec2<f32>) -> vec2<f32> {
+  let h = pcg2d(bitcast<vec2<u32>>(p));
+  return vec2<f32>(h) * (1.0 / 4294967296.0);
+}
+
+fn hash21(p: vec2<f32>) -> f32 {
+  return hash22(p).x;
+}
+
+fn rand(n: f32) -> f32 {
+  return f32(pcg(bitcast<u32>(n))) * (1.0 / 4294967296.0);
+}
+
+fn rand2(n: vec2<f32>) -> f32 {
+  return hash22(n).x;
+}
+
 fn noise(p: f32) -> f32 {
   let fl = floor(p);
   let fc = fract(p);
   return mix(rand(fl), rand(fl + 1.), fc);
-}
-
-fn rand2(n: vec2<f32>) -> f32 {
-  return fract(sin(dot(n, vec2<f32>(12.9898, 4.1414))) * 43758.5453);
-}
-
-  // more things
-  fn hash21(p: vec2<f32>) -> f32 {
-  // Dave-Hoskins style
-  let p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
-  let p3x = p3.x + dot(p3, p3.yzx + 33.33);
-  return fract((p3x + p3.y) * p3.z);
-}
-
-fn hash22(p: vec2<f32>) -> vec2<f32> {
-  var p3 = fract(vec3<f32>(p.x, p.y, p.x) * vec3<f32>(.1031,.1030,.0973),);
-  p3 = p3 + dot(p3, p3.yzx + 33.33);
-  return fract((p3.xx + p3.yz) * p3.zy);
 }
 
 // i don't know where this went
