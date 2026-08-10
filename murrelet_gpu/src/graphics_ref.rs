@@ -118,20 +118,15 @@ impl VertexUniforms {
         bytemuck::bytes_of(self)
     }
 
-    fn uniforms_size(&self) -> u64 {
-        std::mem::size_of::<Self>() as wgpu::BufferAddress
-    }
-
     fn write_buffer(&self, dest: &wgpu::Buffer, queue: &wgpu::Queue) {
         queue.write_buffer(dest, 0, self.as_bytes());
     }
 
     fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer(&wgpu::BufferDescriptor {
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("view and light proj buffer for 3d vertex shader"),
-            size: self.uniforms_size(),
+            contents: self.as_bytes(),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
         })
     }
 }
@@ -310,7 +305,6 @@ pub struct GraphicsCreator<VertexKind> {
     first_texture: TextureCreator,
     second_texture: Option<TextureCreator>,
     details: ShaderOptions,
-    color_blend: wgpu::BlendComponent,
     dst_texture: TextureCreator,
     input_vertex: InputVertexConf<VertexKind>, // defaults to the square
     blend_state: wgpu::BlendState,
@@ -326,7 +320,6 @@ impl Default for GraphicsCreator<DefaultVertex> {
                 wgpu::FilterMode::Linear,
                 wgpu::AddressMode::ClampToEdge,
             ),
-            color_blend: wgpu::BlendComponent::REPLACE,
             dst_texture: TextureCreator {
                 format: DEFAULT_TEXTURE_FORMAT,
             },
@@ -362,7 +355,6 @@ impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
                 wgpu::FilterMode::Linear,
                 wgpu::AddressMode::ClampToEdge,
             ),
-            color_blend: wgpu::BlendComponent::REPLACE,
             dst_texture: TextureCreator {
                 format: DEFAULT_TEXTURE_FORMAT,
             },
@@ -409,7 +401,7 @@ impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
     }
 
     pub fn with_color_blend(mut self, blend: wgpu::BlendComponent) -> Self {
-        self.color_blend = blend;
+        self.blend_state.color = blend;
         self
     }
 
@@ -429,9 +421,9 @@ impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
         name: &str,
         fs_shader: &str,
     ) -> GraphicsRefCustom<VertexKind> {
-        if self.color_blend != wgpu::BlendComponent::REPLACE
-            && self.dst_texture.format == wgpu::TextureFormat::Rgba32Float
-        {
+        let blends = self.blend_state.color != wgpu::BlendComponent::REPLACE
+            || self.blend_state.alpha != wgpu::BlendComponent::REPLACE;
+        if blends && self.dst_texture.format == wgpu::TextureFormat::Rgba32Float {
             panic!("can't blend with float32 textures");
         }
 

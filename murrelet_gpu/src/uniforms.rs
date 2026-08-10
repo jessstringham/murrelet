@@ -7,6 +7,8 @@ use wgpu_for_nannou as wgpu;
 #[cfg(not(feature = "nannou"))]
 use wgpu_for_latest as wgpu;
 
+use wgpu::util::DeviceExt;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct BasicUniform {
@@ -73,16 +75,11 @@ impl BasicUniform {
         bytemuck::bytes_of(self)
     }
 
-    fn uniforms_size(&self) -> u64 {
-        std::mem::size_of::<Self>() as wgpu::BufferAddress
-    }
-
     pub fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer(&wgpu::BufferDescriptor {
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            size: self.uniforms_size(),
+            contents: self.as_bytes(),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
         })
     }
 }
@@ -157,16 +154,11 @@ impl BonusUniform {
         bytemuck::bytes_of(self)
     }
 
-    fn uniforms_size(&self) -> u64 {
-        std::mem::size_of::<Self>() as wgpu::BufferAddress
-    }
-
     pub fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer(&wgpu::BufferDescriptor {
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            size: self.uniforms_size(),
+            contents: self.as_bytes(),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
         })
     }
 }

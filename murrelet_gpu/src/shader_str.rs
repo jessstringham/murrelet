@@ -4,7 +4,7 @@ pub const SUFFIX: &str = r#"
 "#;
 
 pub const COMPUTE_TEX: &str = r#"
-struct BasicUniform {
+struct Uniforms {
     dims: vec4<f32>,
     more_info: vec4<f32>,
     more_info_other: vec4<f32>,
@@ -14,7 +14,7 @@ struct BasicUniform {
 @group(0) @binding(0) var<storage, read>       input_data   : array<Input>;
 @group(0) @binding(1) var<storage, read>       cell_offsets : array<u32>;
 @group(0) @binding(2) var<storage, read>       cell_indices : array<u32>;
-@group(0) @binding(3) var<uniform>             uniforms     : BasicUniform;
+@group(0) @binding(3) var<uniform>             uniforms     : Uniforms;
 
 @group(0) @binding(4) var                      out_img      : texture_storage_2d<rgba16float, write>;
 
@@ -31,6 +31,53 @@ fn cell_id(uv: vec2<f32>, Nx: u32, Ny: u32) -> u32 {
   let xy = clamp(vec2<u32>(floor(uv * vec2<f32>(f32(Nx), f32(Ny)))),
                  vec2<u32>(0u), vec2<u32>(Nx - 1u, Ny - 1u));
   return xy.y * Nx + xy.x;
+}
+"#;
+
+pub const PARTICLE_VS: &str = r#"
+struct Uniforms {
+    dims: vec4<f32>,
+    more_info: vec4<f32>,
+    more_info_other: vec4<f32>,
+};
+
+// --- bindings ---
+@group(0) @binding(0) var t_state: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+// from JFA_SEED_CODEC_WGSL
+fn jfa_unpack_seed(p: vec4<f32>) -> vec2<f32> {
+    return vec2<f32>(p.x + p.y * (1.0 / 64.0), p.z + p.w * (1.0 / 64.0));
+}
+
+struct VertexOutput {
+  @location(0) tex_coords: vec2<f32>,
+  @location(1) world_pos: vec4<f32>,
+  @location(2) normal: vec3<f32>,
+  @location(3) light_space_pos: vec4<f32>,
+  @location(4) world_pos_3: vec3<f32>,
+  @builtin(position) out_pos: vec4<f32>,
+};
+
+@vertex
+fn main(@location(0) idx: u32, @location(1) corner: vec2<f32>) -> VertexOutput {
+  let dims  = textureDimensions(t_state);
+  let texel = vec2<i32>(i32(idx % dims.x), i32(idx / dims.x));
+  let uv    = jfa_unpack_seed(textureLoad(t_state, texel, 0));
+
+  let size = uniforms.more_info.x;
+  let ndc  = vec2<f32>(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0) + corner * size * 2.0;
+
+  let live = f32(idx) < uniforms.more_info.y;
+  let pos  = select(vec2<f32>(2.0, 2.0), ndc, live);
+
+  return VertexOutput(
+    vec2<f32>(0.0),
+    vec4<f32>(corner, 0.0, 0.0),
+    vec3<f32>(0.0),
+    vec4<f32>(0.0),
+    vec3<f32>(0.0),
+    vec4<f32>(pos, 0.0, 1.0));
 }
 "#;
 
@@ -170,7 +217,7 @@ fn rand2(n: vec2<f32>) -> f32 {
 }
 
 fn hash22(p: vec2<f32>) -> vec2<f32> {
-  var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
+  var p3 = fract(vec3<f32>(p.x, p.y, p.x) * vec3<f32>(.1031,.1030,.0973),);
   p3 = p3 + dot(p3, p3.yzx + 33.33);
   return fract((p3.xx + p3.yz) * p3.zy);
 }
