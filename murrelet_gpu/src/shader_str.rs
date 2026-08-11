@@ -229,6 +229,7 @@ fn pcg2d(v_in: vec2<u32>) -> vec2<u32> {
   return v;
 }
 
+// range?
 fn hash22(p: vec2<f32>) -> vec2<f32> {
   let h = pcg2d(bitcast<vec2<u32>>(p));
   return vec2<f32>(h) * (1.0 / 4294967296.0);
@@ -251,6 +252,14 @@ fn noise(p: f32) -> f32 {
   let fc = fract(p);
   return mix(rand(fl), rand(fl + 1.), fc);
 }
+
+fn sampleGaussBoxMuller(u: vec2<f32>,  mean: f32, standardDeviation: f32) -> vec2<f32> {
+    let a: f32 = standardDeviation * pow(-2.0 * log(1.0 - u.x), 0.5);
+    let b: f32 = 2.0 * 3.1415926535 * u.y;
+
+    return vec2<f32>(cos(b), sin(b)) * a + mean;
+}
+
 
 // i don't know where this went
 fn smoothStep(edge0: vec2<f32>, edge1: vec2<f32>, x: vec2<f32>) -> vec2<f32> {
@@ -581,7 +590,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   textureStore(out_img, vec2<i32>(i32(gid.x), i32(h) - 1 - i32(gid.y)), result);
 }
 "#;
-
 
 pub const COMPUTE_FORMAT_HEADER_STR: &str = r#"
   let w  = u32(uniforms.dims.x);
