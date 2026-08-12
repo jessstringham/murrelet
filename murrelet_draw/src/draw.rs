@@ -450,9 +450,9 @@ impl CoreSDrawCtxUnitCell {
 
     pub fn unit_cell_transform(&self) -> SimpleTransform2d {
         if self.unit_cell_skew {
-            self.unit_cell.transform_with_skew_mat4()
+            self.unit_cell.get_transform_with_skew()
         } else {
-            self.unit_cell.transform_no_skew_mat4()
+            self.unit_cell.get_transform_no_skew()
         }
     }
 
