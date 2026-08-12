@@ -913,6 +913,9 @@ pub fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
                 }
             }
         }
+        // macro_rules! wraps substituted :ty fragments in invisible delimiters
+        syn::Type::Group(g) => recursive_ident_from_path(&g.elem, acc),
+        syn::Type::Paren(p) => recursive_ident_from_path(&p.elem, acc),
         x => panic!("no name for type {:?}", x),
     }
 }

@@ -216,9 +216,18 @@ impl GenFinal for FieldTokensGUI {
     }
 }
 
+// macro_rules! wraps substituted :ty fragments in invisible delimiters
+fn strip_groups(ty: &syn::Type) -> &syn::Type {
+    match ty {
+        syn::Type::Group(g) => strip_groups(&g.elem),
+        syn::Type::Paren(p) => strip_groups(&p.elem),
+        _ => ty,
+    }
+}
+
 // we need to use turbofish to call an associated function
 fn convert_vec_type(ty: &syn::Type) -> TokenStream2 {
-    if let syn::Type::Path(type_path) = ty
+    if let syn::Type::Path(type_path) = strip_groups(ty)
         && let Some(last_segment) = type_path.path.segments.last()
         && last_segment.ident == "Vec"
         && let syn::PathArguments::AngleBracketed(angle_bracketed) = &last_segment.arguments
