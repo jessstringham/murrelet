@@ -4,7 +4,9 @@ use std::{collections::HashMap, f64::consts::PI, fmt::Debug, sync::Arc};
 use evalexpr::*;
 use glam::{Vec2, vec2};
 use itertools::Itertools;
-use murrelet_common::{IdxInRange, LivecodeValue, clamp, ease, lerp, map_range, smoothstep};
+use murrelet_common::{
+    IdxInRange, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range, smoothstep,
+};
 use noise::{NoiseFn, Perlin};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
@@ -274,14 +276,6 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = aa * (m * PI * x / a).cos() * (n * PI * y / a).cos() - bb * (n * PI * x / b).cos() * (m * PI * y / b).cos();
             Ok(Value::Float(f))
         }),
-        "len" => Function::new(move |argument| {
-            let tuple = argument.as_fixed_len_tuple(2)?;
-            let (x1, y1) = (
-                tuple[0].as_number()?, tuple[1].as_number()?,
-            );
-            let f = vec2(x1 as f32, y1 as f32).length();
-            Ok(Value::Float(f as f64))
-        }),
         "dist" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(4)?;
             let (x1, y1, x2, y2) = (
@@ -304,20 +298,20 @@ pub fn lc_val_to_expr(v: &LivecodeValue) -> Value {
 
 // simple mapping of values
 #[derive(Debug, Clone)]
-pub struct ExprWorldContextValues(HashMap<String, LivecodeValue>);
+pub struct ExprWorldContextValues(HashMap<StrId, LivecodeValue>);
 impl ExprWorldContextValues {
-    pub fn new(v: Vec<(String, LivecodeValue)>) -> Self {
-        Self(v.into_iter().collect())
+    pub fn new<S: ToStrId>(v: Vec<(S, LivecodeValue)>) -> Self {
+        Self(v.into_iter().map(|(x, v)| (x.to_strid(), v)).collect())
     }
 
     pub fn empty() -> Self {
-        Self::new(vec![])
+        Self::new::<StrId>(vec![])
     }
 
     pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
         for (identifier, value) in &self.0 {
             // todo, maybe handle the result here to help dev
-            ctx.set_value(identifier.to_owned(), lc_val_to_expr(value))
+            ctx.set_value(identifier.to_string(), lc_val_to_expr(value))
                 .map_err(|err| {
                     LivecodeError::EvalExpr(format!("error setting value {}", identifier), err)
                 })?;
@@ -325,10 +319,11 @@ impl ExprWorldContextValues {
         Ok(())
     }
 
-    pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
-        if self.0.contains_key(name) {
+    pub fn set_val<S: ToStrId>(&mut self, name: &S, val: LivecodeValue) {
+        let name = name.to_strid();
+        if self.0.contains_key(&name) {
             let re = Regex::new(r"^(.*?)(\d+)$").unwrap();
-            let new_name = if let Some(caps) = re.captures(name) {
+            let new_name = if let Some(caps) = re.captures(&name.to_string()) {
                 let base = caps.get(1).map_or("", |m| m.as_str());
                 let num = caps.get(2).map_or("0", |m| m.as_str());
                 let num: u32 = num.parse().unwrap_or(0);
@@ -336,21 +331,21 @@ impl ExprWorldContextValues {
             } else {
                 format!("{}_0", name)
             };
-            self.0.insert(new_name, val);
+            self.0.insert(new_name.to_strid(), val);
         } else {
-            self.0.insert(name.to_owned(), val);
+            self.0.insert(name.to_strid(), val);
         }
     }
 
     pub fn new_from_idx(idx: IdxInRange) -> Self {
         Self::new(vec![
-            ("i".to_string(), LivecodeValue::Int(idx.i() as i64)),
-            ("if".to_string(), LivecodeValue::Float(idx.i() as f64)),
-            ("pct".to_string(), LivecodeValue::Float(idx.pct() as f64)),
-            ("x".to_string(), LivecodeValue::Float(idx.pct() as f64)), // just in case i use the wrong one
-            ("total".to_string(), LivecodeValue::Int(idx.total() as i64)),
+            ("i".to_strid(), LivecodeValue::Int(idx.i() as i64)),
+            ("if".to_strid(), LivecodeValue::Float(idx.i() as f64)),
+            ("pct".to_strid(), LivecodeValue::Float(idx.pct() as f64)),
+            ("x".to_strid(), LivecodeValue::Float(idx.pct() as f64)), // just in case i use the wrong one
+            ("total".to_strid(), LivecodeValue::Int(idx.total() as i64)),
             (
-                "totalf".to_string(),
+                "totalf".to_strid(),
                 LivecodeValue::Float(idx.total() as f64),
             ),
         ])
@@ -358,8 +353,8 @@ impl ExprWorldContextValues {
 
     pub fn new_from_totaless_idx(idx: usize) -> Self {
         Self::new(vec![
-            ("i".to_string(), LivecodeValue::Int(idx as i64)),
-            ("if".to_string(), LivecodeValue::Float(idx as f64)),
+            ("i".to_strid(), LivecodeValue::Int(idx as i64)),
+            ("if".to_strid(), LivecodeValue::Float(idx as f64)),
         ])
     }
 
@@ -384,14 +379,14 @@ impl ExprWorldContextValues {
         new
     }
 
-    pub(crate) fn get_variable(&self, identifier: &str) -> Option<&LivecodeValue> {
+    pub(crate) fn get_variable(&self, identifier: &StrId) -> Option<&LivecodeValue> {
         self.0.get(identifier)
     }
 
-    pub(crate) fn to_vals(&self) -> Vec<(String, Value)> {
+    pub(crate) fn to_vals(&self) -> Vec<(StrId, Value)> {
         self.0
             .iter()
-            .map(|(k, v)| (k.clone(), lc_val_to_expr(v)))
+            .map(|(k, v)| (*k, lc_val_to_expr(v)))
             .collect_vec()
     }
 }
@@ -400,11 +395,14 @@ pub trait IntoExprWorldContext {
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues;
 }
 
-impl IntoExprWorldContext for Vec<(String, f32)> {
+impl<S> IntoExprWorldContext for Vec<(S, f32)>
+where
+    S: ToStrId,
+{
     fn as_expr_world_context_values(&self) -> ExprWorldContextValues {
         let v = self
             .iter()
-            .map(|(s, x)| (s.to_owned(), LivecodeValue::Float(*x as f64)))
+            .map(|(s, x)| (s.to_strid(), LivecodeValue::Float(*x as f64)))
             .collect();
         ExprWorldContextValues(v)
     }
@@ -484,9 +482,9 @@ impl ToMixedDefs for MixedEvalDefs {
     }
 }
 
-impl ToMixedDefs for (&str, LivecodeValue) {
+impl<S> ToMixedDefs for (S, LivecodeValue) where S: ToStrId {
     fn to_mixed_def(&self) -> MixedEvalDefsRef {
-        MixedEvalDefs::new_simple(self.0, self.1).to_mixed_def()
+        MixedEvalDefs::new_simple(&self.0, self.1).to_mixed_def()
     }
 }
 
@@ -534,7 +532,7 @@ impl Default for MixedEvalDefs {
 impl MixedEvalDefs {
     pub fn new() -> Self {
         Self {
-            vals: ExprWorldContextValues::new(vec![]),
+            vals: ExprWorldContextValues::empty(),
             nodes: Vec::new(),
         }
     }
@@ -560,8 +558,8 @@ impl MixedEvalDefs {
         Ok(())
     }
 
-    pub fn set_val(&mut self, name: &str, val: LivecodeValue) {
-        self.vals.set_val(name, val)
+    pub fn set_val<S: ToStrId>(&mut self, name: &S, val: LivecodeValue) {
+        self.vals.set_val(&name.to_strid(), val)
     }
 
     pub fn add_node(&mut self, node: AdditionalContextNode) {
@@ -579,7 +577,7 @@ impl MixedEvalDefs {
         c
     }
 
-    pub fn new_simple(name: &str, val: LivecodeValue) -> Self {
+    pub fn new_simple<S: ToStrId>(name: &S, val: LivecodeValue) -> Self {
         let mut c = Self::new();
         c.set_val(name, val);
         c
@@ -602,7 +600,7 @@ impl MixedEvalDefs {
         self
     }
 
-    pub fn with_val(mut self, prefix: &str, val: LivecodeValue) -> MixedEvalDefs {
+    pub fn with_val<S: ToStrId>(mut self, prefix: &S, val: LivecodeValue) -> MixedEvalDefs {
         self.set_val(prefix, val);
         self
     }

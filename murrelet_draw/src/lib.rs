@@ -1,13 +1,17 @@
 pub mod compass;
+pub mod convert;
 pub mod cubic;
 pub mod curve_drawer;
+pub mod curve_drawer_analysis;
 pub mod draw;
 pub mod drawable;
+pub mod line_spacing;
 pub mod newtypes;
 pub mod scaffold;
 pub mod sequencers;
 pub mod serialize;
 pub mod style;
 pub mod svg;
+pub mod svg_read;
 pub mod tesselate;
 pub mod transform2d;

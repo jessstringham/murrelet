@@ -16,7 +16,7 @@ thiserror = "2.0.11"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.48"
 
-glam = { version = "0.23", optional = true }
+glam = { version = "0.28.0", optional = true }
 
 [[example]]
 name = "tests"

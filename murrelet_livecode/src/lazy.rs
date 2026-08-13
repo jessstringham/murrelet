@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs},
     livecode::{
-        GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
-        LivecodeVariable,
+        ExprNode, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
+        LivecodeToControlLazy, LivecodeVariable,
     },
     nestedit::{NestEditable, NestedMod},
     state::{LivecodeWorldState, WorldWithLocalVariables},
@@ -12,13 +12,14 @@ use crate::{
 };
 use evalexpr::Node;
 
+use glam::Vec2;
 use itertools::Itertools;
 use lerpable::IsLerpingMethod;
 use lerpable::{Lerpable, step};
-use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor};
-use serde::Deserialize;
+use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor, MurreletString};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlLazyNodeF32 {
@@ -26,14 +27,30 @@ pub enum ControlLazyNodeF32 {
     Bool(bool),
     Float(f32),
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
-    Expr(Node),
+    Expr(ExprNode),
+}
+
+impl From<f32> for ControlLazyNodeF32 {
+    fn from(v: f32) -> Self {
+        ControlLazyNodeF32::Float(v)
+    }
+}
+impl From<i32> for ControlLazyNodeF32 {
+    fn from(v: i32) -> Self {
+        ControlLazyNodeF32::Int(v)
+    }
+}
+impl From<bool> for ControlLazyNodeF32 {
+    fn from(v: bool) -> Self {
+        ControlLazyNodeF32::Bool(v)
+    }
 }
 
 impl ControlLazyNodeF32 {
     pub const ZERO: Self = ControlLazyNodeF32::Float(0.0);
 
     pub fn new(n: Node) -> Self {
-        Self::Expr(n)
+        Self::Expr(ExprNode::from_node(n))
     }
 
     pub fn new_f32(n: f32) -> Self {
@@ -142,7 +159,9 @@ pub enum LazyNodeF32 {
 impl LazyNodeF32 {
     pub fn new(def: ControlLazyNodeF32, world: &LivecodeWorldState) -> Self {
         match def {
-            ControlLazyNodeF32::Expr(n) => Self::Node(LazyNodeF32Inner::new(n, world.clone())),
+            ControlLazyNodeF32::Expr(n) => {
+                Self::Node(LazyNodeF32Inner::new(n.node().clone(), world.clone()))
+            }
             _ => Self::NoCtxNode(def),
         }
     }
@@ -227,6 +246,13 @@ impl LazyNodeF32 {
 
         self.eval_with_ctx(&expr)
     }
+
+    fn new_func(x: &str) -> LazyNodeF32 {
+        LazyNodeF32::new(
+            ControlLazyNodeF32::Expr(ExprNode::from_src(x.to_string()).unwrap()),
+            &LivecodeWorldState::new_dummy(),
+        )
+    }
 }
 
 impl Lerpable for LazyNodeF32 {
@@ -305,6 +331,17 @@ impl LazyVec2 {
     pub fn new(x: LazyNodeF32, y: LazyNodeF32) -> Self {
         Self { x, y }
     }
+
+    pub fn from_vec2(v: Vec2) -> Self {
+        Self::new(
+            LazyNodeF32::simple_number(v.x),
+            LazyNodeF32::simple_number(v.y),
+        )
+    }
+
+    pub fn new_funcs(x: &str, y: &str) -> Self {
+        Self::new(LazyNodeF32::new_func(x), LazyNodeF32::new_func(y))
+    }
 }
 
 impl NestEditable for LazyVec2 {
@@ -317,7 +354,37 @@ impl NestEditable for LazyVec2 {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+impl NestEditable for LazyVec3 {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone()
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("LazyVec3".to_owned()))
+    }
+}
+
+impl NestEditable for LazyMurreletColor {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone()
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("LazyMurreletColor".to_owned()))
+    }
+}
+
+impl NestEditable for LazyMurreletString {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone()
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("LazyMurreletString".to_owned()))
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyVec2(Vec<ControlLazyNodeF32>);
 
@@ -354,6 +421,12 @@ impl LivecodeToControl<ControlLazyVec2> for LazyVec2 {
     }
 }
 
+impl LivecodeToControlLazy<ControlLazyVec2> for Vec2 {
+    fn to_control_lazy(&self) -> ControlLazyVec2 {
+        ControlLazyVec2::new(self.x.to_control_lazy(), self.y.to_control_lazy())
+    }
+}
+
 impl IsLazy for LazyVec2 {
     type Target = glam::Vec2;
 
@@ -382,7 +455,7 @@ impl LazyVec3 {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ControlLazyVec3(Vec<ControlLazyNodeF32>);
 impl LivecodeFromWorld<LazyVec3> for ControlLazyVec3 {
@@ -421,6 +494,16 @@ impl LivecodeToControl<ControlLazyVec3> for LazyVec3 {
     }
 }
 
+impl LivecodeToControlLazy<ControlLazyVec3> for glam::Vec3 {
+    fn to_control_lazy(&self) -> ControlLazyVec3 {
+        ControlLazyVec3(vec![
+            self.x.to_control_lazy(),
+            self.y.to_control_lazy(),
+            self.z.to_control_lazy(),
+        ])
+    }
+}
+
 impl IsLazy for LazyVec3 {
     type Target = glam::Vec3;
 
@@ -441,56 +524,154 @@ impl IsLazy for LazyVec3 {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LazyColorMode {
+    #[default]
+    Hsva,
+    Rgba,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct LazyMurreletColor {
-    h: LazyNodeF32,
-    s: LazyNodeF32,
-    v: LazyNodeF32,
+    mode: LazyColorMode,
+    c0: LazyNodeF32,
+    c1: LazyNodeF32,
+    c2: LazyNodeF32,
     a: LazyNodeF32,
 }
 
 impl LazyMurreletColor {
     pub fn new(h: LazyNodeF32, s: LazyNodeF32, v: LazyNodeF32, a: LazyNodeF32) -> Self {
-        Self { h, s, v, a }
+        Self {
+            mode: LazyColorMode::Hsva,
+            c0: h,
+            c1: s,
+            c2: v,
+            a,
+        }
+    }
+
+    pub fn new_rgba(r: LazyNodeF32, g: LazyNodeF32, b: LazyNodeF32, a: LazyNodeF32) -> Self {
+        Self {
+            mode: LazyColorMode::Rgba,
+            c0: r,
+            c1: g,
+            c2: b,
+            a,
+        }
+    }
+
+    pub fn white() -> Self {
+        Self::new(
+            LazyNodeF32::simple_number(0.0),
+            LazyNodeF32::simple_number(0.0),
+            LazyNodeF32::simple_number(1.0),
+            LazyNodeF32::simple_number(1.0),
+        )
+    }
+
+    pub fn black() -> Self {
+        Self::new(
+            LazyNodeF32::simple_number(0.0),
+            LazyNodeF32::simple_number(0.0),
+            LazyNodeF32::simple_number(0.0),
+            LazyNodeF32::simple_number(1.0),
+        )
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+// Same shape as the eager `ControlMurreletColor`: four numbers `[h, s, v, a]`,
+// or an `{rgb: [r, g, b], a}` map, each entry a lazy node.
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct ControlLazyMurreletColor(Vec<ControlLazyNodeF32>);
+#[serde(untagged)]
+pub enum ControlLazyMurreletColor {
+    Hsva(Vec<ControlLazyNodeF32>),
+    Rgba {
+        rgb: [ControlLazyNodeF32; 3],
+        a: ControlLazyNodeF32,
+    },
+    Gray {
+        gray: ControlLazyNodeF32,
+    },
+    Hue {
+        hue: ControlLazyNodeF32,
+    },
+}
+
+impl Default for ControlLazyMurreletColor {
+    fn default() -> Self {
+        ControlLazyMurreletColor::Hsva(Vec::new())
+    }
+}
 
 impl ControlLazyMurreletColor {
     pub fn new_default(h: f32, s: f32, v: f32, a: f32) -> Self {
-        ControlLazyMurreletColor(vec![
+        ControlLazyMurreletColor::Hsva(vec![
             ControlLazyNodeF32::new_f32(h),
             ControlLazyNodeF32::new_f32(s),
             ControlLazyNodeF32::new_f32(v),
             ControlLazyNodeF32::new_f32(a),
         ])
     }
+
+    fn nodes(&self) -> Vec<&ControlLazyNodeF32> {
+        match self {
+            ControlLazyMurreletColor::Hsva(hsva) => hsva.iter().collect(),
+            ControlLazyMurreletColor::Rgba { rgb, a } => {
+                rgb.iter().chain(std::iter::once(a)).collect()
+            }
+            ControlLazyMurreletColor::Gray { gray } => vec![gray],
+            ControlLazyMurreletColor::Hue { hue } => vec![hue],
+        }
+    }
 }
 
 impl LivecodeFromWorld<LazyMurreletColor> for ControlLazyMurreletColor {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyMurreletColor> {
-        Ok(LazyMurreletColor::new(
-            self.0[0].o(w)?,
-            self.0[1].o(w)?,
-            self.0[2].o(w)?,
-            self.0[3].o(w)?,
-        ))
+        match self {
+            ControlLazyMurreletColor::Hsva(hsva) => Ok(LazyMurreletColor::new(
+                hsva[0].o(w)?,
+                hsva[1].o(w)?,
+                hsva[2].o(w)?,
+                hsva[3].o(w)?,
+            )),
+            ControlLazyMurreletColor::Rgba { rgb, a } => Ok(LazyMurreletColor::new_rgba(
+                rgb[0].o(w)?,
+                rgb[1].o(w)?,
+                rgb[2].o(w)?,
+                a.o(w)?,
+            )),
+            // gray g == rgba(g, g, g, 1); hue h == hsva(h, 1, 1, 1)
+            ControlLazyMurreletColor::Gray { gray } => {
+                let g = gray.o(w)?;
+                Ok(LazyMurreletColor::new_rgba(
+                    g.clone(),
+                    g.clone(),
+                    g,
+                    LazyNodeF32::simple_number(1.0),
+                ))
+            }
+            ControlLazyMurreletColor::Hue { hue } => Ok(LazyMurreletColor::new(
+                hue.o(w)?,
+                LazyNodeF32::simple_number(1.0),
+                LazyNodeF32::simple_number(1.0),
+                LazyNodeF32::simple_number(1.0),
+            )),
+        }
     }
 }
 
 impl GetLivecodeIdentifiers for ControlLazyMurreletColor {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
-        self.0
+        self.nodes()
             .iter()
             .flat_map(|f| f.variable_identifiers())
             .collect_vec()
     }
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
-        self.0
+        self.nodes()
             .iter()
             .flat_map(|f| f.function_identifiers())
             .collect_vec()
@@ -499,11 +680,33 @@ impl GetLivecodeIdentifiers for ControlLazyMurreletColor {
 
 impl LivecodeToControl<ControlLazyMurreletColor> for LazyMurreletColor {
     fn to_control(&self) -> ControlLazyMurreletColor {
-        ControlLazyMurreletColor(vec![
-            self.h.to_control(),
-            self.s.to_control(),
-            self.v.to_control(),
-            self.a.to_control(),
+        match self.mode {
+            LazyColorMode::Hsva => ControlLazyMurreletColor::Hsva(vec![
+                self.c0.to_control(),
+                self.c1.to_control(),
+                self.c2.to_control(),
+                self.a.to_control(),
+            ]),
+            LazyColorMode::Rgba => ControlLazyMurreletColor::Rgba {
+                rgb: [
+                    self.c0.to_control(),
+                    self.c1.to_control(),
+                    self.c2.to_control(),
+                ],
+                a: self.a.to_control(),
+            },
+        }
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyMurreletColor> for MurreletColor {
+    fn to_control_lazy(&self) -> ControlLazyMurreletColor {
+        let [h, s, v, a] = self.into_hsva_components();
+        ControlLazyMurreletColor::Hsva(vec![
+            h.to_control_lazy(),
+            s.to_control_lazy(),
+            v.to_control_lazy(),
+            a.to_control_lazy(),
         ])
     }
 }
@@ -512,21 +715,173 @@ impl IsLazy for LazyMurreletColor {
     type Target = MurreletColor;
 
     fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
-        Ok(MurreletColor::hsva(
-            self.h.eval_lazy(ctx)?,
-            self.s.eval_lazy(ctx)?,
-            self.v.eval_lazy(ctx)?,
-            self.a.eval_lazy(ctx)?,
-        ))
+        let c0 = self.c0.eval_lazy(ctx)?;
+        let c1 = self.c1.eval_lazy(ctx)?;
+        let c2 = self.c2.eval_lazy(ctx)?;
+        let a = self.a.eval_lazy(ctx)?;
+        Ok(match self.mode {
+            LazyColorMode::Hsva => MurreletColor::hsva(c0, c1, c2, a),
+            LazyColorMode::Rgba => MurreletColor::rgba(c0, c1, c2, a),
+        })
     }
 
     fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
-        Ok(LazyMurreletColor::new(
-            self.h.with_more_defs(ctx)?,
-            self.s.with_more_defs(ctx)?,
-            self.v.with_more_defs(ctx)?,
-            self.a.with_more_defs(ctx)?,
-        ))
+        Ok(LazyMurreletColor {
+            mode: self.mode,
+            c0: self.c0.with_more_defs(ctx)?,
+            c1: self.c1.with_more_defs(ctx)?,
+            c2: self.c2.with_more_defs(ctx)?,
+            a: self.a.with_more_defs(ctx)?,
+        })
+    }
+}
+
+// lazy sibling of ControlMurreletString. holds the fmt + lazy fills so the
+// substitution can run at eval_lazy time against the deferred defs. mirrors
+// LazyMurreletColor.
+#[derive(Clone, Debug)]
+pub enum LazyMurreletString {
+    Raw(String),
+    Fmt {
+        fmt: String,
+        fill: Vec<LazyNodeF32>,
+    },
+    FmtFloat {
+        fmt_f: String,
+        fill: Vec<LazyNodeF32>,
+    },
+}
+
+impl Default for LazyMurreletString {
+    fn default() -> Self {
+        LazyMurreletString::Raw(String::new())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum ControlLazyMurreletString {
+    Raw(String),
+    Fmt {
+        fmt: String,
+        #[serde(default)]
+        fill: Vec<ControlLazyNodeF32>,
+    },
+    FmtFloat {
+        fmt_f: String,
+        #[serde(default)]
+        fill: Vec<ControlLazyNodeF32>,
+    },
+}
+
+impl Default for ControlLazyMurreletString {
+    fn default() -> Self {
+        ControlLazyMurreletString::Raw(String::new())
+    }
+}
+
+impl LivecodeFromWorld<LazyMurreletString> for ControlLazyMurreletString {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyMurreletString> {
+        match self {
+            ControlLazyMurreletString::Raw(s) => Ok(LazyMurreletString::Raw(s.clone())),
+            ControlLazyMurreletString::Fmt { fmt, fill } => Ok(LazyMurreletString::Fmt {
+                fmt: fmt.clone(),
+                fill: fill.iter().map(|f| f.o(w)).collect::<Result<Vec<_>, _>>()?,
+            }),
+            ControlLazyMurreletString::FmtFloat { fmt_f, fill } => {
+                Ok(LazyMurreletString::FmtFloat {
+                    fmt_f: fmt_f.clone(),
+                    fill: fill.iter().map(|f| f.o(w)).collect::<Result<Vec<_>, _>>()?,
+                })
+            }
+        }
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlLazyMurreletString {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        match self {
+            ControlLazyMurreletString::Raw(_) => vec![],
+            ControlLazyMurreletString::Fmt { fill, .. }
+            | ControlLazyMurreletString::FmtFloat { fill, .. } => fill
+                .iter()
+                .flat_map(|f| f.variable_identifiers())
+                .collect_vec(),
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        match self {
+            ControlLazyMurreletString::Raw(_) => vec![],
+            ControlLazyMurreletString::Fmt { fill, .. }
+            | ControlLazyMurreletString::FmtFloat { fill, .. } => fill
+                .iter()
+                .flat_map(|f| f.function_identifiers())
+                .collect_vec(),
+        }
+    }
+}
+
+impl LivecodeToControl<ControlLazyMurreletString> for LazyMurreletString {
+    fn to_control(&self) -> ControlLazyMurreletString {
+        match self {
+            LazyMurreletString::Raw(s) => ControlLazyMurreletString::Raw(s.clone()),
+            LazyMurreletString::Fmt { fmt, fill } => ControlLazyMurreletString::Fmt {
+                fmt: fmt.clone(),
+                fill: fill.iter().map(|f| f.to_control()).collect_vec(),
+            },
+            LazyMurreletString::FmtFloat { fmt_f, fill } => {
+                ControlLazyMurreletString::FmtFloat {
+                    fmt_f: fmt_f.clone(),
+                    fill: fill.iter().map(|f| f.to_control()).collect_vec(),
+                }
+            }
+        }
+    }
+}
+
+impl IsLazy for LazyMurreletString {
+    type Target = MurreletString;
+
+    fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+        match self {
+            LazyMurreletString::Raw(s) => Ok(MurreletString::new(s.clone())),
+            LazyMurreletString::Fmt { fmt, fill } => {
+                let filled = fill
+                    .iter()
+                    .map(|f| f.eval_lazy(ctx).map(|x| x.round() as i64))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(MurreletString::new(crate::livecode::fill_fmt(fmt, &filled)?))
+            }
+            LazyMurreletString::FmtFloat { fmt_f, fill } => {
+                let filled = fill
+                    .iter()
+                    .map(|f| f.eval_lazy(ctx).map(|x| x as f64))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(MurreletString::new(crate::livecode::fill_fmt_f64(fmt_f, &filled)?))
+            }
+        }
+    }
+
+    fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
+        match self {
+            LazyMurreletString::Raw(s) => Ok(LazyMurreletString::Raw(s.clone())),
+            LazyMurreletString::Fmt { fmt, fill } => Ok(LazyMurreletString::Fmt {
+                fmt: fmt.clone(),
+                fill: fill
+                    .iter()
+                    .map(|f| f.with_more_defs(ctx))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+            LazyMurreletString::FmtFloat { fmt_f, fill } => Ok(LazyMurreletString::FmtFloat {
+                fmt_f: fmt_f.clone(),
+                fill: fill
+                    .iter()
+                    .map(|f| f.with_more_defs(ctx))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+        }
     }
 }
 

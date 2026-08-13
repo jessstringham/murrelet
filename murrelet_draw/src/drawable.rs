@@ -1,11 +1,11 @@
 use glam::Vec2;
 use itertools::Itertools;
-use murrelet_common::{ToSimpleTransform, Transformable};
+use murrelet_common::{MurreletIterHelpers, ToSimpleTransform, Transformable};
 use murrelet_livecode::types::LivecodeResult;
 
 use crate::{
     curve_drawer::{CurveDrawer, ToCurveDrawer},
-    style::styleconf::StyleConf,
+    style::{MurreletPathAnnotation, styleconf::StyleConf},
     transform2d::Transform2d,
 };
 
@@ -14,6 +14,7 @@ use crate::{
 pub struct DrawnShape {
     cds: Vec<CurveDrawer>,
     style: StyleConf,
+    annotations: MurreletPathAnnotation,
 }
 
 impl DrawnShape {
@@ -29,6 +30,19 @@ impl DrawnShape {
         Self {
             cds: cds.to_vec(),
             style: style.clone(),
+            annotations: MurreletPathAnnotation::noop(),
+        }
+    }
+
+    pub fn new_cds_with_annotations(
+        cds: &[CurveDrawer],
+        style: StyleConf,
+        annotations: Vec<(String, String)>,
+    ) -> DrawnShape {
+        Self {
+            cds: cds.to_vec(),
+            style,
+            annotations: MurreletPathAnnotation::new_many(annotations),
         }
     }
 
@@ -44,12 +58,25 @@ impl DrawnShape {
         &self.cds
     }
 
+    pub fn annotations(&self) -> &MurreletPathAnnotation {
+        &self.annotations
+    }
+
+    pub fn add_annotation(mut self, key: String, val: String) -> Self {
+        self.annotations.add(key, val);
+        self
+    }
+
     pub fn maybe_transform(&self, transform: &Transform2d) -> LivecodeResult<DrawnShape> {
         let mut new = vec![];
         for c in &self.cds {
             new.push(c.maybe_transform(transform)?);
         }
-        Ok(DrawnShape::new_cds(&new, self.style.clone()))
+        Ok(DrawnShape {
+            cds: new,
+            style: self.style.clone(),
+            annotations: self.annotations.clone(),
+        })
     }
 }
 
@@ -107,7 +134,11 @@ impl Transformable for CurveDrawer {
 
 impl Transformable for DrawnShape {
     fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
-        DrawnShape::new_cds(&self.cds.transform_with(t), self.style.clone())
+        DrawnShape {
+            cds: self.cds.transform_with(t),
+            style: self.style.clone(),
+            annotations: self.annotations.clone(),
+        }
     }
 }
 
@@ -140,6 +171,24 @@ impl PositionedText {
     }
 }
 
+impl Transformable for PositionedText {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        Self {
+            loc: self.loc.transform_with(t),
+            ..self.clone()
+        }
+    }
+}
+
+impl Transformable for MixedDrawableShape {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        match self {
+            MixedDrawableShape::Shape(d) => MixedDrawableShape::Shape(d.transform_with(t)),
+            MixedDrawableShape::Text(d) => MixedDrawableShape::Text(d.transform_with(t)),
+        }
+    }
+}
+
 impl ToMixedDrawableWithStyle for Vec<PositionedText> {
     fn with_style(&self, style: &StyleConf) -> MixedDrawableShape {
         MixedDrawableShape::Text(DrawnTextShape {
@@ -169,6 +218,14 @@ impl DrawnTextShape {
         &self.text
     }
 }
+impl Transformable for DrawnTextShape {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        Self {
+            text: self.text.map_iter_collect(|x| x.transform_with(t)),
+            ..self.clone()
+        }
+    }
+}
 
 // ergh, need another type to hold type...
 #[derive(Clone, Debug)]
@@ -183,6 +240,18 @@ impl MixedDrawableShape {
             MixedDrawableShape::Text(drawn_text_shape) => drawn_text_shape.style.clone(),
         }
     }
+
+    pub fn new_from_path_with_multiple_annotations(
+        cds: Vec<CurveDrawer>,
+        style: StyleConf,
+        annotations: Vec<(String, String)>,
+    ) -> Self {
+        MixedDrawableShape::Shape(DrawnShape::new_cds_with_annotations(
+            &cds,
+            style,
+            annotations,
+        ))
+    }
 }
 
 pub trait ToMixedDrawable {
@@ -195,8 +264,38 @@ impl ToMixedDrawable for DrawnShape {
     }
 }
 
+/// Which medium a draw is headed for. Threaded through the draw seam so a
+/// sketch CAN return different geometry for the on-screen window vs the
+/// svg/plotter output (e.g. filled circles on screen, continuous polylines
+/// for a pen). Sketches that don't care never see it (see the default
+/// `ToMixedDrawables::to_mixed_drawables_for`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DrawTarget {
+    /// The on-screen nannou window (and, today, the interactive web view).
+    Screen,
+    /// SVG output — headless svg render or plotter.
+    Svg,
+}
+
 pub trait ToMixedDrawables {
     fn to_mixed_drawables(&self) -> Vec<MixedDrawableShape>;
+
+    /// Target-aware entry point. Defaults to `to_mixed_drawables()`, so a
+    /// sketch that doesn't override this is behaviorally identical for every
+    /// target. Override this (and keep `to_mixed_drawables` for the
+    /// target-agnostic / Screen case) to diverge screen-vs-svg — e.g.:
+    ///
+    /// ```ignore
+    /// fn to_mixed_drawables_for(&self, target: DrawTarget) -> Vec<MixedDrawableShape> {
+    ///     match target {
+    ///         DrawTarget::Svg => self.vein_polylines(),  // pen wants strokes
+    ///         DrawTarget::Screen => self.vein_circles(),  // filled dots on screen
+    ///     }
+    /// }
+    /// ```
+    fn to_mixed_drawables_for(&self, _target: DrawTarget) -> Vec<MixedDrawableShape> {
+        self.to_mixed_drawables()
+    }
 }
 
 impl ToMixedDrawables for MixedDrawableShape {

@@ -330,15 +330,23 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
             CellNeighbor::Hex(HexCellNeighbor::Up) => self.get_ij(i, j + 1),
             CellNeighbor::Hex(HexCellNeighbor::UpLeft) => {
                 let jj = if i.is_multiple_of(2) { j + 1 } else { j };
-                self.get_ij(i - 1, jj)
+                self.get_ij(i.checked_sub(1)?, jj)
             }
             CellNeighbor::Hex(HexCellNeighbor::DownLeft) => {
-                let jj = if i.is_multiple_of(2) { j } else { j - 1 };
-                self.get_ij(i - 1, jj)
+                let jj = if i.is_multiple_of(2) {
+                    j
+                } else {
+                    j.checked_sub(1)?
+                };
+                self.get_ij(i.checked_sub(1)?, jj)
             }
-            CellNeighbor::Hex(HexCellNeighbor::Down) => self.get_ij(i, j - 1),
+            CellNeighbor::Hex(HexCellNeighbor::Down) => self.get_ij(i, j.checked_sub(1)?),
             CellNeighbor::Hex(HexCellNeighbor::DownRight) => {
-                let jj = if i.is_multiple_of(2) { j } else { j - 1 };
+                let jj = if i.is_multiple_of(2) {
+                    j
+                } else {
+                    j.checked_sub(1)?
+                };
                 self.get_ij(i + 1, jj)
             }
             CellNeighbor::Hex(HexCellNeighbor::UpRight) => {
@@ -350,11 +358,13 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
             CellNeighbor::Grid(GridCellNeighbor::Up) => self.get_ij(i, j + 1),
             CellNeighbor::Grid(GridCellNeighbor::UpLeft) => self.get_ij(i + 1, j + 1),
             CellNeighbor::Grid(GridCellNeighbor::Left) => self.get_ij(i + 1, j),
-            CellNeighbor::Grid(GridCellNeighbor::DownLeft) => self.get_ij(i + 1, j - 1),
-            CellNeighbor::Grid(GridCellNeighbor::Down) => self.get_ij(i, j - 1),
-            CellNeighbor::Grid(GridCellNeighbor::DownRight) => self.get_ij(i - 1, j - 1),
-            CellNeighbor::Grid(GridCellNeighbor::Right) => self.get_ij(i - 1, j),
-            CellNeighbor::Grid(GridCellNeighbor::UpRight) => self.get_ij(i - 1, j + 1),
+            CellNeighbor::Grid(GridCellNeighbor::DownLeft) => self.get_ij(i + 1, j.checked_sub(1)?),
+            CellNeighbor::Grid(GridCellNeighbor::Down) => self.get_ij(i, j.checked_sub(1)?),
+            CellNeighbor::Grid(GridCellNeighbor::DownRight) => {
+                self.get_ij(i.checked_sub(1)?, j.checked_sub(1)?)
+            }
+            CellNeighbor::Grid(GridCellNeighbor::Right) => self.get_ij(i.checked_sub(1)?, j),
+            CellNeighbor::Grid(GridCellNeighbor::UpRight) => self.get_ij(i.checked_sub(1)?, j + 1),
         }
     }
 
@@ -651,16 +661,16 @@ impl UnitCellContext {
         self.detail.is_base()
     }
 
-    pub fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
-        self.detail.transform_with_skew_mat4()
+    pub fn get_transform_with_skew(&self) -> SimpleTransform2d {
+        self.detail.get_transform_with_skew()
     }
 
     pub fn transform_with_skew<F: Transformable>(&self, v: &F) -> F {
-        v.transform_with(&self.detail.transform_with_skew_mat4())
+        v.transform_with(&self.detail.get_transform_with_skew())
     }
 
     pub fn transform_one_point_with_skew(&self, v: Vec2) -> Vec2 {
-        v.transform_with(&self.detail.transform_with_skew_mat4())
+        v.transform_with(&self.detail.get_transform_with_skew())
     }
 
     pub fn transform_no_skew_one_point(&self, v: Vec2) -> Vec2 {
@@ -670,15 +680,15 @@ impl UnitCellContext {
 
     pub fn transform_no_skew<F: Transformable>(&self, v: &F) -> F {
         // also does adjust shape..
-        v.transform_with(&self.detail.transform_no_skew_mat4())
+        v.transform_with(&self.detail.get_transform_no_skew())
     }
 
-    pub fn transform_no_skew_mat4(&self) -> SimpleTransform2d {
-        self.detail.transform_no_skew_mat4()
+    pub fn get_transform_no_skew(&self) -> SimpleTransform2d {
+        self.detail.get_transform_no_skew()
     }
 
     pub fn adjust_shape(&self) -> SimpleTransform2d {
-        self.detail.adjust_shape()
+        self.detail.get_adjust_shape()
     }
 }
 
@@ -688,14 +698,14 @@ impl IntoExprWorldContext for UnitCellContext {
 
         let locs = vec![vec2(-50.0, -50.0), vec2(50.0, -50.0), vec2(50.0, 50.0)]
             .into_iter()
-            .map(|x| self.detail.transform_with_skew_mat4().transform_vec2(x))
+            .map(|x| self.detail.get_transform_with_skew().transform_vec2(x))
             .collect_vec();
 
         let width = locs[1].distance(locs[0]);
         let height = locs[1].distance(locs[2]);
 
-        ctx_vals.set_val("u_width", LivecodeValue::float(width));
-        ctx_vals.set_val("u_height", LivecodeValue::float(height));
+        ctx_vals.set_val(&StrId::new("u_width"), LivecodeValue::float(width));
+        ctx_vals.set_val(&StrId::new("u_height"), LivecodeValue::float(height));
 
         if let Some(expr) = &self.ctx {
             ctx_vals = ctx_vals.combine(expr.clone());
@@ -943,7 +953,7 @@ impl UnitCellDetails {
         }
     }
 
-    fn transform_with_skew_mat4(&self) -> SimpleTransform2d {
+    fn get_transform_with_skew(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(x) => x.transform_with_skew_mat4(),
             UnitCellDetails::Function(_) => todo!(),
@@ -961,14 +971,14 @@ impl UnitCellDetails {
         }
     }
 
-    fn transform_no_skew_mat4(&self) -> SimpleTransform2d {
+    fn get_transform_no_skew(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(w) => w.transform_no_skew_mat(),
             UnitCellDetails::Function(_) => todo!(),
         }
     }
 
-    pub fn adjust_shape(&self) -> SimpleTransform2d {
+    pub fn get_adjust_shape(&self) -> SimpleTransform2d {
         match self {
             UnitCellDetails::Wallpaper(w) => w.adjust_shape(),
             UnitCellDetails::Function(_) => todo!(),

@@ -1,0 +1,54 @@
+[package]
+name = "murrelet_wasm"
+version = "0.1.3"
+edition = "2024"
+
+[features]
+# Opt-in GPU canvas support (multi-canvas wgpu surfaces). SVG-only builds
+# don't pay for wgpu unless this is enabled.
+gpu = ["dep:murrelet_gpu", "dep:wgpu"]
+
+# default = ["schemars"]
+# schemars = [
+#   "murrelet_gpu/schemars",
+#   "murrelet_draw/schemars",
+#   "murrelet_livecode/schemars",
+#   "murrelet_perform/schemars",
+# ]
+
+[dependencies]
+anyhow = "1.0"
+serde_yaml = "0.9"
+wasm-bindgen = "0.2"
+paste = "1"
+murrelet_common = { workspace = true }
+murrelet_draw = { workspace = true }
+murrelet_svg = { workspace = true }
+murrelet_livecode = { workspace = true }
+murrelet_gui = { workspace = true }
+murrelet_perform = { workspace = true, features = ["for_the_web"] }
+murrelet_livecode_derive = { workspace = true, default-features = false } # no schemars
+murrelet_gen = { workspace = true }
+murrelet_gpu = { workspace = true, optional = true, features = ["no_nannou"] }
+serde = { version = "1.0.104", features = ["derive"] }
+serde_json = "1.0.48"
+glam = { version = "0.28.0", features = ["serde"] }
+wgpu = { version = "0.20.1", optional = true, features = ["webgpu", "webgl"] }
+lerpable = { workspace = true, features = ["glam"] }
+# anyhow = "1.0.86"
+# murrelet_gen = "0.1.3"
+regex = "1.7.3"
+itertools = "0.10.5"
+
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "console",
+  "Window",
+  "Document",
+  "Element",
+  "HtmlCanvasElement",
+  "CanvasRenderingContext2d",
+  "SvgElement","SvgsvgElement"
+]

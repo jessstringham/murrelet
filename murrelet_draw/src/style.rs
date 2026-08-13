@@ -3,7 +3,8 @@ use crate::{
     curve_drawer::{CurveDrawer, ToCurveDrawer},
     draw::*,
     svg::{SvgPathDef, SvgShape, TransformedSvgShape},
-    tesselate::{ToLyonPath, parse_svg_path_as_vec2},
+    svg_read::parse_svg_path_as_vec2,
+    tesselate::ToLyonPath,
     transform2d::*,
 };
 use glam::*;
@@ -11,21 +12,21 @@ use lerpable::Lerpable;
 use md5::{Digest, Md5};
 use murrelet_common::*;
 use murrelet_gui::{CanMakeGUI, MurreletGUI};
-use murrelet_livecode::{lazy::ControlLazyMurreletColor, livecode::ControlF32};
+use murrelet_livecode::{
+    lazy::ControlLazyMurreletColor,
+    livecode::{ControlMurreletColor, LivecodeToControl, LivecodeToControlLazy},
+};
 use murrelet_livecode_derive::Livecode;
 use styleconf::StyleConf;
 
-fn _black() -> [ControlF32; 4] {
-    [
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(1.0),
-    ]
+fn _black_val() -> MurreletColor {
+    MurreletColor::hsva(0.0, 0.0, 0.0, 1.0)
 }
-
+fn _black() -> ControlMurreletColor {
+    _black_val().to_control()
+}
 fn _black_lazy() -> ControlLazyMurreletColor {
-    ControlLazyMurreletColor::new_default(0.0, 0.0, 0.0, 1.0)
+    _black_val().to_control_lazy()
 }
 
 #[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
@@ -457,6 +458,33 @@ pub mod styleconf {
         pub fn fill_color(&self) -> MurreletColor {
             self.color()
         }
+
+        pub fn stroke_color(&self) -> MurreletColor {
+            self.to_style().stroke_color.as_color()
+        }
+
+        pub fn with_outline(&self, stroke_weight: f32, stroke_color: MurreletColor) -> StyleConf {
+            Self::outlined_fill(self.fill_color(), stroke_weight, stroke_color)
+        }
+
+        pub fn with_fill(&self, fill_color: MurreletColor) -> StyleConf {
+            match self {
+                StyleConf::Fill(m) => {
+                    let mut m = *m;
+                    m.color = fill_color;
+                    StyleConf::Fill(m)
+                }
+                StyleConf::Outline(m) => {
+                    let filled = MurreletStyleFilled::new(fill_color, m.stroke_weight, m.color);
+                    StyleConf::Fill(filled)
+                }
+                _ => self.clone(),
+            }
+        }
+
+        pub fn set_alpha(&self, alpha: f32) -> StyleConf {
+            self.with_fill(self.color().with_alpha(alpha))
+        }
     }
 
     impl Default for StyleConf {
@@ -640,8 +668,16 @@ impl MurreletPathAnnotation {
         &self.0
     }
 
-    fn new_many(annotations: Vec<(String, String)>) -> MurreletPathAnnotation {
+    pub fn new_many(annotations: Vec<(String, String)>) -> MurreletPathAnnotation {
         Self(annotations)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn add(&mut self, key: String, val: String) {
+        self.0.push((key, val));
     }
 }
 

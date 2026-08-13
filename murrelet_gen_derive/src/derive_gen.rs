@@ -6,6 +6,7 @@ use crate::{gen_methods::GenMethod, parser::*};
 pub(crate) struct FieldTokensGen {
     pub(crate) for_rn_count: TokenStream2,
     pub(crate) for_rn_names: TokenStream2,
+    pub(crate) for_rn_specs: TokenStream2,
     pub(crate) for_make_gen: TokenStream2,
     pub(crate) for_to_dist: TokenStream2,
     pub(crate) for_to_dist_mask: TokenStream2,
@@ -20,6 +21,7 @@ impl GenFinal for FieldTokensGen {
 
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
         let for_rn_names = variants.iter().map(|x| x.for_rn_names.clone());
+        let for_rn_specs = variants.iter().map(|x| x.for_rn_specs.clone());
         let for_make_gen = variants.iter().map(|x| x.for_make_gen.clone());
         let for_to_dist = variants.iter().map(|x| x.for_to_dist.clone());
         let for_to_dist_mask = variants.iter().map(|x| x.for_to_dist_mask.clone());
@@ -32,6 +34,10 @@ impl GenFinal for FieldTokensGen {
 
                 fn rn_names() -> Vec<String> {
                     #(#for_rn_names+)*
+                }
+
+                fn rn_specs() -> Vec<murrelet_gen::RnSpec> {
+                    vec![#(#for_rn_specs,)*].concat()
                 }
 
                 fn sample_dist(rn: &[f32], start_idx: usize) -> Self {
@@ -56,6 +62,7 @@ impl GenFinal for FieldTokensGen {
 
         let for_rn_count = variants.iter().map(|x| x.for_rn_count.clone());
         let for_rn_names = variants.iter().map(|x| x.for_rn_names.clone());
+        let for_rn_specs = variants.iter().map(|x| x.for_rn_specs.clone());
         let for_make_gen = variants.iter().map(|x| x.for_make_gen.clone());
         let for_to_dist = variants.iter().map(|x| x.for_to_dist.clone());
         let for_to_dist_mask = variants.iter().map(|x| x.for_to_dist_mask.clone());
@@ -71,6 +78,12 @@ impl GenFinal for FieldTokensGen {
                 fn rn_names() -> Vec<String> {
                     vec![
                         #(#for_rn_names,)*
+                    ].concat()
+                }
+
+                fn rn_specs() -> Vec<murrelet_gen::RnSpec> {
+                    vec![
+                        #(#for_rn_specs,)*
                     ].concat()
                 }
 
@@ -131,6 +144,21 @@ impl GenFinal for FieldTokensGen {
             });
         }
 
+        // rn_specs, parallel to rn_names: each variant is its `[weight]` rn
+        // followed by the variant's own rns.
+        let mut for_rn_specs: Vec<TokenStream2> = vec![];
+        for (variant, receiver) in variants.iter().zip(variant_receiver.iter()) {
+            let variant_specs = &variant.for_rn_specs;
+            let weight = receiver.weight;
+            for_rn_specs.push(quote! {
+                vec![
+                    vec![murrelet_gen::RnSpec::new("variant_weight", "[weight]",
+                        vec![("weight".to_string(), #weight)])],
+                    #variant_specs,
+                ].concat()
+            });
+        }
+
         // one hot encoding, i might be off-by-one here for how many vars..
         let number_of_choices = variants.len();
 
@@ -146,6 +174,12 @@ impl GenFinal for FieldTokensGen {
                 fn rn_names() -> Vec<String> {
                     vec![
                         #(#for_rn_names,)*
+                    ].concat()
+                }
+
+                fn rn_specs() -> Vec<murrelet_gen::RnSpec> {
+                    vec![
+                        #(#for_rn_specs,)*
                     ].concat()
                 }
 
@@ -199,9 +233,12 @@ impl GenFinal for FieldTokensGen {
             self.0.to_dist_mask()
         };
 
+        let for_rn_specs = quote! { #ty::rn_specs() };
+
         FieldTokensGen {
             for_rn_count,
             for_rn_names,
+            for_rn_specs,
             for_make_gen,
             for_to_dist,
             for_to_dist_mask,
@@ -248,9 +285,12 @@ impl GenFinal for FieldTokensGen {
             }
         };
 
+        let for_rn_specs = quote! { #ty::rn_specs() };
+
         FieldTokensGen {
             for_rn_count,
             for_rn_names,
+            for_rn_specs,
             for_make_gen,
             for_to_dist,
             for_to_dist_mask,
@@ -268,6 +308,8 @@ impl GenFinal for FieldTokensGen {
         let for_rn_names = quote! { vec![] };
 
         let for_make_gen = quote! { #name::#variant_ident };
+
+        let for_rn_specs = quote! { Vec::<murrelet_gen::RnSpec>::new() };
 
         let for_to_dist = quote! {
            if let #name::#variant_ident = &self {
@@ -288,6 +330,7 @@ impl GenFinal for FieldTokensGen {
         FieldTokensGen {
             for_rn_count,
             for_rn_names,
+            for_rn_specs,
             for_make_gen,
             for_to_dist,
             for_to_dist_mask,
@@ -320,6 +363,8 @@ impl GenFinal for FieldTokensGen {
         let field_name_str = field_name.to_string();
         let ty = idents.data.ty;
 
+        let for_rn_specs = method.rn_specs_tokens(ty.clone());
+
         let (for_rn_count, for_rn_names, for_make_gen, for_to_dist) =
             method.to_methods(ty, quote! {self.#field_name}, true);
 
@@ -329,6 +374,7 @@ impl GenFinal for FieldTokensGen {
         FieldTokensGen {
             for_make_gen: quote! { #field_name: #for_make_gen },
             for_rn_names: quote! { murrelet_gen::prefix_field_names(#field_name_str.to_string(), #for_rn_names)},
+            for_rn_specs,
             for_rn_count,
             for_to_dist,
             for_to_dist_mask: quote! { (0..{#rn_count}).into_iter().map(|x| true).collect::<Vec<_>>() },
@@ -339,13 +385,16 @@ impl GenFinal for FieldTokensGen {
         let field_name = idents.data.ident.unwrap();
         let ty = idents.data.ty;
 
-        let (for_rn_count, for_rn_names, for_make_gen, for_to_dist, for_to_dist_mask) = match outer
+        let (for_rn_count, for_rn_names, for_rn_specs, for_make_gen, for_to_dist, for_to_dist_mask) =
+            match outer
         {
             GenMethod::VecLength { min, max } => {
                 let inside_type = nested_ident(&ty);
 
                 let i = inside_type[1].clone();
                 let inside_type_val: syn::Type = syn::parse_quote! { #i };
+
+                let for_rn_specs_per_item = inner.rn_specs_tokens(inside_type_val.clone());
 
                 let (
                     for_rn_count_per_item,
@@ -374,6 +423,19 @@ impl GenFinal for FieldTokensGen {
                         ].concat()
                     )
                 };
+
+                let for_rn_specs = quote! {{
+                    let mut specs: Vec<murrelet_gen::RnSpec> = vec![
+                        murrelet_gen::RnSpec::new("vec_length", "[len]", vec![
+                            ("min".to_string(), #min as f32),
+                            ("max".to_string(), #max as f32),
+                        ])
+                    ];
+                    for _ in 0..#max {
+                        specs.extend(#for_rn_specs_per_item);
+                    }
+                    specs
+                }};
 
                 // in this case, we _don't_ want one-hot, because it actually does make
                 // sense to interpolate between say, 3 and 6.
@@ -436,6 +498,7 @@ impl GenFinal for FieldTokensGen {
                 (
                     for_rn_count,
                     for_rn_names,
+                    for_rn_specs,
                     for_make_gen,
                     for_to_dist,
                     for_to_dist_mask,
@@ -447,6 +510,7 @@ impl GenFinal for FieldTokensGen {
         Self {
             for_rn_count,
             for_rn_names,
+            for_rn_specs,
             for_make_gen: quote! { #field_name: #for_make_gen },
             for_to_dist,
             for_to_dist_mask,
@@ -474,6 +538,9 @@ fn recursive_ident_from_path(t: &syn::Type, acc: &mut Vec<syn::Ident>) {
                 }
             }
         }
+        // macro_rules! wraps substituted :ty fragments in invisible delimiters
+        syn::Type::Group(g) => recursive_ident_from_path(&g.elem, acc),
+        syn::Type::Paren(p) => recursive_ident_from_path(&p.elem, acc),
         x => panic!("no name for type {:?}", x),
     }
 }
@@ -484,9 +551,18 @@ fn nested_ident(t: &syn::Type) -> Vec<syn::Ident> {
     acc
 }
 
+// macro_rules! wraps substituted :ty fragments in invisible delimiters
+fn strip_groups(ty: &syn::Type) -> &syn::Type {
+    match ty {
+        syn::Type::Group(g) => strip_groups(&g.elem),
+        syn::Type::Paren(p) => strip_groups(&p.elem),
+        _ => ty,
+    }
+}
+
 // we need to use turbofish to call an associated function
 fn convert_vec_type(ty: &syn::Type) -> TokenStream2 {
-    if let syn::Type::Path(type_path) = ty
+    if let syn::Type::Path(type_path) = strip_groups(ty)
         && let Some(last_segment) = type_path.path.segments.last()
         && last_segment.ident == "Vec"
         && let syn::PathArguments::AngleBracketed(angle_bracketed) = &last_segment.arguments

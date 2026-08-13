@@ -17,10 +17,13 @@ impl LivecodeFieldType {
             ControlType::Bool => quote! {murrelet_livecode::livecode::ControlBool},
             ControlType::F32_2 => quote! {[murrelet_livecode::livecode::ControlF32; 2]},
             ControlType::F32_3 => quote! {[murrelet_livecode::livecode::ControlF32; 3]},
-            ControlType::Color => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
+            ControlType::Color => quote! {murrelet_livecode::livecode::ControlMurreletColor},
             ControlType::ColorUnclamped => quote! {[murrelet_livecode::livecode::ControlF32; 4]},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
+            ControlType::MurreletString => {
+                quote! {murrelet_livecode::livecode::ControlMurreletString}
+            }
         }
     }
 
@@ -28,7 +31,7 @@ impl LivecodeFieldType {
         match self.0 {
             ControlType::F32_2 => quote! { murrelet_livecode::lazy::ControlLazyVec2 },
             ControlType::F32_3 => quote! { murrelet_livecode::lazy::ControlLazyVec3 },
-            ControlType::Color => quote! { murrelet_livecode::lazy::ControlMurreletColor },
+            ControlType::Color => quote! { murrelet_livecode::lazy::ControlLazyMurreletColor },
             ControlType::ColorUnclamped => {
                 todo!() //quote! { Vec<murrelet_livecode::lazy::ControlLazyNodeF32> }
             }
@@ -36,6 +39,9 @@ impl LivecodeFieldType {
             ControlType::Bool => quote! {murrelet_livecode::livecode::ControlBool},
             ControlType::AnglePi => quote! {murrelet_livecode::livecode::ControlF32},
             ControlType::LazyNodeF32 => quote! {murrelet_livecode::lazy::ControlLazyNodeF32},
+            ControlType::MurreletString => {
+                quote! {murrelet_livecode::lazy::ControlLazyMurreletString}
+            }
         }
     }
 
@@ -47,30 +53,40 @@ impl LivecodeFieldType {
         f32min: Option<f32>,
         f32max: Option<f32>,
     ) -> TokenStream2 {
-        // let name = idents.name();
-        // let orig_ty = idents.orig_ty();
+        self.for_world_target(quote!(self.#name), orig_ty, f32min, f32max)
+    }
+
+    // V(prim) for_world. target is the place to read from (`self.foo` / `s`).
+    pub(crate) fn for_world_target(
+        &self,
+        target: TokenStream2,
+        orig_ty: syn::Type,
+        f32min: Option<f32>,
+        f32max: Option<f32>,
+    ) -> TokenStream2 {
         match self.0 {
-            ControlType::F32_2 => quote! {self.#name.o(w)?},
-            ControlType::F32_3 => quote! {self.#name.o(w)?},
-            ControlType::Color => quote! {self.#name.o(w)?},
+            ControlType::F32_2 => quote! {#target.o(w)?},
+            ControlType::F32_3 => quote! {#target.o(w)?},
+            ControlType::Color => quote! {#target.o(w)?},
+            ControlType::MurreletString => quote! {#target.o(w)?},
             ControlType::ColorUnclamped => {
-                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.#name, w)?}
+                quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&#target, w)?}
             }
-            ControlType::LazyNodeF32 => quote! {self.#name.o(w)?},
+            ControlType::LazyNodeF32 => quote! {#target.o(w)?},
             ControlType::AnglePi => {
-                quote! {murrelet_common::AnglePi::new(self.#name.o(w)?)}
+                quote! {murrelet_common::AnglePi::new(#target.o(w)?)}
             }
-            _ => {
-                let f32_out = match (f32min, f32max) {
-                    (None, None) => quote! {self.#name.o(w)?},
-                    (None, Some(max)) => quote! {f32::min(self.#name.o(w)?, #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.#name.o(w)?)},
-                    (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, self.#name.o(w)?), #max)}
-                    }
-                };
-                quote! {#f32_out as #orig_ty}
-            }
+            ControlType::Bool => quote! {#target.o(w)?},
+            _ => match (f32min, f32max) {
+                // `let v: f32` pins the LivecodeFromWorld<f32> impl; ControlF32 now also
+                // implements integer targets, so a bare `.o(w)? as T` would be ambiguous.
+                (None, None) => quote! {{ let v: f32 = #target.o(w)?; v as #orig_ty }},
+                (None, Some(max)) => quote! {f32::min(#target.o(w)?, #max) as #orig_ty},
+                (Some(min), None) => quote! {f32::max(#min, #target.o(w)?) as #orig_ty},
+                (Some(min), Some(max)) => {
+                    quote! {f32::min(f32::max(#min, #target.o(w)?), #max) as #orig_ty}
+                }
+            },
         }
     }
 
@@ -83,12 +99,42 @@ impl LivecodeFieldType {
         f32max: Option<f32>,
     ) -> TokenStream2 {
         match self.0 {
-            ControlType::F32_2 => quote! {self.#name.map(|name| name.o(w)?)},
-            ControlType::F32_3 => quote! {self.#name.map(|name| name.o(w)?)},
-            ControlType::Color => quote! {self.#name.map(|name| name.o(w)?)},
-            ControlType::ColorUnclamped => {
-                quote! {self.#name.map(|name| murrelet_livecode::livecode::ControlF32::hsva_unclamped(&name, w)?)}
-            }
+            ControlType::F32_2 => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
+            ControlType::F32_3 => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
+            ControlType::Color => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
+            ControlType::MurreletString => quote! {
+                if let Some(name) = &self.#name {
+                    let n = name.o(w)?;
+                    Some(n)
+                } else {
+                    None
+                }
+            },
+            ControlType::ColorUnclamped => quote! {
+                if let Some(name) = &self.#name {
+                    Some(murrelet_livecode::livecode::ControlF32::hsva_unclamped(name, w)?)
+                } else {
+                    None
+                }
+            },
             ControlType::LazyNodeF32 => quote! {
                 if let Some(name) = &self.#name {
                     let a = name.o(w)?;
@@ -107,23 +153,29 @@ impl LivecodeFieldType {
                     }
                 }
             }
+            ControlType::Bool => quote! {
+                if let Some(name) = &self.#name {
+                    Some(name.o(w)?)
+                } else {
+                    None
+                }
+            },
             _ => {
-                let f32_out = match (f32min, f32max) {
-                    (None, None) => quote! {
-                        if let Some(name) = &self.#name {
-                            let n = name.o(w)?;
-                            Some(n)
-                        } else {
-                            None
-                        }
-                    },
-                    (None, Some(max)) => quote! {f32::min(self.#name.map(|name| name.o(w)?), #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.#name.map(|name| name.o(w)?))},
-                    (Some(min), Some(max)) => {
-                        quote! {f32::min(f32::max(#min, self.#name.map(|name| name.o(w)?)), #max)}
-                    }
+                let inner_ty = ident_from_type(&orig_ty).inside_type().to_quote();
+                let clamped = match (f32min, f32max) {
+                    (None, None) => quote! { v },
+                    (None, Some(max)) => quote! { f32::min(v, #max) },
+                    (Some(min), None) => quote! { f32::max(#min, v) },
+                    (Some(min), Some(max)) => quote! { f32::min(f32::max(#min, v), #max) },
                 };
-                quote! {#f32_out as #orig_ty}
+                quote! {
+                    if let Some(name) = &self.#name {
+                        let v: f32 = name.o(w)?;
+                        Some(#clamped as #inner_ty)
+                    } else {
+                        None
+                    }
+                }
             }
         }
     }
@@ -156,6 +208,7 @@ impl LivecodeFieldType {
             ControlType::F32_2 => quote! { self.0.o(&w)? },
             ControlType::F32_3 => quote! { self.0.o(&w)? },
             ControlType::Color => quote! { self.0.o(&w)? },
+            ControlType::MurreletString => quote! { self.0.o(&w)? },
             ControlType::LazyNodeF32 => quote! { self.0.o(&w)? },
             ControlType::ColorUnclamped => {
                 quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)?}
@@ -163,15 +216,15 @@ impl LivecodeFieldType {
             ControlType::AnglePi => {
                 quote! {murrelet_common::AnglePi::new(self.0.o(w)?)}
             }
-            _ => {
-                let f32_out = match (idents.data.f32min, idents.data.f32max) {
-                    (None, None) => quote! {self.0.o(w)?},
-                    (None, Some(max)) => quote! {f32::min(self.0.o(w)?, #max)},
-                    (Some(min), None) => quote! {f32::max(#min, self.0.o(w)?)},
-                    (Some(min), Some(max)) => quote! {f32::min(f32::max(#min, self.0.o(w)?), #max)},
-                };
-                quote! {#f32_out as #orig_ty}
-            }
+            ControlType::Bool => quote! { self.0.o(w)? },
+            _ => match (idents.data.f32min, idents.data.f32max) {
+                (None, None) => quote! {{ let v: f32 = self.0.o(w)?; v as #orig_ty }},
+                (None, Some(max)) => quote! {f32::min(self.0.o(w)?, #max) as #orig_ty},
+                (Some(min), None) => quote! {f32::max(#min, self.0.o(w)?) as #orig_ty},
+                (Some(min), Some(max)) => {
+                    quote! {f32::min(f32::max(#min, self.0.o(w)?), #max) as #orig_ty}
+                }
+            },
         }
     }
 
@@ -211,17 +264,11 @@ impl GenFinal for FieldTokensLivecode {
         let for_variable_idents = variants.iter().map(|x| x.for_variable_idents.clone());
         let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
-        let (maybe_cfg_attr, additional) = if cfg!(feature = "schemars") {
-            (
-                quote! {, schemars::JsonSchema},
-                quote! {#[schemars(deny_unknown_fields)]},
-            )
-        } else {
-            (quote! {}, quote! {})
-        };
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize #maybe_cfg_attr)]
-            #additional
+            #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+            #[allow(unexpected_cfgs)]
+            #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+            #[cfg_attr(feature = "schemars", schemars(deny_unknown_fields))]
             #vis struct #new_ident {
                 #(#for_struct,)*
             }
@@ -280,17 +327,11 @@ impl GenFinal for FieldTokensLivecode {
 
         let enum_tag = idents.tags;
 
-        let (maybe_cfg_attr, additional) = if cfg!(feature = "schemars") {
-            (
-                quote! {, schemars::JsonSchema},
-                quote! {#[schemars(deny_unknown_fields)]},
-            )
-        } else {
-            (quote! {}, quote! {})
-        };
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize #maybe_cfg_attr)]
-            #additional
+            #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+            #[allow(unexpected_cfgs)]
+            #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+            #[cfg_attr(feature = "schemars", schemars(deny_unknown_fields))]
             #[allow(non_camel_case_types)]
             #enum_tag
             #vis enum #new_ident {
@@ -342,18 +383,11 @@ impl GenFinal for FieldTokensLivecode {
         let for_variable_idents = variants.iter().map(|x| x.for_variable_idents.clone());
         let for_function_idents = variants.iter().map(|x| x.for_function_idents.clone());
 
-        let (maybe_cfg_attr, additional) = if cfg!(feature = "schemars") {
-            (
-                quote! {, schemars::JsonSchema},
-                quote! {#[schemars(deny_unknown_fields)]},
-            )
-        } else {
-            (quote! {}, quote! {})
-        };
-
         quote! {
-            #[derive(Debug, Clone, serde::Deserialize #maybe_cfg_attr)]
-            #additional
+            #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+            #[allow(unexpected_cfgs)]
+            #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+            #[cfg_attr(feature = "schemars", schemars(deny_unknown_fields))]
             #vis struct #new_ident(#(#for_struct,)*);
 
             impl murrelet_livecode::livecode::LivecodeFromWorld<#name> for #new_ident {
@@ -428,7 +462,7 @@ impl GenFinal for FieldTokensLivecode {
         // we need to get the internal struct type
         let orig_ty = idents.orig_ty();
         let parsed_type_info = ident_from_type(&orig_ty);
-        let internal_type = parsed_type_info.main_type;
+        let internal_type = parsed_type_info.main_type();
 
         let for_struct = {
             if internal_type.to_string().starts_with("Lazy") {
@@ -466,44 +500,27 @@ impl GenFinal for FieldTokensLivecode {
 
     // e.g. TileAxisLocs::V(TileAxisVs)
     fn from_unnamed_enum(idents: EnumIdents) -> FieldTokensLivecode {
-        let variant_ident = idents.variant_ident();
-        let name = idents.enum_ident();
-        let new_ident = Self::new_ident(name.clone());
-
-        let unnamed = idents.data.fields.fields;
-
-        // for struct
-        if unnamed.len() != 1 {
-            panic!("multiple fields not supported")
-        };
-
-        let for_struct = {
-            let t = unnamed.first().unwrap().clone().ty;
-            let DataFromType { main_type, .. } = ident_from_type(&t);
-            let new_type = update_to_control_ident(main_type);
-            quote! { #variant_ident(#new_type) }
-        };
-
-        // for world
-        let for_world =
-            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
-
-        let for_to_control =
-            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
-
-        let for_variable_idents =
-            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
-        let for_function_idents =
-            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
-
-        FieldTokensLivecode {
-            for_struct,
-            for_world,
-            for_to_control,
-            for_variable_idents,
-            for_function_idents,
+        if let Some((elem, n)) = idents.inner_array() {
+            return Self::from_unnamed_enum_array(idents, elem, n);
+        }
+        match idents.single_inner_how_to() {
+            HowToControlThis::WithType(_) => Self::from_unnamed_enum_primitive(idents),
+            HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
+                Self::from_unnamed_enum_vec(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::Option) => {
+                Self::from_unnamed_enum_option(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                Self::from_unnamed_enum_struct(idents)
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                Self::from_unnamed_enum_struct_lazy(idents)
+            }
+            e => panic!("(livecode, enum variant) not supported: {:?}", e),
         }
     }
+
 
     // e.g. TileAxis::Diag
     fn from_unit_enum(idents: EnumIdents) -> FieldTokensLivecode {
@@ -597,7 +614,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let s = ident_from_type(&idents.orig_ty());
 
-        let ctrl = s.second_how_to.unwrap().get_control_type();
+        let ctrl = s.second_how_to().unwrap().get_control_type();
         let for_struct = {
             let t = LivecodeFieldType(ctrl).to_token();
             quote! {#serde #name: Option<#t>}
@@ -635,38 +652,52 @@ impl GenFinal for FieldTokensLivecode {
         let how_to_control_internal = parsed_type_info.how_to_control_internal();
         let wrapper = parsed_type_info.wrapper_type();
 
-        let inner_is_lazy_struct = parsed_type_info
-            .second_how_to
-            .map(|h| h.is_lazy())
-            .unwrap_or(false);
+        // Noop element (e.g. Vec<String>): the inner type is left alone, just
+        // like a standalone WithNone field, so the control struct keeps the
+        // whole Vec as-is and clones it rather than wrapping each element in a
+        // ControlVecElement it can't build.
+        if matches!(how_to_control_internal, HowToControlThis::WithNone) {
+            return FieldTokensLivecode {
+                for_struct: quote! {#serde #name: #orig_ty},
+                for_world: quote! {#name: self.#name.clone()},
+                for_to_control: quote! {#name: self.#name.clone()},
+                for_variable_idents: quote! { vec![] },
+                for_function_idents: quote! { vec![] },
+            };
+        }
+
+        // only the lazy-mirror shape (Vec<LazyControlVecElement<..>>) needs the Deser
+        // wrapper. a plain Vec<LazyT> is an ordinary vec whose elements happen to stay
+        // lazy, so it uses ControlVecElement like everything else.
+        let inner_is_lazy_struct = parsed_type_info.is_lazy_control_vec();
 
         let for_struct: TokenStream2 = {
             let src_type = match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => {
+                HowToControlThis::WithType(c) => {
                     if inner_is_lazy_struct {
                         LivecodeFieldType(*c).to_token_lazy()
                     } else {
                         LivecodeFieldType(*c).to_token()
                     }
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let target_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(target_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let original_internal_type = parsed_type_info.internal_type();
 
                     catch_special_types(original_internal_type)
                 }
-                // HowToControlThis::WithRecurse(_, RecursiveControlType::Vec) => {
+                // HowToControlThis::WithRecurse(RecursiveControlType::Vec) => {
                 //     // for things like Lazy Vec2...
                 //     println!("parsed_type_info {:?}", parsed_type_info);
                 //     let original_internal_type = parsed_type_info.internal_type();
                 //     let lazy_inner = Self::new_ident(original_internal_type.clone());
                 //     quote! { Vec<#lazy_inner> }
                 // }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     let target_type = parsed_type_info.internal_type();
                     quote! {#target_type}
                 }
@@ -700,18 +731,12 @@ impl GenFinal for FieldTokensLivecode {
                 match wrapper {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
-                        if inner_is_lazy_struct {
-                            quote! {
-                                #name: self.#name.iter()
-                                    .map(|x| x.o(w))
-                                    .collect::<Result<Vec<_>, _>>()?
-
-                            }
-                        } else {
-                            quote! {
-                                #name: murrelet_livecode::types::eval_and_expand_vec_list(&self.#name, w)?
-                            }
-                        }
+                        let expr = vec_for_world_expr(
+                            quote!(&self.#name),
+                            quote!(self.#name),
+                            inner_is_lazy_struct,
+                        );
+                        quote! { #name: #expr }
                     }
                     VecDepth::VecVec => {
                         quote! {
@@ -751,11 +776,8 @@ impl GenFinal for FieldTokensLivecode {
                 match wrapper {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
-                        if inner_is_lazy_struct {
-                            quote! { #name: self.#name.iter().map(|x| x.to_control()).collect::<Vec<_>>() }
-                        } else {
-                            quote! { #name: self.#name.iter().map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control())).collect::<Vec<_>>() }
-                        }
+                        let expr = vec_for_to_control_expr(quote!(self.#name), inner_is_lazy_struct);
+                        quote! { #name: #expr }
                     }
                     VecDepth::VecVec => {
                         if inner_is_lazy_struct {
@@ -917,7 +939,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let new_ty = {
-                let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
+                let main_type = ident_from_type(&orig_ty).main_type();
                 let ref_lc_ident = Self::new_ident(main_type.clone());
                 quote! {#ref_lc_ident}
             };
@@ -954,13 +976,13 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let new_ty = match how_to_control_internal {
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = update_to_control_ident(internal_type);
                     quote! {#name}
                 }
 
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let internal_type = parsed_type_info.internal_type();
                     let name = update_to_control_ident(internal_type);
                     quote! {#name}
@@ -1063,20 +1085,31 @@ impl GenFinal for FieldTokensLivecode {
         let how_to_control_internal = parsed_type_info.how_to_control_internal();
         let wrapper = parsed_type_info.wrapper_type();
 
+        let inner_is_lazy_struct = parsed_type_info
+            .second_how_to()
+            .map(|h| h.is_lazy())
+            .unwrap_or(false);
+
+        let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
+            quote! {murrelet_livecode::types::DeserLazyControlVecElement}
+        } else {
+            quote! {murrelet_livecode::types::ControlVecElement}
+        };
+
         let for_struct = {
             let internal_type = match how_to_control_internal {
-                HowToControlThis::WithType(_, c) => LivecodeFieldType(*c).to_token(),
-                HowToControlThis::WithRecurse(_, RecursiveControlType::Struct) => {
+                HowToControlThis::WithType(c) => LivecodeFieldType(*c).to_token(),
+                HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
                     let original_internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithRecurse(_, RecursiveControlType::StructLazy) => {
+                HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     let original_internal_type = parsed_type_info.internal_type();
                     let name = Self::new_ident(original_internal_type.clone());
                     quote! {#name}
                 }
-                HowToControlThis::WithNone(_) => {
+                HowToControlThis::WithNone => {
                     let original_internal_type = parsed_type_info.internal_type();
                     quote! {#original_internal_type}
                 }
@@ -1086,20 +1119,9 @@ impl GenFinal for FieldTokensLivecode {
                 ),
             };
 
-            let inner_is_lazy_struct = parsed_type_info
-                .second_how_to
-                .map(|h| h.is_lazy())
-                .unwrap_or(false);
-
-            let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
-                quote! {murrelet_livecode::types::DeserLazyControlVecElement}
-            } else {
-                quote! {murrelet_livecode::types::ControlVecElement}
-            };
-
             let new_ty = match wrapper {
                 VecDepth::NotAVec => unreachable!("huh, parsing a not-vec in the vec function"), // why is it in this function?
-                VecDepth::Vec => quote! {Vec<#internal_type>},
+                VecDepth::Vec => quote! {Vec<#vec_elem_type<#internal_type>>},
                 VecDepth::VecVec => quote! {Vec<Vec<#internal_type>>},
                 VecDepth::VecControlVec => quote! { Vec<#vec_elem_type<Vec<#internal_type>>> },
             };
@@ -1109,9 +1131,11 @@ impl GenFinal for FieldTokensLivecode {
             if how_to_control_internal.needs_to_be_evaluated() {
                 match wrapper {
                     VecDepth::NotAVec => todo!(),
-                    VecDepth::Vec => {
-                        quote! {self.0.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()?}
-                    }
+                    VecDepth::Vec => vec_for_world_expr(
+                        quote!(&self.0),
+                        quote!(self.0),
+                        inner_is_lazy_struct,
+                    ),
                     VecDepth::VecVec => unimplemented!(),
                     VecDepth::VecControlVec => unimplemented!(),
                 }
@@ -1122,7 +1146,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_to_control = {
             if how_to_control_internal.needs_to_be_evaluated() {
-                quote! {self.0.iter().map(|x| x.to_control()).collect::<Vec<_>>()}
+                vec_for_to_control_expr(quote!(self.0), inner_is_lazy_struct)
             } else {
                 quote! {self.0.clone()}
             }
@@ -1160,7 +1184,7 @@ impl GenFinal for FieldTokensLivecode {
 
         let for_struct = {
             let new_ty = {
-                let DataFromType { main_type, .. } = ident_from_type(&orig_ty);
+                let main_type = ident_from_type(&orig_ty).main_type();
                 // eh, this is hacky
                 catch_special_types(main_type.clone())
             };
@@ -1187,6 +1211,344 @@ impl GenFinal for FieldTokensLivecode {
     }
 }
 
+impl FieldTokensLivecode {
+    // V(MyStruct) -> V(ControlMyStruct)
+    fn from_unnamed_enum_struct(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let main_type = ident_from_type(&idents.single_inner_ty()).main_type();
+        let new_type = update_to_control_ident(main_type);
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world =
+            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
+        let for_to_control =
+            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
+        let for_variable_idents =
+            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
+        let for_function_idents =
+            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(LazyMyStruct) -> V(ControlLazyMyStruct).
+    // Uses catch_special_types so that built-in lazy types (LazyVec2,
+    // LazyMurreletColor, ...) get their qualified path instead of a bare
+    // (and nonexistent) ControlLazyVec2 ident.
+    fn from_unnamed_enum_struct_lazy(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let main_type = ident_from_type(&idents.single_inner_ty()).main_type();
+        let new_type = catch_special_types(main_type);
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world =
+            quote! { #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(s.o(w)?)) };
+        let for_to_control =
+            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
+        let for_variable_idents =
+            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
+        let for_function_idents =
+            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(f32) -> V(ControlF32) ; V(Vec2) -> V([ControlF32; 2]) ; etc.
+    fn from_unnamed_enum_primitive(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let orig_ty = idents.single_inner_ty();
+        let ctrl = idents.single_inner_how_to().get_control_type();
+        let new_type = LivecodeFieldType(ctrl).to_token();
+
+        // No field metadata on enum variants -> no f32min/f32max clamping.
+        let inner_world_expr =
+            LivecodeFieldType(ctrl).for_world_target(quote!(s), orig_ty, None, None);
+
+        let for_struct = quote! { #variant_ident(#new_type) };
+        let for_world = if let Some(validate) = idents.validate_hook() {
+            quote! {
+                #new_ident::#variant_ident(s) => {
+                    let v = #inner_world_expr;
+                    #validate(&v).map_err(murrelet_livecode::types::LivecodeError::Raw)?;
+                    Ok(#name::#variant_ident(v))
+                }
+            }
+        } else {
+            quote! {
+                #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(#inner_world_expr))
+            }
+        };
+        let for_to_control =
+            quote! { #name::#variant_ident(s) => #new_ident::#variant_ident(s.to_control()) };
+        let for_variable_idents =
+            quote! { #new_ident::#variant_ident(s) => s.variable_identifiers() };
+        let for_function_idents =
+            quote! { #new_ident::#variant_ident(s) => s.function_identifiers() };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V([T; N]) -> V([ControlT; N]). Unrolled on the known N so each element
+    // eval can use `?`. Element may be a struct (SolverScalarInput), an
+    // already-lazy struct (when LivecodeOnly re-derives the generated Lazy
+    // enum), or a primitive.
+    fn from_unnamed_enum_array(
+        idents: EnumIdents,
+        elem: syn::Type,
+        n: usize,
+    ) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&elem);
+        let elem_how_to = *parsed.main_how_to();
+        let elem_ctrl_ty = match elem_how_to {
+            HowToControlThis::WithType(c) => LivecodeFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = update_to_control_ident(parsed.main_type());
+                quote! { #t }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                catch_special_types(parsed.main_type())
+            }
+            e => panic!(
+                "(livecode, enum variant [T;N]) element not supported: {:?}",
+                e
+            ),
+        };
+
+        let binds: Vec<syn::Ident> = (0..n).map(|i| quote::format_ident!("a{}", i)).collect();
+        let world_elems: Vec<TokenStream2> = binds
+            .iter()
+            .map(|ai| match elem_how_to {
+                HowToControlThis::WithType(c) => {
+                    LivecodeFieldType(c).for_world_target(quote!(#ai), elem.clone(), None, None)
+                }
+                _ => quote! { #ai.o(w)? },
+            })
+            .collect();
+        let to_control_elems: Vec<TokenStream2> =
+            binds.iter().map(|ai| quote! { #ai.to_control() }).collect();
+
+        let for_struct = quote! { #variant_ident([#elem_ctrl_ty; #n]) };
+        let for_world = quote! {
+            #new_ident::#variant_ident([#(#binds),*]) =>
+                Ok(#name::#variant_ident([#(#world_elems),*]))
+        };
+        let for_to_control = quote! {
+            #name::#variant_ident([#(#binds),*]) =>
+                #new_ident::#variant_ident([#(#to_control_elems),*])
+        };
+        let for_variable_idents = quote! {
+            #new_ident::#variant_ident([#(#binds),*]) =>
+                vec![#(#binds.variable_identifiers()),*].concat()
+                    .into_iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>()
+        };
+        let for_function_idents = quote! {
+            #new_ident::#variant_ident([#(#binds),*]) =>
+                vec![#(#binds.function_identifiers()),*].concat()
+                    .into_iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>()
+        };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(Vec<T>) -> V(Vec<ControlVecElement<ControlT>>)
+    // (or DeserLazyControlVecElement when inner is already lazy-wrapped)
+    fn from_unnamed_enum_vec(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&idents.single_inner_ty());
+        let inner_is_lazy_struct = parsed.is_lazy_control_vec();
+        let inner_how_to = parsed.second_how_to().expect("Vec needs an inner type");
+        let inner_type = match inner_how_to {
+            HowToControlThis::WithType(c) => LivecodeFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = parsed.internal_type();
+                let n = Self::new_ident(t);
+                quote! { #n }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                catch_special_types(parsed.internal_type())
+            }
+            e => panic!("(livecode, enum variant Vec) inner not supported: {:?}", e),
+        };
+
+        let vec_elem_type: TokenStream2 = if inner_is_lazy_struct {
+            quote! { murrelet_livecode::types::DeserLazyControlVecElement }
+        } else {
+            quote! { murrelet_livecode::types::ControlVecElement }
+        };
+
+        let world_expr = vec_for_world_expr(quote!(s), quote!(s), inner_is_lazy_struct);
+        let to_control_expr = vec_for_to_control_expr(quote!(s), inner_is_lazy_struct);
+
+        let for_struct = quote! {
+            #variant_ident(Vec<#vec_elem_type<#inner_type>>)
+        };
+        let for_world = quote! {
+            #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(#world_expr))
+        };
+        let for_to_control = quote! {
+            #name::#variant_ident(s) => #new_ident::#variant_ident(#to_control_expr)
+        };
+        let for_variable_idents = quote! {
+            #new_ident::#variant_ident(s) => s.iter()
+                .map(|x| x.variable_identifiers())
+                .flatten()
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        };
+        let for_function_idents = quote! {
+            #new_ident::#variant_ident(s) => s.iter()
+                .map(|x| x.function_identifiers())
+                .flatten()
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+
+    // V(Option<T>) -> V(Option<ControlT>)
+    fn from_unnamed_enum_option(idents: EnumIdents) -> FieldTokensLivecode {
+        let variant_ident = idents.variant_ident();
+        let name = idents.enum_ident();
+        let new_ident = Self::new_ident(name.clone());
+
+        let parsed = ident_from_type(&idents.single_inner_ty());
+        let inner_how_to = parsed.second_how_to().expect("Option needs an inner type");
+        let inner_type = match inner_how_to {
+            HowToControlThis::WithType(c) => LivecodeFieldType(c).to_token(),
+            HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
+                let t = parsed.internal_type();
+                let n = Self::new_ident(t);
+                quote! { #n }
+            }
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
+                catch_special_types(parsed.internal_type())
+            }
+            e => panic!(
+                "(livecode, enum variant Option) inner not supported: {:?}",
+                e
+            ),
+        };
+
+        let for_struct = quote! { #variant_ident(Option<#inner_type>) };
+        let for_world = quote! {
+            #new_ident::#variant_ident(s) => Ok(#name::#variant_ident(
+                s.as_ref().map(|x| x.o(w)).transpose()?
+            ))
+        };
+        let for_to_control = quote! {
+            #name::#variant_ident(s) => #new_ident::#variant_ident(
+                s.as_ref().map(|x| x.to_control())
+            )
+        };
+        let for_variable_idents = quote! {
+            #new_ident::#variant_ident(s) => s.as_ref()
+                .map(|x| x.variable_identifiers())
+                .unwrap_or_default()
+        };
+        let for_function_idents = quote! {
+            #new_ident::#variant_ident(s) => s.as_ref()
+                .map(|x| x.function_identifiers())
+                .unwrap_or_default()
+        };
+
+        FieldTokensLivecode {
+            for_struct,
+            for_world,
+            for_to_control,
+            for_variable_idents,
+            for_function_idents,
+        }
+    }
+}
+
+// Shared arm-builders. Each takes a target token stream (e.g. `&self.#name`
+// or `s` or `&self.0`) and produces the conversion expression. Framing
+// (`field: <expr>`, `Variant(s) => Variant(<expr>)`, `Self(<expr>)`) is
+// added by the caller.
+
+// V(Vec<T>) for_world.
+//   target_ref:  passed into eval_and_expand_vec_list (`&self.foo` / `s`)
+//   target_iter: receives `.iter()` (`self.foo` / `s`)
+fn vec_for_world_expr(
+    target_ref: TokenStream2,
+    target_iter: TokenStream2,
+    inner_is_lazy_struct: bool,
+) -> TokenStream2 {
+    if inner_is_lazy_struct {
+        quote! { #target_iter.iter().map(|x| x.o(w)).collect::<Result<Vec<_>, _>>()? }
+    } else {
+        quote! { murrelet_livecode::types::eval_and_expand_vec_list(#target_ref, w)? }
+    }
+}
+
+// V(Vec<T>) for_to_control. target_iter receives `.iter()`.
+fn vec_for_to_control_expr(target_iter: TokenStream2, inner_is_lazy_struct: bool) -> TokenStream2 {
+    if inner_is_lazy_struct {
+        quote! { #target_iter.iter().map(|x| x.to_control()).collect::<Vec<_>>() }
+    } else {
+        quote! {
+            #target_iter.iter()
+                .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
+                .collect::<Vec<_>>()
+        }
+    }
+}
+
 fn catch_special_types(original_internal_type: syn::Ident) -> TokenStream2 {
     let ctrl_ident = update_to_control_ident(original_internal_type.clone());
 
@@ -1195,6 +1557,7 @@ fn catch_special_types(original_internal_type: syn::Ident) -> TokenStream2 {
         "LazyNodeF32" => quote! { murrelet_livecode::lazy::ControlLazyNodeF32 },
         "LazyVec3" => quote! { murrelet_livecode::lazy::ControlLazyVec3 },
         "LazyMurreletColor" => quote! { murrelet_livecode::lazy::ControlLazyMurreletColor },
+        "LazyMurreletString" => quote! { murrelet_livecode::lazy::ControlLazyMurreletString },
         _ => quote! { #ctrl_ident },
     }
 }

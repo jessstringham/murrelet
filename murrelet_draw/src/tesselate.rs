@@ -1,90 +1,29 @@
-use std::{collections::HashMap, f32::consts::PI, ops};
+use std::f32::consts::PI;
 
 use crate::{
+    convert::{glam_to_kurbo, glam_to_lyon},
     cubic::CubicBezier,
-    curve_drawer::{
-        CubicBezierPath, CurveArc, CurveCubicBezier, CurveDrawer, CurvePoints, CurveSegment,
-    },
-    svg::SvgPathDef,
+    curve_drawer::{CurveArc, CurveCubicBezier, CurveDrawer, CurvePoints, CurveSegment},
 };
 use delaunator::Triangulation;
-use glam::{Vec2, Vec2Swizzles, vec2};
+use glam::{Vec2, vec2};
 use itertools::Itertools;
 use kurbo::BezPath;
-use lyon::geom::vector;
-use lyon::{geom::Angle, path::traits::Build};
-use lyon::{geom::arc::Arc, math::Transform};
 use lyon::{
-    geom::{
-        Point,
-        euclid::{Point2D, UnknownUnit},
-        point,
-    },
+    geom::Angle,
+    path::{Event, traits::Build},
+};
+use lyon::{geom::arc::Arc, math::Transform};
+use lyon::{geom::vector, path::traits::PathIterator};
+use lyon::{
+    geom::{Point, point},
     path::{FillRule, Path, traits::PathBuilder},
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex},
 };
 use murrelet_common::{
-    AnglePi, IsAngle, PointToPoint, Polyline, SimpleTransform2d, SimpleTransform2dStep,
-    SpotOnCurve, ToVec2, curr_next_no_loop_iter, triangulate::DefaultVertex,
+    IsAngle, SimpleTransform2d, SimpleTransform2dStep, ToVec2, triangulate::DefaultVertex,
 };
 use murrelet_livecode::types::{LivecodeError, LivecodeResult};
-
-pub trait ToVecVec2 {
-    fn to_vec2(&self) -> Vec<Vec2>;
-
-    fn to_vec2_line_space(&self, _line_space: f32) -> Vec<Vec2> {
-        todo!()
-    }
-
-    fn to_vec2_count(&self, _count: usize) -> Vec<Vec2> {
-        todo!()
-    }
-}
-
-impl ToVecVec2 for CubicBezier {
-    fn to_vec2_line_space(&self, line_space: f32) -> Vec<Vec2> {
-        let mut svg = svg::node::element::path::Data::new();
-
-        let x = self.from.x;
-        let y = self.from.y;
-        let start: svg::node::element::path::Parameters = vec![x, y].into();
-        svg = svg.move_to(start);
-
-        let cubic: svg::node::element::path::Parameters = vec![
-            self.ctrl1.x,
-            self.ctrl1.y,
-            self.ctrl2.x,
-            self.ctrl2.y,
-            self.to.x,
-            self.to.y,
-        ]
-        .into();
-        svg = svg.cubic_curve_to(cubic);
-
-        let mut path = parse_svg_data_as_vec2(&svg, line_space);
-
-        if let Some(a) = path.last()
-            && a.distance(self.to.yx()) > 1.0e-3
-        {
-            path.push(self.to.yx())
-        }
-
-        path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
-    }
-
-    fn to_vec2(&self) -> Vec<Vec2> {
-        self.to_vec2_line_space(1.0)
-    }
-}
-
-impl ToVecVec2 for CubicBezierPath {
-    fn to_vec2(&self) -> Vec<Vec2> {
-        let svg = self.to_data();
-        let path = parse_svg_data_as_vec2(&svg, 1.0);
-
-        path.into_iter().map(|x| vec2(x.y, x.x)).collect_vec()
-    }
-}
 
 pub trait AsLyonTransform {
     fn to_lyon_transform(&self) -> Transform {
@@ -136,7 +75,7 @@ pub trait ToLyonPath {
 
         let start = self.start();
 
-        lyon_builder.begin(v2p(start));
+        lyon_builder.begin(glam_to_lyon(start));
         let is_closed = self._add_to_lyon(start, &mut lyon_builder)?;
         lyon_builder.end(is_closed);
 
@@ -147,10 +86,43 @@ pub trait ToLyonPath {
         self.to_lyon_with_transform(&SimpleTransform2d::ident())
     }
 
+    fn flatten_with_lyon(&self, tolerance: f32) -> LivecodeResult<Vec<Vec2>> {
+        let path = self.to_lyon()?;
+
+        let mut pts = vec![];
+
+        for evt in path.iter().flattened(tolerance) {
+            match evt {
+                Event::Begin { at } => {
+                    let p = Vec2::new(at.x, at.y);
+                    pts.push(p);
+                }
+                Event::Line { to, .. } => {
+                    pts.push(Vec2::new(to.x, to.y));
+                }
+                Event::End {
+                    last,
+                    first: f,
+                    close,
+                } => {
+                    if close {
+                        let a = Vec2::new(last.x, last.y);
+                        let b = Vec2::new(f.x, f.y);
+                        if a != b {
+                            pts.push(b); // close loop
+                        }
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        Ok(pts)
+    }
+
     fn start(&self) -> Vec2;
 
     fn _start(&self) -> Point<f32> {
-        v2p(self.start())
+        glam_to_lyon(self.start())
     }
 
     fn _add_to_lyon<B: PathBuilder>(&self, start: Vec2, builder: &mut B) -> LivecodeResult<bool> {
@@ -165,10 +137,6 @@ pub trait ToLyonPath {
     fn add_to_lyon<B: PathBuilder>(&self, builder: &mut B) -> LivecodeResult<bool>;
 }
 
-fn v2p(v: Vec2) -> Point<f32> {
-    point(v.x, v.y)
-}
-
 impl ToLyonPath for CurvePoints {
     fn start(&self) -> Vec2 {
         self.first_point()
@@ -180,7 +148,7 @@ impl ToLyonPath for CurvePoints {
                 return LivecodeError::rawr("nan in CurvePoints");
             }
 
-            builder.line_to(v2p(*p));
+            builder.line_to(glam_to_lyon(*p));
         }
 
         Ok(false)
@@ -201,7 +169,7 @@ impl ToLyonPath for CubicBezier {
             return LivecodeError::rawr("nan in Bezier");
         }
 
-        builder.cubic_bezier_to(v2p(self.ctrl1), v2p(self.ctrl2), v2p(self.to));
+        builder.cubic_bezier_to(glam_to_lyon(self.ctrl1), glam_to_lyon(self.ctrl2), glam_to_lyon(self.to));
 
         Ok(false)
     }
@@ -327,226 +295,6 @@ impl ToLyonPath for CurveDrawer {
     }
 }
 
-fn vec2_to_kurbo(v: Vec2) -> kurbo::Point {
-    kurbo::Point::new(v.x as f64, v.y as f64)
-}
-
-fn vec2_to_pt(x: Vec2) -> lyon::geom::euclid::Point2D<f32, lyon::geom::euclid::UnknownUnit> {
-    point(x.x, x.y)
-}
-
-fn _point_from_params(params: &Vec<&f32>, idx: usize) -> Pt {
-    Pt::new(*params[idx * 2], *params[idx * 2 + 1])
-}
-
-fn point_from_param1(params: &Vec<&f32>) -> Pt {
-    _point_from_params(params, 0)
-}
-
-fn point_from_param2(params: &Vec<&f32>) -> (Pt, Pt) {
-    (_point_from_params(params, 0), _point_from_params(params, 1))
-}
-
-fn point_from_param3(params: &Vec<&f32>) -> (Pt, Pt, Pt) {
-    (
-        _point_from_params(params, 0),
-        _point_from_params(params, 1),
-        _point_from_params(params, 2),
-    )
-}
-
-pub fn many_pt2_to_vec2(ps: &Vec<Pt>) -> Vec<Vec2> {
-    ps.iter().map(|p| p.as_vec2()).collect_vec()
-}
-
-pub fn cubic_bezier_length(c: &CubicBezier) -> f32 {
-    let line = lyon::geom::CubicBezierSegment {
-        from: vec2_to_pt(c.from),
-        ctrl1: vec2_to_pt(c.ctrl1),
-        ctrl2: vec2_to_pt(c.ctrl2),
-        to: vec2_to_pt(c.to),
-    };
-    line.approximate_length(0.1)
-}
-
-pub fn segment_vec(from: Vec2, to: Vec2, line_space: f32, offset: f32) -> (Vec<Vec2>, f32) {
-    if to.distance(from) < 1e-7 {
-        return (vec![], offset);
-    }
-
-    let mut dist_since_last = offset; // how far into this one we should start
-    dist_since_last += (to - from).length(); // add how far we will travel
-
-    let backwards_dir = (to - from).normalize();
-
-    let mut lines = vec![];
-
-    while dist_since_last >= line_space {
-        // okay find how much we overshot it, and move backwards
-        // it should be within to and from.. or else we would've stopped before?
-        let overshot_amount = dist_since_last - line_space;
-        // figure out how to go backwards
-        // and now move backwards
-        let new_to = to - backwards_dir * overshot_amount;
-        lines.push(new_to);
-        dist_since_last = overshot_amount;
-    }
-
-    (lines, dist_since_last)
-}
-
-pub fn segment_arc(
-    curve: &CurveArc,
-    height: f32,
-    line_space: f32,
-    offset: f32,
-) -> (Vec<SpotOnCurve>, f32) {
-    // going into this curve, we should be all caught up
-    let multi = if curve.is_ccw() { 1.0 } else { -1.0 };
-    let radius = curve.radius.abs();
-
-    let increase_ratio = (radius + 0.5 * height) / radius;
-    let mut line_space = line_space / increase_ratio;
-
-    // make sure we always have at least a few points
-    let max_delta_angle = AnglePi::new(0.1);
-    line_space = line_space.min(radius * max_delta_angle._angle());
-
-    // expect line_space to be > 0
-    if line_space <= 0.0 {
-        return (vec![], offset);
-    }
-
-    // okay! now if we already traveled some distance along this curve (e.g. dist_since_last > 0)
-    // we need to remove some of it
-    let diameter = AnglePi::new(2.0).scale(radius).angle();
-
-    let estimated_size = (diameter / line_space) as usize;
-    let mut vs = Vec::with_capacity(estimated_size);
-
-    let mut residual = offset + curve.length();
-
-    // the last point was shifted back
-    let mut loc_on_arc = -offset;
-
-    while residual >= line_space {
-        residual -= line_space;
-        loc_on_arc += line_space;
-
-        let central_angle_from_start = AnglePi::new(2.0).scale(multi * loc_on_arc / diameter);
-        let curr_angle = curve.start_pi() + central_angle_from_start;
-
-        let norm_vec = curr_angle.to_norm_dir();
-        let curr_point = norm_vec * radius + curve.loc;
-
-        let a = if curve.is_ccw() {
-            curr_angle.perp_to_right()
-        } else {
-            curr_angle.perp_to_left()
-        };
-
-        let s = SpotOnCurve::new(curr_point, a);
-        vs.push(s);
-    }
-
-    (vs, residual / increase_ratio)
-}
-
-pub fn evenly_split_cubic_bezier(c: &CubicBezier, count: usize) -> Vec<SpotOnCurve> {
-    // always include the start (and end)
-    let v = flatten_cubic_bezier_path_with_tolerance(&[*c], false, 0.1);
-    if count <= 1 {
-        let angle = PointToPoint::new(c.from, c.to).angle();
-        return vec![c.from, c.to]
-            .into_iter()
-            .map(|x| SpotOnCurve::new(x, angle))
-            .collect_vec();
-    }
-
-    if let Some(a) = v {
-        let mut length = 0.0;
-        for (curr, next) in curr_next_no_loop_iter(&a) {
-            length += curr.distance(*next);
-        }
-
-        let spacing_for_dot = length / count as f32;
-
-        let mut last_angle = None;
-
-        let mut v = vec![];
-        let mut dist = 0.0;
-        for (curr, next) in curr_next_no_loop_iter(&a) {
-            let (vs, a) = segment_vec(*curr, *next, spacing_for_dot, dist);
-            let angle = PointToPoint::new(*curr, *next).angle();
-
-            // if it's the very first item
-            if last_angle.is_none() {
-                v.push(SpotOnCurve::new(*curr, angle))
-            }
-
-            let new = vs
-                .into_iter()
-                .map(|x| SpotOnCurve::new(x, angle))
-                .collect_vec();
-            v.extend(new);
-            dist = a;
-
-            last_angle = Some(angle);
-        }
-
-        v
-    } else {
-        let angle = PointToPoint::new(c.from, c.to).angle();
-        vec![c.from, c.to]
-            .into_iter()
-            .map(|x| SpotOnCurve::new(x, angle))
-            .collect_vec()
-    }
-}
-
-pub fn flatten_cubic_bezier_path_with_tolerance(
-    path: &[CubicBezier],
-    closed: bool,
-    tolerance: f32,
-) -> Option<Vec<Vec2>> {
-    if path.is_empty() {
-        return None;
-    }
-    let mut kurbo_path = BezPath::new();
-
-    kurbo_path.move_to(vec2_to_kurbo(path[0].from));
-    for c in path {
-        kurbo_path.curve_to(
-            vec2_to_kurbo(c.ctrl1),
-            vec2_to_kurbo(c.ctrl2),
-            vec2_to_kurbo(c.to),
-        )
-    }
-
-    if closed {
-        kurbo_path.close_path();
-    }
-
-    let mut points = Vec::new();
-    kurbo::flatten(kurbo_path, tolerance as f64, |el| match el {
-        kurbo::PathEl::MoveTo(p) | kurbo::PathEl::LineTo(p) => {
-            points.push(vec2(p.x as f32, p.y as f32));
-        }
-        kurbo::PathEl::ClosePath => {
-            if let Some(first) = points.first() {
-                points.push(*first);
-            }
-        }
-        _ => {}
-    });
-
-    Some(points)
-}
-
-pub fn flatten_cubic_bezier_path(path: &[CubicBezier], closed: bool) -> Option<Vec<Vec2>> {
-    flatten_cubic_bezier_path_with_tolerance(path, closed, 0.01)
-}
-
 pub fn cubic_bezier_path_to_lyon(path: &[CubicBezier], closed: bool) -> Option<lyon::path::Path> {
     // let mut builder = Path::builder();
 
@@ -555,12 +303,12 @@ pub fn cubic_bezier_path_to_lyon(path: &[CubicBezier], closed: bool) -> Option<l
     }
     let mut kurbo_path = BezPath::new();
 
-    kurbo_path.move_to(vec2_to_kurbo(path[0].from));
+    kurbo_path.move_to(glam_to_kurbo(path[0].from));
     for c in path {
         kurbo_path.curve_to(
-            vec2_to_kurbo(c.ctrl1),
-            vec2_to_kurbo(c.ctrl2),
-            vec2_to_kurbo(c.to),
+            glam_to_kurbo(c.ctrl1),
+            glam_to_kurbo(c.ctrl2),
+            glam_to_kurbo(c.to),
         )
     }
 
@@ -596,9 +344,9 @@ pub fn tesselate_lyon_vertex_with_steiner(
 
     // convert path to lyon
     if let Some(first_vertex) = outline.first() {
-        path_builder.begin(vec2_to_pt(first_vertex.pos2d()), &first_vertex.attrs());
+        path_builder.begin(glam_to_lyon(first_vertex.pos2d()), &first_vertex.attrs());
         for vertex in outline.iter().skip(1) {
-            path_builder.line_to(vec2_to_pt(vertex.pos2d()), &vertex.attrs());
+            path_builder.line_to(glam_to_lyon(vertex.pos2d()), &vertex.attrs());
         }
         path_builder.close();
     } else {
@@ -613,9 +361,9 @@ pub fn tesselate_lyon_vertex_with_steiner(
         let p0 = loc + vec2(amount, 0.0);
         let p1 = loc + vec2(0.0, amount);
         let p2 = loc + vec2(-amount, 0.0);
-        path_builder.begin(vec2_to_pt(p0), &s.attrs());
-        path_builder.line_to(vec2_to_pt(p1), &s.attrs());
-        path_builder.line_to(vec2_to_pt(p2), &s.attrs());
+        path_builder.begin(glam_to_lyon(p0), &s.attrs());
+        path_builder.line_to(glam_to_lyon(p1), &s.attrs());
+        path_builder.line_to(glam_to_lyon(p2), &s.attrs());
         path_builder.close()
     }
 
@@ -652,9 +400,9 @@ pub fn tesselate_lyon_vertex_simple(outline: &[DefaultVertex]) -> (Vec<u32>, Vec
 
     // convert path to lyon
     if let Some(first_vertex) = outline.first() {
-        path_builder.begin(vec2_to_pt(first_vertex.pos2d()), &first_vertex.attrs());
+        path_builder.begin(glam_to_lyon(first_vertex.pos2d()), &first_vertex.attrs());
         for vertex in outline.iter().skip(1) {
-            path_builder.line_to(vec2_to_pt(vertex.pos2d()), &vertex.attrs());
+            path_builder.line_to(glam_to_lyon(vertex.pos2d()), &vertex.attrs());
         }
         path_builder.close();
     } else {
@@ -709,379 +457,6 @@ pub fn tesselate_lyon(path: &Path) -> (Vec<u32>, Vec<[f32; 3]>) {
     .expect("tessellation failed");
 
     (geometry.indices, geometry.vertices)
-}
-
-pub fn parse_svg_data_as_vec2(data: &svg::node::element::path::Data, line_space: f32) -> Vec<Vec2> {
-    parse_data(data, line_space)
-}
-
-// svg loader
-fn parse_data(data: &svg::node::element::path::Data, line_space: f32) -> Vec<Vec2> {
-    let mut segment_state = SegmentState::new_with_line_space(line_space);
-
-    let mut from = Pt::new(0.0, 0.0);
-
-    // https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths
-    for command in data.iter() {
-        // println!("{:?}", command);
-
-        match command {
-            svg::node::element::path::Command::Move(_pos, params) => {
-                let curve: Vec<&f32> = params.iter().collect();
-                from = point_from_param1(&curve);
-            }
-            svg::node::element::path::Command::Line(pos, params) => {
-                for raw_curve in &params.iter().chunks(2) {
-                    let curve: Vec<&f32> = raw_curve.collect();
-
-                    let to = point_for_position(pos, Pt::new(*curve[0], *curve[1]), from);
-
-                    let line = lyon::geom::LineSegment {
-                        from: from.into(),
-                        to: to.into(),
-                    };
-
-                    let length = line.length();
-
-                    segment_state.add_segment(line, length);
-
-                    from = to;
-                }
-            }
-            svg::node::element::path::Command::HorizontalLine(pos, params) => {
-                for next_point in params.iter() {
-                    let to = match pos {
-                        svg::node::element::path::Position::Absolute => {
-                            Pt::new(*next_point, from.y())
-                        }
-                        svg::node::element::path::Position::Relative => {
-                            Pt::new(next_point + from.x(), from.y())
-                        }
-                    };
-
-                    let line = lyon::geom::LineSegment {
-                        from: from.into(),
-                        to: to.into(),
-                    };
-
-                    let length = line.length();
-
-                    segment_state.add_segment(line, length);
-
-                    from = to;
-                }
-            }
-            svg::node::element::path::Command::VerticalLine(pos, params) => {
-                for next_point in params.iter() {
-                    let to = match pos {
-                        svg::node::element::path::Position::Absolute => {
-                            Pt::new(from.x(), *next_point)
-                        }
-                        svg::node::element::path::Position::Relative => {
-                            Pt::new(from.x(), next_point + from.y())
-                        }
-                    };
-
-                    let line = lyon::geom::LineSegment {
-                        from: from.into(),
-                        to: to.into(),
-                    };
-
-                    let length = line.length();
-
-                    segment_state.add_segment(line, length);
-
-                    from = to;
-                }
-            }
-            svg::node::element::path::Command::CubicCurve(pos, params) => {
-                for raw_curve in &params.iter().chunks(6) {
-                    let curve: Vec<&f32> = raw_curve.collect();
-                    let (raw_ctrl1, raw_ctrl2, raw_to) = point_from_param3(&curve);
-
-                    let ctrl1 = point_for_position(pos, raw_ctrl1, from);
-                    let ctrl2 = point_for_position(pos, raw_ctrl2, from);
-                    let to = point_for_position(pos, raw_to, from);
-
-                    let line = lyon::geom::CubicBezierSegment {
-                        from: from.into(),
-                        ctrl1: ctrl1.into(),
-                        ctrl2: ctrl2.into(),
-                        to: to.into(),
-                    };
-
-                    let length = line.approximate_length(0.1);
-
-                    segment_state.add_segment(line, length);
-
-                    // prev_ctrl = Some(raw_ctrl2);
-
-                    from = to;
-                }
-            }
-            svg::node::element::path::Command::SmoothCubicCurve(
-                svg::node::element::path::Position::Relative,
-                params,
-            ) => {
-                for raw_curve in &params.iter().chunks(4) {
-                    let curve: Vec<&f32> = raw_curve.collect();
-                    let (raw_ctrl2, raw_to) = point_from_param2(&curve);
-
-                    let ctrl2 = raw_ctrl2 + from;
-                    let to = raw_to + from;
-
-                    let ctrl1 = Pt::new(from.x(), from.y()); // i'm.. surprised this works
-
-                    let line = lyon::geom::CubicBezierSegment {
-                        from: from.into(),
-                        ctrl1: ctrl1.into(),
-                        ctrl2: ctrl2.into(),
-                        to: to.into(),
-                    };
-
-                    let length = line.approximate_length(0.1);
-
-                    segment_state.add_segment(line, length);
-
-                    from = to;
-                }
-            }
-            svg::node::element::path::Command::Close => {}
-            svg::node::element::path::Command::QuadraticCurve(pos, params) => {
-                for raw_curve in &params.iter().chunks(4) {
-                    let curve: Vec<&f32> = raw_curve.collect();
-                    let (raw_ctrl, raw_to) = point_from_param2(&curve);
-
-                    let to = point_for_position(pos, raw_to, from);
-                    let ctrl = point_for_position(pos, raw_ctrl, from);
-
-                    let line = lyon::geom::QuadraticBezierSegment {
-                        from: from.into(),
-                        ctrl: ctrl.into(),
-                        to: to.into(),
-                    };
-
-                    let length = line.approximate_length(0.1);
-
-                    segment_state.add_segment(line, length);
-
-                    from = to;
-                }
-            }
-            svg::node::element::path::Command::SmoothQuadraticCurve(_, _) => todo!(),
-            svg::node::element::path::Command::EllipticalArc(_, _) => todo!(),
-            _ => todo!(),
-        };
-    }
-
-    // println!("processed {:?} pts", segment_state.vertices.len());
-
-    segment_state
-        .vertices
-        .into_iter()
-        .map(|x| x.as_vec2())
-        .collect_vec()
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Pt {
-    pt: Point2D<f32, UnknownUnit>,
-}
-impl Pt {
-    pub fn new(x: f32, y: f32) -> Pt {
-        Pt {
-            pt: Point2D::<f32, UnknownUnit>::new(x, y),
-        }
-    }
-
-    fn x(&self) -> f32 {
-        self.pt.x
-    }
-
-    fn y(&self) -> f32 {
-        self.pt.y
-    }
-
-    pub fn as_vec2(&self) -> Vec2 {
-        Vec2::new(self.y(), self.x())
-    }
-}
-
-impl ops::Add<Pt> for Pt {
-    type Output = Pt;
-
-    fn add(self, rhs: Pt) -> Pt {
-        Pt::new(self.x() + rhs.x(), self.y() + rhs.y())
-    }
-}
-
-impl From<Pt> for Point2D<f32, UnknownUnit> {
-    fn from(val: Pt) -> Self {
-        val.pt
-    }
-}
-
-fn point_for_position(pos: &svg::node::element::path::Position, pt: Pt, from: Pt) -> Pt {
-    match pos {
-        svg::node::element::path::Position::Absolute => pt,
-        svg::node::element::path::Position::Relative => pt + from,
-    }
-}
-
-pub struct SegmentState {
-    vertices: Vec<Pt>,
-    line_space: f32,
-    dist_towards_next: f32,
-}
-impl Default for SegmentState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SegmentState {
-    pub fn new() -> SegmentState {
-        SegmentState {
-            vertices: Vec::<Pt>::new(),
-            line_space: 5.0,
-            dist_towards_next: 0.0,
-        }
-    }
-
-    pub fn new_with_line_space(line_space: f32) -> SegmentState {
-        SegmentState {
-            vertices: Vec::<Pt>::new(),
-            line_space,
-            dist_towards_next: 0.0,
-        }
-    }
-
-    fn update(&mut self, length: f32, new_vertices: Vec<Pt>) {
-        self.dist_towards_next = (length + self.dist_towards_next) % self.line_space;
-        self.vertices.extend(new_vertices);
-    }
-    pub fn vertices(&self) -> Vec<Vec2> {
-        self.vertices.iter().map(|x| vec2(x.x(), x.y())).collect()
-    }
-
-    pub fn add_segment(&mut self, segment: impl lyon::geom::Segment<Scalar = f32>, length: f32) {
-        let mut vertices: Vec<Pt> = Vec::<Pt>::new();
-
-        let pt_count = ((length) / self.line_space) as u32;
-
-        // println!("pt count {:?}", pt_count);
-        // println!("{:?}", self.dist_towards_next);
-
-        // if it's an even number, we'll need one more. just include it, then
-        // trim it when t turns out > 1
-        for pt_i in 0..=pt_count {
-            let t_n = (self.line_space * pt_i as f32) + self.dist_towards_next;
-            let t = t_n / length;
-            // println!("{:?} {:?}", t_n, t);
-
-            if t <= 1.0 {
-                let x = segment.x(t);
-                let y = segment.y(t);
-                // println!("({:?}, {:?})", x, y);
-                vertices.push(Pt::new(x, y));
-            }
-        }
-
-        self.update(length, vertices)
-    }
-}
-
-pub fn load_all_data<T>(path: T, line_space: f32) -> HashMap<String, Vec<Vec<Vec2>>>
-where
-    T: AsRef<std::path::Path>,
-{
-    let map = load_all_data_into_map(path);
-
-    let r: HashMap<String, Vec<Vec<Vec2>>> = map
-        .iter()
-        .map(|(k, v)| {
-            // println!("processing {:?}", k);
-            (
-                k.to_string(),
-                v.iter().map(|vv| parse_data(vv, line_space)).collect_vec(),
-            )
-        })
-        .collect();
-    r
-}
-
-pub fn load_all_data_into_map<T>(path: T) -> HashMap<String, Vec<svg::node::element::path::Data>>
-where
-    T: AsRef<std::path::Path>,
-{
-    let mut content = String::new();
-
-    let mut maps: HashMap<String, Vec<svg::node::element::path::Data>> = HashMap::new();
-
-    let mut recent_id: String = "".to_string(); // i hate this
-
-    for event in svg::open(path, &mut content).unwrap() {
-        if let svg::parser::Event::Tag(_, _, attributes) = event {
-            if let Some(id) = attributes.get("id") {
-                recent_id = id.to_string();
-            }
-
-            if let Some(path_data) = attributes.get("d") {
-                let data = svg::node::element::path::Data::parse(path_data).unwrap();
-                maps.entry(recent_id.to_owned()).or_default().push(data);
-            }
-        };
-    }
-
-    maps
-}
-
-// SvgPathDef is a simplified svg thingy.. this just converts back to the full
-// svg and then parses like usual
-pub fn parse_svg_path_as_vec2(data: &SvgPathDef, line_space: f32) -> Vec<Vec2> {
-    let mut cmds = svg::node::element::path::Data::new();
-    let (start_x, start_y) = data.svg_move_to();
-    cmds = cmds.move_to(vec![start_x, start_y]);
-
-    for cmd in data.cmds() {
-        match cmd {
-            crate::svg::SvgCmd::Line(svg_to) => {
-                let (x, y) = svg_to.params();
-                cmds = cmds.line_to(vec![x, y]);
-            }
-            crate::svg::SvgCmd::CubicBezier(svg_cubic_bezier) => {
-                let (a, b, c, d, e, f) = svg_cubic_bezier.params();
-                cmds = cmds.cubic_curve_to(vec![a, b, c, d, e, f]);
-            }
-            crate::svg::SvgCmd::ArcTo(svg_arc) => {
-                let (a, b, c, d, e, f, g) = svg_arc.params();
-                cmds = cmds.elliptical_arc_to(vec![a, b, c, d, e, f, g]);
-            }
-        }
-    }
-
-    parse_svg_data_as_vec2(&cmds, line_space)
-}
-
-// todo, can i combine this with the output?
-pub struct LayersFromSvg {
-    pub layers: HashMap<String, Vec<Polyline>>,
-}
-impl LayersFromSvg {
-    pub fn load<T>(path: T) -> LayersFromSvg
-    where
-        T: AsRef<std::path::Path>,
-    {
-        let vecs = load_all_data(path, 5.0);
-
-        let mut layers = HashMap::new();
-        for (layer_name, vec) in &vecs {
-            let polylines = vec.iter().map(|x| Polyline::new(x.clone())).collect();
-            layers.insert(layer_name.clone(), polylines);
-        }
-
-        LayersFromSvg { layers }
-    }
 }
 
 pub fn tesselate_delauney<VertexKind: ToVec2 + Clone>(
@@ -1154,11 +529,10 @@ pub fn tesselate_delauney_no_filter<VertexKind: ToVec2 + Clone>(
         .collect();
     let triangulation = delaunator::triangulate(&points);
 
-    let vertices = v.clone();
     let indices = triangulation
         .triangles
         .iter()
         .map(|x| *x as u32)
         .collect_vec();
-    (indices, vertices, triangulation)
+    (indices, v, triangulation)
 }

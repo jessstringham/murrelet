@@ -11,15 +11,15 @@ use itertools::Itertools;
 use murrelet_common::*;
 use murrelet_draw::{
     curve_drawer::CurveDrawer,
-    draw::{MurreletColorStyle, MurreletStyle},
+    draw::{MurreletColorStyle, MurreletDrawPlan, MurreletStyle},
     newtypes::RGBandANewtype,
     style::{MurreletCurve, MurreletPath, MurreletPathAnnotation, StyledPath, StyledPathSvgFill},
     svg::{SvgPathDef, SvgShape, TransformedSvgShape},
 };
 use murrelet_perform::perform::SvgDrawConfig;
 use svg::{
+    node::element::{path::Data, Group},
     Document, Node,
-    node::element::{Group, path::Data},
 };
 
 pub struct MurreletSvgAttributes(Vec<(String, String)>);
@@ -478,13 +478,65 @@ impl SvgDocCreator {
         (g, patterns)
     }
 
+
+    // some claude help making the svg for pen plotter more streamlined.
+    fn output_layers(&self, paths: &SvgPathCache) -> Vec<(String, SvgLayer)> {
+        if !self.svg_draw_config.colors_as_layers() {
+            return paths
+                .layers
+                .iter()
+                .map(|(k, l)| (k.clone(), l.clone()))
+                .collect();
+        }
+
+        let mut order: Vec<String> = Vec::new();
+        let mut grouped: HashMap<String, SvgLayer> = HashMap::new();
+
+        for name in paths.layers.keys().sorted() {
+            let layer = &paths.layers[name];
+            if name == "guides" {
+                if grouped.insert(name.clone(), SvgLayer::new()).is_none() {
+                    order.push(name.clone());
+                }
+                let g = grouped.get_mut(name).unwrap();
+                g.paths.extend(layer.paths.iter().cloned());
+                g.text.extend(layer.text.iter().cloned());
+                continue;
+            }
+            for path in layer.paths.iter() {
+                let key = stroke_layer_key(&path.style);
+                if !grouped.contains_key(&key) {
+                    order.push(key.clone());
+                    grouped.insert(key.clone(), SvgLayer::new());
+                }
+                grouped.get_mut(&key).unwrap().paths.push(path.clone());
+            }
+            if !layer.text.is_empty() {
+                if !grouped.contains_key("text") {
+                    order.push("text".to_string());
+                    grouped.insert("text".to_string(), SvgLayer::new());
+                }
+                grouped
+                    .get_mut("text")
+                    .unwrap()
+                    .text
+                    .extend(layer.text.iter().cloned());
+            }
+        }
+
+        order
+            .into_iter()
+            .filter_map(|k| grouped.remove(&k).map(|l| (k, l)))
+            .collect()
+    }
+
     fn make_html(&self, paths: &SvgPathCache) -> (svg::node::element::Group, String) {
         let mut doc = svg::node::element::Group::new();
 
         // let mut defs = svg::node::element::Definitions::new();
         let mut defs = vec![];
 
-        for (name, layer) in paths.layers.iter() {
+        for (name, layer) in self.output_layers(paths).iter() {
             let (g, patterns) = self.make_layer(name, layer, self.svg_draw_config.make_layers());
             doc.append(g);
             for p in patterns {
@@ -498,32 +550,55 @@ impl SvgDocCreator {
         (doc, defs.into_iter().join("\n"))
     }
 
+    // like make_html, but keeps each path/text as its own markup fragment instead of
+    // concatenating them into one <g>. Lets a consumer build one DOM node per shape
+    // (web-sys node-render mode) while reusing the exact same serialization.
+    fn make_node_fragments(&self, paths: &SvgPathCache) -> (Vec<String>, String) {
+        let mut fragments = Vec::new();
+        let mut defs = vec![];
+
+        for (_name, layer) in self.output_layers(paths).iter() {
+            let mut seen_pattern_keys = HashSet::new();
+
+            for path in layer.paths.iter() {
+                if let Some(g) = path.make_group() {
+                    if let Some((key, pattern)) = path.make_pattern() {
+                        if seen_pattern_keys.insert(key) {
+                            defs.push(pattern.to_string());
+                        }
+                    }
+                    fragments.push(g.to_string());
+                }
+            }
+
+            for text in layer.text.iter() {
+                fragments.push(self.make_text(text).to_string());
+            }
+        }
+
+        (fragments, defs.into_iter().join("\n"))
+    }
+
     // this one's meant for svgs for pen plotters, so it drops fill styles
     fn make_doc(&self, paths: &SvgPathCache) -> Document {
         let target_size = self.svg_draw_config.full_target_width(); // guides are at 10x 10x, gives 1cm margin
+        let half = target_size / 2.0;
 
-        let (view_box_x, view_box_y) = if let Some(r) = self.svg_draw_config.resolution {
-            let [width, height] = r.as_dims();
-            // (width * 2, height * 2) // i'm not sure why i had this?
-            (width, height)
-        } else {
-            (800, 800)
-        };
         let mut doc = Document::new()
             .set(
                 "xmlns:inkscape",
                 "http://www.inkscape.org/namespaces/inkscape",
             )
-            .set("viewBox", (0, 0, view_box_x, view_box_y))
+            .set("viewBox", (half, half, target_size, target_size))
             .set("width", format!("{:?}mm", target_size))
             .set("height", format!("{:?}mm", target_size));
 
         if let Some(bg_color) = self.svg_draw_config.bg_color() {
             let mut bg_rect = svg::node::element::Rectangle::new()
-                .set("x", 0)
-                .set("y", 0)
-                .set("width", view_box_x)
-                .set("height", view_box_y)
+                .set("x", half)
+                .set("y", half)
+                .set("width", target_size)
+                .set("height", target_size)
                 .set("fill", bg_color.to_svg_rgb());
 
             if bg_color.alpha() < 1.0 {
@@ -532,17 +607,10 @@ impl SvgDocCreator {
             doc = doc.add(bg_rect);
         }
 
-        // todo, maybe figure out defs?
-        let (group, _) = self.make_html(paths);
-
-        let mut centering_group = svg::node::element::Group::new();
-        centering_group = centering_group.set(
-            "transform",
-            format!("translate({}px, {}px)", view_box_x / 2, view_box_y / 2),
-        );
-        centering_group = centering_group.add(group);
-
-        doc = doc.add(centering_group);
+        for (name, layer) in self.output_layers(paths).iter() {
+            let (g, _patterns) = self.make_layer(name, layer, self.svg_draw_config.make_layers());
+            doc = doc.add(g);
+        }
 
         doc
     }
@@ -558,37 +626,21 @@ impl SvgDocCreator {
 
         vec![
             Rect::from_xy_wh(center + vec2(-width * 0.5, -width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(-width * 0.5, width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, -width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, width * 0.5), guide_size_tall)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(-width * 0.5, -width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(-width * 0.5, width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, -width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
             Rect::from_xy_wh(center + vec2(width * 0.5, width * 0.5), guide_size_wide)
-                .to_polyline()
-                .vertices()
-                .to_vec(),
+                .to_polyline(),
         ]
     }
 
@@ -624,6 +676,22 @@ pub fn make_canvas_imgs(canvas_ids: &Vec<String>) -> Vec<svg::node::element::Ima
     defs
 }
 
+// more claude helper things
+fn stroke_layer_key(style: &MurreletStyle) -> String {
+    let color = match style.drawing_plan() {
+        MurreletDrawPlan::Outline | MurreletDrawPlan::Line => match style.stroke_color {
+            MurreletColorStyle::Color(_) | MurreletColorStyle::RgbaFill(_) => {
+                style.stroke_color.as_color()
+            }
+            _ => style.color.as_color(),
+        },
+        MurreletDrawPlan::FilledClosed => style.stroke_color.as_color(),
+        _ => style.color.as_color(),
+    };
+    color.hex()
+}
+
+#[derive(Clone)]
 pub struct SvgLayer {
     paths: Vec<StyledPath>,
     text: Vec<StyledText>,
@@ -663,6 +731,10 @@ impl SvgPathCacheRef {
         self.0.borrow_mut().add_guides();
     }
 
+    pub fn to_svg_string(&self) -> String {
+        self.0.borrow().to_svg_string()
+    }
+
     pub fn save_doc(&self) {
         self.0.borrow().save_doc();
     }
@@ -681,6 +753,11 @@ impl SvgPathCacheRef {
 
     pub fn make_html(&self) -> (String, String) {
         self.0.borrow().make_html()
+    }
+
+    // (defs, one markup fragment per shape) — see SvgPathCache::make_html_fragments.
+    pub fn make_html_fragments(&self) -> (String, Vec<String>) {
+        self.0.borrow().make_html_fragments()
     }
 }
 
@@ -727,10 +804,24 @@ impl SvgPathCache {
 
     pub fn add_styled_path(&mut self, layer: &str, styled_path: StyledPath) {
         let layer = self.layers.entry(layer.to_owned()).or_default();
-        layer.paths.push(
-            styled_path
-                .transform_with_mat4_after(self.config.svg_draw_config().transform_for_size()),
-        );
+        let sdc = self.config.svg_draw_config();
+        let t = sdc.transform_for_size();
+        let approx_scale = t.approx_scale();
+        let mut styled_path = styled_path.transform_with_mat4_after(t);
+
+        // claude says...
+        // The resized (file) output uses 1 unit = 1mm. If stroke_width is set,
+        // every file stroke is drawn at exactly that physical width — the right
+        // model for fabrication, where the line width is a real spec. Otherwise
+        // scale the engine stroke_weight by the same factor as the geometry so
+        // it stays proportional (matches the web/canvas, which don't resize).
+        let stroke_width_mm = sdc.stroke_width();
+        if sdc.should_resize() && stroke_width_mm > 0.0 {
+            styled_path.style.stroke_weight = stroke_width_mm;
+        } else {
+            styled_path.style.stroke_weight *= approx_scale;
+        }
+        layer.paths.push(styled_path);
     }
 
     pub fn add_styled_text(&mut self, layer: &str, text: StyledText) {
@@ -760,7 +851,34 @@ impl SvgPathCache {
         self.add_closed("default", shape)
     }
 
+    pub fn to_svg_string(&self) -> String {
+        self.config.make_doc(self).to_string()
+    }
+
     pub fn save_doc(&self) {
+        let layer_summaries = self
+            .layers
+            .iter()
+            .map(|(name, layer)| format!("{}:p{}:t{}", name, layer.paths.len(), layer.text.len()))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let total_paths = self
+            .layers
+            .values()
+            .map(|layer| layer.paths.len())
+            .sum::<usize>();
+        let total_text = self
+            .layers
+            .values()
+            .map(|layer| layer.text.len())
+            .sum::<usize>();
+        println!(
+            "svg save: layers={} paths={} text={} [{}]",
+            self.layers.len(),
+            total_paths,
+            total_text,
+            layer_summaries
+        );
         self.config.save_doc(self);
     }
 
@@ -770,6 +888,14 @@ impl SvgPathCache {
         let (paths, defs) = self.config.make_html(self);
 
         (defs.to_string(), paths.to_string())
+    }
+
+    // same shapes as make_html, but each shape stays a separate markup fragment
+    // (returns (defs, fragments)) so a consumer can build one DOM node per shape.
+    pub fn make_html_fragments(&self) -> (String, Vec<String>) {
+        let (fragments, defs) = self.config.make_node_fragments(self);
+
+        (defs, fragments)
     }
 }
 
@@ -789,6 +915,7 @@ impl ToSvgData for SvgPathDef {
                 murrelet_draw::svg::SvgCmd::ArcTo(svg_arc) => {
                     path = path.elliptical_arc_to(svg_arc.params())
                 }
+                murrelet_draw::svg::SvgCmd::Close => path = path.close(),
             }
         }
 
@@ -870,6 +997,10 @@ impl ToSvgData for CurveDrawer {
                     }
                 }
             }
+        }
+
+        if self.closed {
+            path = path.close();
         }
 
         Some(path)

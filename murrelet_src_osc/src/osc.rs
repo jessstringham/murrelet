@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use murrelet_common::{
-    IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue, print_expect,
+    IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue, StrId, ToStrId, print_expect
 };
 use rosc::{OscPacket, OscType};
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ impl IsLivecodeSrc for OscMng {
         }
     }
 
-    fn to_exec_funcs(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
         self.values.to_livecode_vals()
     }
 
@@ -71,20 +71,20 @@ pub struct OscMng {
 
 #[derive(Debug)]
 pub struct OscValues {
-    last_values: HashMap<String, LivecodeValue>,
-    smooth_values: HashMap<String, LivecodeValue>,
+    last_values: HashMap<StrId, LivecodeValue>,
+    smooth_values: HashMap<StrId, LivecodeValue>,
     // pub msg: Option<OSCMessage>,
 }
 
 impl OscValues {
-    fn to_livecode_vals(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
-        let last_values: Vec<(String, murrelet_common::LivecodeValue)> =
+    fn to_livecode_vals(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
+        let last_values: Vec<(StrId, murrelet_common::LivecodeValue)> =
             self.last_values.clone().into_iter().collect();
-        let smooth_values: Vec<(String, murrelet_common::LivecodeValue)> = self
+        let smooth_values: Vec<(StrId, murrelet_common::LivecodeValue)> = self
             .smooth_values
             .clone()
             .into_iter()
-            .map(|(key, val)| (format!("{}_smooth", key), val))
+            .map(|(key, val)| (format!("{}_smooth", key).to_strid(), val))
             .collect();
 
         [last_values, smooth_values].concat()
@@ -138,14 +138,13 @@ impl OscCxn {
                         _ => new_val,
                     };
 
-                    r.smooth_values.insert(name.clone(), actual_new_val);
+                    r.smooth_values.insert(name, actual_new_val);
                 } else {
                     println!("first time seeing name {} with value {:?}", name, new_val);
-                    r.smooth_values.insert(name.clone(), new_val);
+                    r.smooth_values.insert(name, new_val);
                 }
 
-                // println!("{:?} {:?}", name, new_val);
-                r.last_values.insert(name.clone(), new_val); // todo, probably good to get timestamp
+                r.last_values.insert(name, new_val); // todo, probably good to get timestamp
             }
         })
     }
@@ -201,10 +200,10 @@ impl OSCMessage {
         Self { v }
     }
 
-    fn to_livecode_vals(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
+    fn to_livecode_vals(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
         self.v
             .iter()
-            .map(|osc| (format!("oo_{}", osc.name), osc.v))
+            .map(|osc| (format!("oo_{}", osc.name).to_strid(), osc.v))
             .collect::<Vec<_>>()
     }
 }

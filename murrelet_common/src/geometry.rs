@@ -7,10 +7,7 @@ use lerpable::Lerpable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    SimpleTransform2d, SimpleTransform2dStep,
-    intersection::{find_intersection_inf, find_intersection_segments, within_segment},
-    transform::TransformVec2,
-    triangulate::DefaultVertex,
+    SimpleTransform2d, SimpleTransform2dStep, intersection::{find_intersection_inf, find_intersection_segments, within_segment}, transform::TransformVec2, triangulate::DefaultVertex
 };
 
 pub fn a_pi(a: f32) -> AnglePi {
@@ -168,7 +165,7 @@ impl From<AnglePi> for Angle {
 }
 
 // newtype.
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Default)]
 pub struct Angle(f32);
 impl Angle {
     pub fn new(v: f32) -> Angle {
@@ -184,8 +181,8 @@ impl Angle {
         Angle(self.angle() * s)
     }
 
-    pub fn hyp_given_opp<L: IsLength>(&self, opp: L) -> Length {
-        Length(opp.len() / self.angle().sin())
+    pub fn hyp_given_opp(&self, opp: f32) -> f32 {
+        opp / self.angle().sin()
     }
 
     pub fn _angle(&self) -> f32 {
@@ -223,11 +220,12 @@ impl Angle {
     }
 
     pub fn is_vertical(&self) -> bool {
-        (self.angle_pi() - 0.5 % 1.0) < 1e-2
+        (self.angle_pi().rem_euclid(1.0) - 0.5).abs() < 1e-2
     }
 
     pub fn is_horizontal(&self) -> bool {
-        (self.angle_pi() - 0.0 % 1.0) < 1e-2
+        let r = self.angle_pi().rem_euclid(1.0);
+        r.min(1.0 - r) < 1e-2
     }
 
     // todo: mirror across angle
@@ -255,6 +253,12 @@ pub trait IsAngle: Sized {
     fn perp_to_left(&self) -> Self;
     fn perp_to_right(&self) -> Self;
     fn scale(&self, s: f32) -> Self;
+    fn rotate<B>(&self, a: B) -> Self
+    where
+        B: IsAngle,
+        Angle: From<B>,
+        B: From<Angle>,
+        B: Copy;
 
     fn mod2(&self) -> AnglePi {
         AnglePi::new(self.angle_pi() % 2.0)
@@ -314,89 +318,15 @@ where
     fn scale(&self, s: f32) -> Self {
         self.as_angle()._scale(s).into()
     }
-}
 
-// LENGTH
-
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Default)]
-pub struct Length(f32);
-
-impl Length {
-    pub fn new(v: f32) -> Length {
-        Length(v)
-    }
-
-    pub fn scale(&self, scale: f32) -> Length {
-        Length(self.len() + scale)
-    }
-
-    pub fn abs(&self) -> Self {
-        Length(self.len().abs())
-    }
-
-    pub fn minus(&self) -> Length {
-        Length(-self.len())
-    }
-}
-
-impl<A> std::ops::Sub<A> for Length
-where
-    A: IsLength,
-{
-    type Output = Length;
-
-    fn sub(self, rhs: A) -> Self::Output {
-        let other = rhs.len();
-
-        Length(self.0 - other)
-    }
-}
-
-impl<A> std::ops::Add<A> for Length
-where
-    A: IsLength,
-{
-    type Output = Length;
-
-    fn add(self, rhs: A) -> Self::Output {
-        let other = rhs.len();
-
-        Length(self.0 + other)
-    }
-}
-
-impl IsLength for Length {
-    fn len(&self) -> f32 {
-        self.0
-    }
-
-    fn to_length(&self) -> Length {
-        *self
-    }
-}
-
-pub trait IsLength {
-    fn len(&self) -> f32;
-    fn to_length(&self) -> Length;
-}
-
-impl IsLength for f32 {
-    fn len(&self) -> f32 {
-        *self
-    }
-
-    fn to_length(&self) -> Length {
-        Length::new(*self)
-    }
-}
-
-impl IsLength for PointToPoint {
-    fn len(&self) -> f32 {
-        self.start.distance(self.end)
-    }
-
-    fn to_length(&self) -> Length {
-        Length::new(self.len())
+    fn rotate<B>(&self, a: B) -> Self
+    where
+        B: IsAngle,
+        Angle: From<B>,
+        B: From<Angle>,
+        B: Copy,
+    {
+        (self.as_angle() + a.as_angle()).into()
     }
 }
 
@@ -404,10 +334,21 @@ impl IsLength for PointToPoint {
 
 // should combine this with Tangent...
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct SpotOnCurve {
     pub loc: Vec2,
     pub angle: Angle,
+}
+
+impl Add for SpotOnCurve {
+    type Output = SpotOnCurve;
+
+    fn add(self, rhs: SpotOnCurve) -> Self::Output {
+        SpotOnCurve {
+            loc: self.loc + rhs.loc,
+            angle: self.angle + rhs.angle,
+        }
+    }
 }
 
 impl SpotOnCurve {
@@ -450,8 +391,8 @@ impl SpotOnCurve {
         None
     }
 
-    pub fn to_line<L: IsLength>(&self, length: L) -> LineFromVecAndLen {
-        LineFromVecAndLen::new(self.loc, self.angle, length.to_length())
+    pub fn to_line(&self, length: f32) -> LineFromVecAndLen {
+        LineFromVecAndLen::new(self.loc, self.angle, length)
     }
 
     pub fn turn_left_perp(&self) -> Self {
@@ -468,23 +409,23 @@ impl SpotOnCurve {
         }
     }
 
-    pub fn move_left_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
+    pub fn move_left_perp_dist(&self, length: f32) -> Vec2 {
         self.turn_left_perp()
-            .to_line(length.to_length())
+            .to_line(length)
             .to_last_point()
     }
 
-    pub fn move_left_perp_dist_spot<L: IsLength>(&self, length: L) -> SpotOnCurve {
+    pub fn move_left_perp_dist_spot(&self, length: f32) -> SpotOnCurve {
         SpotOnCurve::new(self.move_left_perp_dist(length), self.angle())
     }
 
-    pub fn move_right_perp_dist_spot<L: IsLength>(&self, length: L) -> SpotOnCurve {
+    pub fn move_right_perp_dist_spot(&self, length: f32) -> SpotOnCurve {
         SpotOnCurve::new(self.move_right_perp_dist(length), self.angle())
     }
 
-    pub fn move_right_perp_dist<L: IsLength>(&self, length: L) -> Vec2 {
+    pub fn move_right_perp_dist(&self, length: f32) -> Vec2 {
         self.turn_right_perp()
-            .to_line(length.to_length())
+            .to_line(length)
             .to_last_point()
     }
 
@@ -536,6 +477,10 @@ impl SpotOnCurve {
         }
     }
 
+    pub fn travel_p2p(&self, length: f32) -> PointToPoint {
+        PointToPoint::new(self.clone().loc(), self.travel(length).loc())
+    }
+
     pub fn travel_2d(&self, dist: Vec2) -> SpotOnCurve {
         let a = Angle::new(dist.to_angle());
         let loc = self.travel(dist.x).turn_right_perp().travel(dist.y).loc;
@@ -544,6 +489,10 @@ impl SpotOnCurve {
 
     pub fn move_back(&self, dist: f32) -> SpotOnCurve {
         self.flip().travel(dist).flip()
+    }
+
+    pub fn maybe_flip(&self, is_up: bool) -> SpotOnCurve {
+        if is_up { self.flip() } else { *self }
     }
 }
 
@@ -593,10 +542,10 @@ impl CornerAngleToAngle {
     }
 
     // dist is how far away from the current point. left is positive (inside of angle) (i think)
-    pub fn corner_at_point<L: IsLength>(&self, dist: L) -> Vec2 {
+    pub fn corner_at_point(&self, dist: f32) -> Vec2 {
         // mid-way between the two angles, and then go perpindicular at some point
 
-        let p = if dist.len() < 0.0 {
+        let p = if dist < 0.0 {
             AnglePi(0.5)
         } else {
             AnglePi(-0.5)
@@ -608,7 +557,7 @@ impl CornerAngleToAngle {
         let target_angle_norm_dir = target_angle.to_norm_dir();
         let new_length = new_angle.hyp_given_opp(dist);
 
-        self.point + new_length.len() * target_angle_norm_dir
+        self.point + new_length * target_angle_norm_dir
     }
 }
 
@@ -665,12 +614,16 @@ impl PointToPoint {
     }
 
     pub fn to_norm_dir(&self) -> Vec2 {
-        (self.end - self.start).normalize()
+        (self.end - self.start).normalize_or_zero()
     }
 
     // angle relative to 0
     pub fn angle(&self) -> Angle {
-        Angle(self.to_norm_dir().to_angle())
+        if self.length() < 1.0e-6 {
+            Angle::new(0.0) // todo, error?
+        } else {
+            Angle(self.to_norm_dir().to_angle())
+        }
     }
 
     pub fn midpoint(&self) -> Vec2 {
@@ -689,6 +642,7 @@ impl PointToPoint {
         find_intersection_inf(self.to_tuple(), other.to_tuple())
     }
 
+    // looks like it includes endpoints
     pub fn find_intersection(&self, other: PointToPoint) -> Option<Vec2> {
         find_intersection_segments(self.to_tuple(), other.to_tuple())
     }
@@ -712,6 +666,20 @@ impl PointToPoint {
             start: intersection,
             end: closest_point,
         }
+    }
+
+    pub fn closest_pt_to_segment(&self, p: Vec2) -> PointToPoint {
+        let ab = self.end - self.start;
+        let ab_len2 = ab.length_squared();
+
+        let closest = if ab_len2 <= 1.0e-12 {
+            self.start
+        } else {
+            let t = ((p - self.start).dot(ab) / ab_len2).clamp(0.0, 1.0);
+            self.start + t * ab
+        };
+
+        PointToPoint::new(p, closest)
     }
 
     // drop a right angle down from intersection, where does it fall along
@@ -753,30 +721,38 @@ impl PointToPoint {
             self.end_spot().turn_left_perp().travel(dist).loc,
         )
     }
+
+    pub fn length(&self) -> f32 {
+        self.start.distance(self.end)
+    }
+
+    pub fn side_of(&self, v: Vec2) -> f32 {
+        self.to_norm_dir().perp_dot(v - self.start)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct LineFromVecAndLen {
     start: Vec2,
     angle: Angle,
-    length: Length,
+    length: f32,
 }
 impl LineFromVecAndLen {
-    pub fn new<L: IsLength>(start: Vec2, angle: Angle, length: L) -> Self {
+    pub fn new(start: Vec2, angle: Angle, length: f32) -> Self {
         Self {
             start,
             angle,
-            length: length.to_length(),
+            length,
         }
     }
 
-    pub fn new_centered<L: IsLength>(start: Vec2, angle: Angle, length: L) -> Self {
-        let first_pt = Self::new(start, angle, -0.5 * length.len()).to_last_point();
+    pub fn new_centered(start: Vec2, angle: Angle, length: f32) -> Self {
+        let first_pt = Self::new(start, angle, -0.5 * length).to_last_point();
         Self::new(first_pt, angle, length)
     }
 
     pub fn to_last_point(&self) -> Vec2 {
-        self.start + self.length.len() * self.angle.to_norm_dir()
+        self.start + self.length * self.angle.to_norm_dir()
     }
 
     pub fn to_vec(&self) -> Vec<Vec2> {
@@ -861,4 +837,38 @@ impl ToVec2 for DefaultVertex {
 
 pub fn sagitta_from_arc_len(radius: f32, central_angle: AnglePi) -> f32 {
     radius * (1.0 - (0.5 * central_angle.angle()).cos())
+}
+
+
+// claude, shoelace
+pub fn poly_area_signed(r: &[Vec2]) -> f32 {
+    let n = r.len();
+    let mut a = 0.0;
+    for i in 0..n {
+        let p = r[i];
+        let q = r[(i + 1) % n];
+        a += p.x * q.y - q.x * p.y;
+    }
+    a * 0.5
+}
+
+pub fn poly_area_unsigned(r: &[Vec2]) -> f32 {
+    poly_area_signed(r).abs()
+}
+
+
+pub fn point_in_polygon(pts: &[Vec2], p: Vec2) -> bool {
+    let n = pts.len();
+    let mut inside = false;
+    let mut j = n - 1;
+    for i in 0..n {
+        let (pi, pj) = (pts[i], pts[j]);
+        if (pi.y > p.y) != (pj.y > p.y)
+            && p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x
+        {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
 }

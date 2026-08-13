@@ -2,7 +2,6 @@
 
 use glam::Vec2;
 use lerpable::Lerpable;
-use lyon::geom::{Point, euclid::Point2D};
 use murrelet_common::{SimpleTransform2d, ToSimpleTransform};
 use murrelet_gui::MurreletGUI;
 use murrelet_livecode_derive::Livecode;
@@ -157,6 +156,7 @@ pub enum SvgCmd {
     Line(SvgTo),
     CubicBezier(SvgCubicBezier),
     ArcTo(SvgArc),
+    Close,
 }
 impl SvgCmd {
     pub fn to(&self) -> Vec2 {
@@ -164,6 +164,7 @@ impl SvgCmd {
             SvgCmd::Line(svg_to) => svg_to.to(),
             SvgCmd::CubicBezier(svg_cubic_bezier) => svg_cubic_bezier.to(),
             SvgCmd::ArcTo(svg_arc) => svg_arc.to(),
+            SvgCmd::Close => unreachable!(),
         }
     }
 }
@@ -197,6 +198,10 @@ impl SvgPathDef {
         for c in curve_points.points() {
             self.add_line(*c);
         }
+    }
+
+    fn close(&mut self) {
+        self.v.push(SvgCmd::Close)
     }
 
     pub fn add_cubic_bezier(&mut self, ctrl1: Vec2, ctrl2: Vec2, to: Vec2) {
@@ -265,12 +270,12 @@ impl SvgPathDef {
             curr = s.last_point();
         }
 
+        if cd.closed {
+            path.close();
+        }
+
         path
     }
-}
-
-pub fn glam_to_lyon(vec: Vec2) -> Point2D<f32, lyon::geom::euclid::UnknownUnit> {
-    Point::new(vec.x, vec.y)
 }
 
 #[derive(Clone, Debug, Livecode, MurreletGUI, Lerpable)]

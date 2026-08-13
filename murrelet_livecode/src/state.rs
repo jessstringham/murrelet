@@ -19,15 +19,7 @@ use crate::{
 enum LivecodeWorldStateStage {
     Timeless,
     World(LiveCodeTimeInstantInfo),
-    // Unit(LiveCodeTimeInstantInfo),
-    // Lazy(LiveCodeTimeInstantInfo),
 }
-// impl LivecodeWorldStateStage {
-//     fn add_step(&self, stage: LivecodeWorldStateStage) -> LivecodeWorldStateStage {
-//         // todo, i could start to represent the tree of steps.. but right now, just do the latest one
-//         stage
-//     }
-// }
 
 #[derive(Clone, Debug)]
 pub enum CacheFlag {
@@ -146,7 +138,7 @@ impl LivecodeWorldState {
         })
     }
 
-    pub(crate) fn new_dummy() -> Self {
+    pub fn new_dummy() -> Self {
         Self::new_legacy(LivecodeWorldStateInner::new_dummy_with_funcs()).unwrap()
     }
 
@@ -220,7 +212,7 @@ impl LivecodeWorldState {
 #[derive(Debug, Clone)]
 pub struct WorldWithLocalVariables {
     base: Arc<HashMapContext>,
-    locals: Vec<(String, Value)>,
+    locals: Vec<(StrId, Value)>,
     builtins_disabled: bool,
 }
 impl WorldWithLocalVariables {
@@ -230,8 +222,9 @@ impl WorldWithLocalVariables {
         self.locals = locals;
     }
 
+    // todo maybe change this to strids?
     pub(crate) fn variable_names(&self) -> Vec<String> {
-        let mut names: Vec<String> = self.locals.iter().map(|(k, _)| k.clone()).collect();
+        let mut names: Vec<String> = self.locals.iter().map(|(k, _)| k.to_string()).collect();
         names.extend(self.base.iter_variable_names());
         names
     }
@@ -239,7 +232,7 @@ impl WorldWithLocalVariables {
 
 impl Context for WorldWithLocalVariables {
     fn get_value(&self, identifier: &str) -> Option<&Value> {
-        if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k == identifier) {
+        if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k.as_str() == identifier) {
             return Some(v);
         }
         self.base.get_value(identifier)
@@ -485,7 +478,7 @@ impl LiveCodeTimeInstantInfo {
             let render_time = self.system_timing.last_render_time;
             render_time.as_secs_f32()
         } else {
-            let prev_frame = self.system_timing.frame - 1;
+            let prev_frame = self.system_timing.frame.saturating_sub(1);
             prev_frame as f32 / self.timing_config.fps
         };
 
@@ -550,23 +543,23 @@ impl IsLivecodeSrc for LiveCodeTimeInstantInfo {
         self.system_timing.frame = input.app().elapsed_frames();
     }
 
-    fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)> {
         let time = self.beat();
         let frame = self.actual_frame_u64();
 
         vec![
-            ("t".to_owned(), LivecodeValue::Float(time as f64)),
+            ("t".to_strid(), LivecodeValue::Float(time as f64)),
             (
-                "tease".to_owned(),
+                "tease".to_strid(),
                 LivecodeValue::Float(ease(time.into(), 1.0 / 4.0, 0.0)),
             ),
             (
-                "stease".to_owned(),
+                "stease".to_strid(),
                 LivecodeValue::Float(ease(time.into(), 0.0125, 0.0)),
             ),
-            ("ti".to_owned(), LivecodeValue::Int(time as i64)),
-            ("f".to_owned(), LivecodeValue::Float(frame as f64)),
-            ("fi".to_owned(), LivecodeValue::Int(frame as i64)),
+            ("ti".to_strid(), LivecodeValue::Int(time as i64)),
+            ("f".to_strid(), LivecodeValue::Float(frame as f64)),
+            ("fi".to_strid(), LivecodeValue::Int(frame as i64)),
         ]
     }
 }

@@ -42,7 +42,7 @@ impl VectorAsset {
         for (k, v) in &x {
             let p = v
                 .iter()
-                .map(|x| Polyline::new(x.clone_to_vec()))
+                .map(|x| x.clone_to_vec())
                 .collect_vec();
             hm.insert(k.clone(), p);
         }

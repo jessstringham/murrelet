@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
+use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TextureDimensions {
@@ -47,8 +49,8 @@ impl Default for TextureDimensions {
             height: 800,
             // width: 2000,
             // height: 2000,
-            // width: 750,
-            // height: 750,
+            // width: 800,
+            // height: 800,
         }
     }
 }
@@ -57,17 +59,30 @@ impl Default for TextureDimensions {
 #[command(author, version, about, long_about = None, allow_hyphen_values = true)]
 pub struct BaseConfigArgs {
     pub config_path: PathBuf,
-    pub template_path: PathBuf, // todo, i probably should drop this
     #[arg(long, help = "record video")]
     pub capture: bool,
 
     #[arg(short, long, default_value_t = Default::default())]
     pub resolution: TextureDimensions, // window resolution
-    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=8))]
+    #[arg(long, default_value_t = 2, value_parser = clap::value_parser!(u32).range(1..=8))]
     pub texture_multiplier: u32, // controls number of pixels the shaders work on
 
     #[arg(long)]
     pub earlystop: Option<u64>,
+
+    // Override config fields by dotted schema path before parsing, e.g.
+    // `--set drawing.filename=bird_001.png`. Repeatable. Lets a batch wrapper
+    // vary one field per run without authoring a yaml per input.
+    #[arg(long = "set", value_name = "PATH=VALUE")]
+    pub overrides: Vec<String>,
+
+    // Headless renders write here instead of the config-derived capture path.
+    #[arg(long, value_name = "PATH")]
+    pub output: Option<PathBuf>,
+
+    // Run many headless jobs in one process; see BatchManifest.
+    #[arg(long, value_name = "JOBS.yaml")]
+    pub batch: Option<PathBuf>,
 
     #[arg(trailing_var_arg = true)]
     pub sketch_args: Vec<String>,
@@ -89,4 +104,80 @@ impl BaseConfigArgs {
     pub(crate) fn should_capture(&self) -> bool {
         self.capture
     }
+}
+
+// One resolved headless render: extra config overrides on top of the global
+// `--set`, where the file goes, and an optional render size. A single run is
+// one of these; `--batch` produces many.
+pub struct HeadlessJob {
+    pub overrides: Vec<String>,
+    pub output: Option<PathBuf>,
+    pub resolution: Option<[u32; 2]>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BatchManifest {
+    jobs: Vec<BatchJob>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BatchJob {
+    // field path -> value, same string form as `--set KEY=VALUE`.
+    #[serde(default)]
+    set: BTreeMap<String, String>,
+    output: PathBuf,
+    // "WxH"; falls back to --resolution when absent.
+    #[serde(default)]
+    resolution: Option<String>,
+}
+
+/// A run is headless when it either asks for an explicit output path
+/// (`--output <PATH>` for one render, `--batch <JOBS.yaml>` for many) or sets
+/// the `HEADLESS` env var. The env var is the path-less form: render to the
+/// config's own save path with no window (penplot's plotter pipeline runs
+/// birdmap_render this way — see testprint.py). The `sketch_main!` arms call
+/// this to pick window vs headless.
+pub fn is_headless() -> bool {
+    if std::env::var_os("HEADLESS").is_some() {
+        return true;
+    }
+    let args = BaseConfigArgs::parse();
+    args.output.is_some() || args.batch.is_some()
+}
+
+// The headless jobs to run: many from `--batch`, else a single job carrying the
+// global `--output`. Global `--set` is applied separately (in new_with_overrides),
+// so a single job needs no extra overrides.
+pub fn headless_jobs() -> Vec<HeadlessJob> {
+    let args = BaseConfigArgs::parse();
+    let Some(batch_path) = &args.batch else {
+        return vec![HeadlessJob {
+            overrides: Vec::new(),
+            output: args.output.clone(),
+            resolution: None,
+        }];
+    };
+
+    let text = std::fs::read_to_string(batch_path)
+        .unwrap_or_else(|e| panic!("could not read --batch manifest {}: {e}", batch_path.display()));
+    let manifest: BatchManifest = serde_yaml::from_str(&text)
+        .unwrap_or_else(|e| panic!("invalid --batch manifest {}: {e}", batch_path.display()));
+
+    manifest
+        .jobs
+        .into_iter()
+        .map(|job| {
+            let overrides = job.set.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+            let resolution = job.resolution.as_deref().map(|s| {
+                TextureDimensions::from_str(s)
+                    .unwrap_or_else(|e| panic!("bad resolution '{s}' in --batch manifest: {e}"))
+                    .as_dims()
+            });
+            HeadlessJob {
+                overrides,
+                output: Some(job.output),
+                resolution,
+            }
+        })
+        .collect()
 }

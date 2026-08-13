@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use clap::Parser;
 use evalexpr::HashMapContext;
 use murrelet_common::AssetsRef;
 use murrelet_common::{LivecodeSrc, MurreletTime};
@@ -8,14 +9,28 @@ use murrelet_livecode::types::{AdditionalContextNode, LivecodeError, LivecodeRes
 
 // todo, maybe only includde this if not wasm?
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{env, fs};
+use std::fs;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use crate::cli::BaseConfigArgs;
 use crate::perform::ControlAppConfig;
 
+// Sibling-of-the-config-dir lookup for `[[name]]` template includes.
+// `configs/polygonatum/fall.yaml` → `configs/_templates`. Returns a
+// bare `_templates` if the config has no parents to climb (shouldn't
+// happen in practice); a non-existent dir is handled by callers as
+// "no templates".
+pub fn templates_dir_for(config: &Path) -> PathBuf {
+    config
+        .parent()
+        .and_then(Path::parent)
+        .map(|p| p.join("_templates"))
+        .unwrap_or_else(|| PathBuf::from("_templates"))
+}
+
 fn murrelet_time_from_system(s: SystemTime) -> MurreletTime {
-    MurreletTime::from_epoch_time(s.duration_since(UNIX_EPOCH).expect("wat").as_millis())
+    MurreletTime::from_epoch_time(s.duration_since(UNIX_EPOCH).expect("wat").as_micros())
 }
 
 // hmm, a lot of this deals with file systems, so there is probably a way to
@@ -40,22 +55,49 @@ pub trait LiveCoderLoader: Sized {
         filename: P,
         includes_dir: P2,
     ) -> Result<Self, LivecodeError> {
-        let mut file = fs::File::open(filename).unwrap();
+        Self::fs_parse_data_with_overrides(filename, includes_dir, &[])
+    }
+
+    // Like fs_parse_data, but applies dotted-path `PATH=VALUE` overrides to the
+    // preprocessed yaml before deserializing (so deny_unknown_fields + typing
+    // still validate the result). See BaseConfigArgs::overrides / `--set`.
+    fn fs_parse_data_with_overrides<P: AsRef<Path>, P2: AsRef<Path>>(
+        filename: P,
+        includes_dir: P2,
+        overrides: &[String],
+    ) -> Result<Self, LivecodeError> {
+        let path = filename.as_ref();
+        let mut file = fs::File::open(path)
+            .map_err(|e| LivecodeError::Io(format!("could not open config {}", path.display()), e))?;
         let mut data = String::new();
-        std::io::Read::read_to_string(&mut file, &mut data).unwrap();
-        Self::fs_parse(&data, includes_dir)
+        std::io::Read::read_to_string(&mut file, &mut data)
+            .map_err(|e| LivecodeError::Io(format!("could not read config {}", path.display()), e))?;
+
+        if overrides.is_empty() {
+            return Self::fs_parse(&data, includes_dir);
+        }
+
+        let preprocessed = crate::load::preprocess_yaml(&data, includes_dir);
+        let mut value: serde_yaml::Value = serde_yaml::from_str(&preprocessed)
+            .map_err(|e| LivecodeError::Raw(format!("config yaml parse before override: {e}")))?;
+        for spec in overrides {
+            apply_yaml_override(&mut value, spec)?;
+        }
+        let merged = serde_yaml::to_string(&value)
+            .map_err(|e| LivecodeError::Raw(format!("re-serialize after override: {e}")))?;
+        Self::parse(&merged)
     }
 
     fn _fs_load() -> Result<Self, LivecodeError> {
-        let args: Vec<String> = env::args().collect();
-        Self::fs_parse_data(&args[1], &args[2])
+        let config = BaseConfigArgs::parse().config_path;
+        Self::fs_parse_data(&config, templates_dir_for(&config))
     }
 
     fn fs_load() -> Self {
         // todo, make this return a result..
-        let args: Vec<String> = env::args().collect();
-        // Self::fs_load_from_filename(&args[1], &args[2])
-        Self::fs_load_from_filename(&args[1], &args[2])
+        let config = BaseConfigArgs::parse().config_path;
+        let templates = templates_dir_for(&config);
+        Self::fs_load_from_filename(config, templates)
     }
 
     // refactor this
@@ -70,24 +112,29 @@ pub trait LiveCoderLoader: Sized {
         }
     }
 
-    // TODO, update all this to use clap isntead!
     fn fs_config_filename() -> String {
-        let args: Vec<String> = env::args().collect();
-        args[1].clone()
+        BaseConfigArgs::parse().config_path.to_string_lossy().into_owned()
     }
 
     fn fs_template_foldername() -> String {
-        let args: Vec<String> = env::args().collect();
-        args[2].clone()
+        let config = BaseConfigArgs::parse().config_path;
+        templates_dir_for(&config).to_string_lossy().into_owned()
     }
 
     fn latest_template_update_time() -> LivecodeResult<MurreletTime> {
         let dir = Self::fs_template_foldername();
 
+        let entries = match fs::read_dir(&dir) {
+            Ok(d) => d,
+            // No `_templates/` sibling — sketch doesn't use includes.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(MurreletTime::epoch());
+            }
+            Err(e) => return Err(LivecodeError::Io("template error".to_string(), e)),
+        };
+
         let mut latest_time = MurreletTime::epoch();
-        for entry in
-            fs::read_dir(dir).map_err(|e| LivecodeError::Io("template error".to_string(), e))?
-        {
+        for entry in entries {
             let entry = entry.map_err(|e| LivecodeError::Io("template error".to_string(), e))?;
             let metadata = entry
                 .metadata()
@@ -100,7 +147,7 @@ pub trait LiveCoderLoader: Sized {
                 modified_time_s
                     .duration_since(UNIX_EPOCH)
                     .expect("wat")
-                    .as_millis(),
+                    .as_micros(),
             );
 
             if modified_time > latest_time {
@@ -111,11 +158,11 @@ pub trait LiveCoderLoader: Sized {
         Ok(latest_time)
     }
 
-    // callback one
-    fn cb_reload_and_update_info(util: &mut LiveCodeUtil, text: &str) -> Result<Self, String> {
+
+    fn cb_update_info(util: &mut LiveCodeUtil, result: LivecodeResult<Self>) -> Result<Self, String> {
         util.reset_info();
 
-        match Self::parse(text) {
+        match result {
             Ok(x) => {
                 util.update_info_reloaded();
                 Ok(x)
@@ -125,6 +172,24 @@ pub trait LiveCoderLoader: Sized {
                 Err(err.to_string())
             }
         }
+    }
+
+    // callback one
+    fn cb_reload_and_update_info(util: &mut LiveCodeUtil, text: &str) -> Result<Self, String> {
+        // util.reset_info();
+
+        // match Self::parse(text) {
+        //     Ok(x) => {
+        //         util.update_info_reloaded();
+        //         Ok(x)
+        //     }
+        //     Err(err) => {
+        //         util.update_info_error();
+        //         Err(err.to_string())
+        //     }
+        // }
+        let result = Self::parse(text);
+        Self::cb_update_info(util, result)
     }
 
     // filesystem one, hmm, should tidy up
@@ -172,6 +237,86 @@ pub trait LiveCoderLoader: Sized {
         } else {
             Ok(None)
         }
+    }
+}
+
+// Apply one `dotted.path=value` override onto a yaml value, creating
+// intermediate mappings as needed. The value is parsed as yaml (so `5.0` is a
+// number, `true` a bool, bare text a string); typed deserialization validates
+// it afterward.
+fn apply_yaml_override(root: &mut serde_yaml::Value, spec: &str) -> LivecodeResult<()> {
+    let (path, raw) = spec
+        .split_once('=')
+        .ok_or_else(|| LivecodeError::raw(&format!("--set expects PATH=VALUE, got '{spec}'")))?;
+    if path.is_empty() {
+        return Err(LivecodeError::raw(&format!("--set has an empty path: '{spec}'")));
+    }
+    let parsed: serde_yaml::Value =
+        serde_yaml::from_str(raw).unwrap_or_else(|_| serde_yaml::Value::String(raw.to_string()));
+
+    let keys: Vec<&str> = path.split('.').collect();
+    let mut cur = root;
+    for key in &keys[..keys.len() - 1] {
+        if !cur.is_mapping() {
+            *cur = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
+        }
+        let map = cur.as_mapping_mut().unwrap();
+        cur = map
+            .entry(serde_yaml::Value::String((*key).to_string()))
+            .or_insert_with(|| serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+    }
+    if !cur.is_mapping() {
+        *cur = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
+    }
+    cur.as_mapping_mut().unwrap().insert(
+        serde_yaml::Value::String(keys[keys.len() - 1].to_string()),
+        parsed,
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod override_tests {
+    use super::apply_yaml_override;
+    use serde_yaml::Value;
+
+    fn doc() -> Value {
+        serde_yaml::from_str("drawing:\n  filename: old.png\n  stroke_weight: 1.0\n").unwrap()
+    }
+
+    fn at<'a>(v: &'a Value, path: &str) -> &'a Value {
+        let mut cur = v;
+        for k in path.split('.') {
+            cur = &cur[k];
+        }
+        cur
+    }
+
+    #[test]
+    fn sets_nested_string() {
+        let mut v = doc();
+        apply_yaml_override(&mut v, "drawing.filename=bird_001.png").unwrap();
+        assert_eq!(at(&v, "drawing.filename").as_str(), Some("bird_001.png"));
+    }
+
+    #[test]
+    fn coerces_number() {
+        let mut v = doc();
+        apply_yaml_override(&mut v, "drawing.stroke_weight=4.5").unwrap();
+        assert_eq!(at(&v, "drawing.stroke_weight").as_f64(), Some(4.5));
+    }
+
+    #[test]
+    fn creates_missing_intermediates() {
+        let mut v = doc();
+        apply_yaml_override(&mut v, "app.svg.size=2400").unwrap();
+        assert_eq!(at(&v, "app.svg.size").as_u64(), Some(2400));
+    }
+
+    #[test]
+    fn bad_spec_errors() {
+        let mut v = doc();
+        assert!(apply_yaml_override(&mut v, "no_equals_sign").is_err());
     }
 }
 

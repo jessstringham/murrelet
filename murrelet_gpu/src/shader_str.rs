@@ -4,7 +4,7 @@ pub const SUFFIX: &str = r#"
 "#;
 
 pub const COMPUTE_TEX: &str = r#"
-struct BasicUniform {
+struct Uniforms {
     dims: vec4<f32>,
     more_info: vec4<f32>,
     more_info_other: vec4<f32>,
@@ -14,7 +14,7 @@ struct BasicUniform {
 @group(0) @binding(0) var<storage, read>       input_data   : array<Input>;
 @group(0) @binding(1) var<storage, read>       cell_offsets : array<u32>;
 @group(0) @binding(2) var<storage, read>       cell_indices : array<u32>;
-@group(0) @binding(3) var<uniform>             uniforms     : BasicUniform;
+@group(0) @binding(3) var<uniform>             uniforms     : Uniforms;
 
 @group(0) @binding(4) var                      out_img      : texture_storage_2d<rgba16float, write>;
 
@@ -31,6 +31,54 @@ fn cell_id(uv: vec2<f32>, Nx: u32, Ny: u32) -> u32 {
   let xy = clamp(vec2<u32>(floor(uv * vec2<f32>(f32(Nx), f32(Ny)))),
                  vec2<u32>(0u), vec2<u32>(Nx - 1u, Ny - 1u));
   return xy.y * Nx + xy.x;
+}
+"#;
+
+pub const PARTICLE_VS: &str = r#"
+struct Uniforms {
+    dims: vec4<f32>,
+    more_info: vec4<f32>,
+    more_info_other: vec4<f32>,
+};
+
+// --- bindings ---
+@group(0) @binding(0) var t_state: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+// from JFA_SEED_CODEC_WGSL
+fn jfa_unpack_seed(p: vec4<f32>) -> vec2<f32> {
+    let lo = (vec2<f32>(p.y, p.w) - 0.5) * 2.0;
+    return vec2<f32>(p.x, p.z) + lo * (1.0 / 64.0);
+}
+
+struct VertexOutput {
+  @location(0) tex_coords: vec2<f32>,
+  @location(1) world_pos: vec4<f32>,
+  @location(2) normal: vec3<f32>,
+  @location(3) light_space_pos: vec4<f32>,
+  @location(4) world_pos_3: vec3<f32>,
+  @builtin(position) out_pos: vec4<f32>,
+};
+
+@vertex
+fn main(@location(0) idx: u32, @location(1) corner: vec2<f32>) -> VertexOutput {
+  let dims  = textureDimensions(t_state);
+  let texel = vec2<i32>(i32(idx % dims.x), i32(idx / dims.x));
+  let uv    = jfa_unpack_seed(textureLoad(t_state, texel, 0));
+
+  let size = uniforms.more_info.x;
+  let ndc  = vec2<f32>(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0) + corner * size * 2.0;
+
+  let live = f32(idx) < uniforms.more_info.y;
+  let pos  = select(vec2<f32>(2.0, 2.0), ndc, live);
+
+  return VertexOutput(
+    vec2<f32>(0.0),
+    vec4<f32>(corner, 0.0, 0.0),
+    vec3<f32>(0.0),
+    vec4<f32>(0.0),
+    vec3<f32>(0.0),
+    vec4<f32>(pos, 0.0, 1.0));
 }
 "#;
 
@@ -150,30 +198,68 @@ fn luma(rgb: vec3<f32>) -> f32 {
   return pow(l, 1.0 / 2.2);
 }
 
-fn rand(n: f32) -> f32 { return fract(sin(n) * 43758.5453123); }
+// Hashes, all PCG (Jarzynski & Olano, "Hash Functions for GPU Rendering"). Integer
+// arithmetic, so unlike the fract()-of-a-big-float hashes these lose nothing to float
+// precision.
+//
+// Every hash here used to end in fract() of a large value, which caps the output at the
+// f32 ULP of that magnitude: hash22 fracted ~5000 (ULP 4.9e-4, ~25k distinct values no
+// matter how many inputs), rand/rand2 fracted up to ~43758 (ULP 3.9e-3, ~7.2k measured).
+// Worse than coarse, the levels are log-spaced, so anything that round-trips a value
+// through a hash or through the JFA seed codec accumulates onto the lattice -- that is
+// what put a 1/64-pitch grid in textureparticles.
+//
+// Shrinking the magnitude with an intermediate fract() does fix distinctness, but the
+// wrapping is exactly what those hashes rely on to uniformise: doing that to hash22 took
+// chi2/dof from 1.0 to 310. Integer mixing gets distinctness and uniformity together.
+fn pcg(v_in: u32) -> u32 {
+  let state = v_in * 747796405u + 2891336453u;
+  let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+  return (word >> 22u) ^ word;
+}
+
+fn pcg2d(v_in: vec2<u32>) -> vec2<u32> {
+  var v = v_in * 1664525u + 1013904223u;
+  v.x = v.x + v.y * 1664525u;
+  v.y = v.y + v.x * 1476376679u;
+  v = v ^ (v >> vec2<u32>(16u));
+  v.x = v.x + v.y * 1664525u;
+  v.y = v.y + v.x * 1476376679u;
+  v = v ^ (v >> vec2<u32>(16u));
+  return v;
+}
+
+// range?
+fn hash22(p: vec2<f32>) -> vec2<f32> {
+  let h = pcg2d(bitcast<vec2<u32>>(p));
+  return vec2<f32>(h) * (1.0 / 4294967296.0);
+}
+
+fn hash21(p: vec2<f32>) -> f32 {
+  return hash22(p).x;
+}
+
+fn rand(n: f32) -> f32 {
+  return f32(pcg(bitcast<u32>(n))) * (1.0 / 4294967296.0);
+}
+
+fn rand2(n: vec2<f32>) -> f32 {
+  return hash22(n).x;
+}
+
 fn noise(p: f32) -> f32 {
   let fl = floor(p);
   let fc = fract(p);
   return mix(rand(fl), rand(fl + 1.), fc);
 }
 
-fn rand2(n: vec2<f32>) -> f32 {
-  return fract(sin(dot(n, vec2<f32>(12.9898, 4.1414))) * 43758.5453);
+fn sampleGaussBoxMuller(u: vec2<f32>,  mean: f32, standardDeviation: f32) -> vec2<f32> {
+    let a: f32 = standardDeviation * pow(-2.0 * log(1.0 - u.x), 0.5);
+    let b: f32 = 2.0 * 3.1415926535 * u.y;
+
+    return vec2<f32>(cos(b), sin(b)) * a + mean;
 }
 
-  // more things
-  fn hash21(p: vec2<f32>) -> f32 {
-  // Dave-Hoskins style
-  let p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
-  let p3x = p3.x + dot(p3, p3.yzx + 33.33);
-  return fract((p3x + p3.y) * p3.z);
-}
-
-fn hash22(p: vec2<f32>) -> vec2<f32> {
-  var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
-  p3 = p3 + dot(p3, p3.yzx + 33.33);
-  return fract((p3.xx + p3.yz) * p3.zy);
-}
 
 // i don't know where this went
 fn smoothStep(edge0: vec2<f32>, edge1: vec2<f32>, x: vec2<f32>) -> vec2<f32> {
@@ -199,13 +285,13 @@ fn noise2(n: vec2<f32>) -> f32 {
   return mix(mix(rand2(b), rand2(b + d.yx), f.x), mix(rand2(b + d.xy), rand2(b + d.yy), f.x), f.y);
 }
 
-fn pixel_noise2(tex_coords: vec2<f32>) -> f32 {
-  let n = fract(tex_coords * uniforms.dims.y);
-  let d = vec2<f32>(0., 1.);
-  let b = floor(n);
-  let f = smoothStep(vec2<f32>(0.), vec2<f32>(1.), fract(n));
-  return mix(mix(rand2(b), rand2(b + d.yx), f.x), mix(rand2(b + d.xy), rand2(b + d.yy), f.x), f.y);
-}
+// fn pixel_noise2(tex_coords: vec2<f32>) -> f32 {
+//   let n = fract(tex_coords * uniforms.dims.y);
+//   let d = vec2<f32>(0., 1.);
+//   let b = floor(n);
+//   let f = smoothStep(vec2<f32>(0.), vec2<f32>(1.), fract(n));
+//   return mix(mix(rand2(b), rand2(b + d.yx), f.x), mix(rand2(b + d.xy), rand2(b + d.yy), f.x), f.y);
+// }
 
 fn mod3(what_to_mod: vec3<f32>, what: vec3<f32>) -> vec3<f32> {
     return what_to_mod - floor(what_to_mod * 1.0 / what) * what;
@@ -265,20 +351,20 @@ fn clamp01(p: f32) -> f32 {
   return clamp(p, 0.0, 1.0);
 }
 
-fn clamp3(p: vec3<f32>, min: f32, max: f32) -> vec3<f32> {
+fn clamp3(p: vec3<f32>, lo: f32, hi: f32) -> vec3<f32> {
   return vec3<f32>(
-      clamp(p.x, 0.0, 1.0),
-      clamp(p.y, 0.0, 1.0),
-      clamp(p.z, 0.0, 1.0)
+      clamp(p.x, lo, hi),
+      clamp(p.y, lo, hi),
+      clamp(p.z, lo, hi)
   );
 }
 
-fn clamp4(p: vec4<f32>, min: f32, max: f32) -> vec4<f32> {
+fn clamp4(p: vec4<f32>, lo: f32, hi: f32) -> vec4<f32> {
   return vec4<f32>(
-      clamp(p.x, 0.0, 1.0),
-      clamp(p.y, 0.0, 1.0),
-      clamp(p.z, 0.0, 1.0),
-      clamp(p.a, 0.0, 1.0)
+      clamp(p.x, lo, hi),
+      clamp(p.y, lo, hi),
+      clamp(p.z, lo, hi),
+      clamp(p.a, lo, hi)
   );
 }
 
@@ -387,6 +473,23 @@ fn toroid_noise(r1: f32, r2: f32, xy: vec2<f32>) -> f32 {
   let rn = noise3(torus_coords);
   return rn;
 }
+
+
+fn is_about_eq(src: f32, tgt: f32) -> bool {
+  return abs(src - tgt) < 0.5;
+}
+
+fn is_about_eq_f32(src: f32, tgt: f32) -> f32 {
+  return f32(is_about_eq(src, tgt));
+}
+
+fn is_eq_eps(src: f32, tgt: f32, eps: f32) -> bool {
+  return abs(src - tgt) < eps;
+}
+
+fn is_eq_eps_f32(src: f32, tgt: f32, eps: f32) -> f32 {
+  return f32(is_eq_eps(src, tgt, eps));
+}
 "#;
 
 pub const VERTEX_SHADER: &str = "
@@ -444,7 +547,14 @@ fn main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2
 
 pub const PREFIX: &str = r#"
 @fragment
-fn main(@location(0) tex_coords: vec2<f32>, @location(1) shad_info: vec4<f32>, @location(2) normal: vec3<f32>, @location(3) light_space_pos: vec4<f32>, @location(4) world_pos: vec3<f32>) -> FragmentOutput {
+fn main(
+    @location(0) tex_coords: vec2<f32>,
+    @location(1) shad_info: vec4<f32>,
+    @location(2) normal: vec3<f32>,
+    @location(3) light_space_pos: vec4<f32>,
+    @location(4) world_pos: vec3<f32>,
+    @builtin(position) frag_pos: vec4<f32>
+) -> FragmentOutput {
 "#;
 
 pub const COMPUTE_FORMAT_STR: &str = r#"
@@ -474,6 +584,46 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   #SUFFIX_CODEHERE#
 
-  textureStore(out_img, vec2<i32>(gid.xy), result);
+  // Flip y at the store so compute textures come out nannou-upright (world y+
+  // at the top), matching rendered textures. Pure output mirror — evaluation,
+  // cell_id, CSR cull all stay computed for the true gid.
+  textureStore(out_img, vec2<i32>(i32(gid.x), i32(h) - 1 - i32(gid.y)), result);
+}
+"#;
+
+pub const COMPUTE_FORMAT_HEADER_STR: &str = r#"
+  let w  = u32(uniforms.dims.x);
+  let h  = u32(uniforms.dims.y);
+  let uv = to_uv(gid.xy);
+
+  let Nx = max(u32(uniforms.more_info.x), 1u);
+  let Ny = max(u32(uniforms.more_info.y), 1u);
+  let cid = cell_id(uv, Nx, Ny);
+
+  let start_idx = cell_offsets[cid];
+  let end_idx = cell_offsets[cid + 1u];
+"#;
+
+pub const COMPUTE_FORMAT_SIMPLE_STR: &str = r#"
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let w  = u32(uniforms.dims.x);
+  let h  = u32(uniforms.dims.y);
+  let uv = to_uv(gid.xy);
+
+  let Nx = max(u32(uniforms.more_info.x), 1u);
+  let Ny = max(u32(uniforms.more_info.y), 1u);
+  let cid = cell_id(uv, Nx, Ny);
+
+  let start_idx = cell_offsets[cid];
+  let end_idx = cell_offsets[cid + 1u];
+
+
+  #BASIC#
+
+  // Flip y at the store so compute textures come out nannou-upright (world y+
+  // at the top), matching rendered textures. Pure output mirror — evaluation,
+  // cell_id, CSR cull all stay computed for the true gid.
+  textureStore(out_img, vec2<i32>(i32(gid.x), i32(h) - 1 - i32(gid.y)), result);
 }
 "#;

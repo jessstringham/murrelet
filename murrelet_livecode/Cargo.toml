@@ -8,13 +8,14 @@ description = "livecode base functions for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
 [features]
-schemars = ["dep:schemars"]
+schemars = ["dep:schemars", "murrelet_livecode_derive/schemars"]
 
 [dependencies]
 murrelet_common = { workspace = true }
 murrelet_gui = { workspace = true, features = ["glam"] }
+murrelet_livecode_derive = { workspace = true }
 
-lerpable = "0.0.3"
+lerpable = { workspace = true, features = ["glam"] }
 
 itertools = "0.10.5"
 regex = "1.7.3"
@@ -27,8 +28,24 @@ evalexpr = { version = "11.1.0", features = ["serde_support"] }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 thiserror = "2.0.11"
+paste = "1"
 
 schemars = { version = "0.8.21", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { workspace = true }
+
+
+# just for examples...
+[dev-dependencies]
+murrelet_common = { workspace = true }
+glam = { version = "0.28.0", features = ["serde"] }
+palette = "0.7.6"
+lerpable = { workspace = true, features = ["glam"] }
+schemars = "0.8.21"
+murrelet_gui = { workspace = true, features = ["glam"] }
+serde_json = "1.0"
+
+[[example]]
+name = "tests"
+path = "examples/tests.rs"

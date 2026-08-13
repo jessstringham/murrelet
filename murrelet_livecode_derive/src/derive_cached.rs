@@ -45,7 +45,7 @@ fn parse_cache(name: &syn::Ident, fields: &[LivecodeFieldReceiver]) -> TokenStre
             let data = ident_from_type(&f.ty);
 
             // if it uses our type, we use that is our giveaway
-            if data.main_type.to_string().eq("CachedCompute") {
+            if data.main_type().to_string().eq("CachedCompute") {
                 // there should be a function called compute_$ident
 
                 let expected_compute_name = format!("compute_{}", ident);

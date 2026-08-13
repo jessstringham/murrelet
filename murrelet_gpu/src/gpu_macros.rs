@@ -171,6 +171,8 @@ pub enum ShaderStr {
     Prefix,
     Suffix,
     ComputeFormatStr,
+    ComputeFormatSimpleStr,
+    ComputeFormatSimpleHeaderStr,
 }
 impl ShaderStr {
     pub fn to_str(&self) -> &str {
@@ -183,6 +185,8 @@ impl ShaderStr {
             ShaderStr::Suffix => SUFFIX,
             ShaderStr::Binding3d => BINDING_3D,
             ShaderStr::ComputeFormatStr => COMPUTE_FORMAT_STR,
+            ShaderStr::ComputeFormatSimpleStr => COMPUTE_FORMAT_SIMPLE_STR,
+            ShaderStr::ComputeFormatSimpleHeaderStr => COMPUTE_FORMAT_HEADER_STR,
         }
     }
 }
@@ -238,6 +242,34 @@ macro_rules! build_compute_shader {
                 .replace("#PREFIX_CODEHERE#", $prefix)
                 .replace("#FORLOOP_CODEHERE#", $forloop)
                 .replace("#SUFFIX_CODEHERE#", $suffix)
+        )
+    }};
+
+    (structure $input_structure:tt; include $include:tt; ($prefix:tt; for $forloop:tt; $suffix:tt;)) => {{
+        format!(
+            "{}\n{}\n{}\n{}\n{}",
+            $input_structure,
+            ShaderStr::Compute.to_str(),
+            ShaderStr::Includes.to_str(),
+            $include,
+            ShaderStr::ComputeFormatStr
+                .to_str()
+                .replace("#PREFIX_CODEHERE#", $prefix)
+                .replace("#FORLOOP_CODEHERE#", $forloop)
+                .replace("#SUFFIX_CODEHERE#", $suffix)
+        )
+    }};
+
+    (structure $input_structure:tt; include $include:tt; raw ($raw:tt;)) => {{
+        format!(
+            "{}\n{}\n{}\n{}\n{}",
+            $input_structure,
+            ShaderStr::Compute.to_str(),
+            ShaderStr::Includes.to_str(),
+            $include,
+            ShaderStr::ComputeFormatSimpleStr
+                .to_str()
+                .replace("#BASIC#", $raw)
         )
     }};
 }
@@ -378,6 +410,59 @@ impl<VertexKind: GraphicsVertex> RenderTrait for TwoSourcesRender<VertexKind> {
     }
 }
 
+pub struct DirectTwoTexturesRender<VertexKind: GraphicsVertex> {
+    pub source_main: GraphicsRefCustom<VertexKind>,
+    pub source_other: GraphicsRefCustom<VertexKind>,
+    pub dest: GraphicsRefCustom<VertexKind>,
+}
+impl<VertexKind: GraphicsVertex> DirectTwoTexturesRender<VertexKind> {
+    pub fn new_box(
+        source_main: GraphicsRefCustom<VertexKind>,
+        source_other: GraphicsRefCustom<VertexKind>,
+        dest: GraphicsRefCustom<VertexKind>,
+    ) -> Box<DirectTwoTexturesRender<VertexKind>> {
+        Box::new(DirectTwoTexturesRender {
+            source_main,
+            source_other,
+            dest,
+        })
+    }
+}
+
+impl<VertexKind: GraphicsVertex> RenderTrait for DirectTwoTexturesRender<VertexKind> {
+    fn render(&self, device: &DeviceStateForRender) {
+        let source_main_view = self.source_main.texture_view();
+        let source_other_view = self.source_other.texture_view();
+        self.dest.render_with_input_textures(
+            device.device_state(),
+            &self.dest.texture_view(),
+            &source_main_view,
+            Some(&source_other_view),
+        );
+    }
+
+    fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        vec![
+            RenderDebugPrint {
+                src: self.source_main.name(),
+                dest: self.dest.name(),
+            },
+            RenderDebugPrint {
+                src: self.source_other.name(),
+                dest: self.dest.name(),
+            },
+        ]
+    }
+
+    fn dest_view(&self) -> Option<wgpu::TextureView> {
+        Some(self.dest.texture_view())
+    }
+
+    fn dest_view_other(&self) -> Option<wgpu::TextureView> {
+        self.dest.texture_view_other()
+    }
+}
+
 // holds a gpu pipeline :O
 pub struct PipelineRender<
     GraphicsConf,
@@ -409,10 +494,50 @@ impl<GraphicsConf, VertexKindSrc: GraphicsVertex, VertexKindDest: GraphicsVertex
 {
     fn render(&self, device_state_for_render: &DeviceStateForRender) {
         // write source to pipeline source
+
         self.source.render(
             device_state_for_render.device_state(),
             &self.pipeline.source(),
         );
+
+        self.pipeline.render(device_state_for_render);
+    }
+
+    fn debug_print(&self) -> Vec<RenderDebugPrint> {
+        self.pipeline.debug_print()
+    }
+
+    fn dest_view(&self) -> Option<wgpu::TextureView> {
+        Some(self.dest.texture_view())
+    }
+
+    fn dest_view_other(&self) -> Option<wgpu::TextureView> {
+        self.dest.texture_view_other()
+    }
+}
+
+pub struct SourcelessPipelineRender<GraphicsConf, VertexKindDest: GraphicsVertex> {
+    pub pipeline: GPUPipelineRef<GraphicsConf>,
+    pub dest: GraphicsRefCustom<VertexKindDest>,
+}
+
+impl<GraphicsConf, VertexKindDest: GraphicsVertex>
+    SourcelessPipelineRender<GraphicsConf, VertexKindDest>
+{
+    pub fn new_box(
+        pipeline: GPUPipelineRef<GraphicsConf>,
+        dest: GraphicsRefCustom<VertexKindDest>,
+    ) -> Box<Self> {
+        Box::new(Self {
+            pipeline,
+            dest,
+        })
+    }
+}
+impl<GraphicsConf, VertexKindDest: GraphicsVertex> RenderTrait
+    for SourcelessPipelineRender<GraphicsConf, VertexKindDest>
+{
+    fn render(&self, device_state_for_render: &DeviceStateForRender) {
         self.pipeline.render(device_state_for_render);
     }
 
@@ -801,7 +926,9 @@ macro_rules! pipeline_add_label {
 
 #[macro_export]
 macro_rules! build_shader_pipeline {
-    () => {}; // empty
+    // an empty body falls through to the entry arm below, yielding an empty
+    // GPUPipeline (renders nothing) rather than `()` — so a pipeline can be
+    // blanked out without dummy steps.
     (@parse $pipeline:ident ()) => {}; // done!
 
     // write to display: a -> DISPLAY, this is the view that will be passed in the pipeline render call
@@ -819,12 +946,31 @@ macro_rules! build_shader_pipeline {
         }
     };
 
+    // process two textures directly: *(a, b) -> t
+    (@parse $pipeline:ident (*( $source1:ident, $source2:ident ) -> $dest:ident;$($tail:tt)*)) => {
+        {
+            println!("add direct two textures");
+
+            $pipeline.add_step(
+                DirectTwoTexturesRender::new_box(
+                    $source1.graphics(),
+                    $source2.graphics(),
+                    $dest.graphics())
+            );
+            pipeline_add_label!($pipeline, $source1);
+            pipeline_add_label!($pipeline, $source2);
+            pipeline_add_label!($pipeline, $dest);
+
+            build_shader_pipeline!(@parse $pipeline ($($tail)*));
+        }
+    };
+
     // process texture render: *a -> t
     (@parse $pipeline:ident (*$source:ident -> $dest:ident;$($tail:tt)*)) => {
         {
             println!("add display");
             $pipeline.add_step(
-                TextureRender::new_box(
+                SimpleRender::new_box(
                     $source.graphics(),
                     $dest.graphics(),
                 )
@@ -922,6 +1068,23 @@ macro_rules! build_shader_pipeline {
                 )
             );
             pipeline_add_label!($pipeline, $source);
+            pipeline_add_label!($pipeline, $dest);
+
+            build_shader_pipeline!(@parse $pipeline ($($tail)*));
+        }
+    };
+
+    // no source pipeline
+    (@parse $pipeline:ident ($subpipe:ident => $dest:ident;$($tail:tt)*)) => {
+        {
+            println!("add pipeline");
+            let $dest = $subpipe.out().clone();
+            $pipeline.add_step(
+                SourcelessPipelineRender::new_box(
+                    $subpipe.gpu_pipeline(),
+                    $dest.graphics()
+                )
+            );
             pipeline_add_label!($pipeline, $dest);
 
             build_shader_pipeline!(@parse $pipeline ($($tail)*));
@@ -1224,12 +1387,8 @@ impl ImageTexture {
         c: &GraphicsWindowConf,
         address_mode: wgpu::AddressMode,
     ) -> Self {
-        // load one as dummy to get image
-        // let source_dims = wgpu::Texture::from_path(c.window, src_path).unwrap().size();
-
-        // hrm, when this was set to width/height, it didn't work, it shrunk the whole thing..
-        // let (_, width, height) = crate::device_state::check_img_size(src_path).unwrap();
-        let source_dims = c.dims; //[width, height]; // c.dims; // ??
+        let source_dims =
+            GraphicsAssets::LocalFilesystem(src_path.to_path_buf()).texture_dims(c.dims());
         let target_dims = c.dims;
         println!("source: {:?} {:?}", source_dims, target_dims);
 

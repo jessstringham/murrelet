@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashSet, rc::Rc, sync::Arc};
 
 use bytemuck::Pod;
-use glam::Vec2;
+use glam::{Vec2, vec2};
 use itertools::Itertools;
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
@@ -14,7 +14,7 @@ use wgpu::util::DeviceExt;
 use crate::{
     device_state::{DeviceState, DeviceStateForRender},
     graphics_ref::{DEFAULT_TEXTURE_FORMAT, GraphicsRefCustom, TextureAndDesc, shader_from_path},
-    uniforms::BasicUniform,
+    uniforms::BonusUniform,
     window::GraphicsWindowConf,
 };
 
@@ -144,6 +144,12 @@ pub struct AABB {
     pub min: Vec2,
     pub max: Vec2,
 }
+impl AABB {
+    pub const ALL: AABB = AABB {
+        min: vec2(0.0, 0.0),
+        max: vec2(1.0, 1.0),
+    };
+}
 
 pub trait ToAABB {
     fn to_aabb(&self) -> AABB;
@@ -152,7 +158,7 @@ pub trait ToAABB {
 // like Graphics, what's needed to create a compute pipeline
 pub struct ComputeGraphicsToTexture {
     name: String,
-    pub uniforms: BasicUniform,
+    pub uniforms: BonusUniform,
     pub buffers: ComputeBindings,
     #[allow(dead_code)]
     texture: TextureAndDesc,
@@ -167,11 +173,12 @@ impl ComputeGraphicsToTexture {
         nx: u32,
         ny: u32,
         data: &[T],
+        uniforms: &[f32],
     ) {
         // the data should already be scaled 0.0 to 1.0
 
         // make sure we use the same vars on both sides
-        self.update_uniforms_other(c, [nx as f32, ny as f32, 0.0, 0.0], [0.0; 4]);
+        self.update_uniforms_other(c, [nx as f32, ny as f32, 0.0, 0.0], uniforms);
 
         // build csr
         let csr = CSRData::from_data(nx, ny, data).for_buffers();
@@ -191,7 +198,7 @@ impl ComputeGraphicsToTexture {
             name,
             c,
             compute_shader,
-            BasicUniform::from_dims(c.dims),
+            BonusUniform::from_dims(c.dims),
             CSR::empty(),
             data,
         ))))
@@ -201,7 +208,7 @@ impl ComputeGraphicsToTexture {
         name: String,
         c: &GraphicsWindowConf<'a>,
         shader_data: &str,
-        initial_uniform: BasicUniform,
+        initial_uniform: BonusUniform,
         csr: CSR, // helps limit what data you need to check per cell
         data: Vec<T>,
     ) -> Self {
@@ -422,11 +429,23 @@ impl ComputeGraphicsToTexture {
         &mut self,
         c: &GraphicsWindowConf,
         more_info: [f32; 4],
-        more_info_other: [f32; 4],
+        other: &[f32],
     ) {
         let queue = &c.device.queue();
-        self.uniforms.more_info = more_info;
-        self.uniforms.more_info_other = more_info_other;
+        self.uniforms.more_info_secret = more_info;
+        self.uniforms.update_up_to_16(other);
+
+        // println!("{:?}", self.uniform.more_info);
+        queue.write_buffer(&self.buffers.uniforms, 0, self.uniforms.as_bytes());
+    }
+
+    pub fn update_more_info_other_uniforms(
+        &mut self,
+        c: &GraphicsWindowConf,
+        other: &[f32],
+    ) {
+        let queue = &c.device.queue();
+        self.uniforms.update_up_to_16(other);
 
         // println!("{:?}", self.uniform.more_info);
         queue.write_buffer(&self.buffers.uniforms, 0, self.uniforms.as_bytes());
@@ -497,11 +516,24 @@ impl ComputeGraphicsToTextureRef {
         nx: u32,
         ny: u32,
         segments: &[T],
+        uniforms: &[f32],
     ) {
         if !segments.is_empty() {
-            self.graphics.borrow_mut().sync_data(c, nx, ny, segments)
+            self.graphics
+                .borrow_mut()
+                .sync_data(c, nx, ny, segments, uniforms)
         } else {
             println!("segments is empty, not doing anything");
         }
+    }
+
+    pub fn update_more_info_other_uniforms(
+        &self,
+        c: &GraphicsWindowConf,
+        uniforms: &[f32],
+    ) {
+        self.graphics
+            .borrow_mut()
+            .update_more_info_other_uniforms(c, uniforms);
     }
 }

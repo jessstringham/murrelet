@@ -47,7 +47,15 @@ pub trait GraphicsVertex: NoUninit + Copy + Clone + std::fmt::Debug + 'static {
     }
 
     fn fragment_prefix() -> &'static str;
+
+    /// Must line up with the `@location(..)` inputs of `vertex_shader()`.
+    fn vertex_attrs() -> &'static [wgpu::VertexAttribute] {
+        &DEFAULT_VERTEX_ATTRS
+    }
 }
+
+pub const DEFAULT_VERTEX_ATTRS: [wgpu::VertexAttribute; 3] =
+    wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
 
 impl GraphicsVertex for DefaultVertex {
     fn vertex_shader() -> &'static str {
@@ -110,20 +118,15 @@ impl VertexUniforms {
         bytemuck::bytes_of(self)
     }
 
-    fn uniforms_size(&self) -> u64 {
-        std::mem::size_of::<Self>() as wgpu::BufferAddress
-    }
-
     fn write_buffer(&self, dest: &wgpu::Buffer, queue: &wgpu::Queue) {
         queue.write_buffer(dest, 0, self.as_bytes());
     }
 
     fn to_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer(&wgpu::BufferDescriptor {
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("view and light proj buffer for 3d vertex shader"),
-            size: self.uniforms_size(),
+            contents: self.as_bytes(),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
         })
     }
 }
@@ -302,7 +305,6 @@ pub struct GraphicsCreator<VertexKind> {
     first_texture: TextureCreator,
     second_texture: Option<TextureCreator>,
     details: ShaderOptions,
-    color_blend: wgpu::BlendComponent,
     dst_texture: TextureCreator,
     input_vertex: InputVertexConf<VertexKind>, // defaults to the square
     blend_state: wgpu::BlendState,
@@ -318,7 +320,6 @@ impl Default for GraphicsCreator<DefaultVertex> {
                 wgpu::FilterMode::Linear,
                 wgpu::AddressMode::ClampToEdge,
             ),
-            color_blend: wgpu::BlendComponent::REPLACE,
             dst_texture: TextureCreator {
                 format: DEFAULT_TEXTURE_FORMAT,
             },
@@ -354,7 +355,6 @@ impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
                 wgpu::FilterMode::Linear,
                 wgpu::AddressMode::ClampToEdge,
             ),
-            color_blend: wgpu::BlendComponent::REPLACE,
             dst_texture: TextureCreator {
                 format: DEFAULT_TEXTURE_FORMAT,
             },
@@ -401,7 +401,7 @@ impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
     }
 
     pub fn with_color_blend(mut self, blend: wgpu::BlendComponent) -> Self {
-        self.color_blend = blend;
+        self.blend_state.color = blend;
         self
     }
 
@@ -421,9 +421,9 @@ impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
         name: &str,
         fs_shader: &str,
     ) -> GraphicsRefCustom<VertexKind> {
-        if self.color_blend != wgpu::BlendComponent::REPLACE
-            && self.dst_texture.format == wgpu::TextureFormat::Rgba32Float
-        {
+        let blends = self.blend_state.color != wgpu::BlendComponent::REPLACE
+            || self.blend_state.alpha != wgpu::BlendComponent::REPLACE;
+        if blends && self.dst_texture.format == wgpu::TextureFormat::Rgba32Float {
             panic!("can't blend with float32 textures");
         }
 
@@ -456,6 +456,10 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
             self.graphics.borrow().uniforms.more_info,
             self.graphics.borrow().uniforms.more_info_other,
         )
+    }
+
+    pub fn render_dims(&self) -> [u32; 2] {
+        self.graphics.borrow().uniforms.dims()
     }
 
     pub fn new_with_src<'a>(
@@ -530,6 +534,13 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
         self.graphics.borrow_mut().update_view(c, view, light);
     }
 
+    // In-place fragment-shader swap (keeps textures/feedback). Since this is the
+    // shared `Rc<RefCell<Graphics>>`, any pipeline holding the same handle picks up
+    // the new shader on its next render.
+    pub fn update_shader(&self, c: &GraphicsWindowConf, fs_shader_data: &str) {
+        self.graphics.borrow_mut().update_shader(c, fs_shader_data);
+    }
+
     pub fn render_to_texture(&self, device_state: &DeviceState, texture: &wgpu::TextureView) {
         self.graphics.borrow_mut().render(device_state, texture)
     }
@@ -548,6 +559,21 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
             device_state,
             output_texture_view,
             bind_group,
+        )
+    }
+
+    pub fn render_with_input_textures(
+        &self,
+        device_state: &DeviceState,
+        output_texture_view: &wgpu::TextureView,
+        input_texture_view: &wgpu::TextureView,
+        input_texture_view_other: Option<&wgpu::TextureView>,
+    ) {
+        self.graphics.borrow().render_with_input_textures(
+            device_state,
+            output_texture_view,
+            input_texture_view,
+            input_texture_view_other,
         )
     }
 
@@ -707,7 +733,7 @@ pub struct TextureAndDesc {
     pub desc: wgpu::TextureDescriptor<'static>,
 }
 impl TextureAndDesc {
-    pub(crate) fn default_view(&self) -> wgpu::TextureView {
+    pub fn default_view(&self) -> wgpu::TextureView {
         self.texture.create_view(&Default::default())
     }
 }
@@ -778,6 +804,23 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         self.update_uniforms_other(c, more_info, more_info_other)
     }
 
+    // Swap the fragment shader in place: rebuild only the render pipeline (same conf,
+    // same bind group layout) and keep the textures/bind group/uniforms. A live
+    // shader edit then preserves any accumulated feedback in the existing textures
+    // instead of allocating fresh blank ones. Mirrors `update_tri`'s in-place rebuild.
+    pub fn update_shader(&mut self, c: &GraphicsWindowConf, fs_shader_data: &str) {
+        let device = c.device.device();
+        let fs_mod = shader_from_path(device, fs_shader_data);
+        let dst_format = self.conf.dst_texture.format;
+        self.render_pipeline = Graphics::<VertexKind>::_render_pipeline(
+            &self.conf,
+            device,
+            &self.bind_group_layout,
+            &fs_mod,
+            dst_format,
+        );
+    }
+
     // create a texture
     pub fn texture(
         dim: [u32; 2],
@@ -820,7 +863,8 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         let mut bind_group_layout_entries = Vec::new();
         bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding: 0_u32, // needs to line up with @group(0) @binding(1)
-            visibility: wgpu::ShaderStages::FRAGMENT,
+            // VERTEX too, so a vertex shader can textureLoad its own input
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
             ty: wgpu::BindingType::Texture {
                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 view_dimension: wgpu::TextureViewDimension::D2,
@@ -854,7 +898,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         // and finally the uniforms
         bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding: bind_group_offset + 2,
-            visibility: wgpu::ShaderStages::FRAGMENT,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
@@ -913,7 +957,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
         input_texture_view: &wgpu::TextureView,
-        input_texture_view_other: &Option<wgpu::TextureView>,
+        input_texture_view_other: Option<&wgpu::TextureView>,
         initial_uniform_buffer: &wgpu::Buffer,
         initial_camera: Option<&wgpu::Buffer>,
         views_for_3d: &Option<TextureFor3d>,
@@ -988,9 +1032,9 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         let pipeline_layout = Graphics::<VertexKind>::_pipeline_layout(device, bind_group_layout);
 
         let vertex_buffer_layouts = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<DefaultVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<VertexKind>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+            attributes: VertexKind::vertex_attrs(),
         };
 
         let primitive = wgpu::PrimitiveState {
@@ -1102,8 +1146,10 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         // make a bind group layout
 
         let first_texture_format = texture_src_path.to_format(first_format);
+        // Loaded image textures keep their native size; render targets still use c.dims.
+        let input_dims = texture_src_path.texture_dims(c.dims());
         let texture_and_desc =
-            Graphics::<DefaultVertex>::texture(c.dims, device, first_texture_format);
+            Graphics::<DefaultVertex>::texture(input_dims, device, first_texture_format);
         let input_texture = &texture_and_desc.texture;
 
         // maybe load the image source if we have one
@@ -1212,9 +1258,9 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
             // needs to be same
             let vertex_buffer_layouts = wgpu::VertexBufferLayout {
-                array_stride: std::mem::size_of::<DefaultVertex>() as wgpu::BufferAddress,
+                array_stride: std::mem::size_of::<VertexKind>() as wgpu::BufferAddress,
                 step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                attributes: VertexKind::vertex_attrs(),
             };
 
             let shadow_pipeline_layout =
@@ -1266,7 +1312,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             device,
             &bind_group_layout,
             &input_texture_view,
-            &input_texture_view_other,
+            input_texture_view_other.as_ref(),
             &initial_uniform_buffer,
             if conf.input_vertex.is_3d {
                 Some(&vertex_buffers.uniform)
@@ -1308,7 +1354,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             device,
             &self.bind_group_layout,
             texture_view,
-            &self.input_texture_view_other, // i don't know what to do with this, leave it None or let there be one..
+            self.input_texture_view_other.as_ref(), // i don't know what to do with this, leave it None or let there be one..
             &self.uniforms_buffer,
             if self.conf.input_vertex.is_3d {
                 Some(&self.vertex_buffers.uniform)
@@ -1381,7 +1427,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                 shadow_pass.set_vertex_buffer(0, self.vertex_buffers.vertex.slice(..));
                 shadow_pass.set_index_buffer(
                     self.vertex_buffers.index.slice(..),
-                    wgpu::IndexFormat::Uint16,
+                    wgpu::IndexFormat::Uint32,
                 );
                 shadow_pass.draw_indexed(0..self.conf.input_vertex.indices(), 0, 0..1);
                 drop(shadow_pass);
@@ -1424,6 +1470,31 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
     pub fn render(&self, device: &DeviceState, output_texture_view: &wgpu::TextureView) {
         self.render_with_custom_bind_group(device, output_texture_view, &self.bind_group)
+    }
+
+    pub fn render_with_input_textures(
+        &self,
+        device_state: &DeviceState,
+        output_texture_view: &wgpu::TextureView,
+        input_texture_view: &wgpu::TextureView,
+        input_texture_view_other: Option<&wgpu::TextureView>,
+    ) {
+        let bind_group = Graphics::<VertexKind>::_bind_group(
+            device_state.device(),
+            &self.bind_group_layout,
+            input_texture_view,
+            input_texture_view_other,
+            &self.uniforms_buffer,
+            if self.conf.input_vertex.is_3d {
+                Some(&self.vertex_buffers.uniform)
+            } else {
+                None
+            },
+            &self.textures_for_3d,
+            &self.sampler,
+        );
+
+        self.render_with_custom_bind_group(device_state, output_texture_view, &bind_group)
     }
 
     pub fn update_view(&self, c: &GraphicsWindowConf, view: Mat4, light: Mat4) {

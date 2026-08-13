@@ -56,6 +56,8 @@ pub struct SvgDrawConfig {
     should_resize: bool, // sorry, something to force it not to resize my shapes on the web!
     bg_color: Option<MurreletColor>,
     output_kind: SvgSaveKind,
+    stroke_width: f32, // absolute mm stroke for the saved file (0.0 = proportional)
+    colors_as_layers: bool, // split saved file into one layer per stroke color
 }
 impl SvgDrawConfig {
     pub fn new(
@@ -65,6 +67,8 @@ impl SvgDrawConfig {
         target_size: f32,
         frame: u64,
         output_kind: SvgSaveKind,
+        stroke_width: f32,
+        colors_as_layers: bool,
     ) -> SvgDrawConfig {
         SvgDrawConfig {
             size,
@@ -76,7 +80,53 @@ impl SvgDrawConfig {
             resolution,
             bg_color: None,
             output_kind,
+            stroke_width,
+            colors_as_layers,
         }
+    }
+
+    /// The headless `SvgDrawConfig` the windowed-GPU sketches hand-build in their
+    /// `IsHeadlessGraphic::prepare` (no `svg_save_path` from the harness offscreen):
+    /// an 8-arg `HTML` config sized to the render dims, no capture path, frame 0.
+    /// Centralizes the form every drawer-fed GPU sketch copied byte-for-byte
+    /// except its dims (PLAN-64 candidate 2). `dims` is `[width, height]` (matches
+    /// `GraphicsWindowConf::dims()`).
+    pub fn for_headless(dims: [u32; 2]) -> SvgDrawConfig {
+        SvgDrawConfig::new(
+            dims[0] as f32,
+            Some(TextureDimensions {
+                width: dims[0],
+                height: dims[1],
+            }),
+            None,
+            100.0,
+            0,
+            SvgSaveKind::HTML,
+            0.0,
+            false,
+        )
+    }
+
+    pub fn stroke_width(&self) -> f32 {
+        self.stroke_width
+    }
+
+    pub fn should_resize(&self) -> bool {
+        self.should_resize
+    }
+
+    pub fn colors_as_layers(&self) -> bool {
+        self.colors_as_layers
+    }
+
+    pub fn with_output_kind(mut self, kind: SvgSaveKind) -> Self {
+        self.output_kind = kind;
+        self
+    }
+
+    pub fn with_colors_as_layers(mut self, on: bool) -> Self {
+        self.colors_as_layers = on;
+        self
     }
 
     pub fn with_bg_color(&self, bg_color: MurreletColor) -> Self {
@@ -88,6 +138,12 @@ impl SvgDrawConfig {
     pub fn with_no_resize(&self) -> Self {
         let mut c = self.clone();
         c.should_resize = false;
+        c
+    }
+
+    pub fn with_capture_path(&self, capture_path: PathBuf) -> Self {
+        let mut c = self.clone();
+        c.capture_path = Some(capture_path);
         c
     }
 
@@ -115,14 +171,14 @@ impl SvgDrawConfig {
             let translation_to_final = vec2(full_target_width, full_target_width);
             let s = self.target_size / size;
 
-            // aiming for 100mm by 100mm, going from 0 to 10
-            // operations go right to left!
             SimpleTransform2d::new(vec![
-                SimpleTransform2dStep::translate(translation_to_final),
                 SimpleTransform2dStep::scale_both(s),
+                SimpleTransform2dStep::reflect_y(),
+                SimpleTransform2dStep::translate(translation_to_final),
             ])
         } else {
-            SimpleTransform2d::noop()
+            // SVG is y-down, the engine is y-up.
+            SimpleTransform2d::reflect_y()
         }
     }
 
@@ -155,38 +211,54 @@ pub fn _default_false() -> bool {
     false
 }
 
-// app config
+fn _default_seed_val() -> f32 {
+    42.0
+}
 fn _default_seed() -> ControlF32 {
-    ControlF32::Raw(42.0)
+    _default_seed_val().to_control()
+}
+fn _default_seed_lazy() -> ControlLazyNodeF32 {
+    _default_seed_val().to_control_lazy()
+}
+
+fn _default_width_val() -> f32 {
+    400.0
 }
 fn _default_width() -> ControlF32 {
-    ControlF32::Raw(400.0)
-}
-
-fn _default_seed_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(42.0)
+    _default_width_val().to_control()
 }
 fn _default_width_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(400.0)
+    _default_width_val().to_control_lazy()
 }
 
+fn _default_bpm_val() -> f32 {
+    90.0
+}
 fn _default_bpm() -> ControlF32 {
-    ControlF32::Raw(90.0)
+    _default_bpm_val().to_control()
 }
 fn _default_bpm_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(90.0)
+    _default_bpm_val().to_control_lazy()
+}
+
+fn _default_fps_val() -> f32 {
+    30.0
 }
 fn _default_fps() -> ControlF32 {
-    ControlF32::Raw(30.0)
+    _default_fps_val().to_control()
 }
 fn _default_fps_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(30.0)
+    _default_fps_val().to_control_lazy()
+}
+
+fn _default_beats_per_bar_val() -> f32 {
+    4.0
 }
 fn _default_beats_per_bar() -> ControlF32 {
-    ControlF32::Raw(4.0)
+    _default_beats_per_bar_val().to_control()
 }
 fn _default_beats_per_bar_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(4.0)
+    _default_beats_per_bar_val().to_control_lazy()
 }
 
 fn _default_bg_alpha() -> ControlF32 {
@@ -234,31 +306,54 @@ fn _default_clear_bg_lazy() -> ControlLazyNodeF32 {
     ControlLazyNodeF32::Bool(true)
 }
 
-fn _default_bg_color() -> [ControlF32; 4] {
-    [
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(0.0),
-        ControlF32::Raw(1.0),
-    ]
+fn _default_bg_color_val() -> MurreletColor {
+    MurreletColor::hsva(0.0, 0.0, 0.0, 1.0)
 }
-
+fn _default_bg_color() -> ControlMurreletColor {
+    _default_bg_color_val().to_control()
+}
 fn _default_bg_color_lazy() -> ControlLazyMurreletColor {
-    ControlLazyMurreletColor::new_default(0.0, 0.0, 0.0, 1.0)
+    _default_bg_color_val().to_control_lazy()
 }
 
+fn _default_svg_size_val() -> f32 {
+    100.0
+}
 fn _default_svg_size() -> ControlF32 {
-    ControlF32::Raw(100.0)
+    _default_svg_size_val().to_control()
+}
+fn _default_svg_size_lazy() -> ControlLazyNodeF32 {
+    _default_svg_size_val().to_control_lazy()
+}
+
+fn _default_svg_save_val() -> bool {
+    false
 }
 fn _default_svg_save() -> ControlBool {
-    ControlBool::Raw(false)
-}
-
-fn _default_svg_size_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(100.0)
+    _default_svg_save_val().to_control()
 }
 fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Bool(false)
+    _default_svg_save_val().to_control_lazy()
+}
+
+fn _default_svg_stroke_width_val() -> f32 {
+    0.0
+}
+fn _default_svg_stroke_width() -> ControlF32 {
+    _default_svg_stroke_width_val().to_control()
+}
+fn _default_svg_stroke_width_lazy() -> ControlLazyNodeF32 {
+    _default_svg_stroke_width_val().to_control_lazy()
+}
+
+fn _default_svg_colors_as_layers_val() -> bool {
+    false
+}
+fn _default_svg_colors_as_layers() -> ControlBool {
+    _default_svg_colors_as_layers_val().to_control()
+}
+fn _default_svg_colors_as_layers_lazy() -> ControlLazyNodeF32 {
+    _default_svg_colors_as_layers_val().to_control_lazy()
 }
 
 impl Default for ControlAppConfigTiming {
@@ -328,8 +423,7 @@ fn _reset_b() -> ControlBool {
 }
 
 fn _reset_b_lazy() -> ControlLazyNodeF32 {
-    // ControlLazyNodeF32::from_control_bool(false)
-    unimplemented!("no lazy bools yet??")
+    ControlLazyNodeF32::Bool(false)
 }
 
 #[allow(dead_code)]
@@ -341,6 +435,12 @@ pub struct SvgConfig {
     pub save: bool,
     #[livecode(serde_default = "_default_svg_kind")]
     output_kind: SvgSaveKind, // trigger for svg save
+    // actual stroke width in mm
+    #[livecode(serde_default = "_default_svg_stroke_width")]
+    pub stroke_width: f32,
+    // split colors into layers, maybe easier than doing it by hand
+    #[livecode(serde_default = "_default_svg_colors_as_layers")]
+    pub colors_as_layers: bool,
 }
 impl Default for ControlSvgConfig {
     fn default() -> Self {
@@ -348,6 +448,8 @@ impl Default for ControlSvgConfig {
             size: _default_svg_size(),
             save: _default_svg_save(),
             output_kind: _default_svg_kind(),
+            stroke_width: _default_svg_stroke_width(),
+            colors_as_layers: _default_svg_colors_as_layers(),
         }
     }
 }
@@ -358,18 +460,23 @@ impl Default for ControlLazySvgConfig {
             size: _default_svg_size_lazy(),
             save: _default_svg_save_lazy(),
             output_kind: _default_svg_kind_lazy(),
+            stroke_width: _default_svg_stroke_width_lazy(),
+            colors_as_layers: _default_svg_colors_as_layers_lazy(),
         }
     }
 }
 
 // set this in websites!
+fn _default_svg_kind_val() -> SvgSaveKind {
+    SvgSaveKind::Inkscape
+}
 fn _default_svg_kind_lazy() -> ControlLazySvgSaveKind {
-    ControlLazySvgSaveKind::Inkscape
+    _default_svg_kind_val().to_control_lazy()
+}
+fn _default_svg_kind() -> ControlSvgSaveKind {
+    _default_svg_kind_val().to_control()
 }
 
-fn _default_svg_kind() -> ControlSvgSaveKind {
-    ControlSvgSaveKind::Inkscape
-}
 fn _default_gpu_debug_next() -> ControlBool {
     #[cfg(feature = "for_the_web")]
     {
@@ -392,8 +499,11 @@ fn _default_gpu_debug() -> ControlBool {
     }
 }
 
+fn _default_gpu_color_channel_val() -> usize {
+    0
+}
 fn _default_gpu_color_channel() -> ControlF32 {
-    ControlF32::Int(0)
+    _default_gpu_color_channel_val().to_control()
 }
 
 fn _default_gpu_debug_next_lazy() -> ControlLazyNodeF32 {
@@ -405,7 +515,7 @@ fn _default_gpu_debug_lazy() -> ControlLazyNodeF32 {
 }
 
 fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Int(0)
+    _default_gpu_color_channel_val().to_control_lazy()
 }
 
 #[allow(dead_code)]
@@ -461,6 +571,10 @@ fn _default_redraw_lazy() -> LazyNodeF32 {
     LazyNodeF32::simple_number(1.0)
 }
 
+fn _default_end_at_frame() -> ControlF32 {
+    ControlF32::Int(0)
+}
+
 fn _default_reload() -> ControlBool {
     ControlBool::Raw(true)
 }
@@ -508,6 +622,7 @@ impl Default for ControlAppConfig {
             redraw: _default_redraw(),
             reload: _default_reload(),
             reload_rate: _default_reload_rate(),
+            end_at_frame: _default_end_at_frame(),
             time: _default_time(),
             ctx: _default_ctx(),
             svg: _default_svg(),
@@ -515,12 +630,18 @@ impl Default for ControlAppConfig {
             reload_on_bar: _default_reload_on_bar(),
             assets: _default_assets(),
             lerp_rate: _default_lerp_rate(),
+            only_render_on_update: _default_only_render_on_update(),
+            save_size_multi: ControlF32::Int(1),
         }
     }
 }
 
 fn _default_lerp_rate() -> ControlF32 {
     ControlF32::Int(0)
+}
+
+fn _default_only_render_on_update() -> ControlF32 {
+    ControlF32::Raw(0.0)
 }
 
 fn _default_assets() -> ControlAssetFilenames {
@@ -533,6 +654,51 @@ fn _default_reload_on_bar() -> ControlBool {
 
 fn _default_gpu() -> ControlGpuConfig {
     ControlGpuConfig::default()
+}
+
+// sorry this is twice...
+impl AppConfig {
+    pub fn default_web() -> Self {
+        Self {
+            should_reset: false,
+            debug: false,
+            capture: false,
+            seed: 42.0,
+            width: 400.0,
+            bg_alpha: 1.0,
+            clear_bg: false,
+            bg_color: MurreletColor::hsva(0.0, 0.0, 0.0, 1.0),
+            capture_frame: false,
+            redraw: 1,
+            reload: true,
+            reload_rate: 0,
+            end_at_frame: 0,
+            time: AppConfigTiming {
+                bpm: 90.0,
+                beats_per_bar: 4.0,
+                fps: 30.0,
+                realtime: true,
+            },
+            ctx: AdditionalContextNode::new_dummy(),
+            svg: SvgConfig {
+                size: 100.0,
+                save: false,
+                output_kind: SvgSaveKind::HTML,
+                stroke_width: 0.0,
+                colors_as_layers: false,
+            },
+            gpu: GpuConfig {
+                debug_next: false,
+                debug: false,
+                color_channel: 0,
+            },
+            reload_on_bar: false,
+            assets: AssetFilenames::empty(),
+            lerp_rate: 0.0,
+            only_render_on_update: 0.0,
+            save_size_multi: 1.0,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -562,6 +728,8 @@ pub struct AppConfig {
     pub reload: bool, // should reload and draw, good for slow drawing things
     #[livecode(serde_default = "0")]
     pub reload_rate: u64, // controls should_redraw, how many frames between redraw. if < 1, always defer to reload
+    #[livecode(serde_default = "0")]
+    pub end_at_frame: u64, // quit once this frame is reached. if < 1, never auto-quits
     #[livecode(serde_default = "default")]
     pub time: AppConfigTiming,
     #[livecode(kind = "none")]
@@ -580,10 +748,25 @@ pub struct AppConfig {
     pub assets: AssetFilenames, // for svg files!
     #[livecode(serde_default = "0")] // if 0, it won't run at all
     pub lerp_rate: f32,
+    // seconds to keep rendering after a config-file change; <= 0 renders every
+    // frame as usual.
+    #[livecode(serde_default = "0")]
+    pub only_render_on_update: f32,
+    // High-res export ("save full"): a multiplier on the live texture dims for a
+    // one-off off-screen render written to PNG — so the on-screen window can stay
+    // small while the export is huge. `save_size_multi <= 1` is a no-op (render at
+    // the live dims, no save); anything higher enables the save and scales by it.
+    #[livecode(serde_default = "1")]
+    pub save_size_multi: f32,
 }
 impl AppConfig {
     pub fn should_clear_bg(&self) -> bool {
         self.bg_alpha > 0.5 || self.clear_bg
+    }
+
+    // whether to do the high-res off-screen export (the old `save_full`)
+    pub fn should_save_full(&self) -> bool {
+        self.save_size_multi > 1.0
     }
 
     pub fn time(&self) -> LivecodeTimingConfig {
@@ -612,6 +795,14 @@ impl AppConfig {
 
     fn should_lerp(&self) -> bool {
         self.lerp_rate > 0.0
+    }
+
+    pub fn set_bpm(&mut self, bpm: f32) {
+        self.time.bpm = bpm
+    }
+
+    pub fn set_beats_per_bar(&mut self, beats_per_bar: f32) {
+        self.time.beats_per_bar = beats_per_bar
     }
 }
 
@@ -645,6 +836,8 @@ pub fn svg_save_path_with_prefix(lil_liveconfig: &LilLiveConfig, prefix: &str) -
         lil_liveconfig.app_config.svg.size,
         lil_liveconfig.w.actual_frame_u64(),
         lil_liveconfig.app_config.svg.output_kind,
+        lil_liveconfig.app_config.svg.stroke_width,
+        lil_liveconfig.app_config.svg.colors_as_layers,
     )
 }
 
@@ -699,15 +892,51 @@ where
         Self::new_full(controlconfig, None, livecode_src, load_funcs, None)
     }
 
+    pub fn new_wasm(
+        controlconfig: ControlConfType,
+    ) -> LivecodeResult<LiveCoder<ConfType, ControlConfType>> {
+        let livecode_src = murrelet_common::LivecodeSrc::new(vec![Box::new(
+            murrelet_livecode::app_src::AppInputValues::new(false),
+        )]);
+        let load_funcs = AssetLoaders::empty();
+
+        Self::new_full(controlconfig, None, livecode_src, &load_funcs, None)
+    }
+
     // this one panics if something goes wrong
     pub fn new(
         save_path: PathBuf,
         livecode_src: LivecodeSrc,
         load_funcs: &AssetLoaders,
     ) -> LiveCoder<ConfType, ControlConfType> {
-        let controlconfig = ControlConfType::fs_load();
+        Self::new_with_overrides(save_path, livecode_src, load_funcs, &[])
+    }
 
+    // Like `new`, plus extra `--set`-style overrides applied on top of the global
+    // `--set` (a `--batch` job's per-job `set`).
+    pub fn new_with_overrides(
+        save_path: PathBuf,
+        livecode_src: LivecodeSrc,
+        load_funcs: &AssetLoaders,
+        extra_overrides: &[String],
+    ) -> LiveCoder<ConfType, ControlConfType> {
         let args = BaseConfigArgs::parse();
+
+        let mut all_overrides = args.overrides.clone();
+        all_overrides.extend_from_slice(extra_overrides);
+
+        let controlconfig = if all_overrides.is_empty() {
+            ControlConfType::fs_load()
+        } else {
+            match ControlConfType::fs_parse_data_with_overrides(
+                &args.config_path,
+                crate::reload::templates_dir_for(&args.config_path),
+                &all_overrides,
+            ) {
+                Ok(x) => x,
+                Err(err) => panic!("{}", err),
+            }
+        };
 
         let result = Self::new_full(
             controlconfig,
@@ -840,7 +1069,26 @@ where
 
     pub fn svg_save_path_with_prefix(&self, prefix: &str) -> SvgDrawConfig {
         // unwrapping here, should check if this could fail
-        svg_save_path_with_prefix(&self.to_lil_liveconfig().unwrap(), prefix)
+        let conf = svg_save_path_with_prefix(&self.to_lil_liveconfig().unwrap(), prefix);
+        match self.output_override() {
+            Some(out) => conf.with_capture_path(out),
+            None => conf,
+        }
+    }
+
+    // png counterpart of svg_save_path: where a headless gpu render should land.
+    // Same path convention as capture() — capture_frame_name(frame, "") + ".png".
+    pub fn png_capture_path(&self) -> Option<PathBuf> {
+        if let Some(out) = self.output_override() {
+            return Some(out);
+        }
+        self.capture_frame_name(self.world().actual_frame_u64(), "")
+            .map(|p| p.with_extension("png"))
+    }
+
+    // `--output` if given — overrides the config-derived capture path.
+    fn output_override(&self) -> Option<PathBuf> {
+        self.maybe_args.as_ref().and_then(|a| a.output.clone())
     }
 
     // sorry i'm near getting this to work so leaving this hacky and confusing
@@ -886,6 +1134,8 @@ where
         }
     }
 
+    // hmm i don't think we want this to be used directly because we lose util stuff? or does it matter?
+    // i should really refactor all of thisssss
     pub fn update_config_directly(&mut self, control_conf: ControlConfType) -> LivecodeResult<()> {
         self.prev_controlconfig = self.controlconfig.clone();
         self.controlconfig = control_conf;
@@ -908,6 +1158,7 @@ where
     }
 
     // called every frame
+    // this uh this does everything.
     pub fn update(&mut self, app: &MurreletAppInput, reload: bool) -> LivecodeResult<()> {
         // use the previous frame's world for this
         let update_input = LivecodeSrcUpdateInput::new(
@@ -1096,7 +1347,8 @@ where
 
     pub fn should_redraw(&self) -> bool {
         let w = self.world();
-        let redraw_says_so = (w.actual_frame() as u64).is_multiple_of(self.app_config().redraw);
+        let redraw = self.app_config().redraw;
+        let redraw_says_so = redraw >= 1 && (w.actual_frame() as u64).is_multiple_of(redraw);
         let save_says_so = self.app_config().svg.save;
         // might have other things..
         redraw_says_so || save_says_so
@@ -1104,6 +1356,14 @@ where
 
     pub fn should_save_svg(&self) -> bool {
         self.app_config().svg.save
+    }
+
+    // When `only_render_on_update > 0`, only render for that many seconds after
+    // the config file last changed (so a slow sketch idles when nothing's
+    // happening). <= 0 keeps the usual every-frame behaviour.
+    pub fn should_render(&self) -> bool {
+        let window = self.app_config().only_render_on_update;
+        window <= 0.0 || self.world().time().seconds_since_reload() <= window
     }
 
     pub fn should_show_gpu_debug(&self) -> bool {
@@ -1141,5 +1401,34 @@ where
 
     pub fn run_id(&self) -> u64 {
         self.run_id
+    }
+}
+
+pub trait WithDrawerUpdator<ControlDrawingConfType> {
+    fn new_from_parts(app: ControlAppConfig, drawing_conf: ControlDrawingConfType) -> Self;
+
+    fn from_json(app: &AppConfig, drawing_conf: &str) -> LivecodeResult<Self>
+    where
+        Self: Sized,
+    {
+        let drawing_conf = Self::parse_drawer(drawing_conf)?;
+        Ok(Self::new_from_parts(app.to_control(), drawing_conf))
+    }
+
+    fn from_regular<DrawingConfType>(app: &AppConfig, drawing_conf: &DrawingConfType) -> LivecodeResult<Self>
+    where
+        Self: Sized,
+        DrawingConfType: LivecodeToControl<ControlDrawingConfType>
+    {
+        Ok(Self::new_from_parts(app.to_control(), drawing_conf.to_control()))
+    }
+
+    fn parse_drawer(text: &str)
+    -> murrelet_livecode::types::LivecodeResult<ControlDrawingConfType>;
+    fn set_drawing_conf(&mut self, drawing_conf: ControlDrawingConfType);
+    fn set_app(&mut self, app_conf: ControlAppConfig);
+
+    fn set_app_conf(&mut self, app: &AppConfig) {
+        self.set_app(app.to_control());
     }
 }
