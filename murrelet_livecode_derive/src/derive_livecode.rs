@@ -666,10 +666,10 @@ impl GenFinal for FieldTokensLivecode {
             };
         }
 
-        let inner_is_lazy_struct = parsed_type_info
-            .second_how_to()
-            .map(|h| h.is_lazy())
-            .unwrap_or(false);
+        // only the lazy-mirror shape (Vec<LazyControlVecElement<..>>) needs the Deser
+        // wrapper. a plain Vec<LazyT> is an ordinary vec whose elements happen to stay
+        // lazy, so it uses ControlVecElement like everything else.
+        let inner_is_lazy_struct = parsed_type_info.is_lazy_control_vec();
 
         let for_struct: TokenStream2 = {
             let src_type = match how_to_control_internal {
@@ -1401,10 +1401,7 @@ impl FieldTokensLivecode {
         let new_ident = Self::new_ident(name.clone());
 
         let parsed = ident_from_type(&idents.single_inner_ty());
-        let inner_is_lazy_struct = parsed
-            .second_how_to()
-            .map(|h| h.is_lazy())
-            .unwrap_or(false);
+        let inner_is_lazy_struct = parsed.is_lazy_control_vec();
         let inner_how_to = parsed.second_how_to().expect("Vec needs an inner type");
         let inner_type = match inner_how_to {
             HowToControlThis::WithType(c) => LivecodeFieldType(c).to_token(),

@@ -828,6 +828,16 @@ impl DataFromType {
         self.levels.get(1).map(|l| l.how_to)
     }
 
+    // true for the lazy-mirror vec shape, Vec<LazyControlVecElement<WrappedLazyType<LazyT>>>.
+    // note Vec<LazyT> also has a lazy second level, so `second_how_to().is_lazy()` can't
+    // tell the two apart.
+    pub(crate) fn is_lazy_control_vec(&self) -> bool {
+        self.levels
+            .get(1)
+            .map(|l| l.ident == "LazyControlVecElement")
+            .unwrap_or(false)
+    }
+
     pub(crate) fn how_to_control_internal(&self) -> &HowToControlThis {
         &self.levels.last().unwrap().how_to
     }

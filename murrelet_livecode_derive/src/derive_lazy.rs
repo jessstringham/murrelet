@@ -647,6 +647,24 @@ impl GenFinal for FieldTokensLazy {
             };
         }
 
+        // Already-lazy element (e.g. Vec<LazyInstruction>): the elements stay lazy
+        // through eval_lazy, so the lazy struct keeps the whole Vec as-is, same as a
+        // standalone LazyInstruction field.
+        if matches!(
+            how_to_control_internal,
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
+        ) && !parsed_type_info.is_lazy_control_vec()
+        {
+            return FieldTokensLazy {
+                for_struct: quote! {#back_to_quote #name: #orig_ty},
+                for_world: quote! {#name: self.#name.clone()},
+                for_more_defs: quote! {#name: self.#name.clone()},
+                for_control_lazy: quote! {#name: self.#name.iter()
+                    .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
+                    .collect::<Vec<_>>()},
+            };
+        }
+
         let for_struct = {
             let internal_type = match how_to_control_internal {
                 HowToControlThis::WithType(c) => LazyFieldType(*c).to_token(),
@@ -1069,6 +1087,34 @@ impl FieldTokensLazy {
 
         let parsed = ident_from_type(&idents.single_inner_ty());
         let inner_how_to = parsed.second_how_to().expect("Vec needs an inner type");
+
+        // V(Vec<LazyT>): the elements stay lazy, so keep the payload as-is (mirror of
+        // the named-field Vec<LazyT> arm).
+        if matches!(
+            inner_how_to,
+            HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
+        ) && !parsed.is_lazy_control_vec()
+        {
+            let inner_type = parsed.internal_type();
+            let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
+            return FieldTokensLazy {
+                for_struct: quote! { #variant_ident(Vec<#inner_type>) },
+                for_world: quote! {
+                    #new_enum_ident::#variant_ident(s) => #name::#variant_ident(s.clone())
+                },
+                for_more_defs: quote! {
+                    #new_enum_ident::#variant_ident(s) => #new_enum_ident::#variant_ident(s.clone())
+                },
+                for_control_lazy: quote! {
+                    #name::#variant_ident(s) => #control_lazy_ident::#variant_ident(
+                        s.iter()
+                            .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
+                            .collect::<Vec<_>>()
+                    )
+                },
+            };
+        }
+
         let inner_type = match inner_how_to {
             HowToControlThis::WithType(c) => LazyFieldType(c).to_token(),
             HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {

@@ -19,15 +19,7 @@ use crate::{
 enum LivecodeWorldStateStage {
     Timeless,
     World(LiveCodeTimeInstantInfo),
-    // Unit(LiveCodeTimeInstantInfo),
-    // Lazy(LiveCodeTimeInstantInfo),
 }
-// impl LivecodeWorldStateStage {
-//     fn add_step(&self, stage: LivecodeWorldStateStage) -> LivecodeWorldStateStage {
-//         // todo, i could start to represent the tree of steps.. but right now, just do the latest one
-//         stage
-//     }
-// }
 
 #[derive(Clone, Debug)]
 pub enum CacheFlag {

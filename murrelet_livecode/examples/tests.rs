@@ -57,6 +57,20 @@ struct TestLazy {
     // lazy_test: LazyBasicTypes,
 }
 
+// vec elements are expanded (vec_repeat/gated) at control->world time, which blends,
+// so a Vec<LazyT> field needs LazyT: Lerpable. lazy things step rather than blend.
+impl Lerpable for LazyTestLazy {
+    fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        lerpable::step(self, other, pct)
+    }
+}
+
+#[derive(Debug, Clone, Livecode, Lerpable, Default)]
+struct TestVecOfLazy {
+    #[lerpable(method = "skip")]
+    lazies: Vec<LazyTestLazy>,
+}
+
 #[derive(Debug, Clone, Livecode, Lerpable, Default)]
 enum EnumTest {
     #[default]
@@ -168,6 +182,48 @@ pub struct NewTypeWithStructLazy(LazyBasicTypes);
 // }
 
 fn main() {}
+
+#[cfg(test)]
+mod vec_of_lazy_tests {
+    use super::*;
+    use murrelet_livecode::expr::MixedEvalDefs;
+    use murrelet_livecode::lazy::IsLazy;
+    use murrelet_livecode::livecode::LivecodeFromWorld;
+
+    fn conf(yaml: &str) -> TestVecOfLazy {
+        let c: ControlTestVecOfLazy = serde_yaml::from_str(yaml).unwrap();
+        c.o_dummy().unwrap()
+    }
+
+    #[test]
+    fn stays_lazy_through_the_world_struct() {
+        let conf = conf(
+            r#"
+lazies:
+  - lazy: {a_number: "1.0", c_vec2: ["0", "0"], b_angle: "0", c_vec3: ["0","0","0"], b_color: ["0","0","0","1"], something: [], list_of_vec2: [], option_f32: null, a_usize: "0", list_of_usize: [], list_of_u32: []}
+"#,
+        );
+        assert_eq!(conf.lazies.len(), 1);
+
+        let ctx = MixedEvalDefs::new();
+        let evaled = conf.lazies[0].eval_lazy(&ctx).unwrap();
+        assert_eq!(evaled.lazy.eval_lazy(&ctx).unwrap().a_number, 1.0);
+    }
+
+    #[test]
+    fn vec_repeat_expands_lazy_elements() {
+        let conf = conf(
+            r#"
+lazies:
+  - repeat: "3"
+    prefix: "j"
+    what:
+      - lazy: {a_number: "j_i", c_vec2: ["0", "0"], b_angle: "0", c_vec3: ["0","0","0"], b_color: ["0","0","0","1"], something: [], list_of_vec2: [], option_f32: null, a_usize: "0", list_of_usize: [], list_of_u32: []}
+"#,
+        );
+        assert_eq!(conf.lazies.len(), 3);
+    }
+}
 
 #[cfg(test)]
 mod nestedit_container_tests {
