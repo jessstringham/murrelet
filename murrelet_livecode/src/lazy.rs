@@ -8,7 +8,7 @@ use crate::{
     },
     nestedit::{NestEditable, NestedMod},
     state::{LivecodeWorldState, WorldWithLocalVariables},
-    types::{LivecodeError, LivecodeResult},
+    types::{LivecodeError, LivecodeResult, ToLivecodeResult},
 };
 use evalexpr::Node;
 
@@ -384,40 +384,76 @@ impl NestEditable for LazyMurreletString {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+// #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+// pub struct ControlLazyVec2(Vec<ControlLazyNodeF32>);
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct ControlLazyVec2(Vec<ControlLazyNodeF32>);
+#[serde(untagged)]
+pub enum ControlLazyVec2 {
+    Vec2(Vec<ControlLazyNodeF32>),
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
+    Ref(String), // this assumes you've added a .x and .y value into the context!!
+}
+
+impl Default for ControlLazyVec2 {
+    fn default() -> Self {
+        Self::Vec2(Default::default())
+    }
+}
 
 impl ControlLazyVec2 {
     pub fn new(x: ControlLazyNodeF32, y: ControlLazyNodeF32) -> Self {
-        Self(vec![x, y])
+        Self::Vec2(vec![x, y])
     }
 }
 impl LivecodeFromWorld<LazyVec2> for ControlLazyVec2 {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyVec2> {
-        Ok(LazyVec2::new(self.0[0].o(w)?, self.0[1].o(w)?))
+        match self {
+            ControlLazyVec2::Vec2(v) => {
+                if v.len() != 2 {
+                    return Err("vec2 isn't 2 elements").to_lc_err();
+                }
+                Ok(LazyVec2::new(v[0].o(w)?, v[1].o(w)?))
+            }
+            ControlLazyVec2::Ref(r) => {
+                Ok(LazyVec2::new_funcs(&format!("{r}.x"), &format!("{r}.y")))
+            }
+        }
     }
 }
 
 impl GetLivecodeIdentifiers for ControlLazyVec2 {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
-        self.0
-            .iter()
-            .flat_map(|f| f.variable_identifiers())
-            .collect_vec()
+        match self {
+            ControlLazyVec2::Vec2(v) => v
+                .iter()
+                .flat_map(|f| f.variable_identifiers())
+                .collect_vec(),
+            ControlLazyVec2::Ref(r) => {
+                vec![
+                    LivecodeVariable::from_str(&format!("{r}.x")),
+                    LivecodeVariable::from_str(&format!("{r}.y")),
+                ]
+            }
+        }
     }
 
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
-        self.0
-            .iter()
-            .flat_map(|f| f.function_identifiers())
-            .collect_vec()
+        match self {
+            ControlLazyVec2::Vec2(v) => v
+                .iter()
+                .flat_map(|f| f.function_identifiers())
+                .collect_vec(),
+            ControlLazyVec2::Ref(_) => vec![],
+        }
     }
 }
 
 impl LivecodeToControl<ControlLazyVec2> for LazyVec2 {
     fn to_control(&self) -> ControlLazyVec2 {
-        ControlLazyVec2(vec![self.x.to_control(), self.y.to_control()])
+        ControlLazyVec2::Vec2(vec![self.x.to_control(), self.y.to_control()])
     }
 }
 
@@ -831,12 +867,10 @@ impl LivecodeToControl<ControlLazyMurreletString> for LazyMurreletString {
                 fmt: fmt.clone(),
                 fill: fill.iter().map(|f| f.to_control()).collect_vec(),
             },
-            LazyMurreletString::FmtFloat { fmt_f, fill } => {
-                ControlLazyMurreletString::FmtFloat {
-                    fmt_f: fmt_f.clone(),
-                    fill: fill.iter().map(|f| f.to_control()).collect_vec(),
-                }
-            }
+            LazyMurreletString::FmtFloat { fmt_f, fill } => ControlLazyMurreletString::FmtFloat {
+                fmt_f: fmt_f.clone(),
+                fill: fill.iter().map(|f| f.to_control()).collect_vec(),
+            },
         }
     }
 }
@@ -852,14 +886,18 @@ impl IsLazy for LazyMurreletString {
                     .iter()
                     .map(|f| f.eval_lazy(ctx).map(|x| x.round() as i64))
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(MurreletString::new(crate::livecode::fill_fmt(fmt, &filled)?))
+                Ok(MurreletString::new(crate::livecode::fill_fmt(
+                    fmt, &filled,
+                )?))
             }
             LazyMurreletString::FmtFloat { fmt_f, fill } => {
                 let filled = fill
                     .iter()
                     .map(|f| f.eval_lazy(ctx).map(|x| x as f64))
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(MurreletString::new(crate::livecode::fill_fmt_f64(fmt_f, &filled)?))
+                Ok(MurreletString::new(crate::livecode::fill_fmt_f64(
+                    fmt_f, &filled,
+                )?))
             }
         }
     }
