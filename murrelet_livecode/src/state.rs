@@ -3,7 +3,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use evalexpr::{Context, EvalexprResult, HashMapContext, IterateVariablesContext, Value};
+use evalexpr::{
+    Context, EvalexprError, EvalexprResult, HashMapContext, IterateVariablesContext, Value,
+};
 use murrelet_common::*;
 
 use crate::{
@@ -208,6 +210,13 @@ impl LivecodeWorldState {
     }
 }
 
+fn format_name_arg(v: &Value) -> EvalexprResult<String> {
+    match v {
+        Value::String(s) => Ok(s.clone()),
+        _ => Ok(format!("{}", v.as_number()?.round() as i64)),
+    }
+}
+
 // some chatgpt help
 #[derive(Debug, Clone)]
 pub struct WorldWithLocalVariables {
@@ -228,6 +237,42 @@ impl WorldWithLocalVariables {
         names.extend(self.base.iter_variable_names());
         names
     }
+
+    // some claude
+    fn lookup_dynamic(&self, argument: &Value) -> Result<Value, evalexpr::EvalexprError> {
+        let args = argument.as_tuple()?;
+        if args.len() < 2 {
+            return Err(EvalexprError::CustomMessage(
+                "get_or needs at least (default, \"fmt\")".to_string(),
+            ));
+        }
+
+        let default = &args[0];
+        let fmt = args[1].as_string()?;
+
+        // format the remaining args into the {} slots
+        let mut name = String::new();
+        let mut rest = args[2..].iter();
+        for (i, chunk) in fmt.split("{}").enumerate() {
+            if i > 0 {
+                match rest.next() {
+                    Some(v) => name.push_str(&format_name_arg(v)?),
+                    None => {
+                        return Err(EvalexprError::CustomMessage(format!(
+                            "get_or: not enough args for the {{}} slots in {:?}",
+                            fmt
+                        )));
+                    }
+                }
+            }
+            name.push_str(chunk);
+        }
+
+        Ok(self
+            .get_value(&name)
+            .cloned()
+            .unwrap_or_else(|| default.clone()))
+    }
 }
 
 impl Context for WorldWithLocalVariables {
@@ -239,6 +284,11 @@ impl Context for WorldWithLocalVariables {
     }
 
     fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
+        // we sneak in with some custom functions
+        if identifier == "get_or" {
+            return self.lookup_dynamic(argument);
+        }
+
         self.base.call_function(identifier, argument)
     }
 
