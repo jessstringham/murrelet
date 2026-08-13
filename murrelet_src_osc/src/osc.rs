@@ -59,6 +59,7 @@ impl IsLivecodeSrc for OscMng {
                 }
                 LivecodeValue::Bool(_) => {}
                 LivecodeValue::Int(_) => {}
+                LivecodeValue::Vec2(_, _) => {}, // todo
             }
         }
     }

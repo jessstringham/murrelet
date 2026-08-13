@@ -130,6 +130,20 @@ impl LazyNodeF32Inner {
         &self.world
     }
 
+    pub fn eval_value(&self) -> LivecodeResult<evalexpr::Value> {
+        self.n
+            .eval_with_context(self.build_ctx())
+            .map_err(|err| LivecodeError::EvalExpr("error evaluating lazy".to_string(), err))
+    }
+
+    pub fn eval_vec2(&self) -> LivecodeResult<Vec2> {
+        let t = self.eval_value()?.as_fixed_len_tuple(2).to_lc_err()?;
+        Ok(glam::vec2(
+            t[0].as_number().to_lc_err()? as f32,
+            t[1].as_number().to_lc_err()? as f32,
+        ))
+    }
+
     // what you'll use
     pub fn eval(&self) -> LivecodeResult<f32> {
         let ctx = self.build_ctx();
@@ -322,14 +336,41 @@ where
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct LazyVec2 {
+pub struct LazyVec2XY {
     x: LazyNodeF32,
     y: LazyNodeF32,
+}
+impl LazyVec2XY {
+    pub fn new(x: LazyNodeF32, y: LazyNodeF32) -> Self {
+        Self { x, y }
+    }
+
+    pub fn from_vec2(v: Vec2) -> Self {
+        Self::new(
+            LazyNodeF32::simple_number(v.x),
+            LazyNodeF32::simple_number(v.y),
+        )
+    }
+
+    pub fn new_funcs(x: &str, y: &str) -> Self {
+        Self::new(LazyNodeF32::new_func(x), LazyNodeF32::new_func(y))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum LazyVec2 {
+    XY(LazyVec2XY),
+    Eval(LazyNodeF32Inner),
+}
+impl Default for LazyVec2 {
+    fn default() -> Self {
+        Self::XY(Default::default())
+    }
 }
 
 impl LazyVec2 {
     pub fn new(x: LazyNodeF32, y: LazyNodeF32) -> Self {
-        Self { x, y }
+        Self::XY(LazyVec2XY { x, y })
     }
 
     pub fn from_vec2(v: Vec2) -> Self {
@@ -394,7 +435,7 @@ impl NestEditable for LazyMurreletString {
 pub enum ControlLazyVec2 {
     Vec2(Vec<ControlLazyNodeF32>),
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
-    Ref(String), // this assumes you've added a .x and .y value into the context!!
+    Expr(ExprNode), // this assumes you've added a .x and .y value into the context!!
 }
 
 impl Default for ControlLazyVec2 {
@@ -417,9 +458,10 @@ impl LivecodeFromWorld<LazyVec2> for ControlLazyVec2 {
                 }
                 Ok(LazyVec2::new(v[0].o(w)?, v[1].o(w)?))
             }
-            ControlLazyVec2::Ref(r) => {
-                Ok(LazyVec2::new_funcs(&format!("{r}.x"), &format!("{r}.y")))
-            }
+            ControlLazyVec2::Expr(node) => Ok(LazyVec2::Eval(LazyNodeF32Inner::new(
+                node.node().clone(),
+                w.clone(),
+            ))),
         }
     }
 }
@@ -431,12 +473,12 @@ impl GetLivecodeIdentifiers for ControlLazyVec2 {
                 .iter()
                 .flat_map(|f| f.variable_identifiers())
                 .collect_vec(),
-            ControlLazyVec2::Ref(r) => {
-                vec![
-                    LivecodeVariable::from_str(&format!("{r}.x")),
-                    LivecodeVariable::from_str(&format!("{r}.y")),
-                ]
-            }
+            ControlLazyVec2::Expr(node) => node
+                .iter_variable_identifiers()
+                .sorted()
+                .dedup()
+                .map(LivecodeVariable::from_str)
+                .collect_vec(),
         }
     }
 
@@ -446,14 +488,28 @@ impl GetLivecodeIdentifiers for ControlLazyVec2 {
                 .iter()
                 .flat_map(|f| f.function_identifiers())
                 .collect_vec(),
-            ControlLazyVec2::Ref(_) => vec![],
+            ControlLazyVec2::Expr(node) => node
+                .iter_function_identifiers()
+                .sorted()
+                .dedup()
+                .map(LivecodeFunction::from_str)
+                .collect_vec(),
         }
+    }
+}
+
+impl LivecodeToControl<ControlLazyVec2> for LazyVec2XY {
+    fn to_control(&self) -> ControlLazyVec2 {
+        ControlLazyVec2::Vec2(vec![self.x.to_control(), self.y.to_control()])
     }
 }
 
 impl LivecodeToControl<ControlLazyVec2> for LazyVec2 {
     fn to_control(&self) -> ControlLazyVec2 {
-        ControlLazyVec2::Vec2(vec![self.x.to_control(), self.y.to_control()])
+        match self {
+            LazyVec2::XY(xy) => xy.to_control(),
+            LazyVec2::Eval(inner) => ControlLazyVec2::Expr(ExprNode::from_node((*inner.n).clone())),
+        }
     }
 }
 
@@ -467,14 +523,20 @@ impl IsLazy for LazyVec2 {
     type Target = glam::Vec2;
 
     fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
-        Ok(glam::vec2(self.x.eval_lazy(ctx)?, self.y.eval_lazy(ctx)?))
+        match self {
+            LazyVec2::XY(xy) => Ok(glam::vec2(xy.x.eval_lazy(ctx)?, xy.y.eval_lazy(ctx)?)),
+            LazyVec2::Eval(inner) => inner.add_more_defs(ctx).eval_vec2(),
+        }
     }
 
     fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
-        Ok(LazyVec2::new(
-            self.x.with_more_defs(ctx)?,
-            self.y.with_more_defs(ctx)?,
-        ))
+        match self {
+            LazyVec2::XY(xy) => Ok(LazyVec2::new(
+                xy.x.with_more_defs(ctx)?,
+                xy.y.with_more_defs(ctx)?,
+            )),
+            LazyVec2::Eval(inner) => Ok(LazyVec2::Eval(inner.add_more_defs(ctx))),
+        }
     }
 }
 

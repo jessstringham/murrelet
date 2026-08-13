@@ -545,12 +545,17 @@ pub enum LivecodeValue {
     Float(f64),
     Bool(bool),
     Int(i64),
+    Vec2(f64, f64)
 }
 
 impl LivecodeValue {
     #[inline]
     pub fn float(f: f32) -> Self {
         Self::Float(f as f64) // just a convenience thing
+    }
+
+    pub fn vec2(f: Vec2) -> Self {
+        Self::Vec2(f.x as f64, f.y as f64)
     }
 }
 

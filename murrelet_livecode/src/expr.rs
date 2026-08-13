@@ -5,13 +5,22 @@ use evalexpr::*;
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 use murrelet_common::{
-    IdxInRange, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range, smoothstep,
+    AnglePi, IdxInRange, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range, smoothstep,
 };
 use noise::{NoiseFn, Perlin};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
 use regex::Regex;
+
+fn expr_as_vec2(v: &Value) -> EvalexprResult<Vec2> {
+    let t = v.as_fixed_len_tuple(2)?;
+    Ok(vec2(t[0].as_number()? as f32, t[1].as_number()? as f32))
+}
+
+fn expr_from_vec2(v: Vec2) -> Value {
+    Value::Tuple(vec![Value::Float(v.x as f64), Value::Float(v.y as f64)])
+}
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
     context_map!{
@@ -284,15 +293,81 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             );
             let f = vec2(x1 as f32, y1 as f32).distance(vec2(x2 as f32, y2 as f32));
             Ok(Value::Float(f as f64))
+        }),
+        "fract" => Function::new(move |argument| {
+            let src = argument.as_number()?;
+            let f = src.fract();
+            Ok(Value::Float(f))
+        }),
+        // some vec2 things
+        "v" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            Ok(Value::Tuple(vec![
+                Value::Float(t[0].as_number()?),
+                Value::Float(t[1].as_number()?),
+            ]))
+        }),
+        "vadd" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            Ok(expr_from_vec2(expr_as_vec2(&t[0])? + expr_as_vec2(&t[1])?))
+        }),
+        "vaddx" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            let val = t[1].as_number()? as f32;
+            Ok(expr_from_vec2(expr_as_vec2(&t[0])? + vec2(val, 0.0)))
+        }),
+        "vaddy" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            let val = t[1].as_number()? as f32;
+            Ok(expr_from_vec2(expr_as_vec2(&t[0])? + vec2(0.0, val)))
+        }),
+        "vsub" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            Ok(expr_from_vec2(expr_as_vec2(&t[0])? - expr_as_vec2(&t[1])?))
+        }),
+        "vsubx" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            let val = t[1].as_number()? as f32;
+            Ok(expr_from_vec2(expr_as_vec2(&t[0])? - vec2(val, 0.0)))
+        }),
+        "vsuby" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            let val = t[1].as_number()? as f32;
+            Ok(expr_from_vec2(expr_as_vec2(&t[0])? - vec2(0.0, val)))
+        }),
+        "vscale" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            let (a, k) = (expr_as_vec2(&t[0])?, t[1].as_number()? as f32);
+            Ok(expr_from_vec2(a * k))
+        }),
+        "vlerp" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(3)?;
+            let (a, b, pct) = (expr_as_vec2(&t[0])?, expr_as_vec2(&t[1])?, t[2].as_number()? as f32);
+            Ok(expr_from_vec2(a.lerp(b, pct)))
+        }),
+        "vrot" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            let (a, angle) = (expr_as_vec2(&t[0])?, t[1].as_number()? as f32);
+            Ok(expr_from_vec2(AnglePi::new(angle).rotate_vec2(a)))
+        }),
+        "vlen" => Function::new(move |argument| {
+            Ok(Value::Float(expr_as_vec2(argument)?.length() as f64))
         })
     }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err)})
 }
 
+// }),
 pub fn lc_val_to_expr(v: &LivecodeValue) -> Value {
     match v {
         LivecodeValue::Float(f) => Value::Float(*f),
         LivecodeValue::Bool(f) => Value::Boolean(*f),
         LivecodeValue::Int(f) => Value::Int(*f),
+        LivecodeValue::Vec2(x, y) => {
+            let x = Value::Float(*x);
+            let y = Value::Float(*y);
+
+            Value::Tuple(vec![x, y])
+        }
     }
 }
 
@@ -482,7 +557,10 @@ impl ToMixedDefs for MixedEvalDefs {
     }
 }
 
-impl<S> ToMixedDefs for (S, LivecodeValue) where S: ToStrId {
+impl<S> ToMixedDefs for (S, LivecodeValue)
+where
+    S: ToStrId,
+{
     fn to_mixed_def(&self) -> MixedEvalDefsRef {
         MixedEvalDefs::new_simple(&self.0, self.1).to_mixed_def()
     }
