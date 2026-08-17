@@ -3,7 +3,9 @@ use std::{collections::HashSet, fmt::Debug};
 use evalexpr::{EvalexprError, HashMapContext};
 use itertools::Itertools;
 use lerpable::{Lerpable, step};
-use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, StrId, print_expect};
+use murrelet_common::{
+    IdxInRange, IdxInRange2d, LivecodeValue, MurreletIterHelpers, StrId, print_expect,
+};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;

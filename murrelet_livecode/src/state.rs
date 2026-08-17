@@ -273,14 +273,36 @@ impl WorldWithLocalVariables {
             .cloned()
             .unwrap_or_else(|| default.clone()))
     }
-}
 
-impl Context for WorldWithLocalVariables {
-    fn get_value(&self, identifier: &str) -> Option<&Value> {
+    fn lookup(&self, identifier: &str) -> Option<&Value> {
         if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k.as_str() == identifier) {
             return Some(v);
         }
         self.base.get_value(identifier)
+    }
+
+    fn lookup_tuple(&self, identifier: &str, suffix: &str) -> Option<&[Value]> {
+        if let Some(prefix) = identifier.strip_suffix(suffix) {
+            if let Some(Value::Tuple(v)) = self.lookup(prefix) {
+                return Some(v);
+            }
+        }
+        None
+    }
+}
+
+impl Context for WorldWithLocalVariables {
+    fn get_value(&self, identifier: &str) -> Option<&Value> {
+        // some sugar
+        if let Some(prefix) = self.lookup_tuple(identifier, ".x") {
+            return prefix.first();
+        } else if let Some(prefix) = self.lookup_tuple(identifier, ".y") {
+            return prefix.get(1);
+        } else if let Some(prefix) = self.lookup_tuple(identifier, ".z") {
+            return prefix.get(2);
+        }
+
+        self.lookup(identifier)
     }
 
     fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
