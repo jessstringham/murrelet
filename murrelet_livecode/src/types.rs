@@ -142,8 +142,65 @@ pub struct ControlBlendRepeatMethod {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct ControlSeqRepeatMethodNum {
+    v: Vec<ControlF32>,
+    count: ControlF32,
+}
+impl ControlSeqRepeatMethodNum {
+    fn iter(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<IdxInRange2d>> {
+        let mut v = Vec::with_capacity(self.v.len());
+        let total: usize = self.count.o(w)?;
+        for item in &self.v {
+            let i: usize = item.o(w)?;
+            v.push(IdxInRange2d::new_from_single_idx(IdxInRange::new(i, total)));
+        }
+
+        Ok(v)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum ControlSeqRepeatMethod {
+    Num(ControlSeqRepeatMethodNum),
+}
+impl ControlSeqRepeatMethod {
+    fn len(&self, w: &LivecodeWorldState) -> LivecodeResult<usize> {
+        match self {
+            ControlSeqRepeatMethod::Num(c) => c.count.o(w),
+        }
+    }
+
+    fn iter(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<IdxInRange2d>> {
+        match self {
+            ControlSeqRepeatMethod::Num(s) => s.iter(w),
+        }
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlSeqRepeatMethod {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        match self {
+            ControlSeqRepeatMethod::Num(s) => vec![
+                s.count.variable_identifiers(),
+                s.v.iter()
+                    .flat_map(|x| x.variable_identifiers())
+                    .collect_vec(),
+            ]
+            .concat(),
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<crate::livecode::LivecodeFunction> {
+        vec![] // i think?
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlVecElementRepeatMethod {
+    Sequence(ControlSeqRepeatMethod),
     Single(ControlF32),
     Rect([ControlF32; 2]),
     Blend(ControlBlendRepeatMethod),
@@ -154,11 +211,12 @@ impl ControlVecElementRepeatMethod {
             ControlVecElementRepeatMethod::Single(s) => s.o(w)?,
             ControlVecElementRepeatMethod::Rect(r) => {
                 let rr = r.o(w)?;
-                rr.x * rr.y
+                (rr.x * rr.y) as usize
             }
             ControlVecElementRepeatMethod::Blend(b) => b.count.o(w)?,
+            ControlVecElementRepeatMethod::Sequence(s) => s.len(w)?,
         };
-        Ok(v as usize)
+        Ok(v)
     }
     fn iter(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<IdxInRange2d>> {
         let v = match self {
@@ -181,6 +239,7 @@ impl ControlVecElementRepeatMethod {
                     .map(|x| x.to_2d())
                     .collect_vec()
             }
+            ControlVecElementRepeatMethod::Sequence(s) => s.iter(w)?,
         };
         Ok(v)
     }
@@ -198,7 +257,35 @@ impl ControlVecElementRepeatMethod {
             }
             ControlVecElementRepeatMethod::Single(_) => None,
             ControlVecElementRepeatMethod::Rect(_) => None,
+            ControlVecElementRepeatMethod::Sequence(_) => None,
         }
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlVecElementRepeatMethod {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        match self {
+            ControlVecElementRepeatMethod::Single(control_f32) => {
+                control_f32.variable_identifiers()
+            }
+            ControlVecElementRepeatMethod::Rect(rect) => vec![
+                rect[0].variable_identifiers(),
+                rect[1].variable_identifiers(),
+            ]
+            .concat(),
+            ControlVecElementRepeatMethod::Blend(control_blend_repeat_method) => vec![
+                control_blend_repeat_method.blend.variable_identifiers(),
+                control_blend_repeat_method.count.variable_identifiers(),
+            ]
+            .concat(),
+            ControlVecElementRepeatMethod::Sequence(seq) => {
+                vec![seq.variable_identifiers()].concat()
+            }
+        }
+    }
+
+    fn function_identifiers(&self) -> Vec<crate::livecode::LivecodeFunction> {
+        vec![]
     }
 }
 
@@ -211,8 +298,41 @@ pub struct ControlLazyBlendRepeatMethod {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct ControlLazySeqRepeatMethodNum {
+    v: Vec<ControlLazyNodeF32>,
+    count: ControlLazyNodeF32,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum ControlLazySeqRepeatMethod {
+    Num(ControlLazySeqRepeatMethodNum),
+}
+impl ControlLazySeqRepeatMethod {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazySeqRepeatMethod> {
+        match self {
+            ControlLazySeqRepeatMethod::Num(cc) => {
+                let mut v = Vec::with_capacity(cc.v.len());
+                for c in &cc.v {
+                    v.push(c.o(w)?)
+                }
+
+                let n = LazySeqRepeatMethodNum {
+                    v,
+                    count: cc.count.o(w)?,
+                };
+
+                Ok(LazySeqRepeatMethod::Num(n))
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum DeserLazyControlVecElementRepeatMethod {
+    // Sequence(ControlLazySeqRepeatMethod),
     Blend(ControlLazyBlendRepeatMethod),
     Single(ControlLazyNodeF32),
     Rect([ControlLazyNodeF32; 2]),
@@ -237,8 +357,39 @@ impl DeserLazyControlVecElementRepeatMethod {
                     count,
                     blend,
                 }))
-            }
+            } // DeserLazyControlVecElementRepeatMethod::Sequence(seq) => {
+              //     Ok(LazyVecElementRepeatMethod::Sequence(seq.o(w)?))
+              // }
         }
+    }
+}
+
+fn _default_filter() -> DeserLazyControlVecElementRepeatFilter {
+    DeserLazyControlVecElementRepeatFilter::AlwaysTrue
+}
+
+fn _default_filter_lazy() -> DeserLazyControlVecElementRepeatFilter {
+    DeserLazyControlVecElementRepeatFilter::AlwaysTrue
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+enum DeserLazyControlVecElementRepeatFilter {
+    #[default]
+    AlwaysTrue,
+    Func(ControlLazyNodeF32),
+}
+impl DeserLazyControlVecElementRepeatFilter {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyControlVecElementRepeatFilter> {
+        let a = match self {
+            DeserLazyControlVecElementRepeatFilter::AlwaysTrue => {
+                LazyControlVecElementRepeatFilter::AlwaysTrue
+            }
+            DeserLazyControlVecElementRepeatFilter::Func(control_lazy_node_f32) => {
+                LazyControlVecElementRepeatFilter::Func(control_lazy_node_f32.o(w)?)
+            }
+        };
+        Ok(a)
     }
 }
 
@@ -246,6 +397,8 @@ impl DeserLazyControlVecElementRepeatMethod {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct DeserLazyControlVecElementRepeat<DeserSource: Clone + Debug> {
     repeat: DeserLazyControlVecElementRepeatMethod,
+    #[serde(default = "_default_filter")]
+    filter: DeserLazyControlVecElementRepeatFilter,
     #[serde(default = "_default_ctx")]
     ctx: AdditionalContextNode,
     prefix: String,
@@ -272,6 +425,7 @@ impl<DeserSource: Clone + Debug> DeserLazyControlVecElementRepeat<DeserSource> {
             ctx: self.ctx.clone(),
             prefix: self.prefix.clone(),
             what,
+            filter: self.filter.o(w)?,
         })
     }
 }
@@ -445,6 +599,53 @@ where
 }
 
 #[derive(Debug, Clone)]
+pub struct LazySeqRepeatMethodNum {
+    v: Vec<LazyNodeF32>,
+    count: LazyNodeF32,
+}
+#[derive(Debug, Clone)]
+pub enum LazySeqRepeatMethod {
+    Num(LazySeqRepeatMethodNum),
+}
+impl LazySeqRepeatMethod {
+    fn iter(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<IdxInRange2d>> {
+        let mut v = vec![];
+        match self {
+            LazySeqRepeatMethod::Num(n) => {
+                let total = n.count.eval_lazy(ctx)? as usize;
+                for nn in &n.v {
+                    let numerator = nn.eval_lazy(ctx)? as usize;
+
+                    v.push(IdxInRange2d::new_from_single_idx(IdxInRange::new(
+                        numerator, total,
+                    )))
+                }
+            }
+        }
+        Ok(v)
+    }
+
+    fn len(&self, _: &MixedEvalDefs) -> f32 {
+        match self {
+            LazySeqRepeatMethod::Num(lazy_node_f32s) => lazy_node_f32s.v.len() as f32,
+        }
+    }
+
+    fn to_control(&self) -> ControlLazySeqRepeatMethod {
+        match self {
+            LazySeqRepeatMethod::Num(lazy_seq_repeat_method_num) => {
+                ControlLazySeqRepeatMethod::Num(ControlLazySeqRepeatMethodNum {
+                    v: lazy_seq_repeat_method_num
+                        .v
+                        .map_iter_collect(|x| x.to_control()),
+                    count: lazy_seq_repeat_method_num.count.to_control(),
+                })
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct LazyBlendRepeatMethod {
     count: LazyNodeF32,
     blend: LazyNodeF32,
@@ -453,6 +654,7 @@ pub struct LazyBlendRepeatMethod {
 // just an intermediate type...
 #[derive(Debug, Clone)]
 pub enum LazyVecElementRepeatMethod {
+    // Sequence(LazySeqRepeatMethod),
     Blend(LazyBlendRepeatMethod),
     Single(LazyNodeF32),
     Rect([LazyNodeF32; 2]),
@@ -467,14 +669,23 @@ impl LazyVecElementRepeatMethod {
                 rx * ry
             }
             LazyVecElementRepeatMethod::Blend(b) => b.count.eval_lazy(ctx)?,
+            // LazyVecElementRepeatMethod::Sequence(lazy_seq_repeat_method) => {
+            //     lazy_seq_repeat_method.len(ctx)
+            // }
         };
         Ok(v as usize)
     }
-    fn iter(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<IdxInRange2d>> {
+    fn iter(
+        &self,
+        ctx: &MixedEvalDefs,
+        prefix: &str,
+        filter: &LazyControlVecElementRepeatFilter,
+    ) -> LivecodeResult<Vec<IdxInRange2d>> {
         let v = match self {
             LazyVecElementRepeatMethod::Single(s) => {
                 IdxInRange::enumerate_count(s.eval_lazy(ctx)? as usize)
                     .iter()
+                    .filter(|x| filter.eval(prefix, x))
                     .map(|x| x.to_2d())
                     .collect_vec()
             }
@@ -489,6 +700,9 @@ impl LazyVecElementRepeatMethod {
             .iter()
             .map(|x| x.to_2d())
             .collect_vec(),
+            // LazyVecElementRepeatMethod::Sequence(lazy_seq_repeat_method) => {
+            //     lazy_seq_repeat_method.iter(ctx)?
+            // }
         };
         Ok(v)
     }
@@ -505,7 +719,40 @@ impl LazyVecElementRepeatMethod {
             }
             LazyVecElementRepeatMethod::Single(_) => None,
             LazyVecElementRepeatMethod::Rect(_) => None,
+            // LazyVecElementRepeatMethod::Sequence(_) => None,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum LazyControlVecElementRepeatFilter {
+    AlwaysTrue,
+    Func(LazyNodeF32),
+}
+impl LazyControlVecElementRepeatFilter {
+    fn eval(&self, prefix: &str, x: &IdxInRange) -> bool {
+        match self {
+            LazyControlVecElementRepeatFilter::AlwaysTrue => true,
+            LazyControlVecElementRepeatFilter::Func(lazy_node_f32) => {
+                let f = lazy_node_f32.eval_idx(x.clone(), prefix).unwrap_or(0.0);
+                f > 0.0
+            }
+        }
+    }
+
+    fn with_more_defs(
+        &self,
+        ctx: &MixedEvalDefs,
+    ) -> LivecodeResult<LazyControlVecElementRepeatFilter> {
+        let a = match self {
+            LazyControlVecElementRepeatFilter::AlwaysTrue => {
+                LazyControlVecElementRepeatFilter::AlwaysTrue
+            }
+            LazyControlVecElementRepeatFilter::Func(lazy_node_f32) => {
+                LazyControlVecElementRepeatFilter::Func(lazy_node_f32.with_more_defs(ctx)?)
+            }
+        };
+        Ok(a)
     }
 }
 
@@ -516,6 +763,7 @@ pub struct LazyVecElementRepeat<Source: Clone + Debug + IsLazy> {
     ctx: AdditionalContextNode,
     prefix: String,
     what: Vec<LazyControlVecElement<Source>>,
+    filter: LazyControlVecElementRepeatFilter,
 }
 
 impl<Inner> LazyVecElementRepeat<WrappedLazyType<Inner>>
@@ -540,7 +788,7 @@ where
             format!("{}_", self.prefix)
         };
 
-        for idx in self.repeat.iter(ctx)? {
+        for idx in self.repeat.iter(ctx, &self.prefix, &self.filter)? {
             let mut scoped_ctx = ctx.clone();
             scoped_ctx.add_node(self.ctx.clone());
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
@@ -590,6 +838,7 @@ where
                 .iter()
                 .map(|elem| elem.with_more_defs(ctx))
                 .collect::<LivecodeResult<Vec<_>>>()?,
+            filter: self.filter.with_more_defs(ctx)?,
         })
     }
 }
@@ -693,7 +942,11 @@ where
                                 blend: b.blend.to_control(),
                             },
                         )
-                    }
+                    } // LazyVecElementRepeatMethod::Sequence(lazy_seq_repeat_method) => {
+                      //     DeserLazyControlVecElementRepeatMethod::Sequence(
+                      //         lazy_seq_repeat_method.to_control(),
+                      //     )
+                      // }
                 };
 
                 let what = rep.what.iter().map(|e| e.to_control()).collect::<Vec<_>>();
@@ -703,10 +956,15 @@ where
                     prefix: rep.prefix.clone(),
                     what,
                     ctx: rep.ctx.clone(),
+                    filter: Default::default(),
                 })
             }
             LazyControlVecElement::Gated(gated) => {
-                let what = gated.what.iter().map(|e| e.to_control()).collect::<Vec<_>>();
+                let what = gated
+                    .what
+                    .iter()
+                    .map(|e| e.to_control())
+                    .collect::<Vec<_>>();
 
                 DeserLazyControlVecElement::Gated(DeserLazyControlVecElementGated {
                     on: gated.on.to_control(),
@@ -748,17 +1006,18 @@ where
                 .what
                 .iter()
                 .flat_map(|x| x.variable_identifiers())
+                .chain(c.repeat.variable_identifiers())
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect_vec(),
-            ControlVecElement::Gated(c) => c
-                .on
-                .variable_identifiers()
-                .into_iter()
-                .chain(c.what.iter().flat_map(|x| x.variable_identifiers()))
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect_vec(),
+            ControlVecElement::Gated(c) => {
+                c.on.variable_identifiers()
+                    .into_iter()
+                    .chain(c.what.iter().flat_map(|x| x.variable_identifiers()))
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect_vec()
+            }
         }
     }
 
@@ -772,14 +1031,14 @@ where
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect_vec(),
-            ControlVecElement::Gated(c) => c
-                .on
-                .function_identifiers()
-                .into_iter()
-                .chain(c.what.iter().flat_map(|x| x.function_identifiers()))
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect_vec(),
+            ControlVecElement::Gated(c) => {
+                c.on.function_identifiers()
+                    .into_iter()
+                    .chain(c.what.iter().flat_map(|x| x.function_identifiers()))
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect_vec()
+            }
         }
     }
 }
@@ -918,7 +1177,8 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
                     ControlVecElement::Single(c) => {
                         // just update it and overwrite it...
                         new_w.update_with_defs(
-                            (StrId::new("vseed"), LivecodeValue::float(offset as f32)).to_mixed_def(),
+                            (StrId::new("vseed"), LivecodeValue::float(offset as f32))
+                                .to_mixed_def(),
                         );
                         let o = c.o(&new_w)?;
 
@@ -1233,14 +1493,14 @@ where
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect_vec(),
-            DeserLazyControlVecElement::Gated(g) => g
-                .on
-                .variable_identifiers()
-                .into_iter()
-                .chain(g.what.iter().flat_map(|x| x.variable_identifiers()))
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect_vec(),
+            DeserLazyControlVecElement::Gated(g) => {
+                g.on.variable_identifiers()
+                    .into_iter()
+                    .chain(g.what.iter().flat_map(|x| x.variable_identifiers()))
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect_vec()
+            }
         }
     }
 
@@ -1254,14 +1514,14 @@ where
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect_vec(),
-            DeserLazyControlVecElement::Gated(g) => g
-                .on
-                .function_identifiers()
-                .into_iter()
-                .chain(g.what.iter().flat_map(|x| x.function_identifiers()))
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect_vec(),
+            DeserLazyControlVecElement::Gated(g) => {
+                g.on.function_identifiers()
+                    .into_iter()
+                    .chain(g.what.iter().flat_map(|x| x.function_identifiers()))
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect_vec()
+            }
         }
     }
 }
