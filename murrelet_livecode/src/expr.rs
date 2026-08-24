@@ -5,7 +5,8 @@ use evalexpr::*;
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 use murrelet_common::{
-    AnglePi, IdxInRange, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range, smoothstep,
+    AnglePi, IdxInRange, IdxInRange2d, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range,
+    smoothstep,
 };
 use noise::{NoiseFn, Perlin};
 use rand::{Rng, SeedableRng, rngs::StdRng};
@@ -464,6 +465,17 @@ impl ExprWorldContextValues {
             .map(|(k, v)| (*k, lc_val_to_expr(v)))
             .collect_vec()
     }
+
+    pub(crate) fn new_from_idx2d(idx: IdxInRange2d, prefix: &str) -> ExprWorldContextValues {
+        let ctx = ExprWorldContextValues::new_from_idx(idx.i)
+            .with_prefix(prefix)
+            .combine(
+                ExprWorldContextValues::new_from_idx(idx.j)
+                    .with_prefix("y")
+                    .with_prefix(prefix),
+            );
+        ctx
+    }
 }
 
 pub trait IntoExprWorldContext {
@@ -681,5 +693,17 @@ impl MixedEvalDefs {
     pub fn with_val<S: ToStrId>(mut self, prefix: &S, val: LivecodeValue) -> MixedEvalDefs {
         self.set_val(prefix, val);
         self
+    }
+
+    // this is a little odd.. use regular for x for backwards compatibility, and then prefix with y for y
+    pub fn from_idx2d(idx: &IdxInRange2d, prefix: &str) -> Self {
+        let ctx = ExprWorldContextValues::new_from_idx(idx.i)
+            .with_prefix(prefix)
+            .combine(
+                ExprWorldContextValues::new_from_idx(idx.j)
+                    .with_prefix("y")
+                    .with_prefix(prefix),
+            );
+        Self::new_from_expr(ctx)
     }
 }

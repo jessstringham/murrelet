@@ -95,6 +95,7 @@ pub enum MurreletDrawPlan {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MurreletStyle {
+    pub debug: bool,
     pub points: Option<PixelShape>,
     pub closed: bool,
     pub filled: bool,
@@ -211,6 +212,7 @@ impl MurreletStyle {
 
     pub fn new_fill_color(c: MurreletColor) -> MurreletStyle {
         MurreletStyle {
+            debug: false,
             points: None,
             color: MurreletColorStyle::color(c),
             closed: true,
@@ -270,6 +272,13 @@ impl MurreletStyle {
         MurreletStyle {
             color: MurreletColorStyle::SvgFill(fill),
             ..*self
+        }
+    }
+
+    pub(crate) fn debug() -> MurreletStyle {
+        MurreletStyle {
+            debug: true,
+            ..Default::default()
         }
     }
 }

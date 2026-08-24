@@ -379,6 +379,7 @@ pub mod styleconf {
         Outline(MurreletStyleOutlined),
         Line(MurreletStyleLined),
         Points(MurreletStylePoints),
+        Debug,
         ThickLine,
         RGBAFill(MurreletStyleRGBAFill),
         RGBALine(MurreletStyleRGBALine),
@@ -402,6 +403,7 @@ pub mod styleconf {
                 StyleConf::Points(a) => a.to_style(),
                 StyleConf::RGBAPoints(a) => a.to_style(),
                 StyleConf::Texture(a) => a.to_style(),
+                StyleConf::Debug => MurreletStyle::debug(),
             }
         }
 
