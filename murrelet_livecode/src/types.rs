@@ -523,12 +523,7 @@ impl LazyVecElementRepeatMethod {
         };
         Ok(v as usize)
     }
-    fn iter(
-        &self,
-        ctx: &MixedEvalDefs,
-        prefix: &str,
-        filter: &LazyControlVecElementRepeatFilter,
-    ) -> LivecodeResult<Vec<IdxInRange2d>> {
+    fn iter(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Vec<IdxInRange2d>> {
         let v = match self {
             LazyVecElementRepeatMethod::Single(s) => {
                 let mut v = vec![];
@@ -543,10 +538,6 @@ impl LazyVecElementRepeatMethod {
 
                 let mut v = vec![];
                 for idx in IdxInRange2d::enumerate_counts(rx as usize, ry as usize) {
-                    // if !filter.eval2d(prefix, &idx)? {
-                    //     continue;
-                    // }
-
                     v.push(idx);
                 }
 
@@ -637,11 +628,16 @@ where
             format!("{}_", self.prefix)
         };
 
-        for idx in self.repeat.iter(ctx, &self.prefix, &self.filter)? {
+        for idx in self.repeat.iter(ctx)? {
             let mut scoped_ctx = ctx.clone();
-            scoped_ctx.add_node(self.ctx.clone());
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             scoped_ctx.set_vals(expr.with_prefix(&prefix));
+            // this should be added after we get our expr so we can use c_i in it
+            scoped_ctx.add_node(self.ctx.clone());
+
+            if !self.filter.eval(&expr, &self.prefix)? {
+                continue;
+            }
 
             let mut is_blending: Option<BlendWith> = None;
 
@@ -840,6 +836,8 @@ fn _default_filter_ctx_lazy() -> ControlVecElementRepeatFilter {
 pub struct ControlVecElementRepeat<Source: Clone + Debug> {
     repeat: ControlVecElementRepeatMethod,
     prefix: String,
+    #[serde(default = "_default_ctx")]
+    ctx: AdditionalContextNode,
     what: Vec<ControlVecElement<Source>>,
     #[serde(default = "_default_filter_ctx")]
     filter: ControlVecElementRepeatFilter,
@@ -1026,7 +1024,6 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
         };
 
         let mut offset = offset;
-        let filter = self.filter.o(w)?;
 
         for idx in self.repeat.iter(w)? {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
@@ -1034,6 +1031,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
 
             let mut is_blending: Option<BlendWith> = None;
 
+            let filter = self.filter.o(&new_w)?;
             if !filter.eval(&expr, &prefix)? {
                 continue;
             }
@@ -1089,117 +1087,6 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
     }
 }
 
-// impl<Source: Clone + Debug> ControlVecElementGated<Source> {
-//     // if `on` evals true, recursively expand `what`; otherwise contribute nothing.
-//     pub fn _eval_and_expand_vec<Target>(
-//         &self,
-//         w: &LivecodeWorldState,
-//         offset: usize,
-//     ) -> LivecodeResult<(usize, Vec<Target>)>
-//     where
-//         Source: LivecodeFromWorld<Target>,
-//         Target: Lerpable,
-//     {
-//         if !self.on.o(w)? {
-//             return Ok((offset, Vec::new()));
-//         }
-
-//         let mut result = Vec::with_capacity(self.what.len());
-//         let mut is_blending: Option<BlendWith> = None;
-//         let mut offset = offset;
-
-//         for src in &self.what {
-//             match src {
-//                 ControlVecElement::Single(c) => {
-//                     let mut new_w = w.clone();
-//                     new_w.update_with_defs(
-//                         (StrId::new("vseed"), LivecodeValue::float(offset as f32)).to_mixed_def(),
-//                     );
-//                     let o = c.o(&new_w)?;
-//                     blend_with_list(&mut result, o, &mut is_blending);
-//                     offset += 1;
-//                 }
-//                 ControlVecElement::Repeat(c) => {
-//                     let (new_offset, o) = c._eval_and_expand_vec(w, offset)?;
-//                     for item in o.into_iter() {
-//                         blend_with_list(&mut result, item, &mut is_blending);
-//                     }
-//                     if let Some(new_blend) = c.repeat.next_blend(w) {
-//                         is_blending = Some(new_blend);
-//                     }
-//                     offset = new_offset;
-//                 }
-//                 ControlVecElement::Gated(c) => {
-//                     let (new_offset, o) = c._eval_and_expand_vec(w, offset)?;
-//                     for item in o.into_iter() {
-//                         blend_with_list(&mut result, item, &mut is_blending);
-//                     }
-//                     offset = new_offset;
-//                 }
-//             }
-//         }
-//         Ok((offset, result))
-//     }
-
-//     pub fn eval_and_expand_vec<Target>(&self, w: &LivecodeWorldState) -> LivecodeResult<Vec<Target>>
-//     where
-//         Source: LivecodeFromWorld<Target>,
-//         Target: Lerpable,
-//     {
-//         let (_, a) = self._eval_and_expand_vec(w, 0)?;
-//         Ok(a)
-//     }
-// }
-
-// #[derive(Debug, Clone)]
-// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-// #[cfg_attr(
-//     feature = "schemars",
-//     schemars(bound = "Source: schemars::JsonSchema, ControlSequencer: schemars::JsonSchema")
-// )]
-// pub struct VecUnitCell<Sequencer, ControlSequencer, Source>
-// where
-//     Source: Clone + Debug + Default,
-//     Sequencer: UnitCellCreator,
-//     ControlSequencer: LivecodeFromWorld<Sequencer>,
-
-// {
-//     sequencer: ControlSequencer,
-//     ctx: AdditionalContextNode,
-//     prefix: String,
-//     node: Source,
-//     #[serde(skip)]
-//     #[cfg_attr(feature = "schemars", schemars(skip))]
-//     _marker: PhantomData<Sequencer>,
-// }
-// impl<Sequencer, ControlSequencer, Source> VecUnitCell<Sequencer, ControlSequencer, Source>
-// where
-//     Source: Clone + Debug + Default,
-//     Sequencer: UnitCellCreator + Clone,
-//     ControlSequencer: LivecodeFromWorld<Sequencer>,
-// {
-//     fn eval_and_expand_vec<Target>(
-//         &self,
-//         w: &LivecodeWorldState,
-//     ) -> Result<Vec<Target>, LivecodeError>
-//     where
-//         Source: Clone + Debug + Default + LivecodeFromWorld<Target>,
-//         Sequencer: UnitCellCreator,
-//         Target: Default + Clone + Debug
-
-//     {
-//         let seq = self.sequencer.o(w)?;
-//         let n: Box<dyn LivecodeFromWorld<Target>> = Box::new(self.node.clone());
-//         let t = TmpUnitCells::new(
-//             seq,
-//             n,
-//             Some(self.ctx.clone()),
-//             &self.prefix,
-//         ).o(w)?;
-//         Ok(t.items.into_iter().map(|x| *x.node).collect_vec())
-//     }
-// }
-
 #[derive(Debug, Clone)]
 // #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 // pub enum ControlVecElement<Sequencer, ControlSequencer, Source>
@@ -1209,7 +1096,6 @@ where
 {
     Single(Source),
     Repeat(ControlVecElementRepeat<Source>),
-    // Gated(ControlVecElementGated<Source>),
     // UnitCell(VecUnitCell<Sequencer, ControlSequencer, Source>),
 }
 
@@ -1220,7 +1106,6 @@ where
 {
     Single(Source),
     Repeat(LazyVecElementRepeat<Source>),
-    // Gated(LazyVecElementGated<Source>),
 }
 
 impl<Inner> IsLazy for LazyControlVecElement<WrappedLazyType<Inner>>
@@ -1242,9 +1127,7 @@ where
             }
             LazyControlVecElement::Repeat(rep) => {
                 LazyControlVecElement::Repeat(rep.with_more_defs(ctx)?)
-            } // LazyControlVecElement::Gated(gated) => {
-              //     LazyControlVecElement::Gated(gated.with_more_defs(ctx)?)
-              // }
+            }
         })
     }
 }
@@ -1261,7 +1144,6 @@ where
         match self {
             LazyControlVecElement::Single(c) => Ok(vec![c.clone()]),
             LazyControlVecElement::Repeat(c) => c.lazy_expand_vec_repeat_element(ctx),
-            // LazyControlVecElement::Gated(c) => c.lazy_expand_vec_gated_element(ctx),
         }
     }
 
@@ -1269,7 +1151,6 @@ where
         match self {
             LazyControlVecElement::Single(_) => None,
             LazyControlVecElement::Repeat(r) => r.repeat.next_blend(ctx),
-            // LazyControlVecElement::Gated(_) => None,
         }
     }
 }
@@ -1292,8 +1173,6 @@ where
         match self {
             ControlVecElement::Single(c) => Ok(vec![c.o(w)?]),
             ControlVecElement::Repeat(r) => r.eval_and_expand_vec(w),
-            // ControlVecElement::Gated(g) => g.eval_and_expand_vec(w),
-            // ControlVecElement::UnitCell(c) => c.eval_and_expand_vec(w),
         }
     }
 
@@ -1301,7 +1180,6 @@ where
         match self {
             ControlVecElement::Single(_) => None,
             ControlVecElement::Repeat(r) => r.repeat.next_blend(w),
-            // ControlVecElement::Gated(_) => None,
         }
     }
 }
@@ -1319,12 +1197,9 @@ where
 
     fn json_schema(schema_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
         use schemars::schema::{Schema, SchemaObject, SubschemaValidation};
-        // Variant 1: plain Source (your Single case without a wrapper key)
+
         let single_schema = Source::json_schema(schema_gen);
-        // Variant 2: the repeat object
         let repeat_schema = <ControlVecElementRepeat<Source>>::json_schema(schema_gen);
-        // Variant 3: the gated object { on, what }
-        // let gated_schema = <ControlVecElementGated<Source>>::json_schema(schema_gen);
 
         Schema::Object(SchemaObject {
             subschemas: Some(Box::new(SubschemaValidation {
@@ -1359,14 +1234,6 @@ where
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect_vec(),
-            // DeserLazyControlVecElement::Gated(g) => {
-            //     g.on.variable_identifiers()
-            //         .into_iter()
-            //         .chain(g.what.iter().flat_map(|x| x.variable_identifiers()))
-            //         .collect::<HashSet<_>>()
-            //         .into_iter()
-            //         .collect_vec()
-            // }
         }
     }
 
@@ -1407,14 +1274,6 @@ where
 
         let mut errors = Vec::new();
 
-        // try the keyed structs first so a bare-Source `Single` doesn't greedily
-        // swallow `{on, what}` / `{repeat, ...}`. Gated requires `on` (and denies
-        // unknown fields), Repeat requires `repeat`, so they're unambiguous.
-        // match ControlVecElementGated::deserialize(value.clone()) {
-        //     Ok(gated) => return Ok(ControlVecElement::Gated(gated)),
-        //     Err(e) => errors.push(format!("(gated {})", e)),
-        // }
-
         match ControlVecElementRepeat::deserialize(value.clone()) {
             Ok(repeat) => return Ok(ControlVecElement::Repeat(repeat)),
             Err(e) => {
@@ -1450,7 +1309,6 @@ where
         match self {
             ControlVecElement::Single(s) => s.serialize(serializer),
             ControlVecElement::Repeat(r) => r.serialize(serializer),
-            // ControlVecElement::Gated(g) => g.serialize(serializer),
         }
     }
 }

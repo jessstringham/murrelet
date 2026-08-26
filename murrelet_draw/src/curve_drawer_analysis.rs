@@ -22,8 +22,8 @@ impl Default for CurveDrawerAnalysisStyle {
         let fill = StyleConf::outlined_fill(MurreletColor::black(), 0.25, MurreletColor::white());
         let start = StyleConf::fill(MurreletColor::hsva(0.4, 1.0, 1.0, 1.0));
         let end = StyleConf::fill(MurreletColor::hsva(0.0, 1.0, 1.0, 1.0));
-        let line = StyleConf::line(MurreletColor::hsva(0.5, 0.3, 1.0, 0.5), 0.25);
-        let arcline = StyleConf::line(MurreletColor::hsva(0.2, 0.3, 1.0, 0.5), 0.25);
+        let line = StyleConf::line(MurreletColor::hsva(0.5, 0.3, 1.0, 1.0), 2.0);
+        let arcline = StyleConf::line(MurreletColor::hsva(0.2, 0.3, 1.0, 1.0), 2.0);
         Self {
             cb_fill: fill.clone(),
             cb_line: line.clone(),
@@ -88,18 +88,18 @@ impl CurveDrawerAnalysis {
     fn add_end(&mut self, end: &SpotOnCurve, len: f32) {
         let end_point = end.move_back(len * 0.1);
         self.end_marker.push(vec![
-            end_point.move_left_perp_dist(0.5),
-            end_point.move_right_perp_dist(0.5),
-            end_point.travel(1.0).loc,
+            end_point.move_left_perp_dist(0.5 * len * 0.2),
+            end_point.move_right_perp_dist(0.5 * len * 0.2),
+            end_point.travel(1.0 * len * 0.2).loc,
         ]);
     }
 
     fn add_start(&mut self, start: &SpotOnCurve, len: f32) {
         let start_point = start.travel(len * 0.1);
         self.start_marker.push(vec![
-            start_point.move_left_perp_dist(0.5),
-            start_point.move_right_perp_dist(0.5),
-            start_point.travel(-1.0).loc,
+            start_point.move_left_perp_dist(0.5 * len * 0.2),
+            start_point.move_right_perp_dist(0.5 * len * 0.2),
+            start_point.travel(-1.0 * len * 0.2).loc,
         ]);
     }
 
