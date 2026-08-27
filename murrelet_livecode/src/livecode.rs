@@ -20,6 +20,8 @@ use serde::Serialize;
 #[doc(hidden)]
 pub use paste;
 
+//claude
+
 // Newtype that carries an evalexpr `Node` alongside the source string it was
 // parsed from, so the Control config can round-trip through serde (the bare
 // `Node`'s `Display` is lossy prefix notation that won't re-parse).
@@ -163,6 +165,12 @@ impl LivecodeFromWorld<MurreletColor> for [ControlF32; 4] {
             clamp(self[2].o(w)?, 0.0, 1.0),
             self[3].o(w)?,
         ))
+    }
+}
+
+impl LivecodeFromWorld<AnglePi> for ControlF32 {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<AnglePi> {
+        Ok(AnglePi::new(self._o(w)?))
     }
 }
 

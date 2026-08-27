@@ -241,25 +241,29 @@ impl WorldWithLocalVariables {
     // some claude
     fn lookup_dynamic(&self, argument: &Value) -> Result<Value, evalexpr::EvalexprError> {
         let args = argument.as_tuple()?;
-        if args.len() < 2 {
-            return Err(EvalexprError::CustomMessage(
-                "get_or needs at least (default, \"fmt\")".to_string(),
-            ));
-        }
 
-        let default = &args[0];
-        let fmt = args[1].as_string()?;
+        // hax, if we have only one value, make the other value kinda go crazy
+
+        // if args.len() < 2 {
+        //     return Err(EvalexprError::CustomMessage(
+        //         "get_or needs at least (default, \"fmt\")".to_string(),
+        //     ));
+        // }
+
+        // let default = &args[0];
+        // let fmt = args[1].as_string()?;
+        let fmt = args[0].as_string()?;
 
         // format the remaining args into the {} slots
         let mut name = String::new();
-        let mut rest = args[2..].iter();
+        let mut rest = args[1..].iter();
         for (i, chunk) in fmt.split("{}").enumerate() {
             if i > 0 {
                 match rest.next() {
                     Some(v) => name.push_str(&format_name_arg(v)?),
                     None => {
                         return Err(EvalexprError::CustomMessage(format!(
-                            "get_or: not enough args for the {{}} slots in {:?}",
+                            "get: not enough args for the {{}} slots in {:?}",
                             fmt
                         )));
                     }
@@ -268,10 +272,24 @@ impl WorldWithLocalVariables {
             name.push_str(chunk);
         }
 
-        Ok(self
-            .get_value(&name)
-            .cloned()
-            .unwrap_or_else(|| default.clone()))
+        // Ok(self
+        //     .get_value(&name)
+        //     .cloned()
+        //     .unwrap_or_else(|| default.clone()))
+
+        if let Some(val) = self.get_value(&name) {
+            Ok(val.clone())
+        } else {
+            Err(EvalexprError::CustomMessage(format!(
+                "missing `get` reference {}",
+                name
+            )))
+        }
+
+        // Ok(self
+        //     .get_value(&name)
+        //     .cloned()
+        //     .unwrap_or_else(|| default.clone()))
     }
 
     fn lookup(&self, identifier: &str) -> Option<&Value> {
@@ -307,7 +325,7 @@ impl Context for WorldWithLocalVariables {
 
     fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
         // we sneak in with some custom functions
-        if identifier == "get_or" {
+        if identifier == "get" {
             return self.lookup_dynamic(argument);
         }
 

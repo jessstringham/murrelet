@@ -88,8 +88,8 @@ impl CurveDrawerAnalysis {
     fn add_end(&mut self, end: &SpotOnCurve, len: f32) {
         let end_point = end.move_back(len * 0.1);
         self.end_marker.push(vec![
-            end_point.move_left_perp_dist(0.5 * len * 0.2),
-            end_point.move_right_perp_dist(0.5 * len * 0.2),
+            end_point.move_left_perp_dist(0.35 * len * 0.2),
+            end_point.move_right_perp_dist(0.35 * len * 0.2),
             end_point.travel(1.0 * len * 0.2).loc,
         ]);
     }
@@ -97,8 +97,8 @@ impl CurveDrawerAnalysis {
     fn add_start(&mut self, start: &SpotOnCurve, len: f32) {
         let start_point = start.travel(len * 0.1);
         self.start_marker.push(vec![
-            start_point.move_left_perp_dist(0.5 * len * 0.2),
-            start_point.move_right_perp_dist(0.5 * len * 0.2),
+            start_point.move_left_perp_dist(0.35 * len * 0.2),
+            start_point.move_right_perp_dist(0.35 * len * 0.2),
             start_point.travel(-1.0 * len * 0.2).loc,
         ]);
     }
