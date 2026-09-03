@@ -308,6 +308,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
                 Value::Float(t[1].as_number()?),
             ]))
         }),
+        // todo, add vaddyz and add support for tuple(3)
         "vadd" => Function::new(move |argument| {
             let t = argument.as_fixed_len_tuple(2)?;
             Ok(expr_from_vec2(expr_as_vec2(&t[0])? + expr_as_vec2(&t[1])?))
@@ -368,6 +369,13 @@ pub fn lc_val_to_expr(v: &LivecodeValue) -> Value {
             let y = Value::Float(*y);
 
             Value::Tuple(vec![x, y])
+        }
+        LivecodeValue::Vec3(x, y, z) => {
+            let x = Value::Float(*x);
+            let y = Value::Float(*y);
+            let z = Value::Float(*z);
+
+            Value::Tuple(vec![x, y, z])
         }
     }
 }

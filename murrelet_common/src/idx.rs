@@ -231,6 +231,23 @@ impl IdxInRange2d {
         v
     }
 
+    pub fn enumerate_counts_grid<U: TryInto<u64> + Copy>(ii: U, jj: U) -> Vec<Vec<IdxInRange2d>>
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let ii = ii.try_into().expect("can't convert to u64");
+        let jj = jj.try_into().expect("can't convert to u64");
+        let mut v = vec![];
+        for i in 0..ii {
+            let mut row = vec![];
+            for j in 0..jj {
+                row.push(IdxInRange2d::new_rect(i, j, ii, jj));
+            }
+            v.push(row);
+        }
+        v
+    }
+
     pub fn to_alternating_i(&self) -> IdxInRange2d {
         IdxInRange2d {
             i: IdxInRange::new(self.i.i() / 2, self.i.total / 2),
