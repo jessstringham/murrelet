@@ -1,7 +1,12 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
-use std::collections::HashSet;
-
+use crate::lazy::ControlLazyNodeF32;
+use crate::lazy::LazyNodeF32;
+use crate::state::LivecodeWorldState;
+use crate::types::AdditionalContextNode;
+use crate::types::ControlVecElement;
+use crate::types::LivecodeError;
+use crate::types::LivecodeResult;
+use crate::types::ToLivecodeResult;
 use evalexpr::Node;
 use evalexpr::build_operator_tree;
 use glam::Vec2;
@@ -10,12 +15,13 @@ use glam::vec2;
 use glam::vec3;
 use itertools::Itertools;
 use murrelet_common::AnglePi;
-use murrelet_common::clamp;
-
 use murrelet_common::MurreletColor;
 use murrelet_common::MurreletString;
+use murrelet_common::clamp;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 #[doc(hidden)]
 pub use paste;
@@ -79,21 +85,13 @@ impl<'de> Deserialize<'de> for ExprNode {
     }
 }
 
-use crate::lazy::ControlLazyNodeF32;
-use crate::lazy::LazyNodeF32;
-use crate::state::LivecodeWorldState;
-use crate::types::AdditionalContextNode;
-use crate::types::ControlVecElement;
-use crate::types::LivecodeError;
-use crate::types::LivecodeResult;
-
 // for default values
 pub fn empty_vec<T>() -> Vec<T> {
     Vec::new()
 }
 
 pub trait LivecodeFromWorld<T> {
-    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
+    fn o<State: evalexpr::Context>(&self, w: &State) -> LivecodeResult<T>;
 
     fn o_dummy(&self) -> LivecodeResult<T> {
         self.o(&LivecodeWorldState::new_dummy())
@@ -106,8 +104,6 @@ impl LivecodeFromWorld<f32> for ControlF32 {
     }
 }
 
-// ControlF32 backs every numeric field; these let it evaluate directly to the
-// narrowed type so `Vec<usize>` etc. work via eval_and_expand_vec_list.
 impl LivecodeFromWorld<f64> for ControlF32 {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<f64> {
         Ok(self._o(w)? as f64)
@@ -158,7 +154,7 @@ impl LivecodeFromWorld<Vec3> for [ControlF32; 3] {
 
 impl LivecodeFromWorld<MurreletColor> for [ControlF32; 4] {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<MurreletColor> {
-        // by default, clamp saturation and value
+        // by default, clamp saturation and value to save some headaches later
         Ok(MurreletColor::hsva(
             self[0].o(w)?,
             clamp(self[1].o(w)?, 0.0, 1.0),
@@ -261,6 +257,7 @@ impl LivecodeToControl<[ControlF32; 4]> for MurreletColor {
 #[serde(untagged)]
 pub enum ControlMurreletColor {
     Hsva([ControlF32; 4]),
+    Named(String),
     Rgba { rgb: [ControlF32; 3], a: ControlF32 },
     Gray { gray: ControlF32 },
     Hue { hue: ControlF32 },
@@ -284,7 +281,17 @@ impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
             )),
             ControlMurreletColor::Gray { gray } => Ok(MurreletColor::gray(gray.o(w)?)),
             ControlMurreletColor::Hue { hue } => Ok(MurreletColor::hue(hue.o(w)?)),
+            ControlMurreletColor::Named(name) => named_string(name),
         }
+    }
+}
+
+fn named_string(name: &str) -> LivecodeResult<MurreletColor> {
+    match name {
+        "black" => Ok(MurreletColor::black()),
+        "white" => Ok(MurreletColor::white()),
+        "transparent" => Ok(MurreletColor::transparent()),
+        _ => Err(format!("Missing color {}", name)).to_lc_err(),
     }
 }
 
@@ -307,6 +314,7 @@ impl GetLivecodeIdentifiers for ControlMurreletColor {
             ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
             ControlMurreletColor::Gray { gray } => vec![gray],
             ControlMurreletColor::Hue { hue } => vec![hue],
+            ControlMurreletColor::Named(_) => vec![],
         };
         nodes
             .iter()
@@ -322,6 +330,7 @@ impl GetLivecodeIdentifiers for ControlMurreletColor {
             ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
             ControlMurreletColor::Gray { gray } => vec![gray],
             ControlMurreletColor::Hue { hue } => vec![hue],
+            ControlMurreletColor::Named(_) => vec![],
         };
         nodes
             .iter()
@@ -1057,12 +1066,27 @@ impl GetLivecodeIdentifiers for ControlMurreletString {
     }
 }
 
-// A livecode string: either a literal, or a format string whose `{}` holes are
-// filled positionally by f32 expressions evaluated against the world (formatted
-// as integers). Modeled on ControlF32/ControlMurreletColor. Plain `String`
-// fields stay literal passthroughs; opt into formatting with `MurreletString`.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+// a bit of help from claude, this will help us deserialize format strings!
+#[derive(Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+enum ControlMurreletStringRepr {
+    Raw(String),
+    Fmt {
+        fmt: String,
+        #[serde(default)]
+        fill: Vec<ControlF32>,
+    },
+    FmtFloat {
+        fmt_f: String,
+        #[serde(default)]
+        fill: Vec<ControlF32>,
+    },
+}
+
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(with = "ControlMurreletStringRepr"))]
 #[serde(untagged)]
 pub enum ControlMurreletString {
     Raw(String),
@@ -1109,6 +1133,150 @@ impl ControlMurreletString {
                 Ok(MurreletString::new(out))
             }
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for ControlMurreletString {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match ControlMurreletStringRepr::deserialize(d)? {
+            ControlMurreletStringRepr::Raw(s) => {
+                match desugar_interp(&s).map_err(serde::de::Error::custom)? {
+                    None => Ok(ControlMurreletString::Raw(s)),
+                    Some((lit, exprs)) if exprs.is_empty() => Ok(ControlMurreletString::Raw(lit)),
+                    Some((fmt, exprs)) => {
+                        let fill = exprs
+                            .into_iter()
+                            .map(|src| ExprNode::from_src(src).map(ControlF32::Expr))
+                            .collect::<LivecodeResult<Vec<_>>>()
+                            .map_err(serde::de::Error::custom)?;
+                        Ok(ControlMurreletString::Fmt { fmt, fill })
+                    }
+                }
+            }
+            ControlMurreletStringRepr::Fmt { fmt, fill } => {
+                Ok(ControlMurreletString::Fmt { fmt, fill })
+            }
+            ControlMurreletStringRepr::FmtFloat { fmt_f, fill } => {
+                Ok(ControlMurreletString::FmtFloat { fmt_f, fill })
+            }
+        }
+    }
+}
+
+impl Serialize for ControlMurreletString {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ControlMurreletString::Raw(v) => {
+                // escape braces!
+                ControlMurreletStringRepr::Raw(escape_braces(v)).serialize(s)
+            }
+            ControlMurreletString::Fmt { fmt, fill } => ControlMurreletStringRepr::Fmt {
+                fmt: fmt.clone(),
+                fill: fill.clone(),
+            }
+            .serialize(s),
+            ControlMurreletString::FmtFloat { fmt_f, fill } => {
+                ControlMurreletStringRepr::FmtFloat {
+                    fmt_f: fmt_f.clone(),
+                    fill: fill.clone(),
+                }
+                .serialize(s)
+            }
+        }
+    }
+}
+
+pub(crate) fn escape_braces(s: &str) -> String {
+    if !s.contains('{') && !s.contains('}') {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '{' => out.push_str("{{"),
+            '}' => out.push_str("}}"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+// chatbots can write my parsers for me.
+pub(crate) fn desugar_interp(s: &str) -> LivecodeResult<Option<(String, Vec<String>)>> {
+    if !s.contains('{') && !s.contains('}') {
+        return Ok(None);
+    }
+
+    let mut out = String::with_capacity(s.len());
+    let mut exprs = Vec::new();
+    let mut chars = s.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '{' => {
+                if chars.peek() == Some(&'{') {
+                    chars.next();
+                    out.push_str("{{");
+                } else {
+                    let mut inner = String::new();
+                    let mut closed = false;
+                    for c2 in chars.by_ref() {
+                        if c2 == '}' {
+                            closed = true;
+                            break;
+                        }
+                        inner.push(c2);
+                    }
+                    if !closed {
+                        return Err(LivecodeError::Raw(format!(
+                            "MurreletString {:?} has an unmatched {{",
+                            s
+                        )));
+                    }
+                    let inner = inner.trim();
+                    if inner.is_empty() {
+                        return Err(LivecodeError::Raw(format!(
+                            "empty {{}} in {:?} — inline interpolation needs an expression \
+                             (`{{c_i}}`); the positional form is `{{ fmt: \"…{{}}\", fill: [c_i] }}`",
+                            s
+                        )));
+                    }
+                    if inner.contains(':') {
+                        return Err(LivecodeError::Raw(format!(
+                            "format specs like `{{x:f}}` aren't supported yet (in {:?})",
+                            s
+                        )));
+                    }
+                    out.push_str("{}");
+                    exprs.push(inner.to_string());
+                }
+            }
+            '}' => {
+                if chars.peek() == Some(&'}') {
+                    chars.next();
+                    out.push_str("}}");
+                } else {
+                    return Err(LivecodeError::Raw(format!(
+                        "MurreletString {:?} has an unmatched }}",
+                        s
+                    )));
+                }
+            }
+            other => out.push(other),
+        }
+    }
+
+    if exprs.is_empty() {
+        // only escapes — unescape back to a plain literal for Raw
+        Ok(Some((out.replace("{{", "{").replace("}}", "}"), exprs)))
+    } else {
+        Ok(Some((out, exprs)))
     }
 }
 

@@ -13,6 +13,7 @@ use crate::{
         ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef,
         init_evalexpr_func_ctx,
     },
+    livecode::{ControlF32, ExprNode, LivecodeFromWorld, desugar_interp, fill_fmt},
     types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,
 };
@@ -210,6 +211,31 @@ impl LivecodeWorldState {
     }
 }
 
+impl Context for LivecodeWorldState {
+    fn get_value(&self, identifier: &str) -> Option<&Value> {
+        self.ctx().ok().and_then(|x| x.get_value(identifier))
+    }
+
+    fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
+        self.ctx()
+            .map_err(|e| EvalexprError::CustomMessage(format!("missing ctx {}", e)))
+            .and_then(|x| x.call_function(identifier, argument))
+    }
+
+    fn are_builtin_functions_disabled(&self) -> bool {
+        self.ctx()
+            .map(|x| x.are_builtin_functions_disabled())
+            .unwrap_or(true)
+    }
+
+    fn set_builtin_functions_disabled(&mut self, _disabled: bool) -> EvalexprResult<()> {
+        // self.ctx()
+        //     .map_err(|e| EvalexprError::CustomMessage(format!("missing ctx {}", e)))
+        //     .and_then(|x| x.set_builtin_functions_disabled(disabled))
+        Err(EvalexprError::CustomMessage(format!("can't set ctx this way")))
+    }
+}
+
 fn format_name_arg(v: &Value) -> EvalexprResult<String> {
     match v {
         Value::String(s) => Ok(s.clone()),
@@ -242,40 +268,54 @@ impl WorldWithLocalVariables {
     fn lookup_dynamic(&self, argument: &Value) -> Result<Value, evalexpr::EvalexprError> {
         let args = argument.as_tuple()?;
 
-        // hax, if we have only one value, make the other value kinda go crazy
-
-        // if args.len() < 2 {
-        //     return Err(EvalexprError::CustomMessage(
-        //         "get_or needs at least (default, \"fmt\")".to_string(),
-        //     ));
-        // }
-
-        // let default = &args[0];
-        // let fmt = args[1].as_string()?;
+        // hax, if we have only one value
         let fmt = args[0].as_string()?;
 
-        // format the remaining args into the {} slots
-        let mut name = String::new();
-        let mut rest = args[1..].iter();
-        for (i, chunk) in fmt.split("{}").enumerate() {
-            if i > 0 {
-                match rest.next() {
-                    Some(v) => name.push_str(&format_name_arg(v)?),
-                    None => {
-                        return Err(EvalexprError::CustomMessage(format!(
-                            "get: not enough args for the {{}} slots in {:?}",
-                            fmt
-                        )));
-                    }
+        let name = if args.len() == 1 {
+            let maybe_parsed = desugar_interp(&fmt)
+                .map_err(|x| Err(EvalexprError::CustomMessage(x.to_string())))?;
+
+            match maybe_parsed {
+                None => fmt,
+                Some((lit, exprs)) if exprs.is_empty() => lit,
+                Some((fmt, exprs)) => {
+                    let maybe_fill = exprs
+                        .into_iter()
+                        .map(|src| ExprNode::from_src(src).map(ControlF32::Expr))
+                        .collect::<LivecodeResult<Vec<_>>>();
+
+                    let fill =
+                        maybe_fill.map_err(|x| Err(EvalexprError::CustomMessage(x.to_string())))?;
+
+                    let filled = fill
+                        .iter()
+                        .map(|f| f.o(w).map(|x: f32| x.round() as i64))
+                        .collect::<Result<Vec<_>, _>>()?;
+
+                    fill_fmt(&fmt, &filled)?
                 }
             }
-            name.push_str(chunk);
-        }
+        } else {
+            // format the remaining args into the {} slots
+            let mut name = String::new();
+            let mut rest = args[1..].iter();
+            for (i, chunk) in fmt.split("{}").enumerate() {
+                if i > 0 {
+                    match rest.next() {
+                        Some(v) => name.push_str(&format_name_arg(v)?),
+                        None => {
+                            return Err(EvalexprError::CustomMessage(format!(
+                                "get: not enough args for the {{}} slots in {:?}",
+                                fmt
+                            )));
+                        }
+                    }
+                }
+                name.push_str(chunk);
+            }
 
-        // Ok(self
-        //     .get_value(&name)
-        //     .cloned()
-        //     .unwrap_or_else(|| default.clone()))
+            name
+        };
 
         if let Some(val) = self.get_value(&name) {
             Ok(val.clone())
@@ -285,11 +325,6 @@ impl WorldWithLocalVariables {
                 name
             )))
         }
-
-        // Ok(self
-        //     .get_value(&name)
-        //     .cloned()
-        //     .unwrap_or_else(|| default.clone()))
     }
 
     fn lookup(&self, identifier: &str) -> Option<&Value> {

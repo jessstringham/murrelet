@@ -856,8 +856,27 @@ impl Default for LazyMurreletString {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+// like control murrelet string
+#[derive(Deserialize, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+enum ControlLazyMurreletStringRepr {
+    Raw(String),
+    Fmt {
+        fmt: String,
+        #[serde(default)]
+        fill: Vec<ControlLazyNodeF32>,
+    },
+    FmtFloat {
+        fmt_f: String,
+        #[serde(default)]
+        fill: Vec<ControlLazyNodeF32>,
+    },
+}
+
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(with = "ControlLazyMurreletStringRepr"))]
 #[serde(untagged)]
 pub enum ControlLazyMurreletString {
     Raw(String),
@@ -871,6 +890,63 @@ pub enum ControlLazyMurreletString {
         #[serde(default)]
         fill: Vec<ControlLazyNodeF32>,
     },
+}
+
+impl<'de> Deserialize<'de> for ControlLazyMurreletString {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match ControlLazyMurreletStringRepr::deserialize(d)? {
+            ControlLazyMurreletStringRepr::Raw(s) => {
+                match crate::livecode::desugar_interp(&s).map_err(serde::de::Error::custom)? {
+                    None => Ok(ControlLazyMurreletString::Raw(s)),
+                    Some((lit, exprs)) if exprs.is_empty() => {
+                        Ok(ControlLazyMurreletString::Raw(lit))
+                    }
+                    Some((fmt, exprs)) => {
+                        let fill = exprs
+                            .into_iter()
+                            .map(|src| ExprNode::from_src(src).map(ControlLazyNodeF32::Expr))
+                            .collect::<LivecodeResult<Vec<_>>>()
+                            .map_err(serde::de::Error::custom)?;
+                        Ok(ControlLazyMurreletString::Fmt { fmt, fill })
+                    }
+                }
+            }
+            ControlLazyMurreletStringRepr::Fmt { fmt, fill } => {
+                Ok(ControlLazyMurreletString::Fmt { fmt, fill })
+            }
+            ControlLazyMurreletStringRepr::FmtFloat { fmt_f, fill } => {
+                Ok(ControlLazyMurreletString::FmtFloat { fmt_f, fill })
+            }
+        }
+    }
+}
+
+impl Serialize for ControlLazyMurreletString {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ControlLazyMurreletString::Raw(v) => {
+                ControlLazyMurreletStringRepr::Raw(crate::livecode::escape_braces(v)).serialize(s)
+            }
+            ControlLazyMurreletString::Fmt { fmt, fill } => ControlLazyMurreletStringRepr::Fmt {
+                fmt: fmt.clone(),
+                fill: fill.clone(),
+            }
+            .serialize(s),
+            ControlLazyMurreletString::FmtFloat { fmt_f, fill } => {
+                ControlLazyMurreletStringRepr::FmtFloat {
+                    fmt_f: fmt_f.clone(),
+                    fill: fill.clone(),
+                }
+                .serialize(s)
+            }
+        }
+    }
 }
 
 impl Default for ControlLazyMurreletString {
