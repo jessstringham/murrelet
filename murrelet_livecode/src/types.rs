@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use evalexpr::{EvalexprError, HashMapContext};
+use evalexpr::{ContextWithMutableVariables, EvalexprError, HashMapContext};
 use itertools::Itertools;
 use lerpable::{Lerpable, step};
 use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, StrId, print_expect};
@@ -108,7 +108,7 @@ impl AdditionalContextNode {
             .collect_vec()
     }
 
-    pub fn eval_raw(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+    pub fn eval_raw<C: ContextWithMutableVariables>(&self, ctx: &mut C) -> LivecodeResult<()> {
         self.0
             .eval_empty_with_context_mut(ctx)
             .map_err(|err| LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err))

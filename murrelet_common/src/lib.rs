@@ -805,7 +805,7 @@ impl LivecodeSrc {
     }
 }
 
-const MAX_STRID_LEN: usize = 64;
+pub const MAX_STRID_LEN: usize = 64;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StrId([u8; MAX_STRID_LEN]);

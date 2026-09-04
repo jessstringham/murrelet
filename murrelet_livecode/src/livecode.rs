@@ -38,8 +38,15 @@ pub struct ExprNode {
 }
 
 impl ExprNode {
+    // pub fn from_src(src: String) -> LivecodeResult<Self> {
+    //     let node = build_operator_tree(&src)
+    //         .map_err(|err| LivecodeError::EvalExpr("error parsing expr".to_string(), err))?;
+    //     Ok(Self { src, node })
+    // }
+
     pub fn from_src(src: String) -> LivecodeResult<Self> {
-        let node = build_operator_tree(&src)
+        let to_parse = desugar_expr_src(&src)?.unwrap_or_else(|| src.clone());
+        let node = build_operator_tree(&to_parse)
             .map_err(|err| LivecodeError::EvalExpr("error parsing expr".to_string(), err))?;
         Ok(Self { src, node })
     }
@@ -79,9 +86,12 @@ impl<'de> Deserialize<'de> for ExprNode {
     where
         D: serde::Deserializer<'de>,
     {
+        // let s = String::deserialize(d)?;
+        // let node = build_operator_tree(&s).map_err(serde::de::Error::custom)?;
+        // Ok(ExprNode { src: s, node })
+
         let s = String::deserialize(d)?;
-        let node = build_operator_tree(&s).map_err(serde::de::Error::custom)?;
-        Ok(ExprNode { src: s, node })
+        ExprNode::from_src(s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -91,7 +101,7 @@ pub fn empty_vec<T>() -> Vec<T> {
 }
 
 pub trait LivecodeFromWorld<T> {
-    fn o<State: evalexpr::Context>(&self, w: &State) -> LivecodeResult<T>;
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
 
     fn o_dummy(&self) -> LivecodeResult<T> {
         self.o(&LivecodeWorldState::new_dummy())
@@ -842,8 +852,6 @@ impl ControlF32 {
     }
 
     pub fn _o(&self, w: &LivecodeWorldState) -> LivecodeResult<f32> {
-        let a = w.ctx()?;
-        let ctx = a.as_ref();
         match self {
             ControlF32::Bool(b) => {
                 if *b {
@@ -855,11 +863,11 @@ impl ControlF32 {
             ControlF32::Int(i) => Ok(*i as f32),
             ControlF32::Float(x) => Ok(*x),
             ControlF32::Expr(e) => e
-                .eval_float_with_context(ctx)
+                .eval_float_with_context(w)
                 .map(|x| x as f32)
-                .or_else(|_| e.eval_int_with_context(ctx).map(|b| b as f32))
+                .or_else(|_| e.eval_int_with_context(w).map(|b| b as f32))
                 .or_else(|_| {
-                    e.eval_boolean_with_context(ctx)
+                    e.eval_boolean_with_context(w)
                         .map(|b| if b { 1.0 } else { -1.0 })
                         .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err))
                 }),
@@ -912,19 +920,16 @@ impl ControlBool {
     }
 
     pub fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<bool> {
-        let a = w.ctx()?;
-        let ctx = a.as_ref();
-
         match self {
             ControlBool::Raw(b) => Ok(*b),
             ControlBool::Int(i) => Ok(*i > 0),
             ControlBool::Float(x) => Ok(*x > 0.0),
 
             ControlBool::Expr(e) => e
-                .eval_boolean_with_context(ctx)
-                .or_else(|_| e.eval_float_with_context(ctx).map(|b| b > 0.0))
+                .eval_boolean_with_context(w)
+                .or_else(|_| e.eval_float_with_context(w).map(|b| b > 0.0))
                 .or_else(|_| {
-                    e.eval_int_with_context(ctx)
+                    e.eval_int_with_context(w)
                         .map(|b| b > 0)
                         .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err))
                 }),
@@ -1278,6 +1283,110 @@ pub(crate) fn desugar_interp(s: &str) -> LivecodeResult<Option<(String, Vec<Stri
     } else {
         Ok(Some((out, exprs)))
     }
+}
+
+fn escape_lit(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+// contents of a backtick token, or of a get("…") first arg → `"fmt", e1, e2`
+fn interp_to_get_args(contents: &str) -> LivecodeResult<String> {
+    match desugar_interp(contents)? {
+        None => Ok(format!("\"{}\"", escape_lit(contents))),
+        Some((lit, exprs)) if exprs.is_empty() => Ok(format!("\"{}\"", escape_lit(&lit))),
+        Some((fmt, exprs)) => Ok(format!("\"{}\", {}", escape_lit(&fmt), exprs.join(", "))),
+    }
+}
+
+fn is_get_first_arg(out: &str) -> bool {
+    let t = out.trim_end();
+    ["get(", "get_or("].iter().any(|name| {
+        t.strip_suffix(name).is_some_and(|head| {
+            head.chars()
+                .last()
+                .is_none_or(|c| !c.is_alphanumeric() && c != '_')
+        })
+    })
+}
+
+pub(crate) fn desugar_expr_src(src: &str) -> LivecodeResult<Option<String>> {
+    if !src.contains('`') && !src.contains("get") {
+        return Ok(None); // fast path, no allocation
+    }
+
+    let chars: Vec<char> = src.chars().collect();
+    let mut out = String::with_capacity(src.len());
+    let mut changed = false;
+    let mut i = 0;
+
+    while i < chars.len() {
+        match chars[i] {
+            '`' => {
+                // allow an optional `f` prefix (f`…`) so a config can start a
+                // plain YAML scalar with it — ` alone is a YAML reserved indicator
+                if out.ends_with('f') {
+                    let head = &out[..out.len() - 1];
+                    if head
+                        .chars()
+                        .last()
+                        .is_none_or(|c| !c.is_alphanumeric() && c != '_')
+                    {
+                        out.pop();
+                    }
+                }
+
+                let start = i + 1;
+                let end = (start..chars.len())
+                    .find(|&j| chars[j] == '`')
+                    .ok_or_else(|| {
+                        LivecodeError::Raw(format!("unterminated ` in expression {:?}", src))
+                    })?;
+                let contents: String = chars[start..end].iter().collect();
+                out.push_str(&format!("get({})", interp_to_get_args(&contents)?));
+                changed = true;
+                i = end + 1;
+            }
+            '"' => {
+                let start = i + 1;
+                let mut end = start;
+                while end < chars.len() && chars[end] != '"' {
+                    end += if chars[end] == '\\' { 2 } else { 1 };
+                }
+                if end >= chars.len() {
+                    return Err(LivecodeError::Raw(format!(
+                        "unterminated \" in expression {:?}",
+                        src
+                    )));
+                }
+                let lit: String = chars[start..end].iter().collect();
+
+                let has_bare = lit.contains("{}");
+                let has_expr = lit.replace("{}", "").contains('{');
+                if has_bare && has_expr {
+                    return Err(LivecodeError::Raw(format!(
+                        "can't mix `{{expr}}` and positional `{{}}` in {:?} (ambiguous fill order)",
+                        src
+                    )));
+                }
+
+                if is_get_first_arg(&out) && has_expr {
+                    out.push_str(&interp_to_get_args(&lit)?);
+                    changed = true;
+                } else {
+                    out.push('"');
+                    out.push_str(&lit);
+                    out.push('"');
+                }
+                i = end + 1;
+            }
+            c => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+
+    Ok(if changed { Some(out) } else { None })
 }
 
 // substitute `{}` placeholders in `fmt` positionally (Rust-style, left-to-right)

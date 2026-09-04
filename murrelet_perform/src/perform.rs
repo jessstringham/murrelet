@@ -1242,7 +1242,7 @@ where
                 md.set_val(x, murrelet_common::LivecodeValue::Float(0.0));
             }
         }
-        world.update_with_defs(MixedEvalDefsRef::new(md)); // i'm setting this so it should be okay..
+        world.update_with_defs(MixedEvalDefsRef::new(md))?; // i'm setting this so it should be okay..
 
         self.cached_world = Some(world);
         Ok(())

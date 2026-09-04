@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::{collections::HashMap, f64::consts::PI, fmt::Debug, sync::Arc};
 
 use evalexpr::*;
@@ -392,7 +391,7 @@ impl ExprWorldContextValues {
         Self::new::<StrId>(vec![])
     }
 
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+    pub fn update_ctx<C: ContextWithMutableVariables>(&self, ctx: &mut C) -> LivecodeResult<()> {
         for (identifier, value) in &self.0 {
             // todo, maybe handle the result here to help dev
             ctx.set_value(identifier.to_string(), lc_val_to_expr(value))
@@ -463,7 +462,7 @@ impl ExprWorldContextValues {
         new
     }
 
-    pub(crate) fn get_variable(&self, identifier: &StrId) -> Option<&LivecodeValue> {
+    pub fn get_variable(&self, identifier: &StrId) -> Option<&LivecodeValue> {
         self.0.get(identifier)
     }
 
@@ -474,7 +473,7 @@ impl ExprWorldContextValues {
             .collect_vec()
     }
 
-    pub(crate) fn new_from_idx2d(idx: IdxInRange2d, prefix: &str) -> ExprWorldContextValues {
+    pub fn new_from_idx2d(idx: IdxInRange2d, prefix: &str) -> ExprWorldContextValues {
         let ctx = ExprWorldContextValues::new_from_idx(idx.i)
             .with_prefix(prefix)
             .combine(
@@ -599,11 +598,11 @@ impl MixedEvalDefsRef {
         Self::new(m)
     }
 
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+    pub fn update_ctx<C: ContextWithMutableVariables>(&self, ctx: &mut C) -> LivecodeResult<()> {
         self.0.update_ctx(ctx)
     }
 
-    pub(crate) fn new_from_expr(more_vals: ExprWorldContextValues) -> MixedEvalDefsRef {
+    pub fn new_from_expr(more_vals: ExprWorldContextValues) -> MixedEvalDefsRef {
         Self::new(MixedEvalDefs::new_from_expr(more_vals))
     }
 
@@ -646,7 +645,7 @@ impl MixedEvalDefs {
         self.vals = self.vals.combine(vals);
     }
 
-    pub fn update_ctx(&self, ctx: &mut HashMapContext) -> LivecodeResult<()> {
+    pub fn update_ctx<C: ContextWithMutableVariables>(&self, ctx: &mut C) -> LivecodeResult<()> {
         self.vals.update_ctx(ctx)?;
         // go from beginning to end
         for node in self.nodes.iter() {

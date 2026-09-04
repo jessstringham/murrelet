@@ -1,10 +1,8 @@
-use std::{
-    collections::HashSet,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashSet, sync::Arc};
 
 use evalexpr::{
-    Context, EvalexprError, EvalexprResult, HashMapContext, IterateVariablesContext, Value,
+    Context, ContextWithMutableVariables, EvalexprError, EvalexprResult, HashMapContext,
+    IterateVariablesContext, Value,
 };
 use murrelet_common::*;
 
@@ -13,7 +11,6 @@ use crate::{
         ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef,
         init_evalexpr_func_ctx,
     },
-    livecode::{ControlF32, ExprNode, LivecodeFromWorld, desugar_interp, fill_fmt},
     types::{AdditionalContextNode, LivecodeResult},
     unitcells::UnitCellContext,
 };
@@ -25,60 +22,18 @@ enum LivecodeWorldStateStage {
 }
 
 #[derive(Clone, Debug)]
-pub enum CacheFlag {
-    NotCached,
-    Cached,
-}
-
-#[derive(Clone, Debug)]
-pub struct CachedHM {
-    flag: CacheFlag,
-    data: Arc<HashMapContext>, // we keep this around so we don't need to drop
-}
-impl CachedHM {
-    fn new_rw() -> Arc<RwLock<CachedHM>> {
-        let hm = HashMapContext::new();
-        Arc::new(RwLock::new(CachedHM {
-            data: Arc::new(hm),
-            flag: CacheFlag::NotCached,
-        }))
-    }
-
-    fn clear(&mut self) {
-        self.flag = CacheFlag::NotCached;
-    }
-
-    fn cached(&self) -> CacheResult {
-        match self.flag {
-            CacheFlag::NotCached => CacheResult::NotCached,
-            CacheFlag::Cached => CacheResult::Cached(self.data.clone()),
-        }
-    }
-
-    fn update_arc(&mut self, hm: Arc<HashMapContext>) {
-        self.data = hm;
-        self.flag = CacheFlag::Cached;
-    }
-}
-
-enum CacheResult {
-    Cached(Arc<HashMapContext>),
-    NotCached,
-}
-
-#[derive(Clone, Debug)]
 pub struct LivecodeWorldState {
-    cached: Arc<RwLock<CachedHM>>,
     state: Arc<LivecodeWorldStateInner>,
-    refs: Vec<MixedEvalDefsRef>,
+    locals: Vec<(StrId, Value)>,
+    builtins_disabled: bool,
 }
 impl LivecodeWorldState {
-    pub fn new_legacy(state: LivecodeWorldStateInner) -> LivecodeResult<Self> {
-        Ok(Self {
-            cached: CachedHM::new_rw(),
+    pub fn new_legacy(state: LivecodeWorldStateInner) -> Self {
+        Self {
             state: Arc::new(state),
-            refs: vec![],
-        })
+            locals: vec![],
+            builtins_disabled: false,
+        }
     }
 
     pub fn new(
@@ -91,7 +46,7 @@ impl LivecodeWorldState {
         let state =
             LivecodeWorldStateInner::new(evalexpr_func_ctx, livecode_src, time, node, assets)?;
 
-        Self::new_legacy(state)
+        Ok(Self::new_legacy(state))
     }
 
     pub fn new_timeless(
@@ -99,20 +54,17 @@ impl LivecodeWorldState {
         livecode_src: &LivecodeSrc,
     ) -> LivecodeResult<Self> {
         let state = LivecodeWorldStateInner::new_timeless(evalexpr_func_ctx, livecode_src)?;
-        Self::new_legacy(state)
+        Ok(Self::new_legacy(state))
     }
 
     pub fn clone_with_vals(&self, expr: ExprWorldContextValues, prefix: &str) -> Self {
-        let e = expr.with_prefix(prefix);
-        let new_info = MixedEvalDefs::new_from_expr(e);
-
-        let mut refs = self.refs.clone();
-        refs.push(MixedEvalDefsRef::new(new_info));
+        let mut locals = self.locals.clone();
+        locals.extend(expr.with_prefix(prefix).to_vals());
 
         Self {
-            cached: CachedHM::new_rw(),
             state: self.state.clone(),
-            refs,
+            locals,
+            builtins_disabled: self.builtins_disabled,
         }
     }
 
@@ -121,43 +73,18 @@ impl LivecodeWorldState {
         unit_cell_ctx: &UnitCellContext,
         prefix: &str,
         maybe_node: Option<&MixedEvalDefsRef>,
-    ) -> LivecodeResult<LivecodeWorldState> {
-        let new_info = unit_cell_ctx
-            .as_expr_world_context_values()
-            .with_prefix(prefix);
+    ) -> LivecodeResult<Self> {
+        let mut new = self.clone_with_vals(unit_cell_ctx.as_expr_world_context_values(), prefix);
 
-        let mut refs = self.refs.clone();
-        refs.push(MixedEvalDefsRef::new(MixedEvalDefs::new_from_expr(
-            new_info,
-        )));
         if let Some(node) = maybe_node {
-            refs.push(node.clone());
+            node.update_ctx(&mut new)?;
         }
 
-        Ok(Self {
-            cached: CachedHM::new_rw(),
-            state: self.state.clone(),
-            refs,
-        })
+        Ok(new)
     }
 
     pub fn new_dummy() -> Self {
-        Self::new_legacy(LivecodeWorldStateInner::new_dummy_with_funcs()).unwrap()
-    }
-
-    pub(crate) fn ctx(&self) -> LivecodeResult<Arc<HashMapContext>> {
-        if let CacheResult::Cached(c) = self.cached.read().unwrap().cached() {
-            return Ok(c);
-        }
-        let mut cache = self.cached.write().unwrap();
-        let mut ctx = self.state.ctx().clone();
-        for mixed in &self.refs {
-            mixed.update_ctx(&mut ctx)?;
-        }
-        let arc = Arc::new(ctx);
-        cache.update_arc(arc.clone());
-
-        Ok(arc)
+        Self::new_legacy(LivecodeWorldStateInner::new_dummy_with_funcs())
     }
 
     pub fn actual_frame_u64(&self) -> u64 {
@@ -165,12 +92,11 @@ impl LivecodeWorldState {
     }
 
     pub fn vars(&self) -> HashSet<String> {
-        self.state.vars()
+        self.variable_names().into_iter().collect()
     }
 
-    pub fn update_with_defs(&mut self, md: MixedEvalDefsRef) {
-        self.refs.push(md);
-        self.cached.write().unwrap().clear();
+    pub fn update_with_defs(&mut self, md: MixedEvalDefsRef) -> LivecodeResult<()> {
+        md.update_ctx(self)
     }
 
     pub fn time(&self) -> LiveCodeTimeInstantInfo {
@@ -188,52 +114,6 @@ impl LivecodeWorldState {
     pub fn asset_layers_in_key(&self, key: &str) -> &[String] {
         self.state.asset_layers_in_key(key)
     }
-
-    pub fn update_with_simple_defs(
-        &self,
-        more_vals: ExprWorldContextValues,
-    ) -> WorldWithLocalVariables {
-        let locals = more_vals.to_vals();
-
-        WorldWithLocalVariables {
-            base: self.ctx().unwrap(),
-            locals,
-            builtins_disabled: false,
-        }
-    }
-
-    pub fn to_local(&self) -> WorldWithLocalVariables {
-        WorldWithLocalVariables {
-            base: self.ctx().unwrap(),
-            locals: vec![],
-            builtins_disabled: false,
-        }
-    }
-}
-
-impl Context for LivecodeWorldState {
-    fn get_value(&self, identifier: &str) -> Option<&Value> {
-        self.ctx().ok().and_then(|x| x.get_value(identifier))
-    }
-
-    fn call_function(&self, identifier: &str, argument: &Value) -> EvalexprResult<Value> {
-        self.ctx()
-            .map_err(|e| EvalexprError::CustomMessage(format!("missing ctx {}", e)))
-            .and_then(|x| x.call_function(identifier, argument))
-    }
-
-    fn are_builtin_functions_disabled(&self) -> bool {
-        self.ctx()
-            .map(|x| x.are_builtin_functions_disabled())
-            .unwrap_or(true)
-    }
-
-    fn set_builtin_functions_disabled(&mut self, _disabled: bool) -> EvalexprResult<()> {
-        // self.ctx()
-        //     .map_err(|e| EvalexprError::CustomMessage(format!("missing ctx {}", e)))
-        //     .and_then(|x| x.set_builtin_functions_disabled(disabled))
-        Err(EvalexprError::CustomMessage(format!("can't set ctx this way")))
-    }
 }
 
 fn format_name_arg(v: &Value) -> EvalexprResult<String> {
@@ -243,79 +123,45 @@ fn format_name_arg(v: &Value) -> EvalexprResult<String> {
     }
 }
 
-// some chatgpt help
-#[derive(Debug, Clone)]
-pub struct WorldWithLocalVariables {
-    base: Arc<HashMapContext>,
-    locals: Vec<(StrId, Value)>,
-    builtins_disabled: bool,
-}
-impl WorldWithLocalVariables {
+impl LivecodeWorldState {
     pub fn update_with_simple_defs(&mut self, more_vals: &ExprWorldContextValues) {
-        let mut locals = more_vals.to_vals();
-        locals.extend(self.locals.iter().cloned());
-        self.locals = locals;
+        self.locals.extend(more_vals.to_vals());
     }
 
-    // todo maybe change this to strids?
     pub(crate) fn variable_names(&self) -> Vec<String> {
         let mut names: Vec<String> = self.locals.iter().map(|(k, _)| k.to_string()).collect();
-        names.extend(self.base.iter_variable_names());
+        names.extend(self.state.ctx().iter_variable_names());
         names
     }
 
     // some claude
     fn lookup_dynamic(&self, argument: &Value) -> Result<Value, evalexpr::EvalexprError> {
-        let args = argument.as_tuple()?;
+        // let args = argument.as_tuple()?;
+        let args: Vec<Value> = match argument {
+            Value::Tuple(t) => t.clone(),
+            v => vec![v.clone()],
+        };
 
         // hax, if we have only one value
         let fmt = args[0].as_string()?;
 
-        let name = if args.len() == 1 {
-            let maybe_parsed = desugar_interp(&fmt)
-                .map_err(|x| Err(EvalexprError::CustomMessage(x.to_string())))?;
-
-            match maybe_parsed {
-                None => fmt,
-                Some((lit, exprs)) if exprs.is_empty() => lit,
-                Some((fmt, exprs)) => {
-                    let maybe_fill = exprs
-                        .into_iter()
-                        .map(|src| ExprNode::from_src(src).map(ControlF32::Expr))
-                        .collect::<LivecodeResult<Vec<_>>>();
-
-                    let fill =
-                        maybe_fill.map_err(|x| Err(EvalexprError::CustomMessage(x.to_string())))?;
-
-                    let filled = fill
-                        .iter()
-                        .map(|f| f.o(w).map(|x: f32| x.round() as i64))
-                        .collect::<Result<Vec<_>, _>>()?;
-
-                    fill_fmt(&fmt, &filled)?
-                }
-            }
-        } else {
-            // format the remaining args into the {} slots
-            let mut name = String::new();
-            let mut rest = args[1..].iter();
-            for (i, chunk) in fmt.split("{}").enumerate() {
-                if i > 0 {
-                    match rest.next() {
-                        Some(v) => name.push_str(&format_name_arg(v)?),
-                        None => {
-                            return Err(EvalexprError::CustomMessage(format!(
-                                "get: not enough args for the {{}} slots in {:?}",
-                                fmt
-                            )));
-                        }
+        // format the remaining args into the {} slots
+        let mut name = String::new();
+        let mut rest = args[1..].iter();
+        for (i, chunk) in fmt.split("{}").enumerate() {
+            if i > 0 {
+                match rest.next() {
+                    Some(v) => name.push_str(&format_name_arg(v)?),
+                    None => {
+                        return Err(EvalexprError::CustomMessage(format!(
+                            "get: not enough args for the {{}} slots in {:?}",
+                            fmt
+                        )));
                     }
                 }
-                name.push_str(chunk);
             }
-
-            name
-        };
+            name.push_str(chunk);
+        }
 
         if let Some(val) = self.get_value(&name) {
             Ok(val.clone())
@@ -327,11 +173,25 @@ impl WorldWithLocalVariables {
         }
     }
 
-    fn lookup(&self, identifier: &str) -> Option<&Value> {
-        if let Some((_, v)) = self.locals.iter().find(|(k, _v)| k.as_str() == identifier) {
+    fn scan_locals_reverse(&self, identifier: &str) -> Option<&Value> {
+        if let Some((_, v)) = self
+            .locals
+            .iter()
+            .rev()
+            .find(|(k, _v)| k.as_str() == identifier)
+        {
             return Some(v);
+        } else {
+            None
         }
-        self.base.get_value(identifier)
+    }
+
+    fn lookup(&self, identifier: &str) -> Option<&Value> {
+        if let Some(v) = self.scan_locals_reverse(identifier) {
+            Some(v)
+        } else {
+            self.state.ctx().get_value(identifier)
+        }
     }
 
     fn lookup_tuple(&self, identifier: &str, suffix: &str) -> Option<&[Value]> {
@@ -344,7 +204,7 @@ impl WorldWithLocalVariables {
     }
 }
 
-impl Context for WorldWithLocalVariables {
+impl Context for LivecodeWorldState {
     fn get_value(&self, identifier: &str) -> Option<&Value> {
         // some sugar
         if let Some(prefix) = self.lookup_tuple(identifier, ".x") {
@@ -364,7 +224,7 @@ impl Context for WorldWithLocalVariables {
             return self.lookup_dynamic(argument);
         }
 
-        self.base.call_function(identifier, argument)
+        self.state.context.call_function(identifier, argument)
     }
 
     fn are_builtin_functions_disabled(&self) -> bool {
@@ -373,6 +233,19 @@ impl Context for WorldWithLocalVariables {
 
     fn set_builtin_functions_disabled(&mut self, disabled: bool) -> EvalexprResult<()> {
         self.builtins_disabled = disabled;
+        Ok(())
+    }
+}
+
+impl ContextWithMutableVariables for LivecodeWorldState {
+    fn set_value(&mut self, identifier: String, value: Value) -> EvalexprResult<()> {
+        if identifier.len() > MAX_STRID_LEN {
+            return Err(EvalexprError::CustomMessage(format!(
+                "variable name too long: {identifier:?}"
+            )));
+        }
+
+        self.locals.push((StrId::new(&identifier), value));
         Ok(())
     }
 }

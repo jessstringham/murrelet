@@ -7,7 +7,7 @@ use crate::{
         LivecodeToControlLazy, LivecodeVariable,
     },
     nestedit::{NestEditable, NestedMod},
-    state::{LivecodeWorldState, WorldWithLocalVariables},
+    state::LivecodeWorldState,
     types::{LivecodeError, LivecodeResult, ToLivecodeResult},
 };
 use evalexpr::Node;
@@ -102,14 +102,14 @@ impl GetLivecodeIdentifiers for ControlLazyNodeF32 {
 // todo, figure out how to only build this context once per unitcell/etc
 #[derive(Debug, Clone)]
 pub struct LazyNodeF32Inner {
-    n: Arc<Node>,                   // what will be evaluated!
-    world: WorldWithLocalVariables, // this is a reference :D
+    n: Arc<Node>,              // what will be evaluated!
+    world: LivecodeWorldState, // this is a reference :D
 }
 impl LazyNodeF32Inner {
     pub fn new(n: Node, world: LivecodeWorldState) -> Self {
         Self {
             n: Arc::new(n),
-            world: world.to_local(),
+            world,
         }
     }
 
@@ -126,7 +126,7 @@ impl LazyNodeF32Inner {
     }
 
     // internal function to build the ctx
-    fn build_ctx(&self) -> &WorldWithLocalVariables {
+    fn build_ctx(&self) -> &LivecodeWorldState {
         &self.world
     }
 
