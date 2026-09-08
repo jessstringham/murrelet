@@ -78,6 +78,8 @@ impl DrawnShape {
             annotations: self.annotations.clone(),
         })
     }
+
+
 }
 
 pub trait ToDrawnShapeSegments {
