@@ -69,6 +69,7 @@ impl OwnedDeviceState {
 
     pub async fn new_from_native() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::util::backend_bits_from_env().unwrap_or(wgpu::Backends::all()),
             ..Default::default()
         });
 
@@ -105,7 +106,9 @@ impl OwnedDeviceState {
 }
 
 #[cfg(all(target_arch = "wasm32", not(feature = "nannou")))]
-fn get_or_create_canvas(canvas_id: &str) -> Result<web_sys::HtmlCanvasElement, wasm_bindgen::JsValue> {
+fn get_or_create_canvas(
+    canvas_id: &str,
+) -> Result<web_sys::HtmlCanvasElement, wasm_bindgen::JsValue> {
     use wasm_bindgen::JsCast;
 
     let window = web_sys::window().ok_or_else(|| wasm_bindgen::JsValue::from_str("no window"))?;
@@ -149,10 +152,9 @@ impl OwnedDeviceState {
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas))
             .map_err(|e| wasm_bindgen::JsValue::from_str(&format!("create_surface: {e}")))?;
 
-        let adapter =
-            wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
-                .await
-                .ok_or_else(|| wasm_bindgen::JsValue::from_str("failed to get adapter"))?;
+        let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
+            .await
+            .ok_or_else(|| wasm_bindgen::JsValue::from_str("failed to get adapter"))?;
 
         let (device, queue) = adapter
             .request_device(
@@ -169,11 +171,10 @@ impl OwnedDeviceState {
         // Pick a surface format the adapter actually supports rather than
         // hard-coding one.
         let caps = surface.get_capabilities(&adapter);
-        let format = caps
-            .formats
-            .first()
-            .copied()
-            .ok_or_else(|| wasm_bindgen::JsValue::from_str("surface has no supported formats"))?;
+        let format =
+            caps.formats.first().copied().ok_or_else(|| {
+                wasm_bindgen::JsValue::from_str("surface has no supported formats")
+            })?;
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -369,7 +370,10 @@ impl GraphicsAssets {
         match self {
             GraphicsAssets::Nothing => {}
             GraphicsAssets::LocalFilesystem(path) => {
-                print_expect(write_png_to_texture(device_state, path, input_texture), "error loading image into texture");
+                print_expect(
+                    write_png_to_texture(device_state, path, input_texture),
+                    "error loading image into texture",
+                );
             }
         }
     }
