@@ -267,6 +267,7 @@ impl LivecodeToControl<[ControlF32; 4]> for MurreletColor {
 #[serde(untagged)]
 pub enum ControlMurreletColor {
     Hsva([ControlF32; 4]),
+    Hsv([ControlF32; 3]),
     Named(String),
     Rgba { rgb: [ControlF32; 3], a: ControlF32 },
     Gray { gray: ControlF32 },
@@ -283,6 +284,13 @@ impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
                 clamp(hsva[2].o(w)?, 0.0, 1.0),
                 hsva[3].o(w)?,
             )),
+            ControlMurreletColor::Hsv(hsv) => Ok(MurreletColor::hsva(
+                hsv[0].o(w)?,
+                clamp(hsv[1].o(w)?, 0.0, 1.0),
+                clamp(hsv[2].o(w)?, 0.0, 1.0),
+                1.0,
+            )),
+
             ControlMurreletColor::Rgba { rgb, a } => Ok(MurreletColor::rgba(
                 rgb[0].o(w)?,
                 rgb[1].o(w)?,
@@ -291,12 +299,12 @@ impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
             )),
             ControlMurreletColor::Gray { gray } => Ok(MurreletColor::gray(gray.o(w)?)),
             ControlMurreletColor::Hue { hue } => Ok(MurreletColor::hue(hue.o(w)?)),
-            ControlMurreletColor::Named(name) => named_string(name),
+            ControlMurreletColor::Named(name) => named_color_string(name),
         }
     }
 }
 
-fn named_string(name: &str) -> LivecodeResult<MurreletColor> {
+pub fn named_color_string(name: &str) -> LivecodeResult<MurreletColor> {
     match name {
         "black" => Ok(MurreletColor::black()),
         "white" => Ok(MurreletColor::white()),
@@ -321,6 +329,7 @@ impl GetLivecodeIdentifiers for ControlMurreletColor {
     fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
         let nodes: Vec<&ControlF32> = match self {
             ControlMurreletColor::Hsva(hsva) => hsva.iter().collect(),
+            ControlMurreletColor::Hsv(hsv) => hsv.iter().collect(),
             ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
             ControlMurreletColor::Gray { gray } => vec![gray],
             ControlMurreletColor::Hue { hue } => vec![hue],
@@ -337,6 +346,7 @@ impl GetLivecodeIdentifiers for ControlMurreletColor {
     fn function_identifiers(&self) -> Vec<LivecodeFunction> {
         let nodes: Vec<&ControlF32> = match self {
             ControlMurreletColor::Hsva(hsva) => hsva.iter().collect(),
+            ControlMurreletColor::Hsv(hsv) => hsv.iter().collect(),
             ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
             ControlMurreletColor::Gray { gray } => vec![gray],
             ControlMurreletColor::Hue { hue } => vec![hue],
@@ -1481,8 +1491,32 @@ pub(crate) fn fill_fmt_f64(fmt: &str, fill: &[f64]) -> LivecodeResult<String> {
     Ok(out)
 }
 
+// hax
+pub type Controlf32 = ControlF32;
+pub type ControlLazyf32 = ControlLazyNodeF32;
+
+pub type Controlusize = ControlF32;
+pub type ControlLazyusize = ControlLazyNodeF32;
+
+
+pub type Controlbool = ControlBool;
+pub type ControlLazybool = ControlLazyNodeF32;
+
 #[macro_export]
 macro_rules! livecode_default {
+
+    ($name:ident = $ctrl_ty:ty: $value:expr, $ctrl_lazy_ty:ty: $lazy_value:expr) => {
+        murrelet_livecode::paste::paste! {
+            pub fn $name() -> $ctrl_ty {
+                $value
+            }
+
+            pub fn [<$name _lazy>]() -> $ctrl_lazy_ty {
+                $lazy_value
+            }
+        }
+    };
+
     ($name:ident: $ty:ty = $value:expr) => {
         murrelet_livecode::paste::paste! {
             fn [<$name _val>]() -> $ty {

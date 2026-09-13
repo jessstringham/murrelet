@@ -4,7 +4,7 @@ use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs},
     livecode::{
         ExprNode, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
-        LivecodeToControlLazy, LivecodeVariable,
+        LivecodeToControlLazy, LivecodeVariable, named_color_string,
     },
     nestedit::{NestEditable, NestedMod},
     state::LivecodeWorldState,
@@ -649,6 +649,17 @@ impl LazyMurreletColor {
         }
     }
 
+    fn from_color(c: MurreletColor) -> Self {
+        let [h, s, v, a] = c.to_hsva();
+        Self {
+            mode: LazyColorMode::Hsva,
+            c0: LazyNodeF32::simple_number(h),
+            c1: LazyNodeF32::simple_number(s),
+            c2: LazyNodeF32::simple_number(v),
+            a: LazyNodeF32::simple_number(a),
+        }
+    }
+
     pub fn new_rgba(r: LazyNodeF32, g: LazyNodeF32, b: LazyNodeF32, a: LazyNodeF32) -> Self {
         Self {
             mode: LazyColorMode::Rgba,
@@ -695,6 +706,7 @@ pub enum ControlLazyMurreletColor {
     Hue {
         hue: ControlLazyNodeF32,
     },
+    Named(String),
 }
 
 impl Default for ControlLazyMurreletColor {
@@ -721,6 +733,7 @@ impl ControlLazyMurreletColor {
             }
             ControlLazyMurreletColor::Gray { gray } => vec![gray],
             ControlLazyMurreletColor::Hue { hue } => vec![hue],
+            ControlLazyMurreletColor::Named(_) => vec![],
         }
     }
 }
@@ -756,6 +769,9 @@ impl LivecodeFromWorld<LazyMurreletColor> for ControlLazyMurreletColor {
                 LazyNodeF32::simple_number(1.0),
                 LazyNodeF32::simple_number(1.0),
             )),
+            ControlLazyMurreletColor::Named(color) => {
+                Ok(LazyMurreletColor::from_color(named_color_string(color)?))
+            }
         }
     }
 }

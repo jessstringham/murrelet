@@ -2,7 +2,7 @@
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
-use murrelet_common::{AnglePi, IsAngle, MurreletString, SpotOnCurve};
+use murrelet_common::{Angle, AnglePi, IsAngle, MurreletString, SpotOnCurve};
 use murrelet_livecode_derive::Livecode;
 
 #[derive(Debug, Clone, Copy)]
@@ -102,6 +102,10 @@ impl ToVec3 for Vec3 {
 #[derive(Clone, Debug, Livecode, Lerpable)]
 pub struct Transform3d(Vec<Transform3dStep>);
 impl Transform3d {
+    pub fn new(transform3d_steps: Vec<Transform3dStep>) -> Self {
+        Self(transform3d_steps)
+    }
+
     pub fn transform<V: CanBeTransformed3d>(&self, v: &V) -> V {
         v.apply_transform3d(self)
     }
@@ -116,7 +120,7 @@ impl Transform3d {
             .apply_transform3d(&Transform3d::translate(origin))
     }
 
-    fn rotation_transform(&self) -> Self {
+    pub fn rotation_transform(&self) -> Self {
         let steps = self
             .0
             .iter()
@@ -126,28 +130,71 @@ impl Transform3d {
         Self(steps)
     }
 
-    fn rotation_quat(&self) -> Quat {
+    pub fn rotation_quat(&self) -> Quat {
         let mat = self.rotation_transform().to_mat4();
         Quat::from_mat4(&mat)
     }
 
-    fn to_mat4(&self) -> Mat4 {
+    pub fn to_mat4(&self) -> Mat4 {
         self.0
             .iter()
             .map(|x| x.transform())
             .fold(Mat4::IDENTITY, |acc, el| el * acc)
     }
 
-    fn translate(v: Vec3) -> Transform3d {
+    pub fn translate(v: Vec3) -> Transform3d {
         Self(vec![Transform3dStep::translate(v)])
+    }
+
+    pub fn rotate<Axis: IsAxis3d, A: IsAngle>(axis: &Axis, angle: A) -> Transform3d {
+        Transform3d::new(vec![Transform3dStep::rotate(axis, angle)])
+    }
+
+    pub fn rotate_around<Axis: IsAxis3d, A: IsAngle>(
+        axis: &Axis,
+        angle: A,
+        origin: Vec3,
+    ) -> Transform3d {
+        Transform3d::new(vec![Transform3dStep::rotate_around(axis, angle, origin)])
+    }
+
+    pub fn invert(&self) -> Self {
+        let mut v = vec![];
+        for step in self.0.iter().rev() {
+            v.push(step.invert())
+        }
+
+        Self(v)
+    }
+}
+
+pub trait IsAxis3d {
+    fn to_axis3d(&self) -> Axis3d;
+}
+
+impl IsAxis3d for Vec3 {
+    fn to_axis3d(&self) -> Axis3d {
+        Axis3d::new(*self)
+    }
+}
+
+impl IsAxis3d for Axis3d {
+    fn to_axis3d(&self) -> Axis3d {
+        self.clone()
     }
 }
 
 pub trait CanBeTransformed3d {
+    type ProjectedVersion;
+
     fn apply_transform3d(&self, t: &Transform3d) -> Self;
+
+    fn project(&self) -> Self::ProjectedVersion;
 }
 
 impl CanBeTransformed3d for Vec3 {
+    type ProjectedVersion = Vec2;
+
     fn apply_transform3d(&self, t: &Transform3d) -> Self {
         let v4 = vec4(self.x, self.y, self.z, 1.0);
 
@@ -158,6 +205,22 @@ impl CanBeTransformed3d for Vec3 {
 
         vec3(v3.x / v3.w, v3.y / v3.w, v3.z / v3.w)
     }
+
+    fn project(&self) -> Vec2 {
+        self.xy()
+    }
+}
+
+impl CanBeTransformed3d for Vec<Vec3> {
+    fn apply_transform3d(&self, t: &Transform3d) -> Self {
+        self.iter().map(|x| x.apply_transform3d(t)).collect_vec()
+    }
+
+    fn project(&self) -> Vec<Vec2> {
+        self.iter().map(|x| x.project()).collect_vec()
+    }
+
+    type ProjectedVersion = Vec<Vec2>;
 }
 
 impl CanBeTransformed3d for SpotOn3d {
@@ -169,22 +232,51 @@ impl CanBeTransformed3d for SpotOn3d {
 
         Self { loc, rot }
     }
+
+    fn project(&self) -> SpotOnCurve {
+        // apply rotation to something pointing up, and see where it points
+        let dir = self.rot * Vec3::X;
+        let angle = Angle::new(dir.y.atan2(dir.x));
+
+        SpotOnCurve::new(self.loc.project(), angle)
+    }
+
+    type ProjectedVersion = SpotOnCurve;
+}
+
+impl CanBeTransformed3d for Vec<SpotOn3d> {
+    fn apply_transform3d(&self, t: &Transform3d) -> Self {
+        self.iter().map(|x| x.apply_transform3d(t)).collect_vec()
+    }
+
+    fn project(&self) -> Vec<SpotOnCurve> {
+        self.iter().map(|x| x.project()).collect_vec()
+    }
+
+    type ProjectedVersion = Vec<SpotOnCurve>;
 }
 
 #[derive(Clone, Debug, Livecode, Lerpable)]
 #[livecode(enum_tag = "untagged")]
 pub enum Axis3d {
     V(Vec3),
-    Name(MurreletString),
+    Name(MurreletString), // todo this doens't have copy...
 }
 impl Axis3d {
-    fn axis(&self) -> Vec3 {
+    fn new(v: Vec3) -> Self {
+        Self::V(v)
+    }
+
+    pub fn axis(&self) -> Vec3 {
         match self {
             Axis3d::V(vec3) => *vec3,
             Axis3d::Name(string) => match string.to_string().as_str() {
                 "x" => Vec3::X,
                 "y" => Vec3::Y,
                 "z" => Vec3::Z,
+                "-x" => -Vec3::X,
+                "-y" => -Vec3::Y,
+                "-z" => -Vec3::Z,
                 "xaxis" => Vec3::X,
                 "yaxis" => Vec3::Y,
                 "zaxis" => Vec3::Z,
@@ -205,6 +297,14 @@ pub struct Rotate3 {
     angle_pi: AnglePi,
 }
 impl Rotate3 {
+    pub fn new(origin: Vec3, axis: Axis3d, angle_pi: AnglePi) -> Self {
+        Self {
+            origin,
+            axis,
+            angle_pi,
+        }
+    }
+
     fn axis(&self) -> Vec3 {
         self.axis.axis()
     }
@@ -226,8 +326,8 @@ impl Transform3dStep {
         match self {
             Transform3dStep::Translate(t) => Mat4::from_translation(t.v),
             Transform3dStep::Rotate(t) => {
-                let move_to_origin = Mat4::from_translation(t.origin);
-                let move_from_origin = Mat4::from_translation(-t.origin);
+                let move_to_origin = Mat4::from_translation(-t.origin);
+                let move_from_origin = Mat4::from_translation(t.origin);
                 let rotate = Mat4::from_axis_angle(t.axis(), t.angle_pi.angle());
                 move_from_origin * rotate * move_to_origin
             }
@@ -237,6 +337,40 @@ impl Transform3dStep {
 
     fn translate(v: Vec3) -> Transform3dStep {
         Self::Translate(V3 { v })
+    }
+
+    pub fn rotate<Axis: IsAxis3d, A: IsAngle>(axis: &Axis, angle_pi: A) -> Transform3dStep {
+        Transform3dStep::Rotate(Rotate3::new(
+            Vec3::ZERO,
+            axis.to_axis3d(),
+            angle_pi.as_angle_pi(),
+        ))
+    }
+
+    pub fn rotate_around<Axis: IsAxis3d, A: IsAngle>(
+        axis: &Axis,
+        angle_pi: A,
+        origin: Vec3,
+    ) -> Transform3dStep {
+        Transform3dStep::Rotate(Rotate3::new(
+            origin,
+            axis.to_axis3d(),
+            angle_pi.as_angle_pi(),
+        ))
+    }
+
+    fn invert(&self) -> Transform3dStep {
+        match self {
+            Transform3dStep::Translate(v3) => Transform3dStep::translate(-v3.v),
+            Transform3dStep::Rotate(r3) => {
+                Transform3dStep::rotate_around(&r3.axis, r3.angle_pi.scale(-1.0), r3.origin)
+            }
+            Transform3dStep::Scale(v3) => Transform3dStep::scale(1.0 / v3.v),
+        }
+    }
+
+    fn scale(v: Vec3) -> Transform3dStep {
+        Transform3dStep::Scale(V3 { v })
     }
 }
 

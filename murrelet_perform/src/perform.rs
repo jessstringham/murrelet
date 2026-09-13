@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use glam::{Vec2, vec2};
 use lerpable::Lerpable;
 use murrelet_common::{
@@ -18,7 +17,7 @@ use murrelet_common::run_id;
 use std::path::{Path, PathBuf};
 
 use murrelet_livecode::livecode::LivecodeFromWorld;
-use murrelet_livecode::livecode::*;
+use murrelet_livecode::{livecode::*, livecode_default};
 use murrelet_livecode_derive::Livecode;
 
 use crate::asset_loader::*;
@@ -85,12 +84,6 @@ impl SvgDrawConfig {
         }
     }
 
-    /// The headless `SvgDrawConfig` the windowed-GPU sketches hand-build in their
-    /// `IsHeadlessGraphic::prepare` (no `svg_save_path` from the harness offscreen):
-    /// an 8-arg `HTML` config sized to the render dims, no capture path, frame 0.
-    /// Centralizes the form every drawer-fed GPU sketch copied byte-for-byte
-    /// except its dims (PLAN-64 candidate 2). `dims` is `[width, height]` (matches
-    /// `GraphicsWindowConf::dims()`).
     pub fn for_headless(dims: [u32; 2]) -> SvgDrawConfig {
         SvgDrawConfig::new(
             dims[0] as f32,
@@ -211,150 +204,187 @@ pub fn _default_false() -> bool {
     false
 }
 
-fn _default_seed_val() -> f32 {
-    42.0
-}
-fn _default_seed() -> ControlF32 {
-    _default_seed_val().to_control()
-}
-fn _default_seed_lazy() -> ControlLazyNodeF32 {
-    _default_seed_val().to_control_lazy()
-}
+// fn _default_seed_val() -> f32 {
+//     42.0
+// }
+// fn _default_seed() -> ControlF32 {
+//     _default_seed_val().to_control()
+// }
+// fn _default_seed_lazy() -> ControlLazyNodeF32 {
+//     _default_seed_val().to_control_lazy()
+// }
 
-fn _default_width_val() -> f32 {
-    400.0
-}
-fn _default_width() -> ControlF32 {
-    _default_width_val().to_control()
-}
-fn _default_width_lazy() -> ControlLazyNodeF32 {
-    _default_width_val().to_control_lazy()
-}
+livecode_default!(_default_seed: f32 = 42.0);
 
-fn _default_bpm_val() -> f32 {
-    90.0
-}
-fn _default_bpm() -> ControlF32 {
-    _default_bpm_val().to_control()
-}
-fn _default_bpm_lazy() -> ControlLazyNodeF32 {
-    _default_bpm_val().to_control_lazy()
-}
+// fn _default_width_val() -> f32 {
+//     400.0
+// }
+// fn _default_width() -> ControlF32 {
+//     _default_width_val().to_control()
+// }
+// fn _default_width_lazy() -> ControlLazyNodeF32 {
+//     _default_width_val().to_control_lazy()
+// }
 
-fn _default_fps_val() -> f32 {
-    30.0
-}
-fn _default_fps() -> ControlF32 {
-    _default_fps_val().to_control()
-}
-fn _default_fps_lazy() -> ControlLazyNodeF32 {
-    _default_fps_val().to_control_lazy()
-}
+livecode_default!(_default_width: f32 = 400.0);
 
-fn _default_beats_per_bar_val() -> f32 {
-    4.0
-}
-fn _default_beats_per_bar() -> ControlF32 {
-    _default_beats_per_bar_val().to_control()
-}
-fn _default_beats_per_bar_lazy() -> ControlLazyNodeF32 {
-    _default_beats_per_bar_val().to_control_lazy()
-}
+// fn _default_bpm_val() -> f32 {
+//     90.0
+// }
+// fn _default_bpm() -> ControlF32 {
+//     _default_bpm_val().to_control()
+// }
+// fn _default_bpm_lazy() -> ControlLazyNodeF32 {
+//     _default_bpm_val().to_control_lazy()
+// }
 
-fn _default_bg_alpha() -> ControlF32 {
-    #[cfg(feature = "for_the_web")]
-    {
-        ControlF32::Raw(1.0) // also not really used on the web atm
-    }
-    #[cfg(not(feature = "for_the_web"))]
-    {
-        ControlF32::force_from_str("slog(m15, -5.0, 0.0)")
-    }
-}
+livecode_default!(_default_bpm: f32 = 90.0);
 
-fn _default_bg_alpha_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Float(1.0)
-}
+// fn _default_fps_val() -> f32 {
+//     30.0
+// }
+// fn _default_fps() -> ControlF32 {
+//     _default_fps_val().to_control()
+// }
+// fn _default_fps_lazy() -> ControlLazyNodeF32 {
+//     _default_fps_val().to_control_lazy()
+// }
 
-fn _default_capture_frame() -> ControlBool {
-    #[cfg(feature = "for_the_web")]
-    {
-        ControlBool::Raw(false) // can't actually capture the frame..
-    }
-    #[cfg(not(feature = "for_the_web"))]
-    {
-        ControlBool::force_from_str("kSf")
-    }
-} // usually want to leave this as midi
+livecode_default!(_default_fps: f32 = 30.0);
 
-fn _default_capture_frame_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Bool(false)
-}
+// fn _default_beats_per_bar_val() -> f32 {
+//     4.0
+// }
+// fn _default_beats_per_bar() -> ControlF32 {
+//     _default_beats_per_bar_val().to_control()
+// }
+// fn _default_beats_per_bar_lazy() -> ControlLazyNodeF32 {
+//     _default_beats_per_bar_val().to_control_lazy()
+// }
 
-fn _default_clear_bg() -> ControlBool {
-    #[cfg(feature = "for_the_web")]
-    {
-        ControlBool::Raw(false)
-    }
-    #[cfg(not(feature = "for_the_web"))]
-    {
-        ControlBool::force_from_str("m12") // todo, make this relax if missing
-    }
-} // usually want to leave this as midi
+livecode_default!(_default_beats_per_bar: f32 = 4.0);
 
-fn _default_clear_bg_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Bool(true)
-}
+// fn _default_bg_alpha() -> ControlF32 {
+//     #[cfg(feature = "for_the_web")]
+//     {
+//         ControlF32::Raw(1.0) // also not really used on the web atm
+//     }
+//     #[cfg(not(feature = "for_the_web"))]
+//     {
+//         ControlF32::force_from_str("slog(m15, -5.0, 0.0)")
+//     }
+// }
 
-fn _default_bg_color_val() -> MurreletColor {
-    MurreletColor::hsva(0.0, 0.0, 0.0, 1.0)
-}
-fn _default_bg_color() -> ControlMurreletColor {
-    _default_bg_color_val().to_control()
-}
-fn _default_bg_color_lazy() -> ControlLazyMurreletColor {
-    _default_bg_color_val().to_control_lazy()
-}
+// fn _default_bg_alpha_lazy() -> ControlLazyNodeF32 {
+//     ControlLazyNodeF32::Float(1.0)
+// }
 
-fn _default_svg_size_val() -> f32 {
-    100.0
-}
-fn _default_svg_size() -> ControlF32 {
-    _default_svg_size_val().to_control()
-}
-fn _default_svg_size_lazy() -> ControlLazyNodeF32 {
-    _default_svg_size_val().to_control_lazy()
-}
+livecode_default!(_default_bg_alpha: f32 = 1.0);
 
-fn _default_svg_save_val() -> bool {
-    false
-}
-fn _default_svg_save() -> ControlBool {
-    _default_svg_save_val().to_control()
-}
-fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
-    _default_svg_save_val().to_control_lazy()
-}
+// fn _default_capture_frame() -> ControlBool {
+//     #[cfg(feature = "for_the_web")]
+//     {
+//         ControlBool::Raw(false) // can't actually capture the frame..
+//     }
+//     #[cfg(not(feature = "for_the_web"))]
+//     {
+//         ControlBool::force_from_str("kSf")
+//     }
+// } // usually want to leave this as midi
 
-fn _default_svg_stroke_width_val() -> f32 {
-    0.0
-}
-fn _default_svg_stroke_width() -> ControlF32 {
-    _default_svg_stroke_width_val().to_control()
-}
-fn _default_svg_stroke_width_lazy() -> ControlLazyNodeF32 {
-    _default_svg_stroke_width_val().to_control_lazy()
-}
+// fn _default_capture_frame_lazy() -> ControlLazyNodeF32 {
+//     ControlLazyNodeF32::Bool(false)
+// }
 
-fn _default_svg_colors_as_layers_val() -> bool {
-    false
-}
-fn _default_svg_colors_as_layers() -> ControlBool {
-    _default_svg_colors_as_layers_val().to_control()
-}
-fn _default_svg_colors_as_layers_lazy() -> ControlLazyNodeF32 {
-    _default_svg_colors_as_layers_val().to_control_lazy()
-}
+
+#[cfg(feature = "for_the_web")]
+livecode_default!(_default_capture_frame: bool = false);
+#[cfg(not(feature = "for_the_web"))]
+livecode_default!(_default_capture_frame = ControlBool: ControlBool::force_from_str("kSf"), ControlLazyNodeF32: ControlLazyNodeF32::Bool(false));
+
+
+
+// fn _default_clear_bg() -> ControlBool {
+//     #[cfg(feature = "for_the_web")]
+//     {
+//         ControlBool::Raw(false)
+//     }
+//     #[cfg(not(feature = "for_the_web"))]
+//     {
+//         ControlBool::force_from_str("m12") // todo, make this relax if missing
+//     }
+// } // usually want to leave this as midi
+
+
+#[cfg(feature = "for_the_web")]
+livecode_default!(_default_clear_bg: bool = false);
+#[cfg(not(feature = "for_the_web"))]
+livecode_default!(_default_clear_bg = ControlBool: ControlBool::force_from_str("m12"), ControlLazyNodeF32: ControlLazyNodeF32::Bool(true));
+
+
+// fn _default_clear_bg_lazy() -> ControlLazyNodeF32 {
+//     ControlLazyNodeF32::Bool(true)
+// }
+
+// fn _default_bg_color_val() -> MurreletColor {
+//     MurreletColor::hsva(0.0, 0.0, 0.0, 1.0)
+// }
+// fn _default_bg_color() -> ControlMurreletColor {
+//     _default_bg_color_val().to_control()
+// }
+// fn _default_bg_color_lazy() -> ControlLazyMurreletColor {
+//     _default_bg_color_val().to_control_lazy()
+// }
+
+livecode_default!(_default_bg_color: MurreletColor = MurreletColor::black());
+
+// fn _default_svg_size_val() -> f32 {
+//     100.0
+// }
+// fn _default_svg_size() -> ControlF32 {
+//     _default_svg_size_val().to_control()
+// }
+// fn _default_svg_size_lazy() -> ControlLazyNodeF32 {
+//     _default_svg_size_val().to_control_lazy()
+// }
+
+livecode_default!(_default_svg_size: f32 = 100.0);
+
+// fn _default_svg_save_val() -> bool {
+//     false
+// }
+// fn _default_svg_save() -> ControlBool {
+//     _default_svg_save_val().to_control()
+// }
+// fn _default_svg_save_lazy() -> ControlLazyNodeF32 {
+//     _default_svg_save_val().to_control_lazy()
+// }
+
+livecode_default!(_default_svg_save: bool = false);
+
+// fn _default_svg_stroke_width_val() -> f32 {
+//     0.0
+// }
+// fn _default_svg_stroke_width() -> ControlF32 {
+//     _default_svg_stroke_width_val().to_control()
+// }
+// fn _default_svg_stroke_width_lazy() -> ControlLazyNodeF32 {
+//     _default_svg_stroke_width_val().to_control_lazy()
+// }
+
+livecode_default!(_default_svg_stroke_width: f32 = 0.0);
+
+// fn _default_svg_colors_as_layers_val() -> bool {
+//     false
+// }
+// fn _default_svg_colors_as_layers() -> ControlBool {
+//     _default_svg_colors_as_layers_val().to_control()
+// }
+// fn _default_svg_colors_as_layers_lazy() -> ControlLazyNodeF32 {
+//     _default_svg_colors_as_layers_val().to_control_lazy()
+// }
+
+livecode_default!(_default_svg_colors_as_layers: bool = false);
 
 impl Default for ControlAppConfigTiming {
     fn default() -> Self {
@@ -467,56 +497,61 @@ impl Default for ControlLazySvgConfig {
 }
 
 // set this in websites!
-fn _default_svg_kind_val() -> SvgSaveKind {
-    SvgSaveKind::Inkscape
-}
-fn _default_svg_kind_lazy() -> ControlLazySvgSaveKind {
-    _default_svg_kind_val().to_control_lazy()
-}
-fn _default_svg_kind() -> ControlSvgSaveKind {
-    _default_svg_kind_val().to_control()
-}
+// fn _default_svg_kind_val() -> SvgSaveKind {
+//     SvgSaveKind::Inkscape
+// }
+// fn _default_svg_kind_lazy() -> ControlLazySvgSaveKind {
+//     _default_svg_kind_val().to_control_lazy()
+// }
+// fn _default_svg_kind() -> ControlSvgSaveKind {
+//     _default_svg_kind_val().to_control()
+// }
 
-fn _default_gpu_debug_next() -> ControlBool {
-    #[cfg(feature = "for_the_web")]
-    {
-        ControlBool::Raw(false)
-    }
-    #[cfg(not(feature = "for_the_web"))]
-    {
-        ControlBool::force_from_str("kFf")
-    }
-}
+livecode_default!(_default_svg_kind: SvgSaveKind = SvgSaveKind::Inkscape);
 
-fn _default_gpu_debug() -> ControlBool {
-    #[cfg(feature = "for_the_web")]
-    {
-        ControlBool::Raw(false)
-    }
-    #[cfg(not(feature = "for_the_web"))]
-    {
-        ControlBool::force_from_str("kDf")
-    }
-}
+// fn _default_gpu_debug() -> ControlBool {
+//     #[cfg(feature = "for_the_web")]
+//     {
+//         ControlBool::Raw(false)
+//     }
+//     #[cfg(not(feature = "for_the_web"))]
+//     {
+//         ControlBool::force_from_str("kDf")
+//     }
+// }
 
-fn _default_gpu_color_channel_val() -> usize {
-    0
-}
-fn _default_gpu_color_channel() -> ControlF32 {
-    _default_gpu_color_channel_val().to_control()
-}
+#[cfg(feature = "for_the_web")]
+livecode_default!(_default_gpu_debug: bool = false);
+#[cfg(not(feature = "for_the_web"))]
+livecode_default!(_default_gpu_debug = ControlBool: ControlBool::force_from_str("kFf"), ControlLazyNodeF32: ControlLazyNodeF32::Bool(false));
 
-fn _default_gpu_debug_next_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Bool(false)
-}
+// fn _default_gpu_color_channel_val() -> usize {
+//     0
+// }
+// fn _default_gpu_color_channel() -> ControlF32 {
+//     _default_gpu_color_channel_val().to_control()
+// }
 
-fn _default_gpu_debug_lazy() -> ControlLazyNodeF32 {
-    ControlLazyNodeF32::Bool(false)
-}
+livecode_default!(_default_gpu_color_channel: usize = 0);
 
-fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
-    _default_gpu_color_channel_val().to_control_lazy()
-}
+#[cfg(feature = "for_the_web")]
+livecode_default!(_default_gpu_debug_next: bool = false);
+#[cfg(not(feature = "for_the_web"))]
+livecode_default!(_default_gpu_debug_next = ControlBool: ControlBool::force_from_str("kFf"), ControlLazyNodeF32: ControlLazyNodeF32::Bool(false));
+
+// fn _default_gpu_debug_next_lazy() -> ControlLazyNodeF32 {
+//     ControlLazyNodeF32::Bool(false)
+// }
+
+// fn _default_gpu_debug_lazy() -> ControlLazyNodeF32 {
+//     ControlLazyNodeF32::Bool(false)
+// }
+
+// fn _default_gpu_color_channel_lazy() -> ControlLazyNodeF32 {
+//     _default_gpu_color_channel_val().to_control_lazy()
+// }
+
+// livecode_default!(_default_gpu_color_channel: usize = 0);
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Livecode, MurreletGUI, Lerpable)]
@@ -1415,12 +1450,18 @@ pub trait WithDrawerUpdator<ControlDrawingConfType> {
         Ok(Self::new_from_parts(app.to_control(), drawing_conf))
     }
 
-    fn from_regular<DrawingConfType>(app: &AppConfig, drawing_conf: &DrawingConfType) -> LivecodeResult<Self>
+    fn from_regular<DrawingConfType>(
+        app: &AppConfig,
+        drawing_conf: &DrawingConfType,
+    ) -> LivecodeResult<Self>
     where
         Self: Sized,
-        DrawingConfType: LivecodeToControl<ControlDrawingConfType>
+        DrawingConfType: LivecodeToControl<ControlDrawingConfType>,
     {
-        Ok(Self::new_from_parts(app.to_control(), drawing_conf.to_control()))
+        Ok(Self::new_from_parts(
+            app.to_control(),
+            drawing_conf.to_control(),
+        ))
     }
 
     fn parse_drawer(text: &str)
