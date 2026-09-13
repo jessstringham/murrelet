@@ -1,7 +1,7 @@
 use std::{collections::HashMap, f64::consts::PI, fmt::Debug, sync::Arc};
 
 use evalexpr::*;
-use glam::{Vec2, vec2};
+use glam::{Vec2, Vec3, vec2, vec3};
 use itertools::Itertools;
 use murrelet_common::{
     AnglePi, IdxInRange, IdxInRange2d, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range,
@@ -20,6 +20,23 @@ fn expr_as_vec2(v: &Value) -> EvalexprResult<Vec2> {
 
 fn expr_from_vec2(v: Vec2) -> Value {
     Value::Tuple(vec![Value::Float(v.x as f64), Value::Float(v.y as f64)])
+}
+
+fn expr_from_vec3(v: Vec3) -> Value {
+    Value::Tuple(vec![
+        Value::Float(v.x as f64),
+        Value::Float(v.y as f64),
+        Value::Float(v.z as f64),
+    ])
+}
+
+fn expr_as_vec3(v: &Value) -> EvalexprResult<Vec3> {
+    let t = v.as_fixed_len_tuple(3)?;
+    Ok(vec3(
+        t[0].as_number()? as f32,
+        t[1].as_number()? as f32,
+        t[2].as_number()? as f32,
+    ))
 }
 
 pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
@@ -98,7 +115,8 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         "slog" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
             let (src, out_min, out_max) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
-            let f = map_range(src, 0.0, 1.0, 10.0f64.powf(out_min), 10.0f64.powf(out_max));
+            let f = map_range(src, 0.0, 1.0, out_min, out_max);
+            let f = 10.0f64.powf(i);
             Ok(Value::Float(f as f64))
         }),
         "remap" => Function::new(move |argument| {
@@ -301,59 +319,160 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         }),
         // some vec2 things
         "v" => Function::new(move |argument| {
-            let t = argument.as_fixed_len_tuple(2)?;
-            Ok(Value::Tuple(vec![
-                Value::Float(t[0].as_number()?),
-                Value::Float(t[1].as_number()?),
-            ]))
+            if let Ok(v2) = expr_as_vec2(argument) {
+                Ok(expr_from_vec2(v2))
+            } else {
+                let v3 = expr_as_vec3(argument)?;
+                Ok(expr_from_vec3(v3))
+            }
         }),
-        // todo, add vaddyz and add support for tuple(3)
         "vadd" => Function::new(move |argument| {
-            let t = argument.as_fixed_len_tuple(2)?;
-            Ok(expr_from_vec2(expr_as_vec2(&t[0])? + expr_as_vec2(&t[1])?))
+            let v = argument.as_fixed_len_tuple(2)?;
+
+            if let (Ok(v2a), Ok(v2b)) = (expr_as_vec2(&v[0]), expr_as_vec2(&v[1])) {
+                Ok(expr_from_vec2(v2a + v2b))
+            } else {
+                let v2a = expr_as_vec3(&v[0])?;
+                let v2b = expr_as_vec3(&v[1])?;
+                let v = v2a + v2b;
+                Ok(expr_from_vec3(v))
+            }
         }),
         "vaddx" => Function::new(move |argument| {
             let t = argument.as_fixed_len_tuple(2)?;
             let val = t[1].as_number()? as f32;
-            Ok(expr_from_vec2(expr_as_vec2(&t[0])? + vec2(val, 0.0)))
+
+            if let Ok(v2) = expr_as_vec2(&t[0]) {
+                Ok(expr_from_vec2(v2 + vec2(val, 0.0)))
+            } else {
+                let v3 = expr_as_vec3(&t[0])?;
+                Ok(expr_from_vec3(v3+ vec3(val, 0.0, 0.0)))
+            }
         }),
         "vaddy" => Function::new(move |argument| {
             let t = argument.as_fixed_len_tuple(2)?;
             let val = t[1].as_number()? as f32;
-            Ok(expr_from_vec2(expr_as_vec2(&t[0])? + vec2(0.0, val)))
+
+            if let Ok(v2) = expr_as_vec2(&t[0]) {
+                Ok(expr_from_vec2(v2 + vec2(0.0, val)))
+            } else {
+                let v3 = expr_as_vec3(&t[0])?;
+                Ok(expr_from_vec3(v3 + vec3(0.0, val, 0.0)))
+            }
+        }),
+        "vaddz" => Function::new(move |argument| {
+            let t = argument.as_fixed_len_tuple(2)?;
+            let val = t[1].as_number()? as f32;
+
+            let v3 = expr_as_vec3(&t[0])?;
+
+            Ok(expr_from_vec3(v3 + vec3(0.0, 0.0, val)))
         }),
         "vsub" => Function::new(move |argument| {
-            let t = argument.as_fixed_len_tuple(2)?;
-            Ok(expr_from_vec2(expr_as_vec2(&t[0])? - expr_as_vec2(&t[1])?))
+            let v = argument.as_fixed_len_tuple(2)?;
+
+            if let (Ok(v2a), Ok(v2b)) = (expr_as_vec2(&v[0]), expr_as_vec2(&v[1])) {
+                Ok(expr_from_vec2(v2a - v2b))
+            } else {
+                let v2a = expr_as_vec3(&v[0])?;
+                let v2b = expr_as_vec3(&v[1])?;
+                let v = v2a - v2b;
+                Ok(expr_from_vec3(v))
+            }
         }),
         "vsubx" => Function::new(move |argument| {
             let t = argument.as_fixed_len_tuple(2)?;
             let val = t[1].as_number()? as f32;
-            Ok(expr_from_vec2(expr_as_vec2(&t[0])? - vec2(val, 0.0)))
+
+            if let Ok(v2) = expr_as_vec2(&t[0]) {
+                Ok(expr_from_vec2(v2 - vec2(val, 0.0)))
+            } else {
+                let v3 = expr_as_vec3(&t[0])?;
+                Ok(expr_from_vec3(v3- vec3(val, 0.0, 0.0)))
+            }
         }),
         "vsuby" => Function::new(move |argument| {
             let t = argument.as_fixed_len_tuple(2)?;
             let val = t[1].as_number()? as f32;
-            Ok(expr_from_vec2(expr_as_vec2(&t[0])? - vec2(0.0, val)))
+
+            if let Ok(v2) = expr_as_vec2(&t[0]) {
+                Ok(expr_from_vec2(v2 - vec2(0.0, val)))
+            } else {
+                let v3 = expr_as_vec3(&t[0])?;
+                Ok(expr_from_vec3(v3 - vec3(0.0, val, 0.0)))
+            }
         }),
-        "vscale" => Function::new(move |argument| {
+        "vsubz" => Function::new(move |argument| {
             let t = argument.as_fixed_len_tuple(2)?;
-            let (a, k) = (expr_as_vec2(&t[0])?, t[1].as_number()? as f32);
-            Ok(expr_from_vec2(a * k))
+            let val = t[1].as_number()? as f32;
+
+            let v3 = expr_as_vec3(&t[0])?;
+
+            Ok(expr_from_vec3(v3 - vec3(0.0, 0.0, val)))
+        }),
+
+        "vscale" => Function::new(move |argument| {
+            let v = argument.as_fixed_len_tuple(2)?;
+            let k = v[1].as_number()? as f32;
+
+            if let Ok(v2) = expr_as_vec2(&v[0]) {
+                Ok(expr_from_vec2(k * v2))
+            } else {
+                let v3 = expr_as_vec3(&v[0])?;
+                Ok(expr_from_vec3(k * v3))
+            }
         }),
         "vlerp" => Function::new(move |argument| {
-            let t = argument.as_fixed_len_tuple(3)?;
-            let (a, b, pct) = (expr_as_vec2(&t[0])?, expr_as_vec2(&t[1])?, t[2].as_number()? as f32);
-            Ok(expr_from_vec2(a.lerp(b, pct)))
+            let v = argument.as_fixed_len_tuple(3)?;
+            let pct = v[2].as_number()? as f32;
+
+            if let (Ok(a), Ok(b)) = (expr_as_vec2(&v[0]), expr_as_vec2(&v[1])) {
+                Ok(expr_from_vec2(a.lerp(b, pct)))
+            } else {
+                let a = expr_as_vec3(&v[0])?;
+                let b = expr_as_vec3(&v[1])?;
+                Ok(expr_from_vec3(a.lerp(b, pct)))
+            }
         }),
+
+
+
+        // "vlerp" => Function::new(move |argument| {
+        //     let t = argument.as_fixed_len_tuple(3)?;
+        //     let (a, b, pct) = (expr_as_vec2(&t[0])?, expr_as_vec2(&t[1])?, t[2].as_number()? as f32);
+        //     Ok(expr_from_vec2(a.lerp(b, pct)))
+        // }),
+        // "vrot" => Function::new(move |argument| {
+        //     let t = argument.as_fixed_len_tuple(2)?;
+        //     let (a, angle) = (expr_as_vec2(&t[0])?, t[1].as_number()? as f32);
+        //     Ok(expr_from_vec2(AnglePi::new(angle).rotate_vec2(a)))
+        // }),
+
+
+
         "vrot" => Function::new(move |argument| {
-            let t = argument.as_fixed_len_tuple(2)?;
-            let (a, angle) = (expr_as_vec2(&t[0])?, t[1].as_number()? as f32);
-            Ok(expr_from_vec2(AnglePi::new(angle).rotate_vec2(a)))
+            let v = argument.as_fixed_len_tuple(2)?;
+            let angle = AnglePi::new(v[1].as_number()? as f32);
+
+            let a = expr_as_vec2(&v[0])?;
+            Ok(expr_from_vec2(angle.rotate_vec2(a)))
+
         }),
+
+        // "vlen" => Function::new(move |argument| {
+        //     Ok(Value::Float(expr_as_vec2(argument)?.length() as f64))
+        // })
+
         "vlen" => Function::new(move |argument| {
-            Ok(Value::Float(expr_as_vec2(argument)?.length() as f64))
-        })
+            if let Ok(v2) = expr_as_vec2(&argument) {
+                Ok(Value::Float(v2.length() as f64))
+            } else {
+                let v3 = expr_as_vec3(&argument)?;
+                Ok(Value::Float(v3.length() as f64))
+            }
+        }),
+
+
     }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err)})
 }
 

@@ -296,13 +296,10 @@ livecode_default!(_default_bg_alpha: f32 = 1.0);
 //     ControlLazyNodeF32::Bool(false)
 // }
 
-
 #[cfg(feature = "for_the_web")]
 livecode_default!(_default_capture_frame: bool = false);
 #[cfg(not(feature = "for_the_web"))]
 livecode_default!(_default_capture_frame = ControlBool: ControlBool::force_from_str("kSf"), ControlLazyNodeF32: ControlLazyNodeF32::Bool(false));
-
-
 
 // fn _default_clear_bg() -> ControlBool {
 //     #[cfg(feature = "for_the_web")]
@@ -315,12 +312,10 @@ livecode_default!(_default_capture_frame = ControlBool: ControlBool::force_from_
 //     }
 // } // usually want to leave this as midi
 
-
 #[cfg(feature = "for_the_web")]
 livecode_default!(_default_clear_bg: bool = false);
 #[cfg(not(feature = "for_the_web"))]
 livecode_default!(_default_clear_bg = ControlBool: ControlBool::force_from_str("m12"), ControlLazyNodeF32: ControlLazyNodeF32::Bool(true));
-
 
 // fn _default_clear_bg_lazy() -> ControlLazyNodeF32 {
 //     ControlLazyNodeF32::Bool(true)
