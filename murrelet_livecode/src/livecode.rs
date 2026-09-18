@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::expr::expr_as_vec4;
 use crate::lazy::ControlLazyNodeF32;
 use crate::lazy::LazyNodeF32;
 use crate::state::LivecodeWorldState;
@@ -266,12 +267,21 @@ impl LivecodeToControl<[ControlF32; 4]> for MurreletColor {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlMurreletColor {
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
+    Expr(ExprNode),
     Hsva([ControlF32; 4]),
     Hsv([ControlF32; 3]),
-    Named(String),
-    Rgba { rgb: [ControlF32; 3], a: ControlF32 },
-    Gray { gray: ControlF32 },
-    Hue { hue: ControlF32 },
+    // Named(String),
+    Rgba {
+        rgb: [ControlF32; 3],
+        a: ControlF32,
+    },
+    Gray {
+        gray: ControlF32,
+    },
+    Hue {
+        hue: ControlF32,
+    },
 }
 
 impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
@@ -299,7 +309,13 @@ impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
             )),
             ControlMurreletColor::Gray { gray } => Ok(MurreletColor::gray(gray.o(w)?)),
             ControlMurreletColor::Hue { hue } => Ok(MurreletColor::hue(hue.o(w)?)),
-            ControlMurreletColor::Named(name) => named_color_string(name),
+            // ControlMurreletColor::Named(name) => named_color_string(name),
+            ControlMurreletColor::Expr(expr_node) => {
+                let v = expr_node.eval_with_context(w).to_lc_err()?;
+                let v4 = expr_as_vec4(&v).to_lc_err()?;
+                let c = MurreletColor::hsva(v4[0], v4[1], v4[2], v4[3]);
+                Ok(c)
+            }
         }
     }
 }
@@ -333,7 +349,13 @@ impl GetLivecodeIdentifiers for ControlMurreletColor {
             ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
             ControlMurreletColor::Gray { gray } => vec![gray],
             ControlMurreletColor::Hue { hue } => vec![hue],
-            ControlMurreletColor::Named(_) => vec![],
+            // ControlMurreletColor::Named(_) => vec![],
+            ControlMurreletColor::Expr(expr_node) => {
+                return expr_node
+                    .iter_variable_identifiers()
+                    .map(|x| LivecodeVariable::from_str(x))
+                    .collect_vec();
+            }
         };
         nodes
             .iter()
@@ -350,7 +372,13 @@ impl GetLivecodeIdentifiers for ControlMurreletColor {
             ControlMurreletColor::Rgba { rgb, a } => rgb.iter().chain(std::iter::once(a)).collect(),
             ControlMurreletColor::Gray { gray } => vec![gray],
             ControlMurreletColor::Hue { hue } => vec![hue],
-            ControlMurreletColor::Named(_) => vec![],
+            // ControlMurreletColor::Named(_) => vec![],
+            ControlMurreletColor::Expr(expr_node) => {
+                return expr_node
+                    .iter_function_identifiers()
+                    .map(|x| LivecodeFunction::from_str(x))
+                    .collect_vec();
+            }
         };
         nodes
             .iter()
@@ -1498,13 +1526,11 @@ pub type ControlLazyf32 = ControlLazyNodeF32;
 pub type Controlusize = ControlF32;
 pub type ControlLazyusize = ControlLazyNodeF32;
 
-
 pub type Controlbool = ControlBool;
 pub type ControlLazybool = ControlLazyNodeF32;
 
 #[macro_export]
 macro_rules! livecode_default {
-
     ($name:ident = $ctrl_ty:ty: $value:expr, $ctrl_lazy_ty:ty: $lazy_value:expr) => {
         murrelet_livecode::paste::paste! {
             pub fn $name() -> $ctrl_ty {

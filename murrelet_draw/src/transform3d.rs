@@ -262,6 +262,12 @@ pub enum Axis3d {
     V(Vec3),
     Name(MurreletString), // todo this doens't have copy...
 }
+impl Default for Axis3d {
+    fn default() -> Self {
+        Self::V(Vec3::Y)
+    }
+}
+
 impl Axis3d {
     fn new(v: Vec3) -> Self {
         Self::V(v)

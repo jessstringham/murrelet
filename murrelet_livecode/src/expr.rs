@@ -1,7 +1,7 @@
 use std::{collections::HashMap, f64::consts::PI, fmt::Debug, sync::Arc};
 
 use evalexpr::*;
-use glam::{Vec2, Vec3, vec2, vec3};
+use glam::{Vec2, Vec3, Vec4, vec2, vec3, vec4};
 use itertools::Itertools;
 use murrelet_common::{
     AnglePi, IdxInRange, IdxInRange2d, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range,
@@ -36,6 +36,25 @@ fn expr_as_vec3(v: &Value) -> EvalexprResult<Vec3> {
         t[0].as_number()? as f32,
         t[1].as_number()? as f32,
         t[2].as_number()? as f32,
+    ))
+}
+
+pub(crate) fn expr_from_vec4(v: Vec4) -> Value {
+    Value::Tuple(vec![
+        Value::Float(v.x as f64),
+        Value::Float(clamp(v.y as f64, 0.0, 1.0)),
+        Value::Float(clamp(v.z as f64, 0.0, 1.0)),
+        Value::Float(v.w as f64),
+    ])
+}
+
+pub(crate) fn expr_as_vec4(v: &Value) -> EvalexprResult<Vec4> {
+    let t = v.as_fixed_len_tuple(4)?;
+    Ok(vec4(
+        t[0].as_number()? as f32,
+        t[1].as_number()? as f32,
+        t[2].as_number()? as f32,
+        t[3].as_number()? as f32,
     ))
 }
 
@@ -115,7 +134,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         "slog" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(3)?;
             let (src, out_min, out_max) = (tuple[0].as_number()?, tuple[1].as_number()?, tuple[2].as_number()?);
-            let f = map_range(src, 0.0, 1.0, out_min, out_max);
+            let i = map_range(src, 0.0, 1.0, out_min, out_max);
             let f = 10.0f64.powf(i);
             Ok(Value::Float(f as f64))
         }),
@@ -319,13 +338,52 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         }),
         // some vec2 things
         "v" => Function::new(move |argument| {
-            if let Ok(v2) = expr_as_vec2(argument) {
-                Ok(expr_from_vec2(v2))
+            if let Ok(v) = expr_as_vec2(argument) {
+                Ok(expr_from_vec2(v))
+            } else if let Ok(v) = expr_as_vec3(argument) {
+                Ok(expr_from_vec3(v))
             } else {
-                let v3 = expr_as_vec3(argument)?;
-                Ok(expr_from_vec3(v3))
+                let v = expr_as_vec4(argument)?;
+                Ok(expr_from_vec4(v))
             }
         }),
+        "hue_add" => Function::new(move |argument| {
+            let v = argument.as_fixed_len_tuple(2)?;
+            let hue = v[1].as_number()? as f32;
+            let a = expr_as_vec4(&v[0])?;
+            let result = a + vec4(hue, 0.0, 0.0, 0.0);
+            Ok(expr_from_vec4(result))
+        }),
+        "sat_add" => Function::new(move |argument| {
+            let v = argument.as_fixed_len_tuple(2)?;
+            let sat = v[1].as_number()? as f32;
+            let a = expr_as_vec4(&v[0])?;
+            let result = a + vec4(0.0, sat, 0.0, 0.0);
+            Ok(expr_from_vec4(result))
+        }),
+        "val_add" => Function::new(move |argument| {
+            let v = argument.as_fixed_len_tuple(2)?;
+            let val = v[1].as_number()? as f32;
+            let a = expr_as_vec4(&v[0])?;
+            let result = a + vec4(0.0, 0.0, val, 0.0);
+            Ok(expr_from_vec4(result))
+        }),
+        "set_alpha" => Function::new(move |argument| {
+            let v = argument.as_fixed_len_tuple(2)?;
+            let alpha = v[1].as_number()? as f32;
+            let a = expr_as_vec4(&v[0])?;
+            let result = vec4(a.x, a.y, a.z, alpha);
+            Ok(expr_from_vec4(result))
+        }),
+
+        "darken" => Function::new(move |argument| {
+            let v = argument.as_fixed_len_tuple(2)?;
+            let amount = v[1].as_number()? as f32;
+            let a = expr_as_vec4(&v[0])?;
+            let result = a + vec4(amount * 0.1, amount, -amount, 0.0);
+            Ok(expr_from_vec4(result))
+        }),
+
         "vadd" => Function::new(move |argument| {
             let v = argument.as_fixed_len_tuple(2)?;
 

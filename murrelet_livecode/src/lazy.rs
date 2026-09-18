@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs},
+    expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs, expr_as_vec4},
     livecode::{
         ExprNode, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
         LivecodeToControlLazy, LivecodeVariable, named_color_string,
@@ -695,6 +695,8 @@ impl LazyMurreletColor {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ControlLazyMurreletColor {
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
+    Expr(ExprNode),
     Hsva(Vec<ControlLazyNodeF32>),
     Rgba {
         rgb: [ControlLazyNodeF32; 3],
@@ -706,7 +708,7 @@ pub enum ControlLazyMurreletColor {
     Hue {
         hue: ControlLazyNodeF32,
     },
-    Named(String),
+    // Named(String),
 }
 
 impl Default for ControlLazyMurreletColor {
@@ -733,7 +735,8 @@ impl ControlLazyMurreletColor {
             }
             ControlLazyMurreletColor::Gray { gray } => vec![gray],
             ControlLazyMurreletColor::Hue { hue } => vec![hue],
-            ControlLazyMurreletColor::Named(_) => vec![],
+            // ControlLazyMurreletColor::Named(_) => vec![],
+            ControlLazyMurreletColor::Expr(_) => vec![],
         }
     }
 }
@@ -769,8 +772,14 @@ impl LivecodeFromWorld<LazyMurreletColor> for ControlLazyMurreletColor {
                 LazyNodeF32::simple_number(1.0),
                 LazyNodeF32::simple_number(1.0),
             )),
-            ControlLazyMurreletColor::Named(color) => {
-                Ok(LazyMurreletColor::from_color(named_color_string(color)?))
+            // ControlLazyMurreletColor::Named(color) => {
+            //     Ok(LazyMurreletColor::from_color(named_color_string(color)?))
+            // }
+            ControlLazyMurreletColor::Expr(expr_node) => {
+                let v = expr_node.eval_with_context(w).to_lc_err()?;
+                let v4 = expr_as_vec4(&v).to_lc_err()?;
+                let c = MurreletColor::hsva(v4[0], v4[1], v4[2], v4[3]);
+                Ok(LazyMurreletColor::from_color(c))
             }
         }
     }
