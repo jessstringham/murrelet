@@ -1,11 +1,8 @@
-#![allow(dead_code)]
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
-use murrelet_common::{Angle, AnglePi, IsAngle, MurreletString, SpotOnCurve};
+use murrelet_common::*;
 use murrelet_livecode_derive::Livecode;
-
-
 
 impl Default for ControlTransform3d {
     fn default() -> Self {
@@ -173,8 +170,6 @@ impl CanBeTransformed3d for Vec<Vec3> {
     type ProjectedVersion = Vec<Vec2>;
 }
 
-
-
 #[derive(Clone, Debug, Livecode, Lerpable)]
 #[livecode(enum_tag = "untagged")]
 pub enum Axis3d {
@@ -297,18 +292,6 @@ impl Transform3dStep {
     fn scale(v: Vec3) -> Transform3dStep {
         Transform3dStep::Scale(V3 { v })
     }
-}
-
-fn transform_vec2(m: Mat4, v: Vec2) -> Vec2 {
-    let a = m.mul_vec4(vec4(v.x, v.y, 0.0, 1.0));
-    vec2(a.x, a.y)
-}
-
-fn transform_vec3(m: Mat4, v: Vec3) -> Vec3 {
-    let a = m.mul_vec4(vec4(v.x, v.y, v.z, 1.0));
-    let r = m * a;
-
-    vec3(r.x / r.w, r.y / r.w, r.z / r.w)
 }
 
 pub trait CanTransform3d {

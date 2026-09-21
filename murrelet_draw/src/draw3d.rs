@@ -46,7 +46,7 @@ impl SpotOn3d {
     pub fn from2d(spot: SpotOnCurve) -> SpotOn3d {
         SpotOn3d {
             loc: spot.loc.extend(0.0),
-            rot: Quat::from_rotation_z(spot.angle()._angle()),
+            rot: Quat::from_rotation_z(spot.angle()._angle() - std::f32::consts::FRAC_PI_2),
         }
     }
 
@@ -64,11 +64,11 @@ impl SpotOn3d {
         SpotOn3d::from_dir(self.loc(), dir)
     }
 
-    fn travel(&self, dist: f32) -> Vec3 {
+    pub fn travel(&self, dist: f32) -> Vec3 {
         self.loc + self.tangent() * dist
     }
 
-    fn to_transform3d(&self) -> Transform3d {
+    pub fn to_transform3d(&self) -> Transform3d {
         let (axis, radians) = self.rot.to_axis_angle();
 
         Transform3d::rotate(&axis, Angle::new(radians)).concat(Transform3d::translate(self.loc))
@@ -87,8 +87,7 @@ impl CanBeTransformed3d for SpotOn3d {
     }
 
     fn project(&self) -> SpotOnCurve {
-        // apply rotation to something pointing up, and see where it points
-        let dir = self.rot * Vec3::X;
+        let dir = self.tangent();
         let angle = Angle::new(dir.y.atan2(dir.x));
 
         SpotOnCurve::new(self.loc.project(), angle)
@@ -106,46 +105,10 @@ impl CanBeTransformed3d for Vec<SpotOn3d> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct SpotOn3dStrength {
-    spot: SpotOn3d,
-    strength: f32,
-}
-impl SpotOn3dStrength {
-    pub fn new(spot: SpotOn3d, strength: f32) -> Self {
-        Self { spot, strength }
-    }
-
-    pub fn strength(&self) -> f32 {
-        self.strength
-    }
-
-    pub fn spot(&self) -> SpotOn3d {
-        self.spot
-    }
-
-    pub fn loc(&self) -> Vec3 {
-        self.spot.loc
-    }
-
-    pub fn travel(&self, dist: f32) -> Vec3 {
-        // ignores strength...
-        self.spot.travel(dist)
-    }
-
-    pub fn to_transform3d(&self) -> Transform3d {
-        self.spot.to_transform3d()
-    }
-}
-
 pub trait ToVec3 {
     fn to_vec3(&self) -> Vec3;
 }
-impl ToVec3 for SpotOn3dStrength {
-    fn to_vec3(&self) -> Vec3 {
-        self.spot.to_vec3()
-    }
-}
+
 impl ToVec3 for SpotOn3d {
     fn to_vec3(&self) -> Vec3 {
         self.loc
