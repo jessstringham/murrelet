@@ -558,6 +558,10 @@ impl LazyVec3 {
 pub struct ControlLazyVec3(Vec<ControlLazyNodeF32>);
 impl LivecodeFromWorld<LazyVec3> for ControlLazyVec3 {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyVec3> {
+        if self.0.len() != 3 {
+            return Err("vec3 doesn't have 3 elements!").to_lc_err();
+        }
+
         Ok(LazyVec3::new(
             self.0[0].o(w)?,
             self.0[1].o(w)?,

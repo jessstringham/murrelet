@@ -16,3 +16,4 @@ pub mod svg_read;
 pub mod tesselate;
 pub mod transform2d;
 pub mod transform3d;
+pub mod draw3d;

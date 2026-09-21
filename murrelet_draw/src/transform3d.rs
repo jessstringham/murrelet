@@ -5,103 +5,26 @@ use lerpable::Lerpable;
 use murrelet_common::{Angle, AnglePi, IsAngle, MurreletString, SpotOnCurve};
 use murrelet_livecode_derive::Livecode;
 
-#[derive(Debug, Clone, Copy)]
-pub struct SpotOn3d {
-    loc: Vec3,
-    rot: Quat,
-}
-impl SpotOn3d {
-    pub fn new(loc: Vec3, rot: Quat) -> Self {
-        Self { loc, rot }
-    }
 
-    pub fn radial(&self) -> Vec3 {
-        self.rot * Vec3::X
-    }
-    pub fn tangent(&self) -> Vec3 {
-        self.rot * Vec3::Y
-    }
-    pub fn normal(&self) -> Vec3 {
-        self.rot * Vec3::Z
-    }
 
-    pub fn dir<A: IsAngle, B: IsAngle>(&self, around_stroke: A, splay: B) -> Vec3 {
-        let (s, c) = around_stroke.angle().sin_cos();
-        let (ss, sc) = splay.angle().sin_cos();
-        self.rot * vec3(sc * c, ss, sc * s)
-    }
-
-    pub fn from2d(spot: SpotOnCurve) -> SpotOn3d {
-        SpotOn3d {
-            loc: spot.loc.extend(0.0),
-            rot: Quat::from_rotation_z(spot.angle()._angle()),
-        }
-    }
-
-    pub fn from_dir(loc: Vec3, tangent: Vec3) -> Self {
-        let dir = tangent.normalize();
-        let rot = Quat::from_rotation_arc(Vec3::Y, dir);
-        SpotOn3d { loc, rot }
-    }
-
-    pub fn with_strength(&self, strength: f32) -> SpotOn3dStrength {
-        SpotOn3dStrength {
-            spot: self.clone(),
-            strength,
-        }
-    }
-
-    pub fn loc(&self) -> Vec3 {
-        self.loc
-    }
-
-    pub fn change_dir(&self, dir: Vec3) -> Self {
-        SpotOn3d::from_dir(self.loc(), dir)
+impl Default for ControlTransform3d {
+    fn default() -> Self {
+        Self(Default::default())
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct SpotOn3dStrength {
-    spot: SpotOn3d,
-    strength: f32,
-}
-impl SpotOn3dStrength {
-    pub fn strength(&self) -> f32 {
-        self.strength
-    }
-
-    pub fn spot(&self) -> SpotOn3d {
-        self.spot
-    }
-
-    pub fn loc(&self) -> Vec3 {
-        self.spot.loc
+impl Default for ControlLazyTransform3d {
+    fn default() -> Self {
+        Self(Default::default())
     }
 }
 
-pub trait ToVec3 {
-    fn to_vec3(&self) -> Vec3;
-}
-impl ToVec3 for SpotOn3dStrength {
-    fn to_vec3(&self) -> Vec3 {
-        self.spot.to_vec3()
-    }
-}
-impl ToVec3 for SpotOn3d {
-    fn to_vec3(&self) -> Vec3 {
-        self.loc
-    }
-}
-
-impl ToVec3 for Vec3 {
-    fn to_vec3(&self) -> Vec3 {
-        *self
-    }
-}
-
-#[derive(Clone, Debug, Livecode, Lerpable)]
+#[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct Transform3d(Vec<Transform3dStep>);
 impl Transform3d {
+    pub fn noop() -> Self {
+        Self(vec![])
+    }
     pub fn new(transform3d_steps: Vec<Transform3dStep>) -> Self {
         Self(transform3d_steps)
     }
@@ -166,6 +89,33 @@ impl Transform3d {
 
         Self(v)
     }
+
+    pub fn concat(&self, t: Transform3d) -> Transform3d {
+        let mut transforms = self.0.clone();
+        transforms.extend(t.0);
+        Transform3d(transforms)
+    }
+
+    pub fn prepend(self, t: Transform3d) -> Transform3d {
+        let mut transforms = vec![];
+        transforms.extend(t.0);
+        transforms.extend(self.0);
+        Transform3d(transforms)
+    }
+
+    pub fn scale_transform(&self) -> Transform3d {
+        let steps = self
+            .0
+            .iter()
+            .filter(|x| matches!(x, Transform3dStep::Scale(_)))
+            .cloned()
+            .collect_vec();
+        Self(steps)
+    }
+
+    pub fn scale_scalar(&self) -> f32 {
+        self.scale_transform().transform(&Vec3::ONE).x // hax?
+    }
 }
 
 pub trait IsAxis3d {
@@ -223,38 +173,7 @@ impl CanBeTransformed3d for Vec<Vec3> {
     type ProjectedVersion = Vec<Vec2>;
 }
 
-impl CanBeTransformed3d for SpotOn3d {
-    fn apply_transform3d(&self, t: &Transform3d) -> Self {
-        let loc = self.loc.apply_transform3d(t);
-        // filter for the rotation ones
-        let rotations = t.rotation_transform().rotation_quat();
-        let rot = rotations * self.rot;
 
-        Self { loc, rot }
-    }
-
-    fn project(&self) -> SpotOnCurve {
-        // apply rotation to something pointing up, and see where it points
-        let dir = self.rot * Vec3::X;
-        let angle = Angle::new(dir.y.atan2(dir.x));
-
-        SpotOnCurve::new(self.loc.project(), angle)
-    }
-
-    type ProjectedVersion = SpotOnCurve;
-}
-
-impl CanBeTransformed3d for Vec<SpotOn3d> {
-    fn apply_transform3d(&self, t: &Transform3d) -> Self {
-        self.iter().map(|x| x.apply_transform3d(t)).collect_vec()
-    }
-
-    fn project(&self) -> Vec<SpotOnCurve> {
-        self.iter().map(|x| x.project()).collect_vec()
-    }
-
-    type ProjectedVersion = Vec<SpotOnCurve>;
-}
 
 #[derive(Clone, Debug, Livecode, Lerpable)]
 #[livecode(enum_tag = "untagged")]
