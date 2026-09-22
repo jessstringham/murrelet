@@ -121,7 +121,7 @@ impl ToVec3 for Vec3 {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Copy)]
 pub struct CubicBezier3d {
     start: SpotOn3d,
     start_strength: f32,
