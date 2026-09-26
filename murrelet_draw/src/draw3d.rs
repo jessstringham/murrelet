@@ -1,4 +1,4 @@
-use glam::{Quat, Vec3, vec3};
+use glam::{Quat, Vec3};
 use itertools::Itertools;
 use murrelet_common::*;
 
@@ -37,10 +37,20 @@ impl SpotOn3d {
         self.rot * Vec3::Z
     }
 
+    fn aim<A: IsAngle, B: IsAngle>(around_stroke: A, splay: B) -> Quat {
+        Quat::from_rotation_y(-around_stroke.angle())
+            * Quat::from_rotation_z(splay.angle() - std::f32::consts::FRAC_PI_2)
+    }
+
     pub fn dir<A: IsAngle, B: IsAngle>(&self, around_stroke: A, splay: B) -> Vec3 {
-        let (s, c) = around_stroke.angle().sin_cos();
-        let (ss, sc) = splay.angle().sin_cos();
-        self.rot * vec3(sc * c, ss, sc * s)
+        self.rot * Self::aim(around_stroke, splay) * Vec3::Y
+    }
+
+    pub fn dir_spot<A: IsAngle, B: IsAngle>(&self, around_stroke: A, splay: B) -> Self {
+        Self {
+            loc: self.loc,
+            rot: (self.rot * Self::aim(around_stroke, splay)).normalize(),
+        }
     }
 
     pub fn from2d(spot: SpotOnCurve) -> SpotOn3d {
@@ -51,8 +61,12 @@ impl SpotOn3d {
     }
 
     pub fn from_dir(loc: Vec3, tangent: Vec3) -> Self {
-        let dir = tangent.normalize();
-        let rot = Quat::from_rotation_arc(Vec3::Y, dir);
+        let rot = if let Some(dir) = tangent.try_normalize() {
+            Quat::from_rotation_arc(Vec3::Y, dir)
+        } else {
+            // todo, print?
+            Quat::IDENTITY
+        };
         SpotOn3d { loc, rot }
     }
 
@@ -61,7 +75,20 @@ impl SpotOn3d {
     }
 
     pub fn change_dir(&self, dir: Vec3) -> Self {
-        SpotOn3d::from_dir(self.loc(), dir)
+        let Some(new_dir) = dir.try_normalize() else {
+            return *self;
+        };
+        let tangent = self.tangent();
+        // if we're in the very specal case of flipping, then just use the prev
+        let carry = if tangent.dot(new_dir) < -0.999_999 {
+            Quat::from_axis_angle(self.normal(), std::f32::consts::PI)
+        } else {
+            Quat::from_rotation_arc(tangent, new_dir)
+        };
+        SpotOn3d {
+            loc: self.loc,
+            rot: (carry * self.rot).normalize(),
+        }
     }
 
     pub fn travel(&self, dist: f32) -> Vec3 {
@@ -72,6 +99,14 @@ impl SpotOn3d {
         let (axis, radians) = self.rot.to_axis_angle();
 
         Transform3d::rotate(&axis, Angle::new(radians)).concat(Transform3d::translate(self.loc))
+    }
+
+    pub fn at_loc(&self, loc: Vec3) -> Self {
+        Self { loc, rot: self.rot }
+    }
+
+    pub fn rot(&self) -> Quat {
+        self.rot
     }
 }
 
@@ -150,5 +185,21 @@ impl CubicBezier3d {
         let p2 = end.loc() - end.tangent() * s * end_s;
         let p3 = end.loc();
         eval_3d_bezier(p0, p1, p2, p3, pct)
+    }
+
+    pub fn frames(&self, n: usize) -> Vec<SpotOn3d> {
+        let mut spot = self.start;
+        let mut out = Vec::with_capacity(n + 1);
+        out.push(spot);
+        for i in 1..=n {
+            let next = self.at(i as f32 / n as f32);
+            spot = spot.change_dir(next.tangent()).at_loc(next.loc());
+            out.push(spot);
+        }
+        out
+    }
+
+    pub fn start(&self) -> SpotOn3d {
+        self.start
     }
 }

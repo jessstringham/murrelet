@@ -100,6 +100,33 @@ impl MaskCacheImpl {
         // finished!
         0.5 * (left + right)
     }
+
+    fn crosses_boundary(
+        &self,
+        contains: bool,
+        left: &Vec2,
+        right: &Vec2,
+        steps: usize,
+        threshold: f32,
+    ) -> Vec2 {
+        let mut left = *left;
+        let mut right = *right;
+
+        for _ in 0..steps {
+            if left.distance(right) < threshold {
+                break;
+            }
+
+            let midpoint = 0.5 * (left + right);
+            if self.contains(&midpoint) != contains {
+                left = midpoint;
+            } else {
+                right = midpoint;
+            }
+        }
+        // finished!
+        0.5 * (left + right)
+    }
 }
 
 // fn curve_segment_maker_to_line_string(curve: &CurveDrawer, tolerance: f32) -> LivecodeResult<geo::LineString> {
@@ -130,6 +157,20 @@ impl MaskCache {
     pub fn last_point_containing(&self, left: &Vec2, right: &Vec2) -> Vec2 {
         match self {
             MaskCache::Impl(s) => s.last_point_containing(left, right),
+            MaskCache::AlwaysTrue => *right,
+        }
+    }
+
+    pub fn crosses_boundary(
+        &self,
+        contains: bool,
+        left: &Vec2,
+        right: &Vec2,
+        steps: usize,
+        threshold: f32,
+    ) -> Vec2 {
+        match self {
+            MaskCache::Impl(s) => s.crosses_boundary(contains, left, right, steps, threshold),
             MaskCache::AlwaysTrue => *right,
         }
     }

@@ -226,7 +226,7 @@ impl Rotate3 {
     }
 
     fn axis(&self) -> Vec3 {
-        self.axis.axis()
+        self.axis.axis().normalize_or(Vec3::Z)
     }
 }
 

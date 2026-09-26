@@ -7,7 +7,10 @@ use lerpable::Lerpable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    SimpleTransform2d, SimpleTransform2dStep, intersection::{find_intersection_inf, find_intersection_segments, within_segment}, transform::TransformVec2, triangulate::DefaultVertex
+    SimpleTransform2d, SimpleTransform2dStep,
+    intersection::{find_intersection_inf, find_intersection_segments, within_segment},
+    transform::TransformVec2,
+    triangulate::DefaultVertex,
 };
 
 pub fn a_pi(a: f32) -> AnglePi {
@@ -410,9 +413,7 @@ impl SpotOnCurve {
     }
 
     pub fn move_left_perp_dist(&self, length: f32) -> Vec2 {
-        self.turn_left_perp()
-            .to_line(length)
-            .to_last_point()
+        self.turn_left_perp().to_line(length).to_last_point()
     }
 
     pub fn move_left_perp_dist_spot(&self, length: f32) -> SpotOnCurve {
@@ -424,9 +425,7 @@ impl SpotOnCurve {
     }
 
     pub fn move_right_perp_dist(&self, length: f32) -> Vec2 {
-        self.turn_right_perp()
-            .to_line(length)
-            .to_last_point()
+        self.turn_right_perp().to_line(length).to_last_point()
     }
 
     // x moves along the direction, y moves left perp
@@ -493,6 +492,14 @@ impl SpotOnCurve {
 
     pub fn maybe_flip(&self, is_up: bool) -> SpotOnCurve {
         if is_up { self.flip() } else { *self }
+    }
+
+    pub fn x(&self) -> f32 {
+        self.loc.x
+    }
+
+    pub fn y(&self) -> f32 {
+        self.loc.y
     }
 }
 
@@ -839,7 +846,6 @@ pub fn sagitta_from_arc_len(radius: f32, central_angle: AnglePi) -> f32 {
     radius * (1.0 - (0.5 * central_angle.angle()).cos())
 }
 
-
 // claude, shoelace
 pub fn poly_area_signed(r: &[Vec2]) -> f32 {
     let n = r.len();
@@ -856,15 +862,13 @@ pub fn poly_area_unsigned(r: &[Vec2]) -> f32 {
     poly_area_signed(r).abs()
 }
 
-
 pub fn point_in_polygon(pts: &[Vec2], p: Vec2) -> bool {
     let n = pts.len();
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
         let (pi, pj) = (pts[i], pts[j]);
-        if (pi.y > p.y) != (pj.y > p.y)
-            && p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x
+        if (pi.y > p.y) != (pj.y > p.y) && p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x
         {
             inside = !inside;
         }

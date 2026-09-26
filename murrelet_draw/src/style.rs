@@ -374,6 +374,7 @@ pub mod styleconf {
     #[derive(Clone, Debug, Livecode, Lerpable)]
     pub enum StyleConf {
         // Verbose(MurreletStyle),
+        Transparent,
         Texture(MurreletStyleFilledSvg),
         Fill(MurreletStyleFilled),
         Outline(MurreletStyleOutlined),
@@ -404,6 +405,7 @@ pub mod styleconf {
                 StyleConf::RGBAPoints(a) => a.to_style(),
                 StyleConf::Texture(a) => a.to_style(),
                 StyleConf::Debug => MurreletStyle::debug(),
+                StyleConf::Transparent => Self::fill(MurreletColor::transparent()).to_style(),
             }
         }
 
