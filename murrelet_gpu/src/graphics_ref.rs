@@ -727,12 +727,13 @@ impl<GraphicsConf, VertexKind: GraphicsVertex> GraphicsRefWithControlFn<Graphics
 }
 
 // for now this is just so nannou can create textures...
-#[derive(Debug)]
-pub struct TextureAndDesc {
+// (oh actually now we're going to try to use this instead of nannou textures...)
+#[derive(Debug, Clone)]
+pub struct MurreletTexture {
     pub texture: Arc<wgpu::Texture>,
     pub desc: wgpu::TextureDescriptor<'static>,
 }
-impl TextureAndDesc {
+impl MurreletTexture {
     pub fn default_view(&self) -> wgpu::TextureView {
         self.texture.create_view(&Default::default())
     }
@@ -761,8 +762,8 @@ pub struct Graphics<VertexKind> {
     sampler: wgpu::Sampler,
     bind_group_layout: wgpu::BindGroupLayout,
     // i guess need this to create nannou texture
-    pub texture_and_desc: TextureAndDesc,
-    pub other_texture_and_desc: Option<TextureAndDesc>,
+    pub texture_and_desc: MurreletTexture,
+    pub other_texture_and_desc: Option<MurreletTexture>,
     textures_for_3d: Option<TextureFor3d>,
 }
 
@@ -826,7 +827,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         dim: [u32; 2],
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
-    ) -> TextureAndDesc {
+    ) -> MurreletTexture {
         let desc = wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
                 width: dim[0],
@@ -846,7 +847,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
             view_formats: &[],
         };
 
-        TextureAndDesc {
+        MurreletTexture {
             texture: Arc::new(device.create_texture(&desc)),
             desc,
         }
@@ -1502,7 +1503,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
     }
 }
 
-pub fn quick_texture(dims: [u32; 2], device: &wgpu::Device) -> TextureAndDesc {
+pub fn quick_texture(dims: [u32; 2], device: &wgpu::Device) -> MurreletTexture {
     Graphics::<DefaultVertex>::texture(dims, device, DEFAULT_TEXTURE_FORMAT)
 }
 

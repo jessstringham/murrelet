@@ -20,3 +20,4 @@ pub use wgpu_for_latest as wgpu;
 pub use headless_harness::{HeadlessHarness, HeadlessJob};
 pub use murrelet_draw::drawable::ToMixedDrawables;
 pub use murrelet_gpu_derive::*;
+pub use graphics_ref::MurreletTexture;

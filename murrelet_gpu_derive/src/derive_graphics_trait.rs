@@ -182,7 +182,7 @@ fn parse_graphics(
                 v
             }
 
-            fn to_texture_map(&self) -> Vec<(StrId, Texture)> {
+            fn to_texture_map(&self) -> Vec<(StrId, MurreletTexture)> {
                 vec![#(#to_texture,)*]
             }
         }

@@ -16,7 +16,7 @@ use crate::device_state::{DeviceStateForRender, OwnedDeviceState};
 use crate::build_shader; // recurses by bare name, so import it directly
 use crate::gpu_macros::ShaderStr; // build_shader! expands to an unqualified ShaderStr
 use crate::graphics_ref::{
-    GraphicsCreator, GraphicsRefCustom, GraphicsVertex, TextureAndDesc, quick_texture,
+    GraphicsCreator, GraphicsRefCustom, GraphicsVertex, MurreletTexture, quick_texture,
 };
 use crate::window::GraphicsWindowConf;
 
@@ -81,7 +81,7 @@ pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
     owned: &OwnedDeviceState,
     c: &GraphicsWindowConf,
     graphic: &G,
-) -> TextureAndDesc {
+) -> MurreletTexture {
     let display = quick_texture(c.dims(), c.device());
     let display_view = display.default_view();
     let render_device = DeviceStateForRender::new(owned.to_borrowed(), display_view);
@@ -95,7 +95,7 @@ pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
 // so the final `-> DISPLAY` pass is captured exactly.
 pub fn capture_display_to_png(
     c: &GraphicsWindowConf,
-    display: &TextureAndDesc,
+    display: &MurreletTexture,
     out_path: &Path,
 ) -> Result<(), Box<dyn Error>> {
     let (dims, pixels) = render_display_rgba8(c, display)?;
@@ -132,7 +132,7 @@ pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
 // first renders a graphic into a linear texture, then delegates here.
 pub fn render_display_rgba8(
     c: &GraphicsWindowConf,
-    linear: &TextureAndDesc,
+    linear: &MurreletTexture,
 ) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
     let dims = [linear.desc.size.width, linear.desc.size.height];
     let export_c = c.with_dims(dims);

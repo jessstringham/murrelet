@@ -13,7 +13,7 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     device_state::{DeviceState, DeviceStateForRender},
-    graphics_ref::{DEFAULT_TEXTURE_FORMAT, GraphicsRefCustom, TextureAndDesc, shader_from_path},
+    graphics_ref::{DEFAULT_TEXTURE_FORMAT, GraphicsRefCustom, MurreletTexture, shader_from_path},
     uniforms::BonusUniform,
     window::GraphicsWindowConf,
 };
@@ -161,7 +161,7 @@ pub struct ComputeGraphicsToTexture {
     pub uniforms: BonusUniform,
     pub buffers: ComputeBindings,
     #[allow(dead_code)]
-    texture: TextureAndDesc,
+    texture: MurreletTexture,
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
     dims: [u32; 2],
@@ -336,7 +336,7 @@ impl ComputeGraphicsToTexture {
             view_formats: &[],
         };
 
-        let texture = TextureAndDesc {
+        let texture = MurreletTexture {
             texture: Arc::new(device.create_texture(&desc)),
             desc,
         };
