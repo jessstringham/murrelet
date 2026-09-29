@@ -23,7 +23,7 @@ use lyon::{
 use murrelet_common::{
     IsAngle, SimpleTransform2d, SimpleTransform2dStep, ToVec2, triangulate::DefaultVertex,
 };
-use murrelet_livecode::types::{LivecodeError, LivecodeResult};
+use murrelet_common::{LivecodeError, LivecodeResult};
 
 pub trait AsLyonTransform {
     fn to_lyon_transform(&self) -> Transform {
@@ -169,7 +169,11 @@ impl ToLyonPath for CubicBezier {
             return LivecodeError::rawr("nan in Bezier");
         }
 
-        builder.cubic_bezier_to(glam_to_lyon(self.ctrl1), glam_to_lyon(self.ctrl2), glam_to_lyon(self.to));
+        builder.cubic_bezier_to(
+            glam_to_lyon(self.ctrl1),
+            glam_to_lyon(self.ctrl2),
+            glam_to_lyon(self.to),
+        );
 
         Ok(false)
     }

@@ -1,7 +1,7 @@
 use glam::Vec2;
 use itertools::Itertools;
 use murrelet_common::{MurreletIterHelpers, ToSimpleTransform, Transformable};
-use murrelet_livecode::types::LivecodeResult;
+use murrelet_common::LivecodeResult;
 
 use crate::{
     curve_drawer::{CurveDrawer, ToCurveDrawer},

@@ -11,7 +11,7 @@ use crate::{
         ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, MixedEvalDefsRef,
         init_evalexpr_func_ctx,
     },
-    types::{AdditionalContextNode, LivecodeResult},
+    types::AdditionalContextNode,
     unitcells::UnitCellContext,
 };
 

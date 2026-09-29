@@ -4,13 +4,13 @@ use evalexpr::*;
 use glam::{Vec2, Vec3, Vec4, vec2, vec3, vec4};
 use itertools::Itertools;
 use murrelet_common::{
-    AnglePi, IdxInRange, IdxInRange2d, LivecodeValue, StrId, ToStrId, clamp, ease, lerp, map_range,
-    smoothstep,
+    AnglePi, IdxInRange, IdxInRange2d, LivecodeError, LivecodeResult, LivecodeValue, StrId,
+    ToStrId, clamp, ease, lerp, map_range, smoothstep,
 };
 use noise::{NoiseFn, Perlin};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
-use crate::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
+use crate::types::AdditionalContextNode;
 use regex::Regex;
 
 fn expr_as_vec2(v: &Value) -> EvalexprResult<Vec2> {
@@ -531,7 +531,7 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
         }),
 
 
-    }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err)})
+    }.map_err(|err| {LivecodeError::EvalExpr("error in init_evalexpr_func_ctx!".to_string(), err.to_string())})
 }
 
 // }),
@@ -573,7 +573,10 @@ impl ExprWorldContextValues {
             // todo, maybe handle the result here to help dev
             ctx.set_value(identifier.to_string(), lc_val_to_expr(value))
                 .map_err(|err| {
-                    LivecodeError::EvalExpr(format!("error setting value {}", identifier), err)
+                    LivecodeError::EvalExpr(
+                        format!("error setting value {}", identifier),
+                        err.to_string(),
+                    )
                 })?;
         }
         Ok(())

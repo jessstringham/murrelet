@@ -735,7 +735,7 @@ impl ToLyonPath for MurreletPath {
     fn add_to_lyon<B: lyon::path::traits::PathBuilder>(
         &self,
         builder: &mut B,
-    ) -> murrelet_livecode::types::LivecodeResult<bool> {
+    ) -> murrelet_common::LivecodeResult<bool> {
         match self {
             MurreletPath::Polyline(p) => p.to_cd_open().add_to_lyon(builder),
             MurreletPath::Curve(cd) => match &cd.cd {

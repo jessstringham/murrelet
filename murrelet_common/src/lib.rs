@@ -5,6 +5,7 @@ use itertools::Itertools;
 use lerpable::{IsLerpingMethod, Lerpable};
 use num_traits::NumCast;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use std::collections::HashMap;
 use std::hash::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -1344,5 +1345,47 @@ mod tests {
     #[should_panic(expected = "StrId name too long")]
     fn strid_panics_on_overlong_name() {
         StrId::new(&"x".repeat(MAX_STRID_LEN + 1));
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum LivecodeError {
+    #[error("{0}")]
+    Raw(String), // my custom errors
+    #[error("{0}: {1}")]
+    EvalExpr(String, String),
+    #[error("{0}: {1}")]
+    Io(String, std::io::Error),
+    #[error("nest get requested for odd thing...: {0}")]
+    NestGetExtra(String),
+    #[error("nest get requested for odd thing...: {0}")]
+    NestGetInvalid(String),
+    #[error("parse_error :: loc: {0}, err: {1}")]
+    SerdeLoc(String, String),
+    #[error("shader parse error: {0}")]
+    WGPU(String),
+    #[error("parse: {0}")]
+    JsonParse(String),
+}
+impl LivecodeError {
+    pub fn raw(s: &str) -> Self {
+        Self::Raw(s.to_string())
+    }
+
+    pub fn rawr<T>(s: &str) -> LivecodeResult<T> {
+        LivecodeResult::Err(Self::raw(s))
+    }
+}
+
+pub type LivecodeResult<T> = Result<T, LivecodeError>;
+
+pub trait ToLivecodeResult<T> {
+    fn to_lc_err(self) -> LivecodeResult<T>;
+}
+
+impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
+    #[inline]
+    fn to_lc_err(self) -> LivecodeResult<T> {
+        self.map_err(|e| LivecodeError::Raw(e.to_string()))
     }
 }

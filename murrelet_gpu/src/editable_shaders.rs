@@ -6,7 +6,7 @@ use crate::{
 };
 use lerpable::Lerpable;
 use murrelet_common::triangulate::DefaultVertex;
-use murrelet_livecode::types::{LivecodeError, LivecodeResult};
+use murrelet_common::{LivecodeError, LivecodeResult};
 use murrelet_livecode_derive::Livecode;
 use naga;
 #[cfg(feature = "nannou")]
@@ -199,7 +199,6 @@ pub trait CustomShaderString: Sized {
         }
     }
 }
-
 
 pub struct CustomShaderState<S: CustomShaderString> {
     built: S,

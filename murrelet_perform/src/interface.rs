@@ -2,7 +2,7 @@
 use murrelet_common::{LivecodeValue, MurreletAppInput};
 use murrelet_draw::drawable::MixedDrawableShape;
 use murrelet_livecode::state::LivecodeWorldState;
-use murrelet_livecode::types::LivecodeResult;
+use murrelet_common::LivecodeResult;
 use serde::Deserialize;
 
 pub trait IsDrawableMurreletModel<Conf, DrawOpts>

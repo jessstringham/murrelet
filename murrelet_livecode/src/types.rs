@@ -1,12 +1,13 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use evalexpr::{ContextWithMutableVariables, EvalexprError, HashMapContext};
+use evalexpr::ContextWithMutableVariables;
 use itertools::Itertools;
 use lerpable::{Lerpable, step};
-use murrelet_common::{IdxInRange, IdxInRange2d, LivecodeValue, StrId, print_expect};
+use murrelet_common::{
+    IdxInRange, IdxInRange2d, LivecodeError, LivecodeResult, LivecodeValue, StrId, print_expect,
+};
 use murrelet_gui::CanMakeGUI;
 use serde::{Deserialize, Deserializer, Serialize};
-use thiserror::Error;
 
 use crate::{
     expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefs, ToMixedDefs},
@@ -18,35 +19,6 @@ use crate::{
     state::LivecodeWorldState,
     unitcells::UnitCellIdx,
 };
-
-#[derive(Debug, Error)]
-pub enum LivecodeError {
-    #[error("{0}")]
-    Raw(String), // my custom errors
-    #[error("{0}: {1}")]
-    EvalExpr(String, EvalexprError),
-    #[error("{0}: {1}")]
-    Io(String, std::io::Error),
-    #[error("nest get requested for odd thing...: {0}")]
-    NestGetExtra(String),
-    #[error("nest get requested for odd thing...: {0}")]
-    NestGetInvalid(String),
-    #[error("parse_error :: loc: {0}, err: {1}")]
-    SerdeLoc(String, String),
-    #[error("shader parse error: {0}")]
-    WGPU(String),
-    #[error("parse: {0}")]
-    JsonParse(String),
-}
-impl LivecodeError {
-    pub fn raw(s: &str) -> Self {
-        Self::Raw(s.to_string())
-    }
-
-    pub fn rawr<T>(s: &str) -> LivecodeResult<T> {
-        LivecodeResult::Err(Self::raw(s))
-    }
-}
 
 pub trait IterUnwrapOrPrint<T> {
     fn iter_unwrap<U, F>(&self, err: &str, f: F) -> Vec<U>
@@ -61,19 +33,6 @@ impl<T> IterUnwrapOrPrint<T> for Vec<T> {
     {
         let res: LivecodeResult<Vec<U>> = self.iter().map(f).collect();
         print_expect(res, err).unwrap_or(vec![])
-    }
-}
-
-pub type LivecodeResult<T> = Result<T, LivecodeError>;
-
-pub trait ToLivecodeResult<T> {
-    fn to_lc_err(self) -> LivecodeResult<T>;
-}
-
-impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
-    #[inline]
-    fn to_lc_err(self) -> LivecodeResult<T> {
-        self.map_err(|e| LivecodeError::Raw(e.to_string()))
     }
 }
 
@@ -109,9 +68,9 @@ impl AdditionalContextNode {
     }
 
     pub fn eval_raw<C: ContextWithMutableVariables>(&self, ctx: &mut C) -> LivecodeResult<()> {
-        self.0
-            .eval_empty_with_context_mut(ctx)
-            .map_err(|err| LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err))
+        self.0.eval_empty_with_context_mut(ctx).map_err(|err| {
+            LivecodeError::EvalExpr("error evaluating ctx".to_owned(), err.to_string())
+        })
     }
 
     pub fn new_dummy() -> AdditionalContextNode {
@@ -1043,7 +1002,7 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
                         new_w.update_with_defs(
                             (StrId::new("vseed"), LivecodeValue::float(offset as f32))
                                 .to_mixed_def(),
-                        );
+                        )?;
                         let o = c.o(&new_w)?;
 
                         blend_with_list(&mut result, o, &mut is_blending);

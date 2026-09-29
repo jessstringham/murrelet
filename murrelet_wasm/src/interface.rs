@@ -206,9 +206,9 @@ macro_rules! basic_wrapper {
                 $ctrl_conf_top_level { app, drawing }
             }
 
-            fn parse_drawer(text: &str) -> murrelet_livecode::types::LivecodeResult<$ctrl_conf_ty> {
+            fn parse_drawer(text: &str) -> murrelet_common::LivecodeResult<$ctrl_conf_ty> {
                 serde_json::from_str(&text).map_err(|err| {
-                    murrelet_livecode::types::LivecodeError::JsonParse(err.to_string())
+                    murrelet_common::LivecodeError::JsonParse(err.to_string())
                 })
             }
 
@@ -231,7 +231,7 @@ macro_rules! basic_wrapper {
 
         // non-wasm things
         impl $model_wasm {
-            pub fn new_conf_livecode(conf: &str) -> murrelet_livecode::types::LivecodeResult<Self> {
+            pub fn new_conf_livecode(conf: &str) -> murrelet_common::LivecodeResult<Self> {
                 let app_mng = murrelet_wasm::interface::AppManager::new();
 
                 let control_config = $ctrl_conf_top_level::from_json(&app_mng.conf, conf)?;
@@ -247,7 +247,7 @@ macro_rules! basic_wrapper {
                 })
             }
 
-            pub fn new_livecode(conf: &$conf_ty) -> murrelet_livecode::types::LivecodeResult<Self> {
+            pub fn new_livecode(conf: &$conf_ty) -> murrelet_common::LivecodeResult<Self> {
                 let app_mng = murrelet_wasm::interface::AppManager::new();
 
                 let control_config = $ctrl_conf_top_level::from_regular(&app_mng.conf, conf)?;
@@ -266,7 +266,7 @@ macro_rules! basic_wrapper {
             pub fn set_config_json_internal(
                 &mut self,
                 drawer_str: &str,
-            ) -> murrelet_livecode::types::LivecodeResult<()> {
+            ) -> murrelet_common::LivecodeResult<()> {
                 let control_config =
                     $ctrl_conf_top_level::from_json(&self.app_mng.conf, drawer_str)?;
 
@@ -278,7 +278,7 @@ macro_rules! basic_wrapper {
             pub fn set_config_internal(
                 &mut self,
                 drawer_str: &$conf_ty_wrapper,
-            ) -> murrelet_livecode::types::LivecodeResult<()> {
+            ) -> murrelet_common::LivecodeResult<()> {
                 let control_config =
                     $ctrl_conf_top_level::from_regular(&self.app_mng.conf, drawer_str)?;
 
@@ -427,9 +427,9 @@ macro_rules! bonus_draw_wrapper {
         impl $model_wasm {
             pub fn parse_draw_opts(
                 conf: &str,
-            ) -> murrelet_livecode::types::LivecodeResult<$draw_opts_ty> {
+            ) -> murrelet_common::LivecodeResult<$draw_opts_ty> {
                 serde_json::from_str(&conf).map_err(|err| {
-                    murrelet_livecode::types::LivecodeError::JsonParse(err.to_string())
+                    murrelet_common::LivecodeError::JsonParse(err.to_string())
                 })
             }
         }
@@ -507,10 +507,10 @@ macro_rules! bonus_yaml_wrapper {
             fn yaml_to_control_config(
                 app: &murrelet_perform::AppConfig,
                 yaml: &str,
-            ) -> murrelet_livecode::types::LivecodeResult<$ctrl_conf_top_level> {
+            ) -> murrelet_common::LivecodeResult<$ctrl_conf_top_level> {
                 use murrelet_livecode::livecode::LivecodeToControl;
                 let drawing: $ctrl_conf_ty = serde_yaml::from_str(yaml).map_err(|err| {
-                    murrelet_livecode::types::LivecodeError::JsonParse(err.to_string())
+                    murrelet_common::LivecodeError::JsonParse(err.to_string())
                 })?;
                 Ok(<$ctrl_conf_top_level as murrelet_perform::perform::WithDrawerUpdator<
                     $ctrl_conf_ty,
@@ -519,7 +519,7 @@ macro_rules! bonus_yaml_wrapper {
 
             pub fn new_conf_yaml_livecode(
                 yaml: &str,
-            ) -> murrelet_livecode::types::LivecodeResult<Self> {
+            ) -> murrelet_common::LivecodeResult<Self> {
                 let app_mng = murrelet_wasm::interface::AppManager::new();
                 let control_config = Self::yaml_to_control_config(&app_mng.conf, yaml)?;
                 let livecode = LiveCode::new_wasm(control_config)?;
@@ -536,7 +536,7 @@ macro_rules! bonus_yaml_wrapper {
             pub fn set_config_yaml_internal(
                 &mut self,
                 yaml: &str,
-            ) -> murrelet_livecode::types::LivecodeResult<()> {
+            ) -> murrelet_common::LivecodeResult<()> {
                 let control_config = Self::yaml_to_control_config(&self.app_mng.conf, yaml)?;
                 self.livecode.update_config_directly(control_config)?;
                 // push straight to the model so a set_config + draw works without an

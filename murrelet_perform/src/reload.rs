@@ -1,15 +1,15 @@
 #![allow(dead_code)]
 use clap::Parser;
 use evalexpr::HashMapContext;
-use murrelet_common::AssetsRef;
+use murrelet_common::{AssetsRef, LivecodeError, LivecodeResult};
 use murrelet_common::{LivecodeSrc, MurreletTime};
 use murrelet_livecode::expr::init_evalexpr_func_ctx;
 use murrelet_livecode::state::*;
-use murrelet_livecode::types::{AdditionalContextNode, LivecodeError, LivecodeResult};
+use murrelet_livecode::types::AdditionalContextNode;
 
 // todo, maybe only includde this if not wasm?
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use std::path::{Path, PathBuf};
 
@@ -67,11 +67,13 @@ pub trait LiveCoderLoader: Sized {
         overrides: &[String],
     ) -> Result<Self, LivecodeError> {
         let path = filename.as_ref();
-        let mut file = fs::File::open(path)
-            .map_err(|e| LivecodeError::Io(format!("could not open config {}", path.display()), e))?;
+        let mut file = fs::File::open(path).map_err(|e| {
+            LivecodeError::Io(format!("could not open config {}", path.display()), e)
+        })?;
         let mut data = String::new();
-        std::io::Read::read_to_string(&mut file, &mut data)
-            .map_err(|e| LivecodeError::Io(format!("could not read config {}", path.display()), e))?;
+        std::io::Read::read_to_string(&mut file, &mut data).map_err(|e| {
+            LivecodeError::Io(format!("could not read config {}", path.display()), e)
+        })?;
 
         if overrides.is_empty() {
             return Self::fs_parse(&data, includes_dir);
@@ -113,7 +115,10 @@ pub trait LiveCoderLoader: Sized {
     }
 
     fn fs_config_filename() -> String {
-        BaseConfigArgs::parse().config_path.to_string_lossy().into_owned()
+        BaseConfigArgs::parse()
+            .config_path
+            .to_string_lossy()
+            .into_owned()
     }
 
     fn fs_template_foldername() -> String {
@@ -158,8 +163,10 @@ pub trait LiveCoderLoader: Sized {
         Ok(latest_time)
     }
 
-
-    fn cb_update_info(util: &mut LiveCodeUtil, result: LivecodeResult<Self>) -> Result<Self, String> {
+    fn cb_update_info(
+        util: &mut LiveCodeUtil,
+        result: LivecodeResult<Self>,
+    ) -> Result<Self, String> {
         util.reset_info();
 
         match result {
@@ -249,7 +256,9 @@ fn apply_yaml_override(root: &mut serde_yaml::Value, spec: &str) -> LivecodeResu
         .split_once('=')
         .ok_or_else(|| LivecodeError::raw(&format!("--set expects PATH=VALUE, got '{spec}'")))?;
     if path.is_empty() {
-        return Err(LivecodeError::raw(&format!("--set has an empty path: '{spec}'")));
+        return Err(LivecodeError::raw(&format!(
+            "--set has an empty path: '{spec}'"
+        )));
     }
     let parsed: serde_yaml::Value =
         serde_yaml::from_str(raw).unwrap_or_else(|_| serde_yaml::Value::String(raw.to_string()));

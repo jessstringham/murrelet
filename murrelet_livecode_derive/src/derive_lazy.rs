@@ -271,7 +271,7 @@ fn lazy_vec_for_more_defs_expr(target_iter: TokenStream2) -> TokenStream2 {
     quote! {
         #target_iter.iter()
             .map(|item| item.with_more_defs(ctx))
-            .collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
+            .collect::<murrelet_common::LivecodeResult<Vec<_>>>()?
     }
 }
 impl GenFinal for FieldTokensLazy {
@@ -295,10 +295,10 @@ impl GenFinal for FieldTokensLazy {
 
             impl murrelet_livecode::lazy::IsLazy for #lc_ident {
                 type Target = #name;
-                fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
+                fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_common::LivecodeResult<#name> {
                     Ok(#name(#(#for_world,)*))
                 }
-                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<Self> {
+                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_common::LivecodeResult<Self> {
                     Ok(Self(#(#for_more_defs,)*))
                 }
             }
@@ -332,13 +332,13 @@ impl GenFinal for FieldTokensLazy {
 
             impl murrelet_livecode::lazy::IsLazy for #lc_ident {
                 type Target = #name;
-                fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
+                fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_common::LivecodeResult<#name> {
                     Ok(#name {
                         #(#for_world,)*
                     })
                 }
 
-                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<Self> {
+                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_common::LivecodeResult<Self> {
                     Ok(Self {
                         #(#for_more_defs,)*
                     })
@@ -380,14 +380,14 @@ impl GenFinal for FieldTokensLazy {
 
             impl murrelet_livecode::lazy::IsLazy for #new_enum_ident {
                 type Target = #name;
-                fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<#name> {
+                fn eval_lazy(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_common::LivecodeResult<#name> {
                     Ok(match self {
                         #new_enum_ident::DefaultNoop => panic!("fell back to default"), // can i just remove default?
                         #(#for_world,)*
                     })
                 }
 
-                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_livecode::types::LivecodeResult<Self> {
+                fn with_more_defs(&self, ctx: &murrelet_livecode::expr::MixedEvalDefs) -> murrelet_common::LivecodeResult<Self> {
                     Ok(match self {
                         #new_enum_ident::DefaultNoop => #new_enum_ident::DefaultNoop,
                         #(#for_more_defs,)*
@@ -780,7 +780,7 @@ impl GenFinal for FieldTokensLazy {
             e => panic!("lazy3 for_world need vec something {:?}", e),
         };
         let for_more_defs = quote! {
-            self.0.iter().map(|x| x.with_more_defs(ctx)).collect::<murrelet_livecode::types::LivecodeResult<Vec<_>>>()?
+            self.0.iter().map(|x| x.with_more_defs(ctx)).collect::<murrelet_common::LivecodeResult<Vec<_>>>()?
         };
 
         let for_control_lazy = quote! { todo!("to_control_lazy: Vec fields not yet supported") };
@@ -974,7 +974,7 @@ impl FieldTokensLazy {
             quote! {
                 #new_enum_ident::#variant_ident(s) => {
                     let v = #inner_world_expr;
-                    #validate(&v).map_err(murrelet_livecode::types::LivecodeError::Raw)?;
+                    #validate(&v).map_err(murrelet_common::LivecodeError::Raw)?;
                     #name::#variant_ident(v)
                 }
             }

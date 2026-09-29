@@ -14,8 +14,7 @@ use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolyg
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
-use murrelet_common::{MurreletString, PointToPoint, SpotOnCurve, poly_area_unsigned};
-use murrelet_livecode::types::{LivecodeResult, ToLivecodeResult};
+use murrelet_common::{LivecodeResult, MurreletString, PointToPoint, SpotOnCurve, ToLivecodeResult, poly_area_unsigned};
 use std::collections::{HashMap, HashSet};
 
 use crate::convert::glam_to_geo_pt;

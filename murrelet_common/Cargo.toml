@@ -16,6 +16,7 @@ num-traits = "0.2.19"
 lerpable = { workspace = true, features = ["glam"] }
 serde = { version = "1.0.104", features = ["derive"] }
 bytemuck = { version = "1.15", features = ["derive"] }
+thiserror = "2.0.11"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

@@ -23,14 +23,14 @@ pub(crate) fn top_level_livecode(ident: syn::Ident) -> TokenStream2 {
         impl murrelet_perform::LiveCoderLoader for #control_ident {
             fn _app_config(&self) -> &murrelet_perform::perform::ControlAppConfig { &self.app }
 
-            fn parse(text: &str) -> murrelet_livecode::types::LivecodeResult<Self> {
+            fn parse(text: &str) -> murrelet_common::LivecodeResult<Self> {
                 serde_yaml::from_str(&text).map_err(|err| {
                     let line = if let Some(location) = err.location() {
                         format!("{},{}", location.line(), location.column())
                     } else {
                         "".to_owned()
                     };
-                    murrelet_livecode::types::LivecodeError::SerdeLoc(line, err.to_string())
+                    murrelet_common::LivecodeError::SerdeLoc(line, err.to_string())
                 })
             }
         }
@@ -56,9 +56,9 @@ pub(crate) fn top_level_livecode_json(ident: syn::Ident) -> TokenStream2 {
         impl murrelet_perform::LiveCoderLoader for #control_ident {
             fn _app_config(&self) -> &murrelet_perform::perform::ControlAppConfig { &self.app }
 
-            fn parse(text: &str) -> murrelet_livecode::types::LivecodeResult<Self> {
+            fn parse(text: &str) -> murrelet_common::LivecodeResult<Self> {
                 serde_json::from_str(&text).map_err(|err| {
-                    murrelet_livecode::types::LivecodeError::JsonParse(err.to_string())
+                    murrelet_common::LivecodeError::JsonParse(err.to_string())
                 })
             }
         }

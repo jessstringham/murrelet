@@ -3,7 +3,7 @@ use itertools::Itertools;
 use lerpable::Lerpable;
 use lyon::path::Path;
 use murrelet_common::*;
-use murrelet_livecode::types::LivecodeResult;
+use murrelet_common::LivecodeResult;
 use murrelet_livecode_derive::*;
 use serde::{Deserialize, Serialize};
 use svg::node::element::path::Data;

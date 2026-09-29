@@ -43,7 +43,6 @@ svg = "0.10.0"
 lyon = "0.17"
 delaunator = "1.0.2"
 # geo = "0.29.0"
-# geo = "0.29.0"
 geo = "0.32"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

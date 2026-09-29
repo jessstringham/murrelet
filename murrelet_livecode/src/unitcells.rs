@@ -12,7 +12,6 @@ use crate::expr::{ExprWorldContextValues, IntoExprWorldContext, MixedEvalDefsRef
 use crate::livecode::LivecodeFromWorld;
 use crate::state::LivecodeWorldState;
 use crate::types::AdditionalContextNode;
-use crate::types::LivecodeResult;
 
 // helps you translate between LiveCode and UnitCells
 pub struct TmpUnitCells<CtxSource: UnitCellCreator, Target> {

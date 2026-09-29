@@ -33,11 +33,11 @@ impl GenFinal for FieldTokensNestEdit {
                     // self.clone()
                 }
 
-                fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
+                fn nest_get(&self, getter: &[&str]) -> murrelet_common::LivecodeResult<String> {
                     match getter {
                         #for_nestedit_get_newtype,
                         _ => {
-                            Err(murrelet_livecode::types::LivecodeError::NestGetExtra(
+                            Err(murrelet_common::LivecodeError::NestGetExtra(
                                 format!("newtype struct {} didn't match: {}", #name_str, getter.join("."))))
                         }
                     }
@@ -80,13 +80,13 @@ impl GenFinal for FieldTokensNestEdit {
                     #name{#(#for_nestedit,)*}
                 }
 
-                fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
+                fn nest_get(&self, getter: &[&str]) -> murrelet_common::LivecodeResult<String> {
                     match getter {
                         #(#for_nestedit_get,)*
                         _ => {
                             // if we have an error, go through and check the flattened ones
                             #flatten_if_statement;
-                            Err(murrelet_livecode::types::LivecodeError::NestGetExtra(
+                            Err(murrelet_common::LivecodeError::NestGetExtra(
                                 format!("struct {} didn't match: {}", #name_str, getter.join("."))))
                         }
                     }
@@ -115,12 +115,12 @@ impl GenFinal for FieldTokensNestEdit {
                     w.clone()
                 }
 
-                fn nest_get(&self, getter: &[&str]) -> murrelet_livecode::types::LivecodeResult<String> {
+                fn nest_get(&self, getter: &[&str]) -> murrelet_common::LivecodeResult<String> {
 
                     // first check the assumption
                     match self {
                         #(#for_nestedit_get,)*
-                        _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("enum didn't match {}", getter.join("."))))
+                        _ => Err(murrelet_common::LivecodeError::NestGetExtra(format!("enum didn't match {}", getter.join("."))))
                     }
 
 
@@ -224,7 +224,7 @@ impl GenFinal for FieldTokensNestEdit {
             }
         } else {
             quote! {
-                #name::#variant_ident(_) => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(
+                #name::#variant_ident(_) => Err(murrelet_common::LivecodeError::NestGetExtra(
                     format!("non-struct enum variant payload, can't nest_get")
                 ))
             }
@@ -252,7 +252,7 @@ impl GenFinal for FieldTokensNestEdit {
         let for_nestedit_get = quote! {
             #name::#variant_ident => match getter {
                 [] => Ok(#variant_ident_str.to_string()),
-                _ => Err(murrelet_livecode::types::LivecodeError::NestGetExtra(
+                _ => Err(murrelet_common::LivecodeError::NestGetExtra(
                     "nestedit enum".to_owned()
                 )),
             }
@@ -467,7 +467,7 @@ impl GenFinal for FieldTokensNestEdit {
                 if let Some(first) = self.#name.iter().next() {
                     first.node.nest_get(rest)
                 } else {
-                    Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("unitcell is empty: {}", getter.join("."))))
+                    Err(murrelet_common::LivecodeError::NestGetExtra(format!("unitcell is empty: {}", getter.join("."))))
                 }
             }
         };
@@ -477,7 +477,7 @@ impl GenFinal for FieldTokensNestEdit {
                 if let Some(first) = self.0.iter().next() {
                     first.node.nest_get(rest)
                 } else {
-                    Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("unitcell is empty: {}", getter.join("."))))
+                    Err(murrelet_common::LivecodeError::NestGetExtra(format!("unitcell is empty: {}", getter.join("."))))
                 }
             }
         };
@@ -505,13 +505,13 @@ impl GenFinal for FieldTokensNestEdit {
 
         let for_nestedit_get = quote! {
             [#yaml_name, ..] => {
-                Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("lazy not implemented yet: {}", getter.join(","))))
+                Err(murrelet_common::LivecodeError::NestGetExtra(format!("lazy not implemented yet: {}", getter.join(","))))
             }
         };
 
         let for_nestedit_get_newtype = quote! {
             _ => {
-                Err(murrelet_livecode::types::LivecodeError::NestGetExtra(format!("lazy not implemented yet: {}", getter.join(","))))
+                Err(murrelet_common::LivecodeError::NestGetExtra(format!("lazy not implemented yet: {}", getter.join(","))))
             }
         };
 

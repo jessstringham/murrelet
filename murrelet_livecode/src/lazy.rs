@@ -4,11 +4,10 @@ use crate::{
     expr::{ExprWorldContextValues, MixedEvalDefs, ToMixedDefs, expr_as_vec4},
     livecode::{
         ExprNode, GetLivecodeIdentifiers, LivecodeFromWorld, LivecodeFunction, LivecodeToControl,
-        LivecodeToControlLazy, LivecodeVariable, named_color_string,
+        LivecodeToControlLazy, LivecodeVariable,
     },
     nestedit::{NestEditable, NestedMod},
     state::LivecodeWorldState,
-    types::{LivecodeError, LivecodeResult, ToLivecodeResult},
 };
 use evalexpr::Node;
 
@@ -16,7 +15,9 @@ use glam::Vec2;
 use itertools::Itertools;
 use lerpable::IsLerpingMethod;
 use lerpable::{Lerpable, step};
-use murrelet_common::{IdxInRange, LivecodeValue, MurreletColor, MurreletString};
+use murrelet_common::{
+    IdxInRange, LivecodeError, LivecodeResult, LivecodeValue, MurreletColor, MurreletString, ToLivecodeResult,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -133,7 +134,7 @@ impl LazyNodeF32Inner {
     pub fn eval_value(&self) -> LivecodeResult<evalexpr::Value> {
         self.n
             .eval_with_context(self.build_ctx())
-            .map_err(|err| LivecodeError::EvalExpr("error evaluating lazy".to_string(), err))
+            .map_err(|err| LivecodeError::EvalExpr("error evaluating lazy".to_string(), err.to_string()))
     }
 
     pub fn eval_vec2(&self) -> LivecodeResult<Vec2> {
@@ -157,7 +158,7 @@ impl LazyNodeF32Inner {
                     .map(|x| if x { 1.0 } else { -1.0 })
             })
             .map(|x| x as f32)
-            .map_err(|err| LivecodeError::EvalExpr("error evaluating lazy".to_string(), err))
+            .map_err(|err| LivecodeError::EvalExpr("error evaluating lazy".to_string(), err.to_string()))
     }
 }
 
