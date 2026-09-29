@@ -118,7 +118,7 @@ impl MaskCacheImpl {
             }
 
             let midpoint = 0.5 * (left + right);
-            if self.contains(&midpoint) != contains {
+            if self.contains(&midpoint) == contains {
                 left = midpoint;
             } else {
                 right = midpoint;

@@ -91,8 +91,8 @@ impl SpotOn3d {
         }
     }
 
-    pub fn travel(&self, dist: f32) -> Vec3 {
-        self.loc + self.tangent() * dist
+    pub fn travel(&self, dist: f32) -> SpotOn3d {
+        SpotOn3d::new(self.loc + self.tangent() * dist, self.rot)
     }
 
     pub fn to_transform3d(&self) -> Transform3d {
