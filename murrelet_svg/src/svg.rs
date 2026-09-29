@@ -274,7 +274,7 @@ impl GetSvgAttributes for MurreletStyle {
             murrelet_draw::draw::MurreletDrawPlan::Shader(fill) => {
                 v.add_other(&fill.get_svg_attributes());
             }
-            murrelet_draw::draw::MurreletDrawPlan::DebugPoints(_) => unimplemented!(),
+            // murrelet_draw::draw::MurreletDrawPlan::DebugPoints(_) => unimplemented!(),
             murrelet_draw::draw::MurreletDrawPlan::FilledClosed => {
                 // v.add("fill", self.color.get_svg_attributes());
 

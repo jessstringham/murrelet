@@ -12,41 +12,20 @@ use wgpu_for_latest as wgpu;
 #[cfg(feature = "nannou")]
 use wgpu_for_nannou as wgpu;
 
+use crate::build_shader;
 use crate::device_state::{DeviceStateForRender, OwnedDeviceState};
-use crate::build_shader; // recurses by bare name, so import it directly
-use crate::gpu_macros::ShaderStr; // build_shader! expands to an unqualified ShaderStr
+use crate::gpu_macros::ShaderStr;
 use crate::graphics_ref::{
     GraphicsCreator, GraphicsRefCustom, GraphicsVertex, MurreletTexture, quick_texture,
 };
 use crate::window::GraphicsWindowConf;
 
-// A GPU pipeline that can render one frame off-screen: run its passes into the
-// DISPLAY view, then the headless plumbing reads that view back. This is the
-// single-conversion unit a headless PNG entry point (or a batch runner over
-// many) drives. There's no `output()` to wire: capture reads the DISPLAY
-// texture `render_passes` wrote, exactly the present target the windowed path
-// shows — so the final `-> DISPLAY` pass is always what lands in the PNG.
+// A GPU pipeline that can render one frame off-screen
 pub trait IsHeadlessGraphic {
     fn render_passes(&self, render_device: &DeviceStateForRender);
 
-    /// Optional headless prep, run once before `render_passes`: fill any CPU-side
-    /// drawer / sync GPU inputs from config — the per-frame `update()` work the
-    /// windowed path does but the headless path otherwise skips. **Default no-op**,
-    /// so pure-shader sketches need nothing and there's no separate arm to choose;
-    /// drawer-fed sketches (lily, ethereal) override it. Forgetting to override just
-    /// yields the pre-hook behavior (a thin/blank drawer), never a miscompile.
     fn prepare(&mut self, _c: &GraphicsWindowConf) {}
 
-    /// Optional per-frame state advance for the headless gpu settle loop: the
-    /// `headless_png!` macro loops `tick → prepare → render_passes` N times (the
-    /// `--earlystop` CLI flag, default 1 = one-shot)
-    /// so a GPU sketch whose CPU-side state accumulates (physics / growth / packing)
-    /// can settle headless AND any feedback in its GPU pipeline (e.g. `res_feedback`)
-    /// accumulates across the per-frame render_passes the way it would windowed.
-    /// **Default no-op** (stateless gpu sketches inherit it — no separate arm to pick).
-    /// A stateful gpu sketch stores its Drawing in the graphic and advances it here;
-    /// `prepare` then fills the drawer from the settled state, and the per-frame
-    /// `render_passes` from the arm drives the GPU side.
     fn tick(&mut self, _c: &GraphicsWindowConf, _world: &LivecodeWorldState) {}
 }
 
@@ -56,9 +35,6 @@ pub fn new_native_device() -> OwnedDeviceState {
     pollster::block_on(OwnedDeviceState::new_from_native())
 }
 
-// Build an off-screen render target on `owned`'s device, run the graphic's passes
-// into it, and save its output to a PNG. The window-free counterpart of nannou's
-// view: pair with a device from new_native_device().
 pub fn render_headless_graphic_to_png<G: IsHeadlessGraphic>(
     owned: &OwnedDeviceState,
     c: &GraphicsWindowConf,
@@ -69,14 +45,6 @@ pub fn render_headless_graphic_to_png<G: IsHeadlessGraphic>(
     capture_display_to_png(c, &display, out_path)
 }
 
-// Just the render half: build a fresh off-screen DISPLAY texture and run the
-// graphic's passes once into it, returning that texture for readback. Safe to
-// call repeatedly — feedback state lives inside the graphic's own ping-pong
-// textures, not in the DISPLAY texture. Pair with `capture_display_to_png` for
-// the final readback. Used by the `headless_png!` settle loop to run
-// tick→prepare→render_passes per frame so GPU feedback (e.g. `res_feedback`)
-// accumulates the way windowed runs do; capture the returned texture from the
-// last frame.
 pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
     owned: &OwnedDeviceState,
     c: &GraphicsWindowConf,
@@ -89,10 +57,6 @@ pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
     display
 }
 
-// Just the capture half: read back the DISPLAY texture the passes rendered into
-// and save it to PNG. Use after a `render_headless_graphic_passes` call — pass
-// the texture it returned. This is the present target the windowed path shows,
-// so the final `-> DISPLAY` pass is captured exactly.
 pub fn capture_display_to_png(
     c: &GraphicsWindowConf,
     display: &MurreletTexture,
@@ -126,10 +90,6 @@ pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
     render_display_rgba8(&export_c, &linear)
 }
 
-// Read back an already-rendered linear DISPLAY texture (DEFAULT_TEXTURE_FORMAT =
-// Rgba16Float) as sRGB-encoded rgba8. The shared back half of the readback path:
-// the DISPLAY capture feeds its texture straight in; `render_graphic_rgba8`
-// first renders a graphic into a linear texture, then delegates here.
 pub fn render_display_rgba8(
     c: &GraphicsWindowConf,
     linear: &MurreletTexture,
@@ -138,29 +98,25 @@ pub fn render_display_rgba8(
     let export_c = c.with_dims(dims);
     let linear_view = linear.default_view();
 
-    // Final sRGB pass (BUG-L374). The windowed path presents through nannou's
-    // sRGB swapchain, so the GPU applies the linear->sRGB OETF on store. The
-    // headless readback must match or darks crush to black and midtones come out
-    // too dark. Blit the linear texture through an identity shader whose target is
-    // Rgba8UnormSrgb; the GPU encodes the gamma on store, exactly like the
-    // windowed present-blit. (sRGB formats can't be STORAGE textures, so this
-    // target uses a hand-rolled descriptor rather than quick_texture.)
-    let rendered = export_c.device.device().create_texture(&wgpu::TextureDescriptor {
-        size: wgpu::Extent3d {
-            width: dims[0],
-            height: dims[1],
-            depth_or_array_layers: 1,
-        },
-        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-            | wgpu::TextureUsages::TEXTURE_BINDING
-            | wgpu::TextureUsages::COPY_SRC,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        label: Some("srgb readback target"),
-        view_formats: &[],
-    });
+    let rendered = export_c
+        .device
+        .device()
+        .create_texture(&wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: dims[0],
+                height: dims[1],
+                depth_or_array_layers: 1,
+            },
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            label: Some("srgb readback target"),
+            view_formats: &[],
+        });
     let rendered_view = rendered.create_view(&wgpu::TextureViewDescriptor::default());
 
     let blit_shader: String = build_shader! {

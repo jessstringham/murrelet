@@ -290,59 +290,59 @@ impl MurreletStyleOutlined {
     // }
 }
 
-#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
-pub struct MurreletStylePoints {
-    pub color: MurreletColor, // fill color
-    pub shape: PixelShape,
-    #[livecode(serde_default = "zeros")]
-    pub stroke_weight: f32,
-}
-impl MurreletStylePoints {
-    pub fn new(color: MurreletColor, shape: PixelShape, stroke_weight: f32) -> Self {
-        Self {
-            color,
-            shape,
-            stroke_weight,
-        }
-    }
+// #[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
+// pub struct MurreletStylePoints {
+//     pub color: MurreletColor, // fill color
+//     pub shape: PixelShape,
+//     #[livecode(serde_default = "zeros")]
+//     pub stroke_weight: f32,
+// }
+// impl MurreletStylePoints {
+//     pub fn new(color: MurreletColor, shape: PixelShape, stroke_weight: f32) -> Self {
+//         Self {
+//             color,
+//             shape,
+//             stroke_weight,
+//         }
+//     }
 
-    fn to_style(&self) -> MurreletStyle {
-        MurreletStyle {
-            points: Some(self.shape),
-            closed: true,
-            filled: false,
-            color: MurreletColorStyle::color(self.color),
-            stroke_weight: self.stroke_weight,
-            ..Default::default()
-        }
-    }
-}
+//     fn to_style(&self) -> MurreletStyle {
+//         MurreletStyle {
+//             // points: Some(self.shape),
+//             closed: true,
+//             filled: false,
+//             color: MurreletColorStyle::color(self.color),
+//             stroke_weight: self.stroke_weight,
+//             ..Default::default()
+//         }
+//     }
+// }
 
-#[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
-pub struct MurreletStyleRGBAPoints {
-    #[lerpable(func = "lerpify_vec3")]
-    pub rgb: Vec3, // fill color
-    pub a: f32,
-    pub shape: PixelShape,
-    #[livecode(serde_default = "zeros")]
-    pub stroke_weight: f32,
-}
-impl MurreletStyleRGBAPoints {
-    // pub fn new(color: MurreletColor, shape: PixelShape, stroke_weight: f32) -> Self {
-    //     Self { color, shape, stroke_weight }
-    // }
+// #[derive(Copy, Clone, Debug, Livecode, Lerpable, Default)]
+// pub struct MurreletStyleRGBAPoints {
+//     #[lerpable(func = "lerpify_vec3")]
+//     pub rgb: Vec3, // fill color
+//     pub a: f32,
+//     pub shape: PixelShape,
+//     #[livecode(serde_default = "zeros")]
+//     pub stroke_weight: f32,
+// }
+// impl MurreletStyleRGBAPoints {
+//     // pub fn new(color: MurreletColor, shape: PixelShape, stroke_weight: f32) -> Self {
+//     //     Self { color, shape, stroke_weight }
+//     // }
 
-    fn to_style(&self) -> MurreletStyle {
-        MurreletStyle {
-            points: Some(self.shape),
-            closed: true,
-            filled: false,
-            color: MurreletColorStyle::rgbafill(self.rgb, self.a),
-            stroke_weight: self.stroke_weight,
-            ..Default::default()
-        }
-    }
-}
+//     fn to_style(&self) -> MurreletStyle {
+//         MurreletStyle {
+//             points: Some(self.shape),
+//             closed: true,
+//             filled: false,
+//             color: MurreletColorStyle::rgbafill(self.rgb, self.a),
+//             stroke_weight: self.stroke_weight,
+//             ..Default::default()
+//         }
+//     }
+// }
 
 #[derive(Copy, Clone, Debug, Livecode, MurreletGUI, Lerpable, Default)]
 pub struct MurreletStyleLined {
@@ -379,13 +379,13 @@ pub mod styleconf {
         Fill(MurreletStyleFilled),
         Outline(MurreletStyleOutlined),
         Line(MurreletStyleLined),
-        Points(MurreletStylePoints),
+        // Points(MurreletStylePoints),
         Debug,
         ThickLine,
         RGBAFill(MurreletStyleRGBAFill),
         RGBALine(MurreletStyleRGBALine),
         RGBAOutline(MurreletStyleRGBALine),
-        RGBAPoints(MurreletStyleRGBAPoints),
+        // RGBAPoints(MurreletStyleRGBAPoints),
     }
     impl StyleConf {
         pub fn black_fill() -> Self {
@@ -401,8 +401,8 @@ pub mod styleconf {
                 StyleConf::RGBAFill(a) => a.to_style(),
                 StyleConf::RGBALine(a) => a.to_style(),
                 StyleConf::RGBAOutline(a) => a.to_style().with_no_fill(),
-                StyleConf::Points(a) => a.to_style(),
-                StyleConf::RGBAPoints(a) => a.to_style(),
+                // StyleConf::Points(a) => a.to_style(),
+                // StyleConf::RGBAPoints(a) => a.to_style(),
                 StyleConf::Texture(a) => a.to_style(),
                 StyleConf::Debug => MurreletStyle::debug(),
                 StyleConf::Transparent => Self::fill(MurreletColor::transparent()).to_style(),
