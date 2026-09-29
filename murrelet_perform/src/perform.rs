@@ -1428,6 +1428,25 @@ where
     pub fn run_id(&self) -> u64 {
         self.run_id
     }
+
+    pub fn frame_summary(&self) -> FrameSummary {
+        FrameSummary {
+            frame: self.frame(),
+            should_reload: self.should_reload(),
+            should_redraw: self.should_redraw(),
+            should_save_svg: self.should_save_svg(),
+            dt: self.world().time().seconds_between_render_times(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FrameSummary {
+    pub frame: u64,
+    pub should_reload: bool,
+    pub should_redraw: bool,
+    pub should_save_svg: bool,
+    pub dt: f32,
 }
 
 pub trait WithDrawerUpdator<ControlDrawingConfType> {
