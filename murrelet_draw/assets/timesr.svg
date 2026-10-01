@@ -1,591 +1,591 @@
 <?xml version="1.0" encoding="utf-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -16 29 32"
      data-hershey="stroke-glyphs" data-cap-height="12" data-baseline="0" data-line-height="32"
-     data-source="../timesr.jhf">
-  <g id="U+0020" data-char=" " data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
-  </g>
-  <g id="U+0021" data-char="!" data-left="-5" data-right="5" data-advance="10" fill="none" stroke="#000">
-    <polyline points="0,-12 -1,-10 0,2 1,-10 0,-12"/>
-    <polyline points="0,-10 0,-4"/>
-    <polyline points="0,7 -1,8 0,9 1,8 0,7"/>
-  </g>
-  <g id="U+0022" data-char="&quot;" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
-    <polyline points="-4,-12 -5,-11 -5,-5"/>
-    <polyline points="-4,-11 -5,-5"/>
-    <polyline points="-4,-12 -3,-11 -5,-5"/>
-    <polyline points="5,-12 4,-11 4,-5"/>
-    <polyline points="5,-11 4,-5"/>
-    <polyline points="5,-12 6,-11 4,-5"/>
-  </g>
-  <g id="U+0023" data-char="#" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
-    <polyline points="1,-16 -6,16"/>
-    <polyline points="7,-16 0,16"/>
-    <polyline points="-6,-3 8,-3"/>
-    <polyline points="-7,3 7,3"/>
-  </g>
-  <g id="U+0024" data-char="$" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-2,-16 -2,13"/>
-    <polyline points="2,-16 2,13"/>
-    <polyline points="6,-9 5,-8 6,-7 7,-8 7,-9 5,-11 2,-12 -2,-12 -5,-11 -7,-9 -7,-7 -6,-5 -5,-4 -3,-3 3,-1 5,0 7,2"/>
-    <polyline points="-7,-7 -5,-5 -3,-4 3,-2 5,-1 6,0 7,2 7,6 5,8 2,9 -2,9 -5,8 -7,6 -7,5 -6,4 -5,5 -6,6"/>
-  </g>
-  <g id="U+0025" data-char="%" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="9,-12 -9,9"/>
-    <polyline points="-4,-12 -2,-10 -2,-8 -3,-6 -5,-5 -7,-5 -9,-7 -9,-9 -8,-11 -6,-12 -4,-12 -2,-11 1,-10 4,-10 7,-11 9,-12"/>
-    <polyline points="5,2 3,3 2,5 2,7 4,9 6,9 8,8 9,6 9,4 7,2 5,2"/>
-  </g>
-  <g id="U+0026" data-char="&amp;" data-left="-12" data-right="13" data-advance="25" fill="none" stroke="#000">
-    <polyline points="9,-4 8,-3 9,-2 10,-3 10,-4 9,-5 8,-5 7,-4 6,-2 4,3 2,6 0,8 -2,9 -5,9 -8,8 -9,6 -9,3 -8,1 -2,-3 0,-5 1,-7 1,-9 0,-11 -2,-12 -4,-11 -5,-9 -5,-7 -4,-4 -2,-1 3,6 5,8 8,9 9,9 10,8 10,7"/>
-    <polyline points="-5,9 -7,8 -8,6 -8,3 -7,1 -5,-1"/>
-    <polyline points="-5,-7 -4,-5 4,6 6,8 8,9"/>
-  </g>
-  <g id="U+0027" data-char="'" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
-    <polyline points="0,-12 -1,-5"/>
-    <polyline points="1,-12 -1,-5"/>
-  </g>
-  <g id="U+0028" data-char="(" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
-    <polyline points="4,-16 2,-14 0,-11 -2,-7 -3,-2 -3,2 -2,7 0,11 2,14 4,16"/>
-    <polyline points="2,-14 0,-10 -1,-7 -2,-2 -2,2 -1,7 0,10 2,14"/>
-  </g>
-  <g id="U+0029" data-char=")" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
-    <polyline points="-4,-16 -2,-14 0,-11 2,-7 3,-2 3,2 2,7 0,11 -2,14 -4,16"/>
-    <polyline points="-2,-14 0,-10 1,-7 2,-2 2,2 1,7 0,10 -2,14"/>
-  </g>
-  <g id="U+002A" data-char="*" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
-    <polyline points="0,-6 0,6"/>
-    <polyline points="-5,-3 5,3"/>
-    <polyline points="5,-3 -5,3"/>
-  </g>
-  <g id="U+002B" data-char="+" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
-    <polyline points="0,-9 0,9"/>
-    <polyline points="-9,0 9,0"/>
-  </g>
-  <g id="U+002C" data-char="," data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
-    <polyline points="1,5 0,6 -1,5 0,4 1,5 1,7 -1,9"/>
-  </g>
-  <g id="U+002D" data-char="-" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
-    <polyline points="-9,0 9,0"/>
-  </g>
-  <g id="U+002E" data-char="." data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
-    <polyline points="0,4 -1,5 0,6 1,5 0,4"/>
-  </g>
-  <g id="U+002F" data-char="/" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="9,-16 -9,16"/>
-  </g>
-  <g id="U+0030" data-char="0" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-1,-12 -4,-11 -6,-8 -7,-3 -7,0 -6,5 -4,8 -1,9 1,9 4,8 6,5 7,0 7,-3 6,-8 4,-11 1,-12 -1,-12"/>
-    <polyline points="-1,-12 -3,-11 -4,-10 -5,-8 -6,-3 -6,0 -5,5 -4,7 -3,8 -1,9"/>
-    <polyline points="1,9 3,8 4,7 5,5 6,0 6,-3 5,-8 4,-10 3,-11 1,-12"/>
-  </g>
-  <g id="U+0031" data-char="1" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-4,-8 -2,-9 1,-12 1,9"/>
-    <polyline points="0,-11 0,9"/>
-    <polyline points="-4,9 5,9"/>
-  </g>
-  <g id="U+0032" data-char="2" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-6,-8 -5,-7 -6,-6 -7,-7 -7,-8 -6,-10 -5,-11 -2,-12 2,-12 5,-11 6,-10 7,-8 7,-6 6,-4 3,-2 -2,0 -4,1 -6,3 -7,6 -7,9"/>
-    <polyline points="2,-12 4,-11 5,-10 6,-8 6,-6 5,-4 2,-2 -2,0"/>
-    <polyline points="-7,7 -6,6 -4,6 1,8 4,8 6,7 7,6"/>
-    <polyline points="-4,6 1,9 5,9 6,8 7,6 7,4"/>
-  </g>
-  <g id="U+0033" data-char="3" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-6,-8 -5,-7 -6,-6 -7,-7 -7,-8 -6,-10 -5,-11 -2,-12 2,-12 5,-11 6,-9 6,-6 5,-4 2,-3 -1,-3"/>
-    <polyline points="2,-12 4,-11 5,-9 5,-6 4,-4 2,-3"/>
-    <polyline points="2,-3 4,-2 6,0 7,2 7,5 6,7 5,8 2,9 -2,9 -5,8 -6,7 -7,5 -7,4 -6,3 -5,4 -6,5"/>
-    <polyline points="5,-1 6,2 6,5 5,7 4,8 2,9"/>
-  </g>
-  <g id="U+0034" data-char="4" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="2,-10 2,9"/>
-    <polyline points="3,-12 3,9"/>
-    <polyline points="3,-12 -8,3 8,3"/>
-    <polyline points="-1,9 6,9"/>
-  </g>
-  <g id="U+0035" data-char="5" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-5,-12 -7,-2"/>
-    <polyline points="-7,-2 -5,-4 -2,-5 1,-5 4,-4 6,-2 7,1 7,3 6,6 4,8 1,9 -2,9 -5,8 -6,7 -7,5 -7,4 -6,3 -5,4 -6,5"/>
-    <polyline points="1,-5 3,-4 5,-2 6,1 6,3 5,6 3,8 1,9"/>
-    <polyline points="-5,-12 5,-12"/>
-    <polyline points="-5,-11 0,-11 5,-12"/>
-  </g>
-  <g id="U+0036" data-char="6" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="5,-9 4,-8 5,-7 6,-8 6,-9 5,-11 3,-12 0,-12 -3,-11 -5,-9 -6,-7 -7,-3 -7,3 -6,6 -4,8 -1,9 1,9 4,8 6,6 7,3 7,2 6,-1 4,-3 1,-4 0,-4 -3,-3 -5,-1 -6,2"/>
-    <polyline points="0,-12 -2,-11 -4,-9 -5,-7 -6,-3 -6,3 -5,6 -3,8 -1,9"/>
-    <polyline points="1,9 3,8 5,6 6,3 6,2 5,-1 3,-3 1,-4"/>
-  </g>
-  <g id="U+0037" data-char="7" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-7,-12 -7,-6"/>
-    <polyline points="-7,-8 -6,-10 -4,-12 -2,-12 3,-9 5,-9 6,-10 7,-12"/>
-    <polyline points="-6,-10 -4,-11 -2,-11 3,-9"/>
-    <polyline points="7,-12 7,-9 6,-6 2,-1 1,1 0,4 0,9"/>
-    <polyline points="6,-6 1,-1 0,1 -1,4 -1,9"/>
-  </g>
-  <g id="U+0038" data-char="8" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-2,-12 -5,-11 -6,-9 -6,-6 -5,-4 -2,-3 2,-3 5,-4 6,-6 6,-9 5,-11 2,-12 -2,-12"/>
-    <polyline points="-2,-12 -4,-11 -5,-9 -5,-6 -4,-4 -2,-3"/>
-    <polyline points="2,-3 4,-4 5,-6 5,-9 4,-11 2,-12"/>
-    <polyline points="-2,-3 -5,-2 -6,-1 -7,1 -7,5 -6,7 -5,8 -2,9 2,9 5,8 6,7 7,5 7,1 6,-1 5,-2 2,-3"/>
-    <polyline points="-2,-3 -4,-2 -5,-1 -6,1 -6,5 -5,7 -4,8 -2,9"/>
-    <polyline points="2,9 4,8 5,7 6,5 6,1 5,-1 4,-2 2,-3"/>
-  </g>
-  <g id="U+0039" data-char="9" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="6,-5 5,-2 3,0 0,1 -1,1 -4,0 -6,-2 -7,-5 -7,-6 -6,-9 -4,-11 -1,-12 1,-12 4,-11 6,-9 7,-6 7,0 6,4 5,6 3,8 0,9 -3,9 -5,8 -6,6 -6,5 -5,4 -4,5 -5,6"/>
-    <polyline points="-1,1 -3,0 -5,-2 -6,-5 -6,-6 -5,-9 -3,-11 -1,-12"/>
-    <polyline points="1,-12 3,-11 5,-9 6,-6 6,0 5,4 4,6 2,8 0,9"/>
-  </g>
-  <g id="U+003A" data-char=":" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
-    <polyline points="0,-3 -1,-2 0,-1 1,-2 0,-3"/>
-    <polyline points="0,4 -1,5 0,6 1,5 0,4"/>
-  </g>
-  <g id="U+003B" data-char=";" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
-    <polyline points="0,-3 -1,-2 0,-1 1,-2 0,-3"/>
-    <polyline points="1,5 0,6 -1,5 0,4 1,5 1,7 -1,9"/>
-  </g>
-  <g id="U+003C" data-char="&lt;" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="8,-9 -8,0 8,9"/>
-  </g>
-  <g id="U+003D" data-char="=" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
-    <polyline points="-9,-3 9,-3"/>
-    <polyline points="-9,3 9,3"/>
-  </g>
-  <g id="U+003E" data-char="&gt;" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="-8,-9 8,0 -8,9"/>
-  </g>
-  <g id="U+003F" data-char="?" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
-    <polyline points="-5,-8 -4,-7 -5,-6 -6,-7 -6,-8 -5,-10 -4,-11 -2,-12 1,-12 4,-11 5,-10 6,-8 6,-6 5,-4 4,-3 0,-1 0,2"/>
-    <polyline points="1,-12 3,-11 4,-10 5,-8 5,-6 4,-4 2,-2"/>
-    <polyline points="0,7 -1,8 0,9 1,8 0,7"/>
-  </g>
-  <g id="U+0040" data-char="@" data-left="-13" data-right="14" data-advance="27" fill="none" stroke="#000">
-    <polyline points="5,-4 4,-6 2,-7 -1,-7 -3,-6 -4,-5 -5,-2 -5,1 -4,3 -2,4 1,4 3,3 4,1"/>
-    <polyline points="-1,-7 -3,-5 -4,-2 -4,1 -3,3 -2,4"/>
-    <polyline points="5,-7 4,1 4,3 6,4 8,4 10,2 11,-1 11,-3 10,-6 9,-8 7,-10 5,-11 2,-12 -1,-12 -4,-11 -6,-10 -8,-8 -9,-6 -10,-3 -10,0 -9,3 -8,5 -6,7 -4,8 -1,9 2,9 5,8 7,7 8,6"/>
-    <polyline points="6,-7 5,1 5,3 6,4"/>
-  </g>
-  <g id="U+0041" data-char="A" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="0,-12 -7,9"/>
-    <polyline points="0,-12 7,9"/>
-    <polyline points="0,-9 6,9"/>
-    <polyline points="-5,3 4,3"/>
-    <polyline points="-9,9 -3,9"/>
-    <polyline points="3,9 9,9"/>
-  </g>
-  <g id="U+0042" data-char="B" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="-9,-12 3,-12 6,-11 7,-10 8,-8 8,-6 7,-4 6,-3 3,-2"/>
-    <polyline points="3,-12 5,-11 6,-10 7,-8 7,-6 6,-4 5,-3 3,-2"/>
-    <polyline points="-5,-2 3,-2 6,-1 7,0 8,2 8,5 7,7 6,8 3,9 -9,9"/>
-    <polyline points="3,-2 5,-1 6,0 7,2 7,5 6,7 5,8 3,9"/>
-  </g>
-  <g id="U+0043" data-char="C" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
-    <polyline points="6,-9 7,-6 7,-12 6,-9 4,-11 1,-12 -1,-12 -4,-11 -6,-9 -7,-7 -8,-4 -8,1 -7,4 -6,6 -4,8 -1,9 1,9 4,8 6,6 7,4"/>
-    <polyline points="-1,-12 -3,-11 -5,-9 -6,-7 -7,-4 -7,1 -6,4 -5,6 -3,8 -1,9"/>
-  </g>
-  <g id="U+0044" data-char="D" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="-9,-12 1,-12 4,-11 6,-9 7,-7 8,-4 8,1 7,4 6,6 4,8 1,9 -9,9"/>
-    <polyline points="1,-12 3,-11 5,-9 6,-7 7,-4 7,1 6,4 5,6 3,8 1,9"/>
-  </g>
-  <g id="U+0045" data-char="E" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="1,-6 1,2"/>
-    <polyline points="-9,-12 7,-12 7,-6 6,-12"/>
-    <polyline points="-5,-2 1,-2"/>
-    <polyline points="-9,9 7,9 7,3 6,9"/>
-  </g>
-  <g id="U+0046" data-char="F" data-left="-11" data-right="9" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="1,-6 1,2"/>
-    <polyline points="-9,-12 7,-12 7,-6 6,-12"/>
-    <polyline points="-5,-2 1,-2"/>
-    <polyline points="-9,9 -2,9"/>
-  </g>
-  <g id="U+0047" data-char="G" data-left="-11" data-right="12" data-advance="23" fill="none" stroke="#000">
-    <polyline points="6,-9 7,-6 7,-12 6,-9 4,-11 1,-12 -1,-12 -4,-11 -6,-9 -7,-7 -8,-4 -8,1 -7,4 -6,6 -4,8 -1,9 1,9 4,8 6,6"/>
-    <polyline points="-1,-12 -3,-11 -5,-9 -6,-7 -7,-4 -7,1 -6,4 -5,6 -3,8 -1,9"/>
-    <polyline points="6,1 6,9"/>
-    <polyline points="7,1 7,9"/>
-    <polyline points="3,1 10,1"/>
-  </g>
-  <g id="U+0048" data-char="H" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="-7,-12 -7,9"/>
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="6,-12 6,9"/>
-    <polyline points="7,-12 7,9"/>
-    <polyline points="-10,-12 -3,-12"/>
-    <polyline points="3,-12 10,-12"/>
-    <polyline points="-6,-2 6,-2"/>
-    <polyline points="-10,9 -3,9"/>
-    <polyline points="3,9 10,9"/>
-  </g>
-  <g id="U+0049" data-char="I" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
-    <polyline points="0,-12 0,9"/>
-    <polyline points="1,-12 1,9"/>
-    <polyline points="-3,-12 4,-12"/>
-    <polyline points="-3,9 4,9"/>
-  </g>
-  <g id="U+004A" data-char="J" data-left="-7" data-right="8" data-advance="15" fill="none" stroke="#000">
-    <polyline points="3,-12 3,5 2,8 0,9 -2,9 -4,8 -5,6 -5,4 -4,3 -3,4 -4,5"/>
-    <polyline points="2,-12 2,5 1,8 0,9"/>
-    <polyline points="-1,-12 6,-12"/>
-  </g>
-  <g id="U+004B" data-char="K" data-left="-12" data-right="10" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-7,-12 -7,9"/>
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="7,-12 -6,1"/>
-    <polyline points="-1,-3 7,9"/>
-    <polyline points="-2,-3 6,9"/>
-    <polyline points="-10,-12 -3,-12"/>
-    <polyline points="3,-12 9,-12"/>
-    <polyline points="-10,9 -3,9"/>
-    <polyline points="3,9 9,9"/>
-  </g>
-  <g id="U+004C" data-char="L" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
-    <polyline points="-4,-12 -4,9"/>
-    <polyline points="-3,-12 -3,9"/>
-    <polyline points="-7,-12 0,-12"/>
-    <polyline points="-7,9 8,9 8,3 7,9"/>
-  </g>
-  <g id="U+004D" data-char="M" data-left="-12" data-right="13" data-advance="25" fill="none" stroke="#000">
-    <polyline points="-7,-12 -7,9"/>
-    <polyline points="-6,-12 0,6"/>
-    <polyline points="-7,-12 0,9"/>
-    <polyline points="7,-12 0,9"/>
-    <polyline points="7,-12 7,9"/>
-    <polyline points="8,-12 8,9"/>
-    <polyline points="-10,-12 -6,-12"/>
-    <polyline points="7,-12 11,-12"/>
-    <polyline points="-10,9 -4,9"/>
-    <polyline points="4,9 11,9"/>
-  </g>
-  <g id="U+004E" data-char="N" data-left="-11" data-right="12" data-advance="23" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 7,7"/>
-    <polyline points="-5,-10 7,9"/>
-    <polyline points="7,-12 7,9"/>
-    <polyline points="-9,-12 -5,-12"/>
-    <polyline points="4,-12 10,-12"/>
-    <polyline points="-9,9 -3,9"/>
-  </g>
-  <g id="U+004F" data-char="O" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-1,-12 -4,-11 -6,-9 -7,-7 -8,-3 -8,0 -7,4 -6,6 -4,8 -1,9 1,9 4,8 6,6 7,4 8,0 8,-3 7,-7 6,-9 4,-11 1,-12 -1,-12"/>
-    <polyline points="-1,-12 -3,-11 -5,-9 -6,-7 -7,-3 -7,0 -6,4 -5,6 -3,8 -1,9"/>
-    <polyline points="1,9 3,8 5,6 6,4 7,0 7,-3 6,-7 5,-9 3,-11 1,-12"/>
-  </g>
-  <g id="U+0050" data-char="P" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="-9,-12 3,-12 6,-11 7,-10 8,-8 8,-5 7,-3 6,-2 3,-1 -5,-1"/>
-    <polyline points="3,-12 5,-11 6,-10 7,-8 7,-5 6,-3 5,-2 3,-1"/>
-    <polyline points="-9,9 -2,9"/>
-  </g>
-  <g id="U+0051" data-char="Q" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-1,-12 -4,-11 -6,-9 -7,-7 -8,-3 -8,0 -7,4 -6,6 -4,8 -1,9 1,9 4,8 6,6 7,4 8,0 8,-3 7,-7 6,-9 4,-11 1,-12 -1,-12"/>
-    <polyline points="-1,-12 -3,-11 -5,-9 -6,-7 -7,-3 -7,0 -6,4 -5,6 -3,8 -1,9"/>
-    <polyline points="1,9 3,8 5,6 6,4 7,0 7,-3 6,-7 5,-9 3,-11 1,-12"/>
-    <polyline points="-4,7 -4,6 -3,4 -1,3 0,3 2,4 3,6 4,13 5,14 7,14 8,12 8,11"/>
-    <polyline points="3,6 4,10 5,12 6,13 7,13 8,12"/>
-  </g>
-  <g id="U+0052" data-char="R" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="-9,-12 3,-12 6,-11 7,-10 8,-8 8,-6 7,-4 6,-3 3,-2 -5,-2"/>
-    <polyline points="3,-12 5,-11 6,-10 7,-8 7,-6 6,-4 5,-3 3,-2"/>
-    <polyline points="-9,9 -2,9"/>
-    <polyline points="0,-2 2,-1 3,0 6,7 7,8 8,8 9,7"/>
-    <polyline points="2,-1 3,1 5,8 6,9 8,9 9,7 9,6"/>
-  </g>
-  <g id="U+0053" data-char="S" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="6,-9 7,-12 7,-6 6,-9 4,-11 1,-12 -2,-12 -5,-11 -7,-9 -7,-7 -6,-5 -5,-4 -3,-3 3,-1 5,0 7,2"/>
-    <polyline points="-7,-7 -5,-5 -3,-4 3,-2 5,-1 6,0 7,2 7,6 5,8 2,9 -1,9 -4,8 -6,6 -7,3 -7,9 -6,6"/>
-  </g>
-  <g id="U+0054" data-char="T" data-left="-9" data-right="10" data-advance="19" fill="none" stroke="#000">
-    <polyline points="0,-12 0,9"/>
-    <polyline points="1,-12 1,9"/>
-    <polyline points="-6,-12 -7,-6 -7,-12 8,-12 8,-6 7,-12"/>
-    <polyline points="-3,9 4,9"/>
-  </g>
-  <g id="U+0055" data-char="U" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="-7,-12 -7,3 -6,6 -4,8 -1,9 1,9 4,8 6,6 7,3 7,-12"/>
-    <polyline points="-6,-12 -6,3 -5,6 -3,8 -1,9"/>
-    <polyline points="-10,-12 -3,-12"/>
-    <polyline points="4,-12 10,-12"/>
-  </g>
-  <g id="U+0056" data-char="V" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-7,-12 0,9"/>
-    <polyline points="-6,-12 0,6"/>
-    <polyline points="7,-12 0,9"/>
-    <polyline points="-9,-12 -3,-12"/>
-    <polyline points="3,-12 9,-12"/>
-  </g>
-  <g id="U+0057" data-char="W" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="-8,-12 -4,9"/>
-    <polyline points="-7,-12 -4,4"/>
-    <polyline points="0,-12 -4,9"/>
-    <polyline points="0,-12 4,9"/>
-    <polyline points="1,-12 4,4"/>
-    <polyline points="8,-12 4,9"/>
-    <polyline points="-11,-12 -4,-12"/>
-    <polyline points="5,-12 11,-12"/>
-  </g>
-  <g id="U+0058" data-char="X" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-7,-12 6,9"/>
-    <polyline points="-6,-12 7,9"/>
-    <polyline points="7,-12 -7,9"/>
-    <polyline points="-9,-12 -3,-12"/>
-    <polyline points="3,-12 9,-12"/>
-    <polyline points="-9,9 -3,9"/>
-    <polyline points="3,9 9,9"/>
-  </g>
-  <g id="U+0059" data-char="Y" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
-    <polyline points="-7,-12 0,-1 0,9"/>
-    <polyline points="-6,-12 1,-1 1,9"/>
-    <polyline points="8,-12 1,-1"/>
-    <polyline points="-9,-12 -3,-12"/>
-    <polyline points="4,-12 10,-12"/>
-    <polyline points="-3,9 4,9"/>
-  </g>
-  <g id="U+005A" data-char="Z" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="6,-12 -7,9"/>
-    <polyline points="7,-12 -6,9"/>
-    <polyline points="-6,-12 -7,-6 -7,-12 7,-12"/>
-    <polyline points="-7,9 7,9 7,3 6,9"/>
-  </g>
-  <g id="U+005B" data-char="[" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
-    <polyline points="-3,-16 -3,16"/>
-    <polyline points="-2,-16 -2,16"/>
-    <polyline points="-3,-16 4,-16"/>
-    <polyline points="-3,16 4,16"/>
-  </g>
-  <g id="U+005C" data-char="\" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
-    <polyline points="-7,-12 7,12"/>
-  </g>
-  <g id="U+005D" data-char="]" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
-    <polyline points="2,-16 2,16"/>
-    <polyline points="3,-16 3,16"/>
-    <polyline points="-4,-16 3,-16"/>
-    <polyline points="-4,16 3,16"/>
-  </g>
-  <g id="U+005E" data-char="^" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-8,2 0,-3 8,2"/>
-    <polyline points="-8,2 0,-2 8,2"/>
-  </g>
-  <g id="U+005F" data-char="_" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-10,16 10,16"/>
-  </g>
-  <g id="U+0060" data-char="`" data-left="-6" data-right="6" data-advance="12" fill="none" stroke="#000">
-    <polyline points="-2,-12 3,-6"/>
-    <polyline points="-2,-12 -3,-11 3,-6"/>
-  </g>
-  <g id="U+0061" data-char="a" data-left="-9" data-right="11" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-4,-3 -4,-2 -5,-2 -5,-3 -4,-4 -2,-5 2,-5 4,-4 5,-3 6,-1 6,6 7,8 8,9"/>
-    <polyline points="5,-3 5,6 6,8 8,9 9,9"/>
-    <polyline points="5,-1 4,0 -2,1 -5,2 -6,4 -6,6 -5,8 -2,9 1,9 3,8 5,6"/>
-    <polyline points="-2,1 -4,2 -5,4 -5,6 -4,8 -2,9"/>
-  </g>
-  <g id="U+0062" data-char="b" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="-5,-2 -3,-4 -1,-5 1,-5 4,-4 6,-2 7,1 7,3 6,6 4,8 1,9 -1,9 -3,8 -5,6"/>
-    <polyline points="1,-5 3,-4 5,-2 6,1 6,3 5,6 3,8 1,9"/>
-    <polyline points="-9,-12 -5,-12"/>
-  </g>
-  <g id="U+0063" data-char="c" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
-    <polyline points="5,-2 4,-1 5,0 6,-1 6,-2 4,-4 2,-5 -1,-5 -4,-4 -6,-2 -7,1 -7,3 -6,6 -4,8 -1,9 1,9 4,8 6,6"/>
-    <polyline points="-1,-5 -3,-4 -5,-2 -6,1 -6,3 -5,6 -3,8 -1,9"/>
-  </g>
-  <g id="U+0064" data-char="d" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
-    <polyline points="5,-12 5,9"/>
-    <polyline points="6,-12 6,9"/>
-    <polyline points="5,-2 3,-4 1,-5 -1,-5 -4,-4 -6,-2 -7,1 -7,3 -6,6 -4,8 -1,9 1,9 3,8 5,6"/>
-    <polyline points="-1,-5 -3,-4 -5,-2 -6,1 -6,3 -5,6 -3,8 -1,9"/>
-    <polyline points="2,-12 6,-12"/>
-    <polyline points="5,9 9,9"/>
-  </g>
-  <g id="U+0065" data-char="e" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
-    <polyline points="-6,1 6,1 6,-1 5,-3 4,-4 2,-5 -1,-5 -4,-4 -6,-2 -7,1 -7,3 -6,6 -4,8 -1,9 1,9 4,8 6,6"/>
-    <polyline points="5,1 5,-2 4,-4"/>
-    <polyline points="-1,-5 -3,-4 -5,-2 -6,1 -6,3 -5,6 -3,8 -1,9"/>
-  </g>
-  <g id="U+0066" data-char="f" data-left="-7" data-right="6" data-advance="13" fill="none" stroke="#000">
-    <polyline points="3,-11 2,-10 3,-9 4,-10 4,-11 3,-12 1,-12 -1,-11 -2,-9 -2,9"/>
-    <polyline points="1,-12 0,-11 -1,-9 -1,9"/>
-    <polyline points="-5,-5 3,-5"/>
-    <polyline points="-5,9 2,9"/>
-  </g>
-  <g id="U+0067" data-char="g" data-left="-9" data-right="10" data-advance="19" fill="none" stroke="#000">
-    <polyline points="-1,-5 -3,-4 -4,-3 -5,-1 -5,1 -4,3 -3,4 -1,5 1,5 3,4 4,3 5,1 5,-1 4,-3 3,-4 1,-5 -1,-5"/>
-    <polyline points="-3,-4 -4,-2 -4,2 -3,4"/>
-    <polyline points="3,4 4,2 4,-2 3,-4"/>
-    <polyline points="4,-3 5,-4 7,-5 7,-4 5,-4"/>
-    <polyline points="-4,3 -5,4 -6,6 -6,7 -5,9 -2,10 3,10 6,11 7,12"/>
-    <polyline points="-6,7 -5,8 -2,9 3,9 6,10 7,12 7,13 6,15 3,16 -3,16 -6,15 -7,13 -7,12 -6,10 -3,9"/>
-  </g>
-  <g id="U+0068" data-char="h" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="-5,-2 -3,-4 0,-5 2,-5 5,-4 6,-2 6,9"/>
-    <polyline points="2,-5 4,-4 5,-2 5,9"/>
-    <polyline points="-9,-12 -5,-12"/>
-    <polyline points="-9,9 -2,9"/>
-    <polyline points="2,9 9,9"/>
-  </g>
-  <g id="U+0069" data-char="i" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
-    <polyline points="0,-12 -1,-11 0,-10 1,-11 0,-12"/>
-    <polyline points="0,-5 0,9"/>
-    <polyline points="1,-5 1,9"/>
-    <polyline points="-3,-5 1,-5"/>
-    <polyline points="-3,9 4,9"/>
-  </g>
-  <g id="U+006A" data-char="j" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
-    <polyline points="1,-12 0,-11 1,-10 2,-11 1,-12"/>
-    <polyline points="2,-5 2,13 1,15 -1,16 -3,16 -4,15 -4,14 -3,13 -2,14 -3,15"/>
-    <polyline points="1,-5 1,13 0,15 -1,16"/>
-    <polyline points="-2,-5 2,-5"/>
-  </g>
-  <g id="U+006B" data-char="k" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
-    <polyline points="-6,-12 -6,9"/>
-    <polyline points="-5,-12 -5,9"/>
-    <polyline points="5,-5 -5,5"/>
-    <polyline points="0,1 6,9"/>
-    <polyline points="-1,1 5,9"/>
-    <polyline points="-9,-12 -5,-12"/>
-    <polyline points="2,-5 8,-5"/>
-    <polyline points="-9,9 -2,9"/>
-    <polyline points="2,9 8,9"/>
-  </g>
-  <g id="U+006C" data-char="l" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
-    <polyline points="0,-12 0,9"/>
-    <polyline points="1,-12 1,9"/>
-    <polyline points="-3,-12 1,-12"/>
-    <polyline points="-3,9 4,9"/>
-  </g>
-  <g id="U+006D" data-char="m" data-left="-16" data-right="17" data-advance="33" fill="none" stroke="#000">
-    <polyline points="-11,-5 -11,9"/>
-    <polyline points="-10,-5 -10,9"/>
-    <polyline points="-10,-2 -8,-4 -5,-5 -3,-5 0,-4 1,-2 1,9"/>
-    <polyline points="-3,-5 -1,-4 0,-2 0,9"/>
-    <polyline points="1,-2 3,-4 6,-5 8,-5 11,-4 12,-2 12,9"/>
-    <polyline points="8,-5 10,-4 11,-2 11,9"/>
-    <polyline points="-14,-5 -10,-5"/>
-    <polyline points="-14,9 -7,9"/>
-    <polyline points="-3,9 4,9"/>
-    <polyline points="8,9 15,9"/>
-  </g>
-  <g id="U+006E" data-char="n" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-6,-5 -6,9"/>
-    <polyline points="-5,-5 -5,9"/>
-    <polyline points="-5,-2 -3,-4 0,-5 2,-5 5,-4 6,-2 6,9"/>
-    <polyline points="2,-5 4,-4 5,-2 5,9"/>
-    <polyline points="-9,-5 -5,-5"/>
-    <polyline points="-9,9 -2,9"/>
-    <polyline points="2,9 9,9"/>
-  </g>
-  <g id="U+006F" data-char="o" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-1,-5 -4,-4 -6,-2 -7,1 -7,3 -6,6 -4,8 -1,9 1,9 4,8 6,6 7,3 7,1 6,-2 4,-4 1,-5 -1,-5"/>
-    <polyline points="-1,-5 -3,-4 -5,-2 -6,1 -6,3 -5,6 -3,8 -1,9"/>
-    <polyline points="1,9 3,8 5,6 6,3 6,1 5,-2 3,-4 1,-5"/>
-  </g>
-  <g id="U+0070" data-char="p" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
-    <polyline points="-6,-5 -6,16"/>
-    <polyline points="-5,-5 -5,16"/>
-    <polyline points="-5,-2 -3,-4 -1,-5 1,-5 4,-4 6,-2 7,1 7,3 6,6 4,8 1,9 -1,9 -3,8 -5,6"/>
-    <polyline points="1,-5 3,-4 5,-2 6,1 6,3 5,6 3,8 1,9"/>
-    <polyline points="-9,-5 -5,-5"/>
-    <polyline points="-9,16 -2,16"/>
-  </g>
-  <g id="U+0071" data-char="q" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="5,-5 5,16"/>
-    <polyline points="6,-5 6,16"/>
-    <polyline points="5,-2 3,-4 1,-5 -1,-5 -4,-4 -6,-2 -7,1 -7,3 -6,6 -4,8 -1,9 1,9 3,8 5,6"/>
-    <polyline points="-1,-5 -3,-4 -5,-2 -6,1 -6,3 -5,6 -3,8 -1,9"/>
-    <polyline points="2,16 9,16"/>
-  </g>
-  <g id="U+0072" data-char="r" data-left="-9" data-right="8" data-advance="17" fill="none" stroke="#000">
-    <polyline points="-4,-5 -4,9"/>
-    <polyline points="-3,-5 -3,9"/>
-    <polyline points="-3,1 -2,-2 0,-4 2,-5 5,-5 6,-4 6,-3 5,-2 4,-3 5,-4"/>
-    <polyline points="-7,-5 -3,-5"/>
-    <polyline points="-7,9 0,9"/>
-  </g>
-  <g id="U+0073" data-char="s" data-left="-8" data-right="9" data-advance="17" fill="none" stroke="#000">
-    <polyline points="5,-3 6,-5 6,-1 5,-3 4,-4 2,-5 -2,-5 -4,-4 -5,-3 -5,-1 -4,0 -2,1 3,3 5,4 6,5"/>
-    <polyline points="-5,-2 -4,-1 -2,0 3,2 5,3 6,4 6,7 5,8 3,9 -1,9 -3,8 -4,7 -5,5 -5,9 -4,7"/>
-  </g>
-  <g id="U+0074" data-char="t" data-left="-7" data-right="8" data-advance="15" fill="none" stroke="#000">
-    <polyline points="-2,-12 -2,5 -1,8 1,9 3,9 5,8 6,6"/>
-    <polyline points="-1,-12 -1,5 0,8 1,9"/>
-    <polyline points="-5,-5 3,-5"/>
-  </g>
-  <g id="U+0075" data-char="u" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
-    <polyline points="-6,-5 -6,6 -5,8 -2,9 0,9 3,8 5,6"/>
-    <polyline points="-5,-5 -5,6 -4,8 -2,9"/>
-    <polyline points="5,-5 5,9"/>
-    <polyline points="6,-5 6,9"/>
-    <polyline points="-9,-5 -5,-5"/>
-    <polyline points="2,-5 6,-5"/>
-    <polyline points="5,9 9,9"/>
-  </g>
-  <g id="U+0076" data-char="v" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
-    <polyline points="-6,-5 0,9"/>
-    <polyline points="-5,-5 0,7"/>
-    <polyline points="6,-5 0,9"/>
-    <polyline points="-8,-5 -2,-5"/>
-    <polyline points="2,-5 8,-5"/>
-  </g>
-  <g id="U+0077" data-char="w" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="-8,-5 -4,9"/>
-    <polyline points="-7,-5 -4,6"/>
-    <polyline points="0,-5 -4,9"/>
-    <polyline points="0,-5 4,9"/>
-    <polyline points="1,-5 4,6"/>
-    <polyline points="8,-5 4,9"/>
-    <polyline points="-11,-5 -4,-5"/>
-    <polyline points="5,-5 11,-5"/>
-  </g>
-  <g id="U+0078" data-char="x" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
-    <polyline points="-6,-5 5,9"/>
-    <polyline points="-5,-5 6,9"/>
-    <polyline points="6,-5 -6,9"/>
-    <polyline points="-8,-5 -2,-5"/>
-    <polyline points="2,-5 8,-5"/>
-    <polyline points="-8,9 -2,9"/>
-    <polyline points="2,9 8,9"/>
-  </g>
-  <g id="U+0079" data-char="y" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
-    <polyline points="-6,-5 0,9"/>
-    <polyline points="-5,-5 0,7"/>
-    <polyline points="6,-5 0,9 -2,13 -4,15 -6,16 -7,16 -8,15 -7,14 -6,15"/>
-    <polyline points="-8,-5 -2,-5"/>
-    <polyline points="2,-5 8,-5"/>
-  </g>
-  <g id="U+007A" data-char="z" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
-    <polyline points="5,-5 -6,9"/>
-    <polyline points="6,-5 -5,9"/>
-    <polyline points="-5,-5 -6,-1 -6,-5 6,-5"/>
-    <polyline points="-6,9 6,9 6,5 5,9"/>
-  </g>
-  <g id="U+007B" data-char="{" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
-    <polyline points="2,-16 0,-15 -1,-14 -2,-12 -2,-10 -1,-8 0,-7 1,-5 1,-3 -1,-1"/>
-    <polyline points="0,-15 -1,-13 -1,-11 0,-9 1,-8 2,-6 2,-4 1,-2 -3,0 1,2 2,4 2,6 1,8 0,9 -1,11 -1,13 0,15"/>
-    <polyline points="-1,1 1,3 1,5 0,7 -1,8 -2,10 -2,12 -1,14 0,15 2,16"/>
-  </g>
-  <g id="U+007C" data-char="|" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
-    <polyline points="0,-16 0,16"/>
-  </g>
-  <g id="U+007D" data-char="}" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
-    <polyline points="-2,-16 0,-15 1,-14 2,-12 2,-10 1,-8 0,-7 -1,-5 -1,-3 1,-1"/>
-    <polyline points="0,-15 1,-13 1,-11 0,-9 -1,-8 -2,-6 -2,-4 -1,-2 3,0 -1,2 -2,4 -2,6 -1,8 0,9 1,11 1,13 0,15"/>
-    <polyline points="1,1 -1,3 -1,5 0,7 1,8 2,10 2,12 1,14 0,15 -2,16"/>
-  </g>
-  <g id="U+007E" data-char="~" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
-    <polyline points="-9,3 -9,1 -8,-2 -6,-3 -4,-3 -2,-2 2,1 4,2 6,2 8,1 9,-1"/>
-    <polyline points="-9,1 -8,-1 -6,-2 -4,-2 -2,-1 2,2 4,3 6,3 8,2 9,-1 9,-3"/>
-  </g>
-  <g id="U+007F" data-char="" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
-    <polyline points="-8,-12 -8,9 -7,9 -7,-12 -6,-12 -6,9 -5,9 -5,-12 -4,-12 -4,9 -3,9 -3,-12 -2,-12 -2,9 -1,9 -1,-12 0,-12 0,9 1,9 1,-12 2,-12 2,9 3,9 3,-12 4,-12 4,9 5,9 5,-12 6,-12 6,9 7,9 7,-12 8,-12 8,9"/>
+     data-source="../../timesr.jhf">
+  <g id=" " data-codepoint="U+0020" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
+  </g>
+  <g id="!" data-codepoint="U+0021" data-left="-5" data-right="5" data-advance="10" fill="none" stroke="#000">
+    <path d="M 0,-12 L -1,-10 L 0,2 L 1,-10 L 0,-12"/>
+    <path d="M 0,-10 L 0,-4"/>
+    <path d="M 0,7 L -1,8 L 0,9 L 1,8 L 0,7"/>
+  </g>
+  <g id="&quot;" data-codepoint="U+0022" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -4,-12 L -5,-11 L -5,-5"/>
+    <path d="M -4,-11 L -5,-5"/>
+    <path d="M -4,-12 L -3,-11 L -5,-5"/>
+    <path d="M 5,-12 L 4,-11 L 4,-5"/>
+    <path d="M 5,-11 L 4,-5"/>
+    <path d="M 5,-12 L 6,-11 L 4,-5"/>
+  </g>
+  <g id="#" data-codepoint="U+0023" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
+    <path d="M 1,-16 L -6,16"/>
+    <path d="M 7,-16 L 0,16"/>
+    <path d="M -6,-3 L 8,-3"/>
+    <path d="M -7,3 L 7,3"/>
+  </g>
+  <g id="$" data-codepoint="U+0024" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -2,-16 L -2,13"/>
+    <path d="M 2,-16 L 2,13"/>
+    <path d="M 6,-9 L 5,-8 L 6,-7 L 7,-8 L 7,-9 L 5,-11 L 2,-12 L -2,-12 L -5,-11 L -7,-9 L -7,-7 L -6,-5 L -5,-4 L -3,-3 L 3,-1 L 5,0 L 7,2"/>
+    <path d="M -7,-7 L -5,-5 L -3,-4 L 3,-2 L 5,-1 L 6,0 L 7,2 L 7,6 L 5,8 L 2,9 L -2,9 L -5,8 L -7,6 L -7,5 L -6,4 L -5,5 L -6,6"/>
+  </g>
+  <g id="%" data-codepoint="U+0025" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M 9,-12 L -9,9"/>
+    <path d="M -4,-12 L -2,-10 L -2,-8 L -3,-6 L -5,-5 L -7,-5 L -9,-7 L -9,-9 L -8,-11 L -6,-12 L -4,-12 L -2,-11 L 1,-10 L 4,-10 L 7,-11 L 9,-12"/>
+    <path d="M 5,2 L 3,3 L 2,5 L 2,7 L 4,9 L 6,9 L 8,8 L 9,6 L 9,4 L 7,2 L 5,2"/>
+  </g>
+  <g id="&amp;" data-codepoint="U+0026" data-left="-12" data-right="13" data-advance="25" fill="none" stroke="#000">
+    <path d="M 9,-4 L 8,-3 L 9,-2 L 10,-3 L 10,-4 L 9,-5 L 8,-5 L 7,-4 L 6,-2 L 4,3 L 2,6 L 0,8 L -2,9 L -5,9 L -8,8 L -9,6 L -9,3 L -8,1 L -2,-3 L 0,-5 L 1,-7 L 1,-9 L 0,-11 L -2,-12 L -4,-11 L -5,-9 L -5,-7 L -4,-4 L -2,-1 L 3,6 L 5,8 L 8,9 L 9,9 L 10,8 L 10,7"/>
+    <path d="M -5,9 L -7,8 L -8,6 L -8,3 L -7,1 L -5,-1"/>
+    <path d="M -5,-7 L -4,-5 L 4,6 L 6,8 L 8,9"/>
+  </g>
+  <g id="'" data-codepoint="U+0027" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-12 L -1,-5"/>
+    <path d="M 1,-12 L -1,-5"/>
+  </g>
+  <g id="(" data-codepoint="U+0028" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M 4,-16 L 2,-14 L 0,-11 L -2,-7 L -3,-2 L -3,2 L -2,7 L 0,11 L 2,14 L 4,16"/>
+    <path d="M 2,-14 L 0,-10 L -1,-7 L -2,-2 L -2,2 L -1,7 L 0,10 L 2,14"/>
+  </g>
+  <g id=")" data-codepoint="U+0029" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -4,-16 L -2,-14 L 0,-11 L 2,-7 L 3,-2 L 3,2 L 2,7 L 0,11 L -2,14 L -4,16"/>
+    <path d="M -2,-14 L 0,-10 L 1,-7 L 2,-2 L 2,2 L 1,7 L 0,10 L -2,14"/>
+  </g>
+  <g id="*" data-codepoint="U+002A" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
+    <path d="M 0,-6 L 0,6"/>
+    <path d="M -5,-3 L 5,3"/>
+    <path d="M 5,-3 L -5,3"/>
+  </g>
+  <g id="+" data-codepoint="U+002B" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
+    <path d="M 0,-9 L 0,9"/>
+    <path d="M -9,0 L 9,0"/>
+  </g>
+  <g id="," data-codepoint="U+002C" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 1,5 L 0,6 L -1,5 L 0,4 L 1,5 L 1,7 L -1,9"/>
+  </g>
+  <g id="-" data-codepoint="U+002D" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
+    <path d="M -9,0 L 9,0"/>
+  </g>
+  <g id="." data-codepoint="U+002E" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,4 L -1,5 L 0,6 L 1,5 L 0,4"/>
+  </g>
+  <g id="/" data-codepoint="U+002F" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M 9,-16 L -9,16"/>
+  </g>
+  <g id="0" data-codepoint="U+0030" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -1,-12 L -4,-11 L -6,-8 L -7,-3 L -7,0 L -6,5 L -4,8 L -1,9 L 1,9 L 4,8 L 6,5 L 7,0 L 7,-3 L 6,-8 L 4,-11 L 1,-12 L -1,-12"/>
+    <path d="M -1,-12 L -3,-11 L -4,-10 L -5,-8 L -6,-3 L -6,0 L -5,5 L -4,7 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 4,7 L 5,5 L 6,0 L 6,-3 L 5,-8 L 4,-10 L 3,-11 L 1,-12"/>
+  </g>
+  <g id="1" data-codepoint="U+0031" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -4,-8 L -2,-9 L 1,-12 L 1,9"/>
+    <path d="M 0,-11 L 0,9"/>
+    <path d="M -4,9 L 5,9"/>
+  </g>
+  <g id="2" data-codepoint="U+0032" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-8 L -5,-7 L -6,-6 L -7,-7 L -7,-8 L -6,-10 L -5,-11 L -2,-12 L 2,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-6 L 6,-4 L 3,-2 L -2,0 L -4,1 L -6,3 L -7,6 L -7,9"/>
+    <path d="M 2,-12 L 4,-11 L 5,-10 L 6,-8 L 6,-6 L 5,-4 L 2,-2 L -2,0"/>
+    <path d="M -7,7 L -6,6 L -4,6 L 1,8 L 4,8 L 6,7 L 7,6"/>
+    <path d="M -4,6 L 1,9 L 5,9 L 6,8 L 7,6 L 7,4"/>
+  </g>
+  <g id="3" data-codepoint="U+0033" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-8 L -5,-7 L -6,-6 L -7,-7 L -7,-8 L -6,-10 L -5,-11 L -2,-12 L 2,-12 L 5,-11 L 6,-9 L 6,-6 L 5,-4 L 2,-3 L -1,-3"/>
+    <path d="M 2,-12 L 4,-11 L 5,-9 L 5,-6 L 4,-4 L 2,-3"/>
+    <path d="M 2,-3 L 4,-2 L 6,0 L 7,2 L 7,5 L 6,7 L 5,8 L 2,9 L -2,9 L -5,8 L -6,7 L -7,5 L -7,4 L -6,3 L -5,4 L -6,5"/>
+    <path d="M 5,-1 L 6,2 L 6,5 L 5,7 L 4,8 L 2,9"/>
+  </g>
+  <g id="4" data-codepoint="U+0034" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 2,-10 L 2,9"/>
+    <path d="M 3,-12 L 3,9"/>
+    <path d="M 3,-12 L -8,3 L 8,3"/>
+    <path d="M -1,9 L 6,9"/>
+  </g>
+  <g id="5" data-codepoint="U+0035" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -5,-12 L -7,-2"/>
+    <path d="M -7,-2 L -5,-4 L -2,-5 L 1,-5 L 4,-4 L 6,-2 L 7,1 L 7,3 L 6,6 L 4,8 L 1,9 L -2,9 L -5,8 L -6,7 L -7,5 L -7,4 L -6,3 L -5,4 L -6,5"/>
+    <path d="M 1,-5 L 3,-4 L 5,-2 L 6,1 L 6,3 L 5,6 L 3,8 L 1,9"/>
+    <path d="M -5,-12 L 5,-12"/>
+    <path d="M -5,-11 L 0,-11 L 5,-12"/>
+  </g>
+  <g id="6" data-codepoint="U+0036" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 5,-9 L 4,-8 L 5,-7 L 6,-8 L 6,-9 L 5,-11 L 3,-12 L 0,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-3 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,3 L 7,2 L 6,-1 L 4,-3 L 1,-4 L 0,-4 L -3,-3 L -5,-1 L -6,2"/>
+    <path d="M 0,-12 L -2,-11 L -4,-9 L -5,-7 L -6,-3 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,3 L 6,2 L 5,-1 L 3,-3 L 1,-4"/>
+  </g>
+  <g id="7" data-codepoint="U+0037" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,-6"/>
+    <path d="M -7,-8 L -6,-10 L -4,-12 L -2,-12 L 3,-9 L 5,-9 L 6,-10 L 7,-12"/>
+    <path d="M -6,-10 L -4,-11 L -2,-11 L 3,-9"/>
+    <path d="M 7,-12 L 7,-9 L 6,-6 L 2,-1 L 1,1 L 0,4 L 0,9"/>
+    <path d="M 6,-6 L 1,-1 L 0,1 L -1,4 L -1,9"/>
+  </g>
+  <g id="8" data-codepoint="U+0038" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -2,-12 L -5,-11 L -6,-9 L -6,-6 L -5,-4 L -2,-3 L 2,-3 L 5,-4 L 6,-6 L 6,-9 L 5,-11 L 2,-12 L -2,-12"/>
+    <path d="M -2,-12 L -4,-11 L -5,-9 L -5,-6 L -4,-4 L -2,-3"/>
+    <path d="M 2,-3 L 4,-4 L 5,-6 L 5,-9 L 4,-11 L 2,-12"/>
+    <path d="M -2,-3 L -5,-2 L -6,-1 L -7,1 L -7,5 L -6,7 L -5,8 L -2,9 L 2,9 L 5,8 L 6,7 L 7,5 L 7,1 L 6,-1 L 5,-2 L 2,-3"/>
+    <path d="M -2,-3 L -4,-2 L -5,-1 L -6,1 L -6,5 L -5,7 L -4,8 L -2,9"/>
+    <path d="M 2,9 L 4,8 L 5,7 L 6,5 L 6,1 L 5,-1 L 4,-2 L 2,-3"/>
+  </g>
+  <g id="9" data-codepoint="U+0039" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 6,-5 L 5,-2 L 3,0 L 0,1 L -1,1 L -4,0 L -6,-2 L -7,-5 L -7,-6 L -6,-9 L -4,-11 L -1,-12 L 1,-12 L 4,-11 L 6,-9 L 7,-6 L 7,0 L 6,4 L 5,6 L 3,8 L 0,9 L -3,9 L -5,8 L -6,6 L -6,5 L -5,4 L -4,5 L -5,6"/>
+    <path d="M -1,1 L -3,0 L -5,-2 L -6,-5 L -6,-6 L -5,-9 L -3,-11 L -1,-12"/>
+    <path d="M 1,-12 L 3,-11 L 5,-9 L 6,-6 L 6,0 L 5,4 L 4,6 L 2,8 L 0,9"/>
+  </g>
+  <g id=":" data-codepoint="U+003A" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-3 L -1,-2 L 0,-1 L 1,-2 L 0,-3"/>
+    <path d="M 0,4 L -1,5 L 0,6 L 1,5 L 0,4"/>
+  </g>
+  <g id=";" data-codepoint="U+003B" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-3 L -1,-2 L 0,-1 L 1,-2 L 0,-3"/>
+    <path d="M 1,5 L 0,6 L -1,5 L 0,4 L 1,5 L 1,7 L -1,9"/>
+  </g>
+  <g id="&lt;" data-codepoint="U+003C" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M 8,-9 L -8,0 L 8,9"/>
+  </g>
+  <g id="=" data-codepoint="U+003D" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
+    <path d="M -9,-3 L 9,-3"/>
+    <path d="M -9,3 L 9,3"/>
+  </g>
+  <g id="&gt;" data-codepoint="U+003E" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -8,-9 L 8,0 L -8,9"/>
+  </g>
+  <g id="?" data-codepoint="U+003F" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -5,-8 L -4,-7 L -5,-6 L -6,-7 L -6,-8 L -5,-10 L -4,-11 L -2,-12 L 1,-12 L 4,-11 L 5,-10 L 6,-8 L 6,-6 L 5,-4 L 4,-3 L 0,-1 L 0,2"/>
+    <path d="M 1,-12 L 3,-11 L 4,-10 L 5,-8 L 5,-6 L 4,-4 L 2,-2"/>
+    <path d="M 0,7 L -1,8 L 0,9 L 1,8 L 0,7"/>
+  </g>
+  <g id="@" data-codepoint="U+0040" data-left="-13" data-right="14" data-advance="27" fill="none" stroke="#000">
+    <path d="M 5,-4 L 4,-6 L 2,-7 L -1,-7 L -3,-6 L -4,-5 L -5,-2 L -5,1 L -4,3 L -2,4 L 1,4 L 3,3 L 4,1"/>
+    <path d="M -1,-7 L -3,-5 L -4,-2 L -4,1 L -3,3 L -2,4"/>
+    <path d="M 5,-7 L 4,1 L 4,3 L 6,4 L 8,4 L 10,2 L 11,-1 L 11,-3 L 10,-6 L 9,-8 L 7,-10 L 5,-11 L 2,-12 L -1,-12 L -4,-11 L -6,-10 L -8,-8 L -9,-6 L -10,-3 L -10,0 L -9,3 L -8,5 L -6,7 L -4,8 L -1,9 L 2,9 L 5,8 L 7,7 L 8,6"/>
+    <path d="M 6,-7 L 5,1 L 5,3 L 6,4"/>
+  </g>
+  <g id="A" data-codepoint="U+0041" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 0,-12 L -7,9"/>
+    <path d="M 0,-12 L 7,9"/>
+    <path d="M 0,-9 L 6,9"/>
+    <path d="M -5,3 L 4,3"/>
+    <path d="M -9,9 L -3,9"/>
+    <path d="M 3,9 L 9,9"/>
+  </g>
+  <g id="B" data-codepoint="U+0042" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 3,-12 L 6,-11 L 7,-10 L 8,-8 L 8,-6 L 7,-4 L 6,-3 L 3,-2"/>
+    <path d="M 3,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-6 L 6,-4 L 5,-3 L 3,-2"/>
+    <path d="M -5,-2 L 3,-2 L 6,-1 L 7,0 L 8,2 L 8,5 L 7,7 L 6,8 L 3,9 L -9,9"/>
+    <path d="M 3,-2 L 5,-1 L 6,0 L 7,2 L 7,5 L 6,7 L 5,8 L 3,9"/>
+  </g>
+  <g id="C" data-codepoint="U+0043" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M 6,-9 L 7,-6 L 7,-12 L 6,-9 L 4,-11 L 1,-12 L -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-4 L -8,1 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,4"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-4 L -7,1 L -6,4 L -5,6 L -3,8 L -1,9"/>
+  </g>
+  <g id="D" data-codepoint="U+0044" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 1,-12 L 4,-11 L 6,-9 L 7,-7 L 8,-4 L 8,1 L 7,4 L 6,6 L 4,8 L 1,9 L -9,9"/>
+    <path d="M 1,-12 L 3,-11 L 5,-9 L 6,-7 L 7,-4 L 7,1 L 6,4 L 5,6 L 3,8 L 1,9"/>
+  </g>
+  <g id="E" data-codepoint="U+0045" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M 1,-6 L 1,2"/>
+    <path d="M -9,-12 L 7,-12 L 7,-6 L 6,-12"/>
+    <path d="M -5,-2 L 1,-2"/>
+    <path d="M -9,9 L 7,9 L 7,3 L 6,9"/>
+  </g>
+  <g id="F" data-codepoint="U+0046" data-left="-11" data-right="9" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M 1,-6 L 1,2"/>
+    <path d="M -9,-12 L 7,-12 L 7,-6 L 6,-12"/>
+    <path d="M -5,-2 L 1,-2"/>
+    <path d="M -9,9 L -2,9"/>
+  </g>
+  <g id="G" data-codepoint="U+0047" data-left="-11" data-right="12" data-advance="23" fill="none" stroke="#000">
+    <path d="M 6,-9 L 7,-6 L 7,-12 L 6,-9 L 4,-11 L 1,-12 L -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-4 L -8,1 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-4 L -7,1 L -6,4 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 6,1 L 6,9"/>
+    <path d="M 7,1 L 7,9"/>
+    <path d="M 3,1 L 10,1"/>
+  </g>
+  <g id="H" data-codepoint="U+0048" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,9"/>
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M 6,-12 L 6,9"/>
+    <path d="M 7,-12 L 7,9"/>
+    <path d="M -10,-12 L -3,-12"/>
+    <path d="M 3,-12 L 10,-12"/>
+    <path d="M -6,-2 L 6,-2"/>
+    <path d="M -10,9 L -3,9"/>
+    <path d="M 3,9 L 10,9"/>
+  </g>
+  <g id="I" data-codepoint="U+0049" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 0,-12 L 0,9"/>
+    <path d="M 1,-12 L 1,9"/>
+    <path d="M -3,-12 L 4,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="J" data-codepoint="U+004A" data-left="-7" data-right="8" data-advance="15" fill="none" stroke="#000">
+    <path d="M 3,-12 L 3,5 L 2,8 L 0,9 L -2,9 L -4,8 L -5,6 L -5,4 L -4,3 L -3,4 L -4,5"/>
+    <path d="M 2,-12 L 2,5 L 1,8 L 0,9"/>
+    <path d="M -1,-12 L 6,-12"/>
+  </g>
+  <g id="K" data-codepoint="U+004B" data-left="-12" data-right="10" data-advance="22" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,9"/>
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M 7,-12 L -6,1"/>
+    <path d="M -1,-3 L 7,9"/>
+    <path d="M -2,-3 L 6,9"/>
+    <path d="M -10,-12 L -3,-12"/>
+    <path d="M 3,-12 L 9,-12"/>
+    <path d="M -10,9 L -3,9"/>
+    <path d="M 3,9 L 9,9"/>
+  </g>
+  <g id="L" data-codepoint="U+004C" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -4,-12 L -4,9"/>
+    <path d="M -3,-12 L -3,9"/>
+    <path d="M -7,-12 L 0,-12"/>
+    <path d="M -7,9 L 8,9 L 8,3 L 7,9"/>
+  </g>
+  <g id="M" data-codepoint="U+004D" data-left="-12" data-right="13" data-advance="25" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,9"/>
+    <path d="M -6,-12 L 0,6"/>
+    <path d="M -7,-12 L 0,9"/>
+    <path d="M 7,-12 L 0,9"/>
+    <path d="M 7,-12 L 7,9"/>
+    <path d="M 8,-12 L 8,9"/>
+    <path d="M -10,-12 L -6,-12"/>
+    <path d="M 7,-12 L 11,-12"/>
+    <path d="M -10,9 L -4,9"/>
+    <path d="M 4,9 L 11,9"/>
+  </g>
+  <g id="N" data-codepoint="U+004E" data-left="-11" data-right="12" data-advance="23" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L 7,7"/>
+    <path d="M -5,-10 L 7,9"/>
+    <path d="M 7,-12 L 7,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+    <path d="M 4,-12 L 10,-12"/>
+    <path d="M -9,9 L -3,9"/>
+  </g>
+  <g id="O" data-codepoint="U+004F" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-3 L -8,0 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,4 L 8,0 L 8,-3 L 7,-7 L 6,-9 L 4,-11 L 1,-12 L -1,-12"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-3 L -7,0 L -6,4 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,4 L 7,0 L 7,-3 L 6,-7 L 5,-9 L 3,-11 L 1,-12"/>
+  </g>
+  <g id="P" data-codepoint="U+0050" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 3,-12 L 6,-11 L 7,-10 L 8,-8 L 8,-5 L 7,-3 L 6,-2 L 3,-1 L -5,-1"/>
+    <path d="M 3,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-5 L 6,-3 L 5,-2 L 3,-1"/>
+    <path d="M -9,9 L -2,9"/>
+  </g>
+  <g id="Q" data-codepoint="U+0051" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-3 L -8,0 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,4 L 8,0 L 8,-3 L 7,-7 L 6,-9 L 4,-11 L 1,-12 L -1,-12"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-3 L -7,0 L -6,4 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,4 L 7,0 L 7,-3 L 6,-7 L 5,-9 L 3,-11 L 1,-12"/>
+    <path d="M -4,7 L -4,6 L -3,4 L -1,3 L 0,3 L 2,4 L 3,6 L 4,13 L 5,14 L 7,14 L 8,12 L 8,11"/>
+    <path d="M 3,6 L 4,10 L 5,12 L 6,13 L 7,13 L 8,12"/>
+  </g>
+  <g id="R" data-codepoint="U+0052" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 3,-12 L 6,-11 L 7,-10 L 8,-8 L 8,-6 L 7,-4 L 6,-3 L 3,-2 L -5,-2"/>
+    <path d="M 3,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-6 L 6,-4 L 5,-3 L 3,-2"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 0,-2 L 2,-1 L 3,0 L 6,7 L 7,8 L 8,8 L 9,7"/>
+    <path d="M 2,-1 L 3,1 L 5,8 L 6,9 L 8,9 L 9,7 L 9,6"/>
+  </g>
+  <g id="S" data-codepoint="U+0053" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 6,-9 L 7,-12 L 7,-6 L 6,-9 L 4,-11 L 1,-12 L -2,-12 L -5,-11 L -7,-9 L -7,-7 L -6,-5 L -5,-4 L -3,-3 L 3,-1 L 5,0 L 7,2"/>
+    <path d="M -7,-7 L -5,-5 L -3,-4 L 3,-2 L 5,-1 L 6,0 L 7,2 L 7,6 L 5,8 L 2,9 L -1,9 L -4,8 L -6,6 L -7,3 L -7,9 L -6,6"/>
+  </g>
+  <g id="T" data-codepoint="U+0054" data-left="-9" data-right="10" data-advance="19" fill="none" stroke="#000">
+    <path d="M 0,-12 L 0,9"/>
+    <path d="M 1,-12 L 1,9"/>
+    <path d="M -6,-12 L -7,-6 L -7,-12 L 8,-12 L 8,-6 L 7,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="U" data-codepoint="U+0055" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,3 L 7,-12"/>
+    <path d="M -6,-12 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M -10,-12 L -3,-12"/>
+    <path d="M 4,-12 L 10,-12"/>
+  </g>
+  <g id="V" data-codepoint="U+0056" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -7,-12 L 0,9"/>
+    <path d="M -6,-12 L 0,6"/>
+    <path d="M 7,-12 L 0,9"/>
+    <path d="M -9,-12 L -3,-12"/>
+    <path d="M 3,-12 L 9,-12"/>
+  </g>
+  <g id="W" data-codepoint="U+0057" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -8,-12 L -4,9"/>
+    <path d="M -7,-12 L -4,4"/>
+    <path d="M 0,-12 L -4,9"/>
+    <path d="M 0,-12 L 4,9"/>
+    <path d="M 1,-12 L 4,4"/>
+    <path d="M 8,-12 L 4,9"/>
+    <path d="M -11,-12 L -4,-12"/>
+    <path d="M 5,-12 L 11,-12"/>
+  </g>
+  <g id="X" data-codepoint="U+0058" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -7,-12 L 6,9"/>
+    <path d="M -6,-12 L 7,9"/>
+    <path d="M 7,-12 L -7,9"/>
+    <path d="M -9,-12 L -3,-12"/>
+    <path d="M 3,-12 L 9,-12"/>
+    <path d="M -9,9 L -3,9"/>
+    <path d="M 3,9 L 9,9"/>
+  </g>
+  <g id="Y" data-codepoint="U+0059" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
+    <path d="M -7,-12 L 0,-1 L 0,9"/>
+    <path d="M -6,-12 L 1,-1 L 1,9"/>
+    <path d="M 8,-12 L 1,-1"/>
+    <path d="M -9,-12 L -3,-12"/>
+    <path d="M 4,-12 L 10,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="Z" data-codepoint="U+005A" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 6,-12 L -7,9"/>
+    <path d="M 7,-12 L -6,9"/>
+    <path d="M -6,-12 L -7,-6 L -7,-12 L 7,-12"/>
+    <path d="M -7,9 L 7,9 L 7,3 L 6,9"/>
+  </g>
+  <g id="[" data-codepoint="U+005B" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -3,-16 L -3,16"/>
+    <path d="M -2,-16 L -2,16"/>
+    <path d="M -3,-16 L 4,-16"/>
+    <path d="M -3,16 L 4,16"/>
+  </g>
+  <g id="\" data-codepoint="U+005C" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -7,-12 L 7,12"/>
+  </g>
+  <g id="]" data-codepoint="U+005D" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M 2,-16 L 2,16"/>
+    <path d="M 3,-16 L 3,16"/>
+    <path d="M -4,-16 L 3,-16"/>
+    <path d="M -4,16 L 3,16"/>
+  </g>
+  <g id="^" data-codepoint="U+005E" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -8,2 L 0,-3 L 8,2"/>
+    <path d="M -8,2 L 0,-2 L 8,2"/>
+  </g>
+  <g id="_" data-codepoint="U+005F" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -10,16 L 10,16"/>
+  </g>
+  <g id="`" data-codepoint="U+0060" data-left="-6" data-right="6" data-advance="12" fill="none" stroke="#000">
+    <path d="M -2,-12 L 3,-6"/>
+    <path d="M -2,-12 L -3,-11 L 3,-6"/>
+  </g>
+  <g id="a" data-codepoint="U+0061" data-left="-9" data-right="11" data-advance="20" fill="none" stroke="#000">
+    <path d="M -4,-3 L -4,-2 L -5,-2 L -5,-3 L -4,-4 L -2,-5 L 2,-5 L 4,-4 L 5,-3 L 6,-1 L 6,6 L 7,8 L 8,9"/>
+    <path d="M 5,-3 L 5,6 L 6,8 L 8,9 L 9,9"/>
+    <path d="M 5,-1 L 4,0 L -2,1 L -5,2 L -6,4 L -6,6 L -5,8 L -2,9 L 1,9 L 3,8 L 5,6"/>
+    <path d="M -2,1 L -4,2 L -5,4 L -5,6 L -4,8 L -2,9"/>
+  </g>
+  <g id="b" data-codepoint="U+0062" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -5,-2 L -3,-4 L -1,-5 L 1,-5 L 4,-4 L 6,-2 L 7,1 L 7,3 L 6,6 L 4,8 L 1,9 L -1,9 L -3,8 L -5,6"/>
+    <path d="M 1,-5 L 3,-4 L 5,-2 L 6,1 L 6,3 L 5,6 L 3,8 L 1,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+  </g>
+  <g id="c" data-codepoint="U+0063" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
+    <path d="M 5,-2 L 4,-1 L 5,0 L 6,-1 L 6,-2 L 4,-4 L 2,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+  </g>
+  <g id="d" data-codepoint="U+0064" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
+    <path d="M 5,-12 L 5,9"/>
+    <path d="M 6,-12 L 6,9"/>
+    <path d="M 5,-2 L 3,-4 L 1,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 3,8 L 5,6"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 2,-12 L 6,-12"/>
+    <path d="M 5,9 L 9,9"/>
+  </g>
+  <g id="e" data-codepoint="U+0065" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
+    <path d="M -6,1 L 6,1 L 6,-1 L 5,-3 L 4,-4 L 2,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6"/>
+    <path d="M 5,1 L 5,-2 L 4,-4"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+  </g>
+  <g id="f" data-codepoint="U+0066" data-left="-7" data-right="6" data-advance="13" fill="none" stroke="#000">
+    <path d="M 3,-11 L 2,-10 L 3,-9 L 4,-10 L 4,-11 L 3,-12 L 1,-12 L -1,-11 L -2,-9 L -2,9"/>
+    <path d="M 1,-12 L 0,-11 L -1,-9 L -1,9"/>
+    <path d="M -5,-5 L 3,-5"/>
+    <path d="M -5,9 L 2,9"/>
+  </g>
+  <g id="g" data-codepoint="U+0067" data-left="-9" data-right="10" data-advance="19" fill="none" stroke="#000">
+    <path d="M -1,-5 L -3,-4 L -4,-3 L -5,-1 L -5,1 L -4,3 L -3,4 L -1,5 L 1,5 L 3,4 L 4,3 L 5,1 L 5,-1 L 4,-3 L 3,-4 L 1,-5 L -1,-5"/>
+    <path d="M -3,-4 L -4,-2 L -4,2 L -3,4"/>
+    <path d="M 3,4 L 4,2 L 4,-2 L 3,-4"/>
+    <path d="M 4,-3 L 5,-4 L 7,-5 L 7,-4 L 5,-4"/>
+    <path d="M -4,3 L -5,4 L -6,6 L -6,7 L -5,9 L -2,10 L 3,10 L 6,11 L 7,12"/>
+    <path d="M -6,7 L -5,8 L -2,9 L 3,9 L 6,10 L 7,12 L 7,13 L 6,15 L 3,16 L -3,16 L -6,15 L -7,13 L -7,12 L -6,10 L -3,9"/>
+  </g>
+  <g id="h" data-codepoint="U+0068" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -5,-2 L -3,-4 L 0,-5 L 2,-5 L 5,-4 L 6,-2 L 6,9"/>
+    <path d="M 2,-5 L 4,-4 L 5,-2 L 5,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 2,9 L 9,9"/>
+  </g>
+  <g id="i" data-codepoint="U+0069" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 0,-12 L -1,-11 L 0,-10 L 1,-11 L 0,-12"/>
+    <path d="M 0,-5 L 0,9"/>
+    <path d="M 1,-5 L 1,9"/>
+    <path d="M -3,-5 L 1,-5"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="j" data-codepoint="U+006A" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 1,-12 L 0,-11 L 1,-10 L 2,-11 L 1,-12"/>
+    <path d="M 2,-5 L 2,13 L 1,15 L -1,16 L -3,16 L -4,15 L -4,14 L -3,13 L -2,14 L -3,15"/>
+    <path d="M 1,-5 L 1,13 L 0,15 L -1,16"/>
+    <path d="M -2,-5 L 2,-5"/>
+  </g>
+  <g id="k" data-codepoint="U+006B" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M 5,-5 L -5,5"/>
+    <path d="M 0,1 L 6,9"/>
+    <path d="M -1,1 L 5,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+    <path d="M 2,-5 L 8,-5"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 2,9 L 8,9"/>
+  </g>
+  <g id="l" data-codepoint="U+006C" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 0,-12 L 0,9"/>
+    <path d="M 1,-12 L 1,9"/>
+    <path d="M -3,-12 L 1,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="m" data-codepoint="U+006D" data-left="-16" data-right="17" data-advance="33" fill="none" stroke="#000">
+    <path d="M -11,-5 L -11,9"/>
+    <path d="M -10,-5 L -10,9"/>
+    <path d="M -10,-2 L -8,-4 L -5,-5 L -3,-5 L 0,-4 L 1,-2 L 1,9"/>
+    <path d="M -3,-5 L -1,-4 L 0,-2 L 0,9"/>
+    <path d="M 1,-2 L 3,-4 L 6,-5 L 8,-5 L 11,-4 L 12,-2 L 12,9"/>
+    <path d="M 8,-5 L 10,-4 L 11,-2 L 11,9"/>
+    <path d="M -14,-5 L -10,-5"/>
+    <path d="M -14,9 L -7,9"/>
+    <path d="M -3,9 L 4,9"/>
+    <path d="M 8,9 L 15,9"/>
+  </g>
+  <g id="n" data-codepoint="U+006E" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-5 L -6,9"/>
+    <path d="M -5,-5 L -5,9"/>
+    <path d="M -5,-2 L -3,-4 L 0,-5 L 2,-5 L 5,-4 L 6,-2 L 6,9"/>
+    <path d="M 2,-5 L 4,-4 L 5,-2 L 5,9"/>
+    <path d="M -9,-5 L -5,-5"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 2,9 L 9,9"/>
+  </g>
+  <g id="o" data-codepoint="U+006F" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,3 L 7,1 L 6,-2 L 4,-4 L 1,-5 L -1,-5"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,3 L 6,1 L 5,-2 L 3,-4 L 1,-5"/>
+  </g>
+  <g id="p" data-codepoint="U+0070" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-5 L -6,16"/>
+    <path d="M -5,-5 L -5,16"/>
+    <path d="M -5,-2 L -3,-4 L -1,-5 L 1,-5 L 4,-4 L 6,-2 L 7,1 L 7,3 L 6,6 L 4,8 L 1,9 L -1,9 L -3,8 L -5,6"/>
+    <path d="M 1,-5 L 3,-4 L 5,-2 L 6,1 L 6,3 L 5,6 L 3,8 L 1,9"/>
+    <path d="M -9,-5 L -5,-5"/>
+    <path d="M -9,16 L -2,16"/>
+  </g>
+  <g id="q" data-codepoint="U+0071" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 5,-5 L 5,16"/>
+    <path d="M 6,-5 L 6,16"/>
+    <path d="M 5,-2 L 3,-4 L 1,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 3,8 L 5,6"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 2,16 L 9,16"/>
+  </g>
+  <g id="r" data-codepoint="U+0072" data-left="-9" data-right="8" data-advance="17" fill="none" stroke="#000">
+    <path d="M -4,-5 L -4,9"/>
+    <path d="M -3,-5 L -3,9"/>
+    <path d="M -3,1 L -2,-2 L 0,-4 L 2,-5 L 5,-5 L 6,-4 L 6,-3 L 5,-2 L 4,-3 L 5,-4"/>
+    <path d="M -7,-5 L -3,-5"/>
+    <path d="M -7,9 L 0,9"/>
+  </g>
+  <g id="s" data-codepoint="U+0073" data-left="-8" data-right="9" data-advance="17" fill="none" stroke="#000">
+    <path d="M 5,-3 L 6,-5 L 6,-1 L 5,-3 L 4,-4 L 2,-5 L -2,-5 L -4,-4 L -5,-3 L -5,-1 L -4,0 L -2,1 L 3,3 L 5,4 L 6,5"/>
+    <path d="M -5,-2 L -4,-1 L -2,0 L 3,2 L 5,3 L 6,4 L 6,7 L 5,8 L 3,9 L -1,9 L -3,8 L -4,7 L -5,5 L -5,9 L -4,7"/>
+  </g>
+  <g id="t" data-codepoint="U+0074" data-left="-7" data-right="8" data-advance="15" fill="none" stroke="#000">
+    <path d="M -2,-12 L -2,5 L -1,8 L 1,9 L 3,9 L 5,8 L 6,6"/>
+    <path d="M -1,-12 L -1,5 L 0,8 L 1,9"/>
+    <path d="M -5,-5 L 3,-5"/>
+  </g>
+  <g id="u" data-codepoint="U+0075" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-5 L -6,6 L -5,8 L -2,9 L 0,9 L 3,8 L 5,6"/>
+    <path d="M -5,-5 L -5,6 L -4,8 L -2,9"/>
+    <path d="M 5,-5 L 5,9"/>
+    <path d="M 6,-5 L 6,9"/>
+    <path d="M -9,-5 L -5,-5"/>
+    <path d="M 2,-5 L 6,-5"/>
+    <path d="M 5,9 L 9,9"/>
+  </g>
+  <g id="v" data-codepoint="U+0076" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -6,-5 L 0,9"/>
+    <path d="M -5,-5 L 0,7"/>
+    <path d="M 6,-5 L 0,9"/>
+    <path d="M -8,-5 L -2,-5"/>
+    <path d="M 2,-5 L 8,-5"/>
+  </g>
+  <g id="w" data-codepoint="U+0077" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -8,-5 L -4,9"/>
+    <path d="M -7,-5 L -4,6"/>
+    <path d="M 0,-5 L -4,9"/>
+    <path d="M 0,-5 L 4,9"/>
+    <path d="M 1,-5 L 4,6"/>
+    <path d="M 8,-5 L 4,9"/>
+    <path d="M -11,-5 L -4,-5"/>
+    <path d="M 5,-5 L 11,-5"/>
+  </g>
+  <g id="x" data-codepoint="U+0078" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-5 L 5,9"/>
+    <path d="M -5,-5 L 6,9"/>
+    <path d="M 6,-5 L -6,9"/>
+    <path d="M -8,-5 L -2,-5"/>
+    <path d="M 2,-5 L 8,-5"/>
+    <path d="M -8,9 L -2,9"/>
+    <path d="M 2,9 L 8,9"/>
+  </g>
+  <g id="y" data-codepoint="U+0079" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
+    <path d="M -6,-5 L 0,9"/>
+    <path d="M -5,-5 L 0,7"/>
+    <path d="M 6,-5 L 0,9 L -2,13 L -4,15 L -6,16 L -7,16 L -8,15 L -7,14 L -6,15"/>
+    <path d="M -8,-5 L -2,-5"/>
+    <path d="M 2,-5 L 8,-5"/>
+  </g>
+  <g id="z" data-codepoint="U+007A" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M 5,-5 L -6,9"/>
+    <path d="M 6,-5 L -5,9"/>
+    <path d="M -5,-5 L -6,-1 L -6,-5 L 6,-5"/>
+    <path d="M -6,9 L 6,9 L 6,5 L 5,9"/>
+  </g>
+  <g id="{" data-codepoint="U+007B" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M 2,-16 L 0,-15 L -1,-14 L -2,-12 L -2,-10 L -1,-8 L 0,-7 L 1,-5 L 1,-3 L -1,-1"/>
+    <path d="M 0,-15 L -1,-13 L -1,-11 L 0,-9 L 1,-8 L 2,-6 L 2,-4 L 1,-2 L -3,0 L 1,2 L 2,4 L 2,6 L 1,8 L 0,9 L -1,11 L -1,13 L 0,15"/>
+    <path d="M -1,1 L 1,3 L 1,5 L 0,7 L -1,8 L -2,10 L -2,12 L -1,14 L 0,15 L 2,16"/>
+  </g>
+  <g id="|" data-codepoint="U+007C" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-16 L 0,16"/>
+  </g>
+  <g id="}" data-codepoint="U+007D" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -2,-16 L 0,-15 L 1,-14 L 2,-12 L 2,-10 L 1,-8 L 0,-7 L -1,-5 L -1,-3 L 1,-1"/>
+    <path d="M 0,-15 L 1,-13 L 1,-11 L 0,-9 L -1,-8 L -2,-6 L -2,-4 L -1,-2 L 3,0 L -1,2 L -2,4 L -2,6 L -1,8 L 0,9 L 1,11 L 1,13 L 0,15"/>
+    <path d="M 1,1 L -1,3 L -1,5 L 0,7 L 1,8 L 2,10 L 2,12 L 1,14 L 0,15 L -2,16"/>
+  </g>
+  <g id="~" data-codepoint="U+007E" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -9,3 L -9,1 L -8,-2 L -6,-3 L -4,-3 L -2,-2 L 2,1 L 4,2 L 6,2 L 8,1 L 9,-1"/>
+    <path d="M -9,1 L -8,-1 L -6,-2 L -4,-2 L -2,-1 L 2,2 L 4,3 L 6,3 L 8,2 L 9,-1 L 9,-3"/>
+  </g>
+  <g id="" data-codepoint="U+007F" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
+    <path d="M -8,-12 L -8,9 L -7,9 L -7,-12 L -6,-12 L -6,9 L -5,9 L -5,-12 L -4,-12 L -4,9 L -3,9 L -3,-12 L -2,-12 L -2,9 L -1,9 L -1,-12 L 0,-12 L 0,9 L 1,9 L 1,-12 L 2,-12 L 2,9 L 3,9 L 3,-12 L 4,-12 L 4,9 L 5,9 L 5,-12 L 6,-12 L 6,9 L 7,9 L 7,-12 L 8,-12 L 8,9"/>
   </g>
 </svg>

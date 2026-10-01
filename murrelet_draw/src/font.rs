@@ -10,6 +10,9 @@ use crate::svg_read::{load_all_data, load_all_data_from_str};
 
 const GLYPH_SVG: &str = include_str!("../assets/timesr.svg");
 
+// use this letter to figure out how to scael it
+const CAP_REFERENCE: &str = "H";
+
 #[derive(Clone, Debug)]
 pub struct Letterform {
     #[allow(dead_code)]
@@ -175,15 +178,27 @@ impl Default for FontConf {
 }
 
 #[derive(Debug, Clone)]
-pub struct JessicaFont {
+pub struct MurreletFont {
     data: HashMap<String, Letterform>,
+    cap_height: f32,
 }
 
-impl JessicaFont {
-    pub fn load(conf: &FontConf) -> JessicaFont {
-        JessicaFont {
-            data: FontConf::load(conf),
-        }
+impl MurreletFont {
+    pub fn new(data: HashMap<String, Letterform>) -> MurreletFont {
+        let cap_height = data
+            .get(CAP_REFERENCE)
+            .map(|l| BoundMetric::new_from_vec_vecs(l.lines()).height())
+            .filter(|h| *h > 0.0)
+            .unwrap_or(1.0);
+        MurreletFont { data, cap_height }
+    }
+
+    pub fn load(conf: &FontConf) -> Self {
+        Self::new(FontConf::load(conf))
+    }
+
+    pub fn cap_height(&self) -> f32 {
+        self.cap_height
     }
 
     pub fn to_shapes(&self, what: &str, conf: &FontConf) -> Vec<(Vec2, bool)> {
@@ -306,13 +321,10 @@ impl JessicaFont {
     }
 
     // some claude
-    pub fn default_font() -> &'static JessicaFont {
-        static FONT: std::sync::OnceLock<JessicaFont> = std::sync::OnceLock::new();
-        FONT.get_or_init(|| JessicaFont {
-            data: FontConf::default().load_str(GLYPH_SVG),
-        })
+    pub fn default_font() -> &'static MurreletFont {
+        static FONT: std::sync::OnceLock<MurreletFont> = std::sync::OnceLock::new();
+        FONT.get_or_init(|| MurreletFont::new(FontConf::default().load_str(GLYPH_SVG)))
     }
-
     pub fn text_to_polylines(
         &self,
         text: &str,
@@ -321,13 +333,15 @@ impl JessicaFont {
         conf: &FontConf,
     ) -> Vec<Vec<Vec2>> {
         let (bounds, mut runs) = self.to_shapes_separate(text, conf);
-        if bounds.height() <= 0.0 {
+        if runs.is_empty() {
             return runs;
         }
-        let scale = font_size / bounds.height();
+        let scale = font_size / self.cap_height;
+
+        let anchor = vec2(bounds.center().x, self.cap_height * 0.5);
         for run in &mut runs {
             for p in run.iter_mut() {
-                *p = (*p - bounds.center()) * scale + loc;
+                *p = (*p - anchor) * scale + loc;
             }
         }
         runs
