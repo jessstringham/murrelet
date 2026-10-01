@@ -314,8 +314,13 @@ pub fn load_all_data<T>(path: T, line_space: f32) -> HashMap<String, Vec<Vec<Vec
 where
     T: AsRef<std::path::Path>,
 {
-    let map = load_all_data_into_map(path);
+    flatten_svg(load_all_data_into_map(path), line_space)
+}
 
+fn flatten_svg(
+    map: HashMap<String, Vec<svg::node::element::path::Data>>,
+    line_space: f32,
+) -> HashMap<String, Vec<Vec<Vec2>>> {
     let r: HashMap<String, Vec<Vec<Vec2>>> = map
         .iter()
         .map(|(k, v)| {
@@ -334,12 +339,18 @@ where
     T: AsRef<std::path::Path>,
 {
     let mut content = String::new();
+    let parsed_svg = svg::open(path, &mut content).unwrap();
+    collect_paths(parsed_svg)
+}
 
+fn collect_paths(
+    parser: svg::parser::Parser<'_>,
+) -> HashMap<String, Vec<svg::node::element::path::Data>> {
     let mut maps: HashMap<String, Vec<svg::node::element::path::Data>> = HashMap::new();
 
     let mut recent_id: String = "".to_string(); // i hate this
 
-    for event in svg::open(path, &mut content).unwrap() {
+    for event in parser {
         if let svg::parser::Event::Tag(_, _, attributes) = event {
             if let Some(id) = attributes.get("id") {
                 recent_id = id.to_string();
@@ -353,6 +364,16 @@ where
     }
 
     maps
+}
+
+pub fn load_all_data_from_str(content: &str, line_space: f32) -> HashMap<String, Vec<Vec<Vec2>>> {
+    flatten_svg(load_all_data_into_map_from_str(content), line_space)
+}
+
+pub fn load_all_data_into_map_from_str(
+    content: &str,
+) -> HashMap<String, Vec<svg::node::element::path::Data>> {
+    collect_paths(svg::read(content).unwrap())
 }
 
 // SvgPathDef is a simplified svg thingy.. this just converts back to the full

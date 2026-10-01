@@ -6,7 +6,9 @@ use lerpable::Lerpable;
 use murrelet_common::*;
 use murrelet_livecode::Livecode;
 
-use crate::svg_read::load_all_data;
+use crate::svg_read::{load_all_data, load_all_data_from_str};
+
+const GLYPH_SVG: &str = include_str!("../assets/timesr.svg");
 
 #[derive(Clone, Debug)]
 pub struct Letterform {
@@ -106,11 +108,24 @@ pub struct FontConf {
     return_len: usize,
     spacing_len: usize,
     word_gap: f32,
+
+    // if we need to rotate it...
+    rotate_quarter_turn: bool,
 }
 
 impl FontConf {
     pub fn load(&self) -> HashMap<String, Letterform> {
-        let raw_data = load_all_data(&self.filename, self.font_tolerance);
+        self.letterforms(load_all_data(&self.filename, self.font_tolerance))
+    }
+
+    pub fn load_str(&self, svg: &str) -> HashMap<String, Letterform> {
+        self.letterforms(load_all_data_from_str(svg, self.font_tolerance))
+    }
+
+    fn letterforms(
+        &self,
+        raw_data: HashMap<String, Vec<Vec<Vec2>>>,
+    ) -> HashMap<String, Letterform> {
         let mut result = HashMap::new();
 
         // let current_loc = None;
@@ -124,7 +139,11 @@ impl FontConf {
             let mut pts_as_vec2 = v.clone();
             for row in &mut pts_as_vec2 {
                 for item in row {
-                    *item = vec2(item.y, -item.x);
+                    *item = if self.rotate_quarter_turn {
+                        vec2(item.y, -item.x)
+                    } else {
+                        vec2(item.x, -item.y)
+                    };
                 }
             }
 
@@ -134,6 +153,24 @@ impl FontConf {
         }
 
         result
+    }
+}
+
+impl Default for FontConf {
+    fn default() -> Self {
+        Self {
+            filename: String::new(), // the default font is embedded, not read
+            inter_char_spacing_len: 15,
+            repeat_endpoints: 5,
+            font_tolerance: 1.0,
+            mapping: HashMap::new(),
+            spacing: 2.0,
+            lowercase_baseline: 0.0, // hershey units: the baseline is y=0
+            return_len: 32,
+            spacing_len: 12,
+            word_gap: 10.0,
+            rotate_quarter_turn: false,
+        }
     }
 }
 
@@ -266,5 +303,33 @@ impl JessicaFont {
         }
 
         (bounds, result)
+    }
+
+    // some claude
+    pub fn default_font() -> &'static JessicaFont {
+        static FONT: std::sync::OnceLock<JessicaFont> = std::sync::OnceLock::new();
+        FONT.get_or_init(|| JessicaFont {
+            data: FontConf::default().load_str(GLYPH_SVG),
+        })
+    }
+
+    pub fn text_to_polylines(
+        &self,
+        text: &str,
+        loc: Vec2,
+        font_size: f32,
+        conf: &FontConf,
+    ) -> Vec<Vec<Vec2>> {
+        let (bounds, mut runs) = self.to_shapes_separate(text, conf);
+        if bounds.height() <= 0.0 {
+            return runs;
+        }
+        let scale = font_size / bounds.height();
+        for run in &mut runs {
+            for p in run.iter_mut() {
+                *p = (*p - bounds.center()) * scale + loc;
+            }
+        }
+        runs
     }
 }
