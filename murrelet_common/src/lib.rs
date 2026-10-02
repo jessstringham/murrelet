@@ -5,10 +5,10 @@ use itertools::Itertools;
 use lerpable::{IsLerpingMethod, Lerpable};
 use num_traits::NumCast;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use std::collections::HashMap;
 use std::hash::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use thiserror::Error;
 
 pub mod intersection;
 
@@ -841,8 +841,22 @@ impl StrId {
         StrId(bytes)
     }
 
+    pub fn len(&self) -> usize {
+        self.0.iter().position(|&x| x == 0).unwrap_or(MAX_STRID_LEN)
+    }
+
+    // just so we don't need to turn back into strings...
+    pub fn append(&self, s: &str) -> Self {
+        let len = self.len();
+
+        let mut bytes = self.0.clone();
+        bytes[len..len + s.len()].copy_from_slice(s.as_bytes());
+        StrId(bytes)
+    }
+
     pub fn as_str(&self) -> &str {
-        let len = self.0.iter().position(|&x| x == 0).unwrap_or(MAX_STRID_LEN);
+        let len = self.len();
+
         std::str::from_utf8(&self.0[..len]).unwrap()
     }
 
