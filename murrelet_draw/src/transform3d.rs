@@ -22,6 +22,7 @@ impl Transform3d {
     pub fn noop() -> Self {
         Self(vec![])
     }
+
     pub fn new(transform3d_steps: Vec<Transform3dStep>) -> Self {
         Self(transform3d_steps)
     }
@@ -112,6 +113,34 @@ impl Transform3d {
 
     pub fn scale_scalar(&self) -> f32 {
         self.scale_transform().transform(&Vec3::ONE).x // hax?
+    }
+
+    /// to do, maybe this shoudl just be it's own
+    pub fn look_at(eye: Vec3, target: Vec3) -> Transform3d {
+        Self::look_at_up(eye, target, Vec3::Y)
+    }
+
+    pub fn look_at_up(eye: Vec3, target: Vec3, up: Vec3) -> Transform3d {
+        let dir = (target - eye).normalize_or(-Vec3::Z);
+        // if we're looking straight along `up`, look_at_rh goes NaN, so pick another up
+        let up = if dir.cross(up).length_squared() < 1e-6 {
+            if up.dot(Vec3::Y).abs() > 0.9 {
+                Vec3::Z
+            } else {
+                Vec3::Y
+            }
+        } else {
+            up
+        };
+
+        let (_scale, rot, translate) =
+            Mat4::look_at_rh(eye, eye + dir, up).to_scale_rotation_translation();
+        let (axis, angle) = rot.to_axis_angle();
+
+        Transform3d::new(vec![
+            Transform3dStep::rotate(&axis, Angle::new(angle)),
+            Transform3dStep::translate(translate),
+        ])
     }
 }
 
@@ -255,7 +284,7 @@ impl Transform3dStep {
         }
     }
 
-    fn translate(v: Vec3) -> Transform3dStep {
+    pub fn translate(v: Vec3) -> Transform3dStep {
         Self::Translate(V3 { v })
     }
 
