@@ -11,7 +11,6 @@ pub fn eval_3d_bezier(p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, t: f32) -> SpotOn3
     let u2 = u * u;
 
     let loc = p0 * (u2 * u) + p1 * (3.0 * u2 * t) + p2 * (3.0 * u * t2) + p3 * (t2 * t);
-
     let tangent = (p1 - p0) * (3.0 * u2) + (p2 - p1) * (6.0 * u * t) + (p3 - p2) * (3.0 * t2);
 
     SpotOn3d::from_dir(loc, tangent)

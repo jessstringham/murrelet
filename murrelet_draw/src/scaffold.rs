@@ -141,7 +141,7 @@ fn vec2_to_line_string(vs: &[Vec2]) -> geo::LineString {
 #[derive(Debug, Clone, Default)]
 pub enum MaskCache {
     Impl(MaskCacheImpl),
-    #[default] // todo, this should be uninitialized or something...
+    #[default] // todo, this should be uninitialized or something... once lock?
     AlwaysTrue,
 }
 
@@ -287,6 +287,7 @@ impl MaskCache {
     pub fn ray_intersect(&self, spot: &SpotOnCurve) -> Vec2 {
         self.last_point_containing(&spot.loc, &spot.line_to_spot(1000.0))
     }
+
     pub fn rect(&self) -> murrelet_common::Rect {
         match self {
             MaskCache::Impl(mask_cache_impl) => {
