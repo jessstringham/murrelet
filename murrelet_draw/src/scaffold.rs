@@ -14,7 +14,9 @@ use geo::{Area, BooleanOps, BoundingRect, Contains, Intersects, Line, MultiPolyg
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 
-use murrelet_common::{LivecodeResult, MurreletString, PointToPoint, SpotOnCurve, ToLivecodeResult, poly_area_unsigned};
+use murrelet_common::{
+    LivecodeResult, MurreletString, PointToPoint, SpotOnCurve, ToLivecodeResult, poly_area_unsigned,
+};
 use std::collections::{HashMap, HashSet};
 
 use crate::convert::glam_to_geo_pt;
@@ -82,6 +84,11 @@ impl MaskCacheImpl {
 
     fn contains(&self, v: &Vec2) -> bool {
         self.polygon.contains(&glam_to_geo(*v))
+    }
+
+    // includes edges
+    fn covers(&self, v: &Vec2) -> bool {
+        self.polygon.intersects(&glam_to_geo_pt(*v))
     }
 
     // left needs to be inside
@@ -187,6 +194,18 @@ impl MaskCache {
         Self::new(&[cd], tolerance)
     }
 
+    pub fn new_vec2_interior(outline: &[Vec2], interiors: &[Vec<Vec2>]) -> Self {
+        let polygon = geo::Polygon::new(
+            vec2_to_line_string(outline),
+            interiors.iter().map(|x| vec2_to_line_string(x)).collect(),
+        );
+
+        MaskCache::Impl(MaskCacheImpl {
+            bounding: polygon.bounding_rect().unwrap(),
+            polygon,
+        })
+    }
+
     pub fn new_interior(
         outline: CurveDrawer,
         interior: &[CurveDrawer],
@@ -222,6 +241,13 @@ impl MaskCache {
     pub fn contains(&self, v: &Vec2) -> bool {
         match self {
             MaskCache::Impl(x) => x.contains(v),
+            MaskCache::AlwaysTrue => true,
+        }
+    }
+
+    pub fn covers(&self, v: &Vec2) -> bool {
+        match self {
+            MaskCache::Impl(x) => x.covers(v),
             MaskCache::AlwaysTrue => true,
         }
     }
