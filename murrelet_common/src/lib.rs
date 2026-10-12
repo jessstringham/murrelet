@@ -848,6 +848,12 @@ impl StrId {
     // just so we don't need to turn back into strings...
     pub fn append(&self, s: &str) -> Self {
         let len = self.len();
+        assert!(
+            len + s.len() <= MAX_STRID_LEN,
+            "StrId too long after append ({} > {MAX_STRID_LEN} bytes): {:?} + {s:?}",
+            len + s.len(),
+            self.as_str()
+        );
 
         let mut bytes = self.0.clone();
         bytes[len..len + s.len()].copy_from_slice(s.as_bytes());
