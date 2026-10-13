@@ -67,6 +67,8 @@ impl OwnedDeviceState {
         OwnedDeviceState { device, queue }
     }
 
+    // pub fn new_from_window()
+
     pub async fn new_from_native() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::util::backend_bits_from_env().unwrap_or(wgpu::Backends::all()),

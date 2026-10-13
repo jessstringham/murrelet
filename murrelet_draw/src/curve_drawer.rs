@@ -260,10 +260,6 @@ impl CurveDrawer {
     }
 
     pub fn maybe_transform<T: ToSimpleTransform>(&self, transform: &T) -> LivecodeResult<Self> {
-        // Points and beziers transform correctly under any affine transform
-        // (skew, non-uniform scale included). Arc segments self-protect inside
-        // force_transform: a non-similarity transform can't be represented as a
-        // circular arc, so those are left untransformed (+ a one-shot warn).
         let transform = transform.to_simple_transform();
         let segments = self
             .segments

@@ -44,4 +44,8 @@ impl TextureMap {
     pub fn empty() -> TextureMap {
         Self::new(vec![])
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&StrId, &MurreletTexture)> {
+        self.0.iter()
+    }
 }
