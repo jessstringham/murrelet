@@ -8,9 +8,7 @@ description = "gpu functions for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
 [features]
-default = ["no_nannou"]
-nannou = ["wgpu_for_nannou"]
-no_nannou = ["wgpu_for_latest"]
+default = []
 schemars = [
     "dep:schemars",
     "murrelet_draw/schemars",
@@ -20,8 +18,7 @@ schemars = [
 
 
 [dependencies]
-wgpu_for_latest = { package = "wgpu", version = "0.20.1", optional = true }
-wgpu_for_nannou = { package = "wgpu", version = "0.17.1", optional = true }
+wgpu = { package = "wgpu", version = "0.20.1" }
 naga = { version = "0.20.0", features = ["wgsl-in"] }
 
 murrelet_common = { workspace = true }
@@ -35,25 +32,24 @@ lerpable = { workspace = true, features = ["glam"] }
 
 glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
-
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 rand = "0.8"
 itertools = "0.10.5"
 regex = "1.7.3"
-
 half = "2.4.1"
-
-
 image = "0.25.2"
-
 bytemuck = { version = "1.16.1", features = ["derive"] }
 pollster = "0.3"
-
 schemars = { version = "0.8.21", optional = true }
 murrelet_gui = { workspace = true, features = ["glam"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { workspace = true }
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "Element",
+    "HtmlCanvasElement",
+] }

@@ -11,12 +11,6 @@ pub mod shader_str;
 pub mod uniforms;
 pub mod window;
 
-#[cfg(feature = "nannou")]
-pub use wgpu_for_nannou as wgpu;
-
-#[cfg(not(feature = "nannou"))]
-pub use wgpu_for_latest as wgpu;
-
 pub use graphics_ref::MurreletTexture;
 pub use headless_harness::{HeadlessHarness, HeadlessJob};
 pub use murrelet_draw::drawable::ToMixedDrawables;

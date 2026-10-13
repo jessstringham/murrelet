@@ -17,14 +17,6 @@ use crate::{
     window::GraphicsWindowConf,
 };
 
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
-
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
-
-// const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Uint;
-
 const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 /// For example
@@ -528,10 +520,7 @@ impl<GraphicsConf, VertexKindDest: GraphicsVertex>
         pipeline: GPUPipelineRef<GraphicsConf>,
         dest: GraphicsRefCustom<VertexKindDest>,
     ) -> Box<Self> {
-        Box::new(Self {
-            pipeline,
-            dest,
-        })
+        Box::new(Self { pipeline, dest })
     }
 }
 impl<GraphicsConf, VertexKindDest: GraphicsVertex> RenderTrait

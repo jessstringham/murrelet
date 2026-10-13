@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::NoUninit;
@@ -6,12 +5,6 @@ use glam::Mat4;
 
 use murrelet_common::triangulate::{DefaultVertex, Triangulate};
 use std::rc::Rc;
-
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
-
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
 
 // some wgpu things
 use wgpu::TextureDescriptor;
@@ -23,14 +16,8 @@ use crate::shader_str::{PREFIX, VERTEX_SHADER, VERTEX_SHADER_3D};
 use crate::uniforms::{BasicUniform, UniformsPair};
 use crate::window::GraphicsWindowConf;
 
-#[cfg(not(feature = "nannou"))]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
-#[cfg(feature = "nannou")]
-pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
-#[cfg(not(feature = "nannou"))]
-pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
-#[cfg(feature = "nannou")]
 pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 pub fn shader_from_path(device: &wgpu::Device, data: &str) -> wgpu::ShaderModule {
@@ -1070,7 +1057,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                 module: &vertex_conf.vs_mod(device),
                 entry_point: "main",
                 buffers: &[vertex_buffer_layouts.clone()],
-                #[cfg(not(feature = "nannou"))]
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             primitive,
@@ -1080,7 +1066,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                 module: fs_mod,
                 entry_point: "main",
                 targets: &color_state,
-                #[cfg(not(feature = "nannou"))]
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             multiview: None,
@@ -1276,7 +1261,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                     module: &conf.input_vertex.shadow_vs_mod(device),
                     entry_point: "main",
                     buffers: &[vertex_buffer_layouts],
-                    #[cfg(not(feature = "nannou"))]
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: None,
@@ -1373,9 +1357,6 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                 view: depth_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    #[cfg(feature = "nannou")]
-                    store: true,
-                    #[cfg(not(feature = "nannou"))]
                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
@@ -1411,16 +1392,11 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                         view: shadow_view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
-                            #[cfg(not(feature = "nannou"))]
                             store: wgpu::StoreOp::Store,
-                            #[cfg(feature = "nannou")]
-                            store: true,
                         }),
                         stencil_ops: None,
                     }),
-                    #[cfg(not(feature = "nannou"))]
                     occlusion_query_set: Default::default(),
-                    #[cfg(not(feature = "nannou"))]
                     timestamp_writes: Default::default(),
                 });
                 shadow_pass.set_pipeline(shadow_pipeline);
@@ -1441,15 +1417,10 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        #[cfg(not(feature = "nannou"))]
                         store: wgpu::StoreOp::Store,
-                        #[cfg(feature = "nannou")]
-                        store: true,
                     },
                 })],
-                #[cfg(not(feature = "nannou"))]
                 occlusion_query_set: None,
-                #[cfg(not(feature = "nannou"))]
                 timestamp_writes: None,
                 depth_stencil_attachment: self.depth_stencil_attachment(),
             };

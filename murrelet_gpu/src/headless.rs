@@ -7,10 +7,7 @@ use std::path::Path;
 
 use image::ColorType;
 use murrelet_livecode::state::LivecodeWorldState;
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
+
 
 use crate::build_shader;
 use crate::device_state::{DeviceStateForRender, OwnedDeviceState};

@@ -1,22 +1,8 @@
-#[allow(dead_code)]
-use std::path::PathBuf;
-
-use image::GenericImageView;
-
-use murrelet_common::print_expect;
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
-
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
-
-use wgpu::util::DeviceExt;
-
 use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
-
-// use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
-// const LOADED_TEXTURE_FORMAT = Rgba16Float;
-// pub const LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+use image::GenericImageView;
+use murrelet_common::print_expect;
+use std::path::PathBuf;
+use wgpu::util::DeviceExt;
 
 // wrappers around ways of interacting with device/queue
 
@@ -67,8 +53,55 @@ impl OwnedDeviceState {
         OwnedDeviceState { device, queue }
     }
 
-    // pub fn new_from_window()
+    pub async fn new_from_window<W: wgpu::WindowHandle + 'static>(
+        window: W,
+        dims: [u32; 2],
+    ) -> (OwnedDeviceState, wgpu::Surface<'static>) {
+        let [width, height] = dims;
 
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::util::backend_bits_from_env().unwrap_or(wgpu::Backends::all()),
+            ..Default::default()
+        });
+
+        let surface = instance
+            .create_surface(wgpu::SurfaceTarget::Window(Box::new(window)))
+            .expect("create_surface");
+
+        let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
+            .await
+            .expect("failed to get adapter");
+
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_features: adapter.features(),
+                    required_limits: adapter.limits(),
+                    label: Some("Window Device"),
+                },
+                None,
+            )
+            .await
+            .expect("Failed to create device and queue");
+
+        let caps = surface.get_capabilities(&adapter);
+        let format = caps.formats[0];
+        surface.configure(
+            &device,
+            &wgpu::SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format,
+                width: width,
+                height: height,
+                present_mode: wgpu::PresentMode::Fifo,
+                desired_maximum_frame_latency: 2,
+                alpha_mode: wgpu::CompositeAlphaMode::Auto,
+                view_formats: vec![format],
+            },
+        );
+
+        (OwnedDeviceState::new(device, queue), surface)
+    }
     pub async fn new_from_native() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::util::backend_bits_from_env().unwrap_or(wgpu::Backends::all()),
@@ -84,13 +117,7 @@ impl OwnedDeviceState {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    #[cfg(feature = "nannou")]
-                    features: adapter.features(),
-                    #[cfg(feature = "nannou")]
-                    limits: adapter.limits(),
-                    #[cfg(not(feature = "nannou"))]
                     required_features: adapter.features(),
-                    #[cfg(not(feature = "nannou"))]
                     required_limits: adapter.limits(),
                     label: Some("Compute/RenderPass Device"),
                 },
@@ -107,7 +134,7 @@ impl OwnedDeviceState {
     }
 }
 
-#[cfg(all(target_arch = "wasm32", not(feature = "nannou")))]
+#[cfg(all(target_arch = "wasm32"))]
 fn get_or_create_canvas(
     canvas_id: &str,
 ) -> Result<web_sys::HtmlCanvasElement, wasm_bindgen::JsValue> {
@@ -135,7 +162,7 @@ fn get_or_create_canvas(
         .map_err(|_| wasm_bindgen::JsValue::from_str("element is not an HtmlCanvasElement"))
 }
 
-#[cfg(all(target_arch = "wasm32", not(feature = "nannou")))]
+#[cfg(all(target_arch = "wasm32"))]
 impl OwnedDeviceState {
     /// Bind a wgpu surface to a specific DOM `<canvas>` (resolved or created by
     /// id) and build the device/queue from it. The web sibling of
@@ -342,26 +369,6 @@ impl GraphicsAssets {
             GraphicsAssets::LocalFilesystem(p) => p.clone(),
         }
     }
-
-    // #[cfg(feature = "nannou")]
-    // pub fn to_texture(&self, c: &GraphicsWindowConf, device: &wgpu::Device, first_format: wgpu::TextureFormat) -> wgpu::Texture {
-    //     let input_texture = match self {
-    //         GraphicsAssets::LocalFilesystem(path) => {
-    //             wgpu::Texture::from_path(c.window, path).unwrap() // load the path
-    //         }
-    //         GraphicsAssets::Nothing => Graphics::texture(c.dims, device, first_format),
-    //     };
-    // }
-
-    // #[cfg(not(feature = "nannou"))]
-    // pub fn to_texture(&self, c: &GraphicsWindowConf, device: &wgpu::Device, first_format: wgpu::TextureFormat) -> wgpu::Texture {
-    //     let input_texture = match self {
-    //         GraphicsAssets::LocalFilesystem(_) => {
-    //             panic!("can't use local filesystem")
-    //         }
-    //         GraphicsAssets::Nothing => Graphics::texture(c.dims, device, first_format),
-    //     };
-    // }
 
     // i don't really think this works..
     pub(crate) fn maybe_load_texture(

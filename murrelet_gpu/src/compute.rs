@@ -3,11 +3,6 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc, sync::Arc};
 use bytemuck::Pod;
 use glam::{Vec2, vec2};
 use itertools::Itertools;
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
-
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
 
 use wgpu::util::DeviceExt;
 
@@ -363,7 +358,6 @@ impl ComputeGraphicsToTexture {
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: "main",
-            #[cfg(not(feature = "nannou"))]
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         });
 
@@ -404,7 +398,6 @@ impl ComputeGraphicsToTexture {
 
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("compute pass"),
-                #[cfg(not(feature = "nannou"))]
                 timestamp_writes: None,
             });
             pass.set_pipeline(&self.pipeline);

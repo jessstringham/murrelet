@@ -1,11 +1,7 @@
 // stores info about the window..
 
 use crate::device_state::{DeviceState, GraphicsAssets};
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
 
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
 
 #[derive(Clone, Debug)]
 pub struct GraphicsWindowConf<'a> {

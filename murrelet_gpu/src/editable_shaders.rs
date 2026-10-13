@@ -9,11 +9,6 @@ use murrelet_common::triangulate::DefaultVertex;
 use murrelet_common::{LivecodeError, LivecodeResult};
 use murrelet_livecode_derive::Livecode;
 use naga;
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
-
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
 
 use crate::{
     build_shader, build_shader_2tex,

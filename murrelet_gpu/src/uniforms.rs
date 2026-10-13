@@ -1,12 +1,5 @@
 use bytemuck::{Pod, Zeroable};
 
-
-#[cfg(feature = "nannou")]
-use wgpu_for_nannou as wgpu;
-
-#[cfg(not(feature = "nannou"))]
-use wgpu_for_latest as wgpu;
-
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -129,7 +122,6 @@ impl BonusUniform {
         }
     }
 
-
     pub fn update_up_to_16(&mut self, more_info: &[f32]) {
         if more_info.len() > 16 {
             println!("more info is longer than 16, only will store first 16");
@@ -146,8 +138,6 @@ impl BonusUniform {
         self.more_info2 = v[4..8].try_into().unwrap();
         self.more_info3 = v[8..12].try_into().unwrap();
         self.more_info4 = v[12..16].try_into().unwrap();
-
-
     }
 
     pub fn as_bytes(&self) -> &[u8] {
