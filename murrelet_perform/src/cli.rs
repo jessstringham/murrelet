@@ -158,8 +158,12 @@ pub fn headless_jobs() -> Vec<HeadlessJob> {
         }];
     };
 
-    let text = std::fs::read_to_string(batch_path)
-        .unwrap_or_else(|e| panic!("could not read --batch manifest {}: {e}", batch_path.display()));
+    let text = std::fs::read_to_string(batch_path).unwrap_or_else(|e| {
+        panic!(
+            "could not read --batch manifest {}: {e}",
+            batch_path.display()
+        )
+    });
     let manifest: BatchManifest = serde_yaml::from_str(&text)
         .unwrap_or_else(|e| panic!("invalid --batch manifest {}: {e}", batch_path.display()));
 
@@ -167,7 +171,11 @@ pub fn headless_jobs() -> Vec<HeadlessJob> {
         .jobs
         .into_iter()
         .map(|job| {
-            let overrides = job.set.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+            let overrides = job
+                .set
+                .into_iter()
+                .map(|(k, v)| format!("{k}={v}"))
+                .collect();
             let resolution = job.resolution.as_deref().map(|s| {
                 TextureDimensions::from_str(s)
                     .unwrap_or_else(|e| panic!("bad resolution '{s}' in --batch manifest: {e}"))
@@ -180,4 +188,8 @@ pub fn headless_jobs() -> Vec<HeadlessJob> {
             }
         })
         .collect()
+}
+
+pub fn base_args() -> BaseConfigArgs {
+    BaseConfigArgs::parse()
 }

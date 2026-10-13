@@ -16,6 +16,7 @@ use crate::graphics_ref::{
 };
 use crate::window::GraphicsWindowConf;
 
+
 // A GPU pipeline that can render one frame off-screen
 pub trait IsHeadlessGraphic {
     fn render_passes(&self, render_device: &DeviceStateForRender);
@@ -94,6 +95,8 @@ pub fn render_display_rgba8(
     let export_c = c.with_dims(dims);
     let linear_view = linear.default_view();
 
+    // The working texture is linear Rgba16Float; a PNG wants gamma-encoded
+    // 8-bit, so blitting through an Rgba8UnormSrgb target IS the encode.
     let rendered = export_c
         .device
         .device()
@@ -113,12 +116,21 @@ pub fn render_display_rgba8(
             label: Some("srgb readback target"),
             view_formats: &[],
         });
-    let export_c = c.with_dims(dims);
+    let rendered_view = rendered.create_view(&wgpu::TextureViewDescriptor::default());
 
-    let device = export_c.device();
-    let queue = export_c.queue();
+    let blit_shader: String = build_shader! {
+        (
+            raw r###"
+                let result: vec4<f32> = textureSample(tex, tex_sampler, tex_coords);
+            "###;
+        )
+    };
+    let srgb_blit = GraphicsCreator::default()
+        .with_dst_format(wgpu::TextureFormat::Rgba8UnormSrgb)
+        .to_graphics_ref(&export_c, "srgb_readback_blit", &blit_shader);
+    srgb_blit.render_with_input_textures(export_c.device, &rendered_view, &linear_view, None);
 
-    copy_texture_rows(device, queue, &rendered, 4);
+    copy_texture_rows(export_c.device(), export_c.queue(), &rendered)
 }
 
 pub fn save_graphic_png<VertexKind: GraphicsVertex>(
@@ -128,6 +140,17 @@ pub fn save_graphic_png<VertexKind: GraphicsVertex>(
 ) -> Result<(), Box<dyn Error>> {
     let (dims, pixels) = render_graphic_rgba8(c, graphic)?;
     image::save_buffer(out_path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
+}
+
+pub fn capture_surface_to_png(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture: &wgpu::Texture,
+    path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let (dims, pixels) = read_encoded_texture_rgba8(device, queue, texture)?;
+    image::save_buffer(path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
     Ok(())
 }
 
@@ -141,7 +164,7 @@ pub fn read_encoded_texture_rgba8(
         wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => true,
         format => return Err(format!("unsupported surface format for capture: {format:?}").into()),
     };
-    let (dims, mut pixels) = copy_texture_rows(device, queue, texture, 4)?;
+    let (dims, mut pixels) = copy_texture_rows(device, queue, texture)?;
     if swizzle_bgra {
         for px in pixels.chunks_exact_mut(4) {
             px.swap(0, 2);
@@ -154,25 +177,12 @@ fn copy_texture_rows(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     rendered: &wgpu::Texture,
-    arg: i32,
 ) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
-    let rendered_view = rendered.create_view(&wgpu::TextureViewDescriptor::default());
-
-    let blit_shader: String = build_shader! {
-        (
-            raw r###"
-                let result: vec4<f32> = textureSample(tex, tex_sampler, tex_coords);
-            "###;
-        )
-    };
-
-    let srgb_blit = GraphicsCreator::default()
-        .with_dst_format(wgpu::TextureFormat::Rgba8UnormSrgb)
-        .to_graphics_ref(&export_c, "srgb_readback_blit", &blit_shader);
-    srgb_blit.render_with_input_textures(export_c.device, &rendered_view, &linear_view, None);
+    let dims = [rendered.width(), rendered.height()];
 
     let bytes_per_pixel = match rendered.format() {
         wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => 4,
+        wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => 4,
         wgpu::TextureFormat::Rgba16Float => 8,
         format => {
             return Err(format!("unsupported texture format for png export: {format:?}").into());
@@ -184,31 +194,24 @@ fn copy_texture_rows(
     let rows_per_chunk =
         ((MAX_READBACK_BYTES / padded_bytes_per_row as u64).max(1) as u32).min(dims[1]);
 
-    let mut pixels = Vec::with_capacity((4 * dims[0] * dims[1]) as usize);
+    let mut pixels = Vec::with_capacity((bytes_per_pixel * dims[0] * dims[1]) as usize);
 
     for start_y in (0..dims[1]).step_by(rows_per_chunk as usize) {
         let chunk_rows = (dims[1] - start_y).min(rows_per_chunk);
-        let buffer = export_c
-            .device
-            .device()
-            .create_buffer(&wgpu::BufferDescriptor {
-                label: Some("texture getter chunk"),
-                size: (padded_bytes_per_row * chunk_rows) as u64,
-                usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            });
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("texture getter chunk"),
+            size: (padded_bytes_per_row * chunk_rows) as u64,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
 
-        let mut encoder =
-            export_c
-                .device
-                .device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Texture Copy Encoder"),
-                });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Texture Copy Encoder"),
+        });
 
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
-                texture: &rendered,
+                texture: rendered,
                 mip_level: 0,
                 origin: wgpu::Origin3d {
                     x: 0,
@@ -232,14 +235,14 @@ fn copy_texture_rows(
             },
         );
 
-        export_c.queue().submit(Some(encoder.finish()));
+        queue.submit(Some(encoder.finish()));
 
         let buffer_slice = buffer.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             tx.send(result).expect("couldn't send map_async result")
         });
-        export_c.device().poll(wgpu::Maintain::Wait);
+        device.poll(wgpu::Maintain::Wait);
         rx.recv()
             .expect("haven't received texture chunk")
             .map_err(|e| format!("failed to map texture chunk for readback: {e:?}"))?;
@@ -257,5 +260,5 @@ fn copy_texture_rows(
         buffer.unmap();
     }
 
-    Ok(())
+    Ok((dims, pixels))
 }
