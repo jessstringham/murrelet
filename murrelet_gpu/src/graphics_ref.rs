@@ -118,9 +118,9 @@ impl VertexUniforms {
     }
 }
 
-pub struct Scene {
-    view: VertexUniforms, // update this as needed
-}
+// pub struct Scene {
+//     view: VertexUniforms, // update this as needed
+// }
 
 // this is the conf that you'll interface with
 #[derive(Debug, Clone)]
@@ -417,9 +417,9 @@ impl<VertexKind: GraphicsVertex> GraphicsCreator<VertexKind> {
         GraphicsRefCustom::new(name, c, fs_shader, self)
     }
 
-    fn is_3d(&self) -> bool {
-        self.input_vertex.is_3d
-    }
+    // fn is_3d(&self) -> bool {
+    //     self.input_vertex.is_3d
+    // }
 
     pub fn blend_state(&self) -> wgpu::BlendState {
         self.blend_state
@@ -732,7 +732,7 @@ pub struct TextureFor3d {
     shadow_view: wgpu::TextureView,
     shadow_sampler: wgpu::Sampler,
     shadow_bind_group: wgpu::BindGroup,
-    shadow_bind_group_layout: wgpu::BindGroupLayout,
+    // shadow_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 // represents things needed to create a single texture... it's a bit of a mess
@@ -1287,7 +1287,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
                 shadow_pipeline,
                 shadow_sampler,
                 shadow_bind_group,
-                shadow_bind_group_layout,
+                // shadow_bind_group_layout,
             })
         } else {
             None

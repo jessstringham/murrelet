@@ -56,7 +56,11 @@ impl OwnedDeviceState {
     pub async fn new_from_window<W: wgpu::WindowHandle + 'static>(
         window: W,
         dims: [u32; 2],
-    ) -> (OwnedDeviceState, wgpu::Surface<'static>) {
+    ) -> (
+        OwnedDeviceState,
+        wgpu::Surface<'static>,
+        wgpu::TextureFormat,
+    ) {
         let [width, height] = dims;
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {

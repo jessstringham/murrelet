@@ -18,15 +18,13 @@ schemars = [
 
 
 [dependencies]
-wgpu = { package = "wgpu", version = "0.20.1" }
-naga = { version = "0.20.0", features = ["wgsl-in"] }
-
 murrelet_common = { workspace = true }
 murrelet_livecode = { workspace = true, default-features = false }
 murrelet_draw = { workspace = true, default-features = false }
 murrelet_gpu_derive = { workspace = true }
 murrelet_livecode_derive = { workspace = true }
 murrelet_perform = { workspace = true, default-features = false }
+murrelet_gui = { workspace = true, features = ["glam"] }
 
 lerpable = { workspace = true, features = ["glam"] }
 
@@ -42,7 +40,9 @@ image = "0.25.2"
 bytemuck = { version = "1.16.1", features = ["derive"] }
 pollster = "0.3"
 schemars = { version = "0.8.21", optional = true }
-murrelet_gui = { workspace = true, features = ["glam"] }
+wgpu = { workspace = true }
+naga = { version = "0.20.0", features = ["wgsl-in"] }
+
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { workspace = true }
