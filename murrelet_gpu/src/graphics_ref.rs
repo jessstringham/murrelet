@@ -731,6 +731,14 @@ impl MurreletTexture {
     pub fn default_view(&self) -> wgpu::TextureView {
         self.texture.create_view(&Default::default())
     }
+
+    pub fn width(&self) -> u32 {
+        self.texture.width()
+    }
+
+    pub fn height(&self) -> u32 {
+        self.texture.height()
+    }
 }
 
 pub struct TextureFor3d {
