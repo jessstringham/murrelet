@@ -16,6 +16,9 @@ use crate::shader_str::{PREFIX, VERTEX_SHADER, VERTEX_SHADER_3D};
 use crate::uniforms::{BasicUniform, UniformsPair};
 use crate::window::GraphicsWindowConf;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+#[cfg(target_arch = "wasm32")]
 pub const DEFAULT_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 pub const DEFAULT_LOADED_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -721,6 +724,10 @@ pub struct MurreletTexture {
     pub desc: wgpu::TextureDescriptor<'static>,
 }
 impl MurreletTexture {
+    pub fn new(texture: Arc<wgpu::Texture>, desc: wgpu::TextureDescriptor<'static>) -> Self {
+        Self { texture, desc }
+    }
+
     pub fn default_view(&self) -> wgpu::TextureView {
         self.texture.create_view(&Default::default())
     }
@@ -1476,6 +1483,20 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
 
 pub fn quick_texture(dims: [u32; 2], device: &wgpu::Device) -> MurreletTexture {
     Graphics::<DefaultVertex>::texture(dims, device, DEFAULT_TEXTURE_FORMAT)
+}
+
+pub fn texture_from_path(
+    device_state: &DeviceState,
+    path: &std::path::PathBuf,
+) -> Result<MurreletTexture, Box<dyn std::error::Error>> {
+    let (width, height) = image::image_dimensions(path)?;
+    let texture = Graphics::<DefaultVertex>::texture(
+        [width, height],
+        device_state.device(),
+        DEFAULT_LOADED_TEXTURE_FORMAT,
+    );
+    write_png_to_texture(device_state, path, &texture.texture)?;
+    Ok(texture)
 }
 
 pub struct VertexBuffers {

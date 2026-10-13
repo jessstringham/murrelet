@@ -104,7 +104,7 @@ impl OwnedDeviceState {
             },
         );
 
-        (OwnedDeviceState::new(device, queue), surface)
+        (OwnedDeviceState::new(device, queue), surface, format)
     }
     pub async fn new_from_native() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -243,7 +243,7 @@ pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std
 }
 
 // todo, refactor reuse the img..
-fn write_png_to_texture(
+pub fn write_png_to_texture(
     device_state: &DeviceState,
     path: &PathBuf,
     texture: &wgpu::Texture,
@@ -395,10 +395,10 @@ impl GraphicsAssets {
 // new type just to pull in things available at render time
 pub struct DeviceStateForRender<'a> {
     device_state: DeviceState<'a>,
-    display_view: wgpu::TextureView,
+    display_view: &'a wgpu::TextureView,
 }
 impl<'a> DeviceStateForRender<'a> {
-    pub fn new(device_state: DeviceState<'a>, display_view: wgpu::TextureView) -> Self {
+    pub fn new(device_state: DeviceState<'a>, display_view: &'a wgpu::TextureView) -> Self {
         Self {
             device_state,
             display_view,

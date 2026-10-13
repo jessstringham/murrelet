@@ -49,7 +49,7 @@ pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
 ) -> MurreletTexture {
     let display = quick_texture(c.dims(), c.device());
     let display_view = display.default_view();
-    let render_device = DeviceStateForRender::new(owned.to_borrowed(), display_view);
+    let render_device = DeviceStateForRender::new(owned.to_borrowed(), &display_view);
     graphic.render_passes(&render_device);
     display
 }

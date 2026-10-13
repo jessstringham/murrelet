@@ -1,13 +1,16 @@
 // stores info about the window..
 
-use crate::device_state::{DeviceState, GraphicsAssets};
-
+use crate::{
+    device_state::{DeviceState, GraphicsAssets},
+    graphics_ref::DEFAULT_TEXTURE_FORMAT,
+};
 
 #[derive(Clone, Debug)]
 pub struct GraphicsWindowConf<'a> {
     pub device: &'a DeviceState<'a>,
     pub dims: [u32; 2],
     pub assets_path: GraphicsAssets,
+    pub surface_format: wgpu::TextureFormat,
 }
 impl<'a> GraphicsWindowConf<'a> {
     pub fn new(
@@ -19,6 +22,14 @@ impl<'a> GraphicsWindowConf<'a> {
             device,
             dims,
             assets_path,
+            surface_format: DEFAULT_TEXTURE_FORMAT,
+        }
+    }
+
+    pub fn with_surface_format(&self, surface_format: wgpu::TextureFormat) -> Self {
+        Self {
+            surface_format,
+            ..self.clone()
         }
     }
 
@@ -31,6 +42,7 @@ impl<'a> GraphicsWindowConf<'a> {
                 (y as f32 * multiplier) as u32,
             ],
             assets_path: GraphicsAssets::Nothing,
+            surface_format: self.surface_format,
         }
     }
 
@@ -51,5 +63,9 @@ impl<'a> GraphicsWindowConf<'a> {
 
     pub fn queue(&self) -> &wgpu::Queue {
         self.device.queue()
+    }
+
+    pub fn surface_format(&self) -> wgpu::TextureFormat {
+        self.surface_format
     }
 }
