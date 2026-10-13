@@ -8,7 +8,6 @@ use std::path::Path;
 use image::ColorType;
 use murrelet_livecode::state::LivecodeWorldState;
 
-
 use crate::build_shader;
 use crate::device_state::{DeviceStateForRender, OwnedDeviceState};
 use crate::gpu_macros::ShaderStr;
@@ -114,6 +113,49 @@ pub fn render_display_rgba8(
             label: Some("srgb readback target"),
             view_formats: &[],
         });
+    let export_c = c.with_dims(dims);
+
+    let device = export_c.device();
+    let queue = export_c.queue();
+
+    copy_texture_rows(device, queue, &rendered, 4);
+}
+
+pub fn save_graphic_png<VertexKind: GraphicsVertex>(
+    c: &GraphicsWindowConf,
+    graphic: &GraphicsRefCustom<VertexKind>,
+    out_path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let (dims, pixels) = render_graphic_rgba8(c, graphic)?;
+    image::save_buffer(out_path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
+}
+
+pub fn read_encoded_texture_rgba8(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture: &wgpu::Texture,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let swizzle_bgra = match texture.format() {
+        wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => false,
+        wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => true,
+        format => return Err(format!("unsupported surface format for capture: {format:?}").into()),
+    };
+    let (dims, mut pixels) = copy_texture_rows(device, queue, texture, 4)?;
+    if swizzle_bgra {
+        for px in pixels.chunks_exact_mut(4) {
+            px.swap(0, 2);
+        }
+    }
+    Ok((dims, pixels))
+}
+
+fn copy_texture_rows(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    rendered: &wgpu::Texture,
+    arg: i32,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
     let rendered_view = rendered.create_view(&wgpu::TextureViewDescriptor::default());
 
     let blit_shader: String = build_shader! {
@@ -123,6 +165,7 @@ pub fn render_display_rgba8(
             "###;
         )
     };
+
     let srgb_blit = GraphicsCreator::default()
         .with_dst_format(wgpu::TextureFormat::Rgba8UnormSrgb)
         .to_graphics_ref(&export_c, "srgb_readback_blit", &blit_shader);
@@ -214,15 +257,5 @@ pub fn render_display_rgba8(
         buffer.unmap();
     }
 
-    Ok((dims, pixels))
-}
-
-pub fn save_graphic_png<VertexKind: GraphicsVertex>(
-    c: &GraphicsWindowConf,
-    graphic: &GraphicsRefCustom<VertexKind>,
-    out_path: &Path,
-) -> Result<(), Box<dyn Error>> {
-    let (dims, pixels) = render_graphic_rgba8(c, graphic)?;
-    image::save_buffer(out_path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
     Ok(())
 }
