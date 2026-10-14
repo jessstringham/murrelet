@@ -33,10 +33,11 @@ palette = "0.7.6"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 rand = "0.8"
-itertools = "0.10.5"
+itertools = { workspace = true }
 regex = "1.7.3"
 half = "2.4.1"
-image = "0.25.2"
+# image = "0.25.2"
+image = { version = "0.25.2", default-features = false, features = ["png"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
 pollster = "0.3"
 schemars = { version = "0.8.21", optional = true }

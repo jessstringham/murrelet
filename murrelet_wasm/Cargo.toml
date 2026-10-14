@@ -27,7 +27,7 @@ glam = { version = "0.28.0", features = ["serde"] }
 wgpu = { workspace = true, optional = true, features = ["webgpu", "webgl"] }
 lerpable = { workspace = true, features = ["glam"] }
 regex = "1.7.3"
-itertools = "0.10.5"
+itertools = { workspace = true }
 
 
 [dependencies.web-sys]

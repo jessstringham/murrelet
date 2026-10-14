@@ -28,7 +28,7 @@ serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 evalexpr = "11.1.0"
 rand = "0.8"
-itertools = "0.10.5"
+itertools = { workspace = true }
 regex = "1.7.3"
 glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
