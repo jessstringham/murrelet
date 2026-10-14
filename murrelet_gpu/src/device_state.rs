@@ -4,6 +4,34 @@ use murrelet_common::print_expect;
 use std::path::PathBuf;
 use wgpu::util::DeviceExt;
 
+pub struct SurfaceGpu {
+    pub device: OwnedDeviceState,
+    pub surface: wgpu::Surface<'static>,
+    pub surface_format: wgpu::TextureFormat,
+}
+
+impl SurfaceGpu {
+    pub fn new(
+        device: OwnedDeviceState,
+        surface: wgpu::Surface<'static>,
+        surface_format: wgpu::TextureFormat,
+    ) -> Self {
+        Self {
+            device,
+            surface,
+            surface_format,
+        }
+    }
+
+    pub fn device_state<'a>(&'a self) -> DeviceState<'a> {
+        self.device.to_borrowed()
+    }
+
+    pub fn surface_format(&self) -> wgpu::TextureFormat {
+        self.surface_format
+    }
+}
+
 // wrappers around ways of interacting with device/queue
 
 #[derive(Debug)]
@@ -28,7 +56,7 @@ impl OwnedDeviceState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct DeviceState<'a> {
     device: &'a wgpu::Device,
     queue: &'a wgpu::Queue,
@@ -394,11 +422,11 @@ impl GraphicsAssets {
 
 // new type just to pull in things available at render time
 pub struct DeviceStateForRender<'a> {
-    device_state: DeviceState<'a>,
+    device_state: &'a DeviceState<'a>,
     display_view: &'a wgpu::TextureView,
 }
 impl<'a> DeviceStateForRender<'a> {
-    pub fn new(device_state: DeviceState<'a>, display_view: &'a wgpu::TextureView) -> Self {
+    pub fn new(device_state: &'a DeviceState<'a>, display_view: &'a wgpu::TextureView) -> Self {
         Self {
             device_state,
             display_view,

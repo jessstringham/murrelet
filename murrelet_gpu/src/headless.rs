@@ -9,13 +9,13 @@ use image::ColorType;
 use murrelet_livecode::state::LivecodeWorldState;
 
 use crate::build_shader;
-use crate::device_state::{DeviceStateForRender, OwnedDeviceState};
+use crate::device_state::{DeviceState, DeviceStateForRender, GraphicsAssets, OwnedDeviceState};
 use crate::gpu_macros::ShaderStr;
 use crate::graphics_ref::{
-    GraphicsCreator, GraphicsRefCustom, GraphicsVertex, MurreletTexture, quick_texture,
+    DEFAULT_TEXTURE_FORMAT, GraphicsCreator, GraphicsRefCustom, GraphicsVertex, MurreletTexture,
+    quick_texture,
 };
 use crate::window::GraphicsWindowConf;
-
 
 // A GPU pipeline that can render one frame off-screen
 pub trait IsHeadlessGraphic {
@@ -49,7 +49,8 @@ pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
 ) -> MurreletTexture {
     let display = quick_texture(c.dims(), c.device());
     let display_view = display.default_view();
-    let render_device = DeviceStateForRender::new(owned.to_borrowed(), &display_view);
+    let device_state = owned.to_borrowed();
+    let render_device = DeviceStateForRender::new(&device_state, &display_view);
     graphic.render_passes(&render_device);
     display
 }
@@ -80,9 +81,9 @@ pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
     let export_c = c.with_dims(dims);
 
     // Render into a linear working texture (DEFAULT_TEXTURE_FORMAT = Rgba16Float).
-    let linear = quick_texture(dims, export_c.device.device());
+    let linear = quick_texture(dims, export_c.device_state.device());
     let linear_view = linear.default_view();
-    graphic.render_to_texture(export_c.device, &linear_view);
+    graphic.render_to_texture(export_c.device_state, &linear_view);
 
     render_display_rgba8(&export_c, &linear)
 }
@@ -92,13 +93,20 @@ pub fn render_display_rgba8(
     linear: &MurreletTexture,
 ) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
     let dims = [linear.desc.size.width, linear.desc.size.height];
+    render_view_rgba8(&c.with_dims(dims), &linear.default_view())
+}
+
+pub fn render_view_rgba8(
+    c: &GraphicsWindowConf,
+    linear_view: &wgpu::TextureView,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let dims = c.dims;
     let export_c = c.with_dims(dims);
-    let linear_view = linear.default_view();
 
     // The working texture is linear Rgba16Float; a PNG wants gamma-encoded
     // 8-bit, so blitting through an Rgba8UnormSrgb target IS the encode.
     let rendered = export_c
-        .device
+        .device_state
         .device()
         .create_texture(&wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
@@ -128,9 +136,25 @@ pub fn render_display_rgba8(
     let srgb_blit = GraphicsCreator::default()
         .with_dst_format(wgpu::TextureFormat::Rgba8UnormSrgb)
         .to_graphics_ref(&export_c, "srgb_readback_blit", &blit_shader);
-    srgb_blit.render_with_input_textures(export_c.device, &rendered_view, &linear_view, None);
+    srgb_blit.render_with_input_textures(export_c.device_state, &rendered_view, &linear_view, None);
 
-    copy_texture_rows(export_c.device(), export_c.queue(), &rendered)
+    copy_texture_rows(export_c.device_state(), &rendered)
+}
+
+pub fn capture_linear_texture_to_png(
+    device: &DeviceState,
+    texture: &wgpu::Texture,
+    path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let c = GraphicsWindowConf::new(
+        device,
+        [texture.width(), texture.height()],
+        GraphicsAssets::Nothing,
+        DEFAULT_TEXTURE_FORMAT,
+    );
+    let (dims, pixels) = render_view_rgba8(&c, &texture.create_view(&Default::default()))?;
+    image::save_buffer(path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
 }
 
 pub fn save_graphic_png<VertexKind: GraphicsVertex>(
@@ -144,19 +168,17 @@ pub fn save_graphic_png<VertexKind: GraphicsVertex>(
 }
 
 pub fn capture_surface_to_png(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
+    device: &DeviceState,
     texture: &wgpu::Texture,
     path: &Path,
 ) -> Result<(), Box<dyn Error>> {
-    let (dims, pixels) = read_encoded_texture_rgba8(device, queue, texture)?;
+    let (dims, pixels) = read_encoded_texture_rgba8(device, texture)?;
     image::save_buffer(path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
     Ok(())
 }
 
 pub fn read_encoded_texture_rgba8(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
+    device: &DeviceState,
     texture: &wgpu::Texture,
 ) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
     let swizzle_bgra = match texture.format() {
@@ -164,7 +186,7 @@ pub fn read_encoded_texture_rgba8(
         wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => true,
         format => return Err(format!("unsupported surface format for capture: {format:?}").into()),
     };
-    let (dims, mut pixels) = copy_texture_rows(device, queue, texture)?;
+    let (dims, mut pixels) = copy_texture_rows(device, texture)?;
     if swizzle_bgra {
         for px in pixels.chunks_exact_mut(4) {
             px.swap(0, 2);
@@ -174,11 +196,13 @@ pub fn read_encoded_texture_rgba8(
 }
 
 fn copy_texture_rows(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
+    device_state: &DeviceState,
     rendered: &wgpu::Texture,
 ) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
     let dims = [rendered.width(), rendered.height()];
+
+    let device = device_state.device();
+    let queue = device_state.queue();
 
     let bytes_per_pixel = match rendered.format() {
         wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => 4,

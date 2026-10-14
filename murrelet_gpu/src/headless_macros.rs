@@ -116,7 +116,7 @@ macro_rules! headless_png {
             let dims = job
                 .resolution
                 .unwrap_or_else(|| <$harness as $crate::HeadlessHarness>::default_dims(&harness));
-            let c = $crate::window::GraphicsWindowConf::new(
+            let c = $crate::window::GraphicsWindowConf::offscreen(
                 &c_device,
                 dims,
                 $crate::device_state::GraphicsAssets::Nothing,

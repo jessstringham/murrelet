@@ -608,7 +608,7 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
             let mut g = self.graphics.borrow_mut();
             g.conf.input_vertex.tri.vertices = tri.vertices.clone();
             g.conf.input_vertex.tri.order = tri.order.clone();
-            let queue = c.device.queue();
+            let queue = c.device_state.queue();
 
             // vertex buffer: either recreate or overwrite
             let new_vert_bytes =
@@ -616,7 +616,7 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
             if new_vert_bytes.len() > old_vert_bytes_len {
                 // recreate vertex buffer with new size
                 let vb = c
-                    .device
+                    .device_state
                     .device()
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("vertex buffer"),
@@ -646,7 +646,7 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
             };
             if needs_recreate {
                 let ib = c
-                    .device
+                    .device_state
                     .device()
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("index buffer"),
@@ -771,7 +771,7 @@ pub struct Graphics<VertexKind> {
 
 impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
     pub fn update_uniforms(&mut self, c: &GraphicsWindowConf, more_info: [f32; 4]) {
-        let queue = &c.device.queue();
+        let queue = &c.device_state.queue();
         self.uniforms.more_info = more_info;
 
         queue.write_buffer(&self.uniforms_buffer, 0, self.uniforms.as_bytes());
@@ -783,7 +783,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         more_info: [f32; 4],
         more_info_other: [f32; 4],
     ) {
-        let queue = &c.device.queue();
+        let queue = &c.device_state.queue();
         self.uniforms.more_info = more_info;
         self.uniforms.more_info_other = more_info_other;
 
@@ -812,7 +812,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
     // shader edit then preserves any accumulated feedback in the existing textures
     // instead of allocating fresh blank ones. Mirrors `update_tri`'s in-place rebuild.
     pub fn update_shader(&mut self, c: &GraphicsWindowConf, fs_shader_data: &str) {
-        let device = c.device.device();
+        let device = c.device_state.device();
         let fs_mod = shader_from_path(device, fs_shader_data);
         let dst_format = self.conf.dst_texture.format;
         self.render_pipeline = Graphics::<VertexKind>::_render_pipeline(
@@ -1138,7 +1138,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         let second_format = conf.second_texture.map(|x| x.format);
         let dst_format = conf.dst_texture.format;
 
-        let device = c.device.device();
+        let device = c.device_state.device();
         // todo, figure out msaa samples
         // let msaa_samples = 1;
 
@@ -1154,7 +1154,7 @@ impl<VertexKind: GraphicsVertex> Graphics<VertexKind> {
         let input_texture = &texture_and_desc.texture;
 
         // maybe load the image source if we have one
-        texture_src_path.maybe_load_texture(c.device, input_texture);
+        texture_src_path.maybe_load_texture(c.device_state, input_texture);
 
         let input_texture_view = input_texture.create_view(&Default::default());
 
@@ -1538,7 +1538,7 @@ impl VertexBuffers {
         }
     }
     fn update_view(&self, c: &GraphicsWindowConf, view: Mat4, light: Mat4) {
-        let queue = c.device.queue();
+        let queue = c.device_state.queue();
         // self.conf.set_view(m); // hmm, running into borrow things here
         let v = VertexUniforms::from_mat4(view, light);
 

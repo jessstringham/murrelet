@@ -1306,7 +1306,7 @@ impl VideoTexture {
                     DEFAULT_LOADED_TEXTURE_FORMAT,
                 );
                 GraphicsAssets::LocalFilesystem(path.to_path_buf())
-                    .maybe_load_texture(c.device, &texture_and_desc.texture);
+                    .maybe_load_texture(c.device_state, &texture_and_desc.texture);
                 let texture_view =
                     texture_and_desc
                         .texture

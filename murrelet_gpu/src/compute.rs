@@ -207,7 +207,7 @@ impl ComputeGraphicsToTexture {
         csr: CSR, // helps limit what data you need to check per cell
         data: Vec<T>,
     ) -> Self {
-        let device: &wgpu::Device = c.device.device();
+        let device: &wgpu::Device = c.device_state.device();
 
         let input_data_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
@@ -424,7 +424,7 @@ impl ComputeGraphicsToTexture {
         more_info: [f32; 4],
         other: &[f32],
     ) {
-        let queue = &c.device.queue();
+        let queue = &c.device_state.queue();
         self.uniforms.more_info_secret = more_info;
         self.uniforms.update_up_to_16(other);
 
@@ -437,7 +437,7 @@ impl ComputeGraphicsToTexture {
         c: &GraphicsWindowConf,
         other: &[f32],
     ) {
-        let queue = &c.device.queue();
+        let queue = &c.device_state.queue();
         self.uniforms.update_up_to_16(other);
 
         // println!("{:?}", self.uniform.more_info);

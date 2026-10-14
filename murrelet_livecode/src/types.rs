@@ -297,26 +297,26 @@ pub struct DeserLazyControlVecElementGated<DeserSource: Clone + Debug> {
     what: Vec<DeserLazyControlVecElement<DeserSource>>,
 }
 impl<DeserSource: Clone + Debug> DeserLazyControlVecElementGated<DeserSource> {
-    fn o<LazySource, Target>(
-        &self,
-        w: &LivecodeWorldState,
-    ) -> LivecodeResult<LazyVecElementGated<WrappedLazyType<LazySource>>>
-    where
-        DeserSource: LivecodeFromWorld<LazySource>,
-        LazySource: IsLazy<Target = Target> + Debug + Clone,
-        Target: Lerpable,
-    {
-        let what = self
-            .what
-            .iter()
-            .map(|x| x.o::<LazySource, Target>(w))
-            .collect::<Result<Vec<_>, _>>()?;
+    // fn o<LazySource, Target>(
+    //     &self,
+    //     w: &LivecodeWorldState,
+    // ) -> LivecodeResult<LazyVecElementGated<WrappedLazyType<LazySource>>>
+    // where
+    //     DeserSource: LivecodeFromWorld<LazySource>,
+    //     LazySource: IsLazy<Target = Target> + Debug + Clone,
+    //     Target: Lerpable,
+    // {
+    //     let what = self
+    //         .what
+    //         .iter()
+    //         .map(|x| x.o::<LazySource, Target>(w))
+    //         .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(LazyVecElementGated {
-            on: self.on.o(w)?,
-            what,
-        })
-    }
+    //     Ok(LazyVecElementGated {
+    //         on: self.on.o(w)?,
+    //         what,
+    //     })
+    // }
 }
 
 #[derive(Debug, Clone)]

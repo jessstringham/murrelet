@@ -7,28 +7,42 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct GraphicsWindowConf<'a> {
-    pub device: &'a DeviceState<'a>,
+    pub device_state: &'a DeviceState<'a>,
     pub dims: [u32; 2],
     pub assets_path: GraphicsAssets,
-    pub surface_format: wgpu::TextureFormat,
+    pub display_format: wgpu::TextureFormat,
 }
 impl<'a> GraphicsWindowConf<'a> {
     pub fn new(
-        device: &'a DeviceState,
+        device_state: &'a DeviceState,
+        dims: [u32; 2],
+        assets_path: GraphicsAssets,
+        display_format: wgpu::TextureFormat,
+    ) -> GraphicsWindowConf<'a> {
+        GraphicsWindowConf {
+            device_state,
+            dims,
+            assets_path,
+            display_format,
+        }
+    }
+
+    pub fn offscreen(
+        device_state: &'a DeviceState,
         dims: [u32; 2],
         assets_path: GraphicsAssets,
     ) -> GraphicsWindowConf<'a> {
         GraphicsWindowConf {
-            device,
+            device_state,
             dims,
             assets_path,
-            surface_format: DEFAULT_TEXTURE_FORMAT,
+            display_format: DEFAULT_TEXTURE_FORMAT,
         }
     }
 
     pub fn with_surface_format(&self, surface_format: wgpu::TextureFormat) -> Self {
         Self {
-            surface_format,
+            display_format: surface_format,
             ..self.clone()
         }
     }
@@ -36,13 +50,11 @@ impl<'a> GraphicsWindowConf<'a> {
     pub fn multi(&self, multiplier: f32) -> GraphicsWindowConf<'_> {
         let [x, y] = self.dims;
         GraphicsWindowConf {
-            device: self.device,
             dims: [
                 (x as f32 * multiplier) as u32,
                 (y as f32 * multiplier) as u32,
             ],
-            assets_path: GraphicsAssets::Nothing,
-            surface_format: self.surface_format,
+            ..self.clone()
         }
     }
 
@@ -50,8 +62,12 @@ impl<'a> GraphicsWindowConf<'a> {
         self.dims
     }
 
+    pub fn device_state(&'a self) -> &'a DeviceState<'a> {
+        self.device_state
+    }
+
     pub fn device(&self) -> &wgpu::Device {
-        self.device.device()
+        self.device_state.device()
     }
 
     pub fn with_dims(&self, dims: [u32; 2]) -> Self {
@@ -62,10 +78,10 @@ impl<'a> GraphicsWindowConf<'a> {
     }
 
     pub fn queue(&self) -> &wgpu::Queue {
-        self.device.queue()
+        self.device_state.queue()
     }
 
-    pub fn surface_format(&self) -> wgpu::TextureFormat {
-        self.surface_format
+    pub fn display_format(&self) -> wgpu::TextureFormat {
+        self.display_format
     }
 }
