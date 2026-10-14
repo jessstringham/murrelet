@@ -58,7 +58,11 @@ impl WebSDrawCtx {
             .add_styled_text("", StyledText::new(s, v, 180.0, self.svg_style()));
     }
 
-    pub fn new_from_path_with_multiple_annotations(&self, cd: MurreletPath, annotations: Vec<(String, String)>) {
+    pub fn new_from_path_with_multiple_annotations(
+        &self,
+        cd: MurreletPath,
+        annotations: Vec<(String, String)>,
+    ) {
         self.svg_draw.add_styled_path(
             "",
             StyledPath::new_from_path_with_multiple_annotations(cd, self.svg_style(), annotations),
@@ -79,7 +83,8 @@ impl WebSDrawCtx {
                     let annotations = shape.annotations();
                     let ctx = self.with_svg_style(style.to_style());
                     for cd in shape.curves() {
-                        let path = MurreletPath::curve(cd.clone()).transform_with_mat4_after(self.transform());
+                        let path = MurreletPath::curve(cd.clone())
+                            .transform_with_mat4_after(self.transform());
                         if annotations.is_empty() {
                             ctx.draw_curve_path(path);
                         } else {
@@ -96,7 +101,8 @@ impl WebSDrawCtx {
                 }
                 MixedDrawableShape::Text(text) => {
                     for t in text.positions() {
-                        self.with_svg_style(style.to_style()).draw_text(t.text().to_string(), t.loc());
+                        self.with_svg_style(style.to_style())
+                            .draw_text(t.text().to_string(), t.loc());
                     }
                 }
             }

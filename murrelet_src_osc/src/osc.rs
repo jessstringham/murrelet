@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use murrelet_common::{
-    IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue, StrId, ToStrId, print_expect
+    IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeUsage, LivecodeValue, StrId, ToStrId,
+    print_expect,
 };
 use rosc::{OscPacket, OscType};
 use std::collections::HashMap;
@@ -59,8 +60,8 @@ impl IsLivecodeSrc for OscMng {
                 }
                 LivecodeValue::Bool(_) => {}
                 LivecodeValue::Int(_) => {}
-                LivecodeValue::Vec2(_, _) => {}, // todo
-                LivecodeValue::Vec3(_, _, _) => {}, // todo
+                LivecodeValue::Vec2(_, _) => {}    // todo
+                LivecodeValue::Vec3(_, _, _) => {} // todo
             }
         }
     }

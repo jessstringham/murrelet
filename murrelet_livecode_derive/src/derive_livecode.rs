@@ -521,7 +521,6 @@ impl GenFinal for FieldTokensLivecode {
         }
     }
 
-
     // e.g. TileAxis::Diag
     fn from_unit_enum(idents: EnumIdents) -> FieldTokensLivecode {
         let variant_ident = idents.variant_ident();
@@ -776,7 +775,8 @@ impl GenFinal for FieldTokensLivecode {
                 match wrapper {
                     VecDepth::NotAVec => unreachable!("not a vec in a vec?"),
                     VecDepth::Vec => {
-                        let expr = vec_for_to_control_expr(quote!(self.#name), inner_is_lazy_struct);
+                        let expr =
+                            vec_for_to_control_expr(quote!(self.#name), inner_is_lazy_struct);
                         quote! { #name: #expr }
                     }
                     VecDepth::VecVec => {
@@ -1131,11 +1131,9 @@ impl GenFinal for FieldTokensLivecode {
             if how_to_control_internal.needs_to_be_evaluated() {
                 match wrapper {
                     VecDepth::NotAVec => todo!(),
-                    VecDepth::Vec => vec_for_world_expr(
-                        quote!(&self.0),
-                        quote!(self.0),
-                        inner_is_lazy_struct,
-                    ),
+                    VecDepth::Vec => {
+                        vec_for_world_expr(quote!(&self.0), quote!(self.0), inner_is_lazy_struct)
+                    }
                     VecDepth::VecVec => unimplemented!(),
                     VecDepth::VecControlVec => unimplemented!(),
                 }

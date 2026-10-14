@@ -47,8 +47,9 @@ impl ExprNode {
 
     pub fn from_src(src: String) -> LivecodeResult<Self> {
         let to_parse = desugar_expr_src(&src)?.unwrap_or_else(|| src.clone());
-        let node = build_operator_tree(&to_parse)
-            .map_err(|err| LivecodeError::EvalExpr("error parsing expr".to_string(), err.to_string()))?;
+        let node = build_operator_tree(&to_parse).map_err(|err| {
+            LivecodeError::EvalExpr("error parsing expr".to_string(), err.to_string())
+        })?;
         Ok(Self { src, node })
     }
 
@@ -907,7 +908,9 @@ impl ControlF32 {
                 .or_else(|_| {
                     e.eval_boolean_with_context(w)
                         .map(|b| if b { 1.0 } else { -1.0 })
-                        .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err.to_string()))
+                        .map_err(|err| {
+                            LivecodeError::EvalExpr("evalexpr err".to_string(), err.to_string())
+                        })
                 }),
         }
     }
@@ -967,9 +970,9 @@ impl ControlBool {
                 .eval_boolean_with_context(w)
                 .or_else(|_| e.eval_float_with_context(w).map(|b| b > 0.0))
                 .or_else(|_| {
-                    e.eval_int_with_context(w)
-                        .map(|b| b > 0)
-                        .map_err(|err| LivecodeError::EvalExpr("evalexpr err".to_string(), err.to_string()))
+                    e.eval_int_with_context(w).map(|b| b > 0).map_err(|err| {
+                        LivecodeError::EvalExpr("evalexpr err".to_string(), err.to_string())
+                    })
                 }),
         }
     }

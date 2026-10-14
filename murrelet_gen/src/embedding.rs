@@ -798,9 +798,7 @@ impl EmbeddingGenStep {
             let mut parsed = Vec::new();
             for part in trimmed.split(',') {
                 let idx = part.trim().parse::<usize>().map_err(|e| {
-                    EmbeddingError::DecodeParseError(format!(
-                        "lock indices parse error: {e}"
-                    ))
+                    EmbeddingError::DecodeParseError(format!("lock indices parse error: {e}"))
                 })?;
                 parsed.push(idx.to_string());
             }
@@ -879,7 +877,8 @@ impl EmbeddingGenStep {
             "l" | "lock" => {
                 if args.len() < 3 {
                     return Err(EmbeddingError::DecodeParseError(
-                        "lock(source, overwrite_with, lock_indices) expects at least 3 arguments".to_string(),
+                        "lock(source, overwrite_with, lock_indices) expects at least 3 arguments"
+                            .to_string(),
                     ));
                 }
                 let source = Box::new(EmbeddingGenStep::parse_expr(&args[0])?);

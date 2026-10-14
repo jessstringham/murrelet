@@ -615,14 +615,14 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
                 bytemuck::cast_slice::<VertexKind, u8>(&g.conf.input_vertex.tri.vertices);
             if new_vert_bytes.len() > old_vert_bytes_len {
                 // recreate vertex buffer with new size
-                let vb = c
-                    .device_state
-                    .device()
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("vertex buffer"),
-                        contents: new_vert_bytes,
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    });
+                let vb =
+                    c.device_state
+                        .device()
+                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("vertex buffer"),
+                            contents: new_vert_bytes,
+                            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        });
                 g.vertex_buffers.vertex = vb;
             } else {
                 queue.write_buffer(&g.vertex_buffers.vertex, 0, new_vert_bytes);
@@ -645,14 +645,14 @@ impl<VertexKind: GraphicsVertex> GraphicsRefCustom<VertexKind> {
                 (raw_index.into(), raw_index.len() > old_index_bytes_len)
             };
             if needs_recreate {
-                let ib = c
-                    .device_state
-                    .device()
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("index buffer"),
-                        contents: &index_bytes,
-                        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                    });
+                let ib =
+                    c.device_state
+                        .device()
+                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("index buffer"),
+                            contents: &index_bytes,
+                            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                        });
                 g.vertex_buffers.index = ib;
             } else {
                 queue.write_buffer(&g.vertex_buffers.index, 0, &index_bytes);

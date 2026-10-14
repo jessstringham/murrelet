@@ -41,7 +41,9 @@ pub trait HeadlessHarness: Sized {
     fn default_svg_path(&self) -> SvgDrawConfig;
 
     /// CLI `--earlystop` or equivalent. None = caller's default (typically 100).
-    fn earlystop(&self) -> Option<u64> { None }
+    fn earlystop(&self) -> Option<u64> {
+        None
+    }
 
     // For the *_stateful arms — default no-op so non-stateful consumers don't
     // implement them. `update_for_frame` advances the livecode one frame with a

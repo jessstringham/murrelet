@@ -207,9 +207,8 @@ macro_rules! basic_wrapper {
             }
 
             fn parse_drawer(text: &str) -> murrelet_common::LivecodeResult<$ctrl_conf_ty> {
-                serde_json::from_str(&text).map_err(|err| {
-                    murrelet_common::LivecodeError::JsonParse(err.to_string())
-                })
+                serde_json::from_str(&text)
+                    .map_err(|err| murrelet_common::LivecodeError::JsonParse(err.to_string()))
             }
 
             fn set_drawing_conf(&mut self, drawing_conf: $ctrl_conf_ty) {
@@ -425,12 +424,9 @@ macro_rules! bonus_draw_wrapper {
         use web_sys::{Document, Element, SvgElement, SvgsvgElement, Window};
 
         impl $model_wasm {
-            pub fn parse_draw_opts(
-                conf: &str,
-            ) -> murrelet_common::LivecodeResult<$draw_opts_ty> {
-                serde_json::from_str(&conf).map_err(|err| {
-                    murrelet_common::LivecodeError::JsonParse(err.to_string())
-                })
+            pub fn parse_draw_opts(conf: &str) -> murrelet_common::LivecodeResult<$draw_opts_ty> {
+                serde_json::from_str(&conf)
+                    .map_err(|err| murrelet_common::LivecodeError::JsonParse(err.to_string()))
             }
         }
 
@@ -509,17 +505,16 @@ macro_rules! bonus_yaml_wrapper {
                 yaml: &str,
             ) -> murrelet_common::LivecodeResult<$ctrl_conf_top_level> {
                 use murrelet_livecode::livecode::LivecodeToControl;
-                let drawing: $ctrl_conf_ty = serde_yaml::from_str(yaml).map_err(|err| {
-                    murrelet_common::LivecodeError::JsonParse(err.to_string())
-                })?;
-                Ok(<$ctrl_conf_top_level as murrelet_perform::perform::WithDrawerUpdator<
-                    $ctrl_conf_ty,
-                >>::new_from_parts(app.to_control(), drawing))
+                let drawing: $ctrl_conf_ty = serde_yaml::from_str(yaml)
+                    .map_err(|err| murrelet_common::LivecodeError::JsonParse(err.to_string()))?;
+                Ok(
+                    <$ctrl_conf_top_level as murrelet_perform::perform::WithDrawerUpdator<
+                        $ctrl_conf_ty,
+                    >>::new_from_parts(app.to_control(), drawing),
+                )
             }
 
-            pub fn new_conf_yaml_livecode(
-                yaml: &str,
-            ) -> murrelet_common::LivecodeResult<Self> {
+            pub fn new_conf_yaml_livecode(yaml: &str) -> murrelet_common::LivecodeResult<Self> {
                 let app_mng = murrelet_wasm::interface::AppManager::new();
                 let control_config = Self::yaml_to_control_config(&app_mng.conf, yaml)?;
                 let livecode = LiveCode::new_wasm(control_config)?;
@@ -541,8 +536,7 @@ macro_rules! bonus_yaml_wrapper {
                 self.livecode.update_config_directly(control_config)?;
                 // push straight to the model so a set_config + draw works without an
                 // intervening tick() (mockingbird is static-iterate, not animated).
-                self.model
-                    .set_conf(self.livecode.config().drawing.clone());
+                self.model.set_conf(self.livecode.config().drawing.clone());
                 Ok(())
             }
         }

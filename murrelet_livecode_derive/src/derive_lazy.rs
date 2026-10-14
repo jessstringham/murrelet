@@ -198,7 +198,6 @@ impl LazyFieldType {
         }
     }
 
-
     fn for_control_lazy_target(&self, target: TokenStream2) -> TokenStream2 {
         match self.0 {
             ControlType::LazyNodeF32 => quote! { #target.to_control() },
@@ -252,10 +251,7 @@ pub(crate) struct FieldTokensLazy {
 // (`self.foo` / `s` / `self.0`). inner_eval: closure body for each expanded
 // element (`x.eval_lazy(ctx)` for Struct payloads, the LazyFieldType
 // for_world_func output for primitives).
-fn lazy_vec_for_world_expr(
-    target_ref: TokenStream2,
-    inner_eval: TokenStream2,
-) -> TokenStream2 {
+fn lazy_vec_for_world_expr(target_ref: TokenStream2, inner_eval: TokenStream2) -> TokenStream2 {
     quote! {
         {
             let expanded = murrelet_livecode::types::lazy_expand_vec_list(#target_ref, ctx)?;
@@ -530,7 +526,8 @@ impl GenFinal for FieldTokensLazy {
         };
 
         let control_lazy_ident = update_to_control_ident(new_enum_ident.clone());
-        let for_control_lazy = quote! { #name::#variant_ident => #control_lazy_ident::#variant_ident };
+        let for_control_lazy =
+            quote! { #name::#variant_ident => #control_lazy_ident::#variant_ident };
 
         FieldTokensLazy {
             for_struct,
@@ -660,8 +657,8 @@ impl GenFinal for FieldTokensLazy {
                 for_world: quote! {#name: self.#name.clone()},
                 for_more_defs: quote! {#name: self.#name.clone()},
                 for_control_lazy: quote! {#name: self.#name.iter()
-                    .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
-                    .collect::<Vec<_>>()},
+                .map(|x| murrelet_livecode::types::ControlVecElement::raw(x.to_control()))
+                .collect::<Vec<_>>()},
             };
         }
 
@@ -707,7 +704,8 @@ impl GenFinal for FieldTokensLazy {
                     quote! { #name: #expr }
                 }
                 HowToControlThis::WithRecurse(RecursiveControlType::Struct) => {
-                    let expr = lazy_vec_for_world_expr(quote!(&self.#name), quote!(x.eval_lazy(ctx)));
+                    let expr =
+                        lazy_vec_for_world_expr(quote!(&self.#name), quote!(x.eval_lazy(ctx)));
                     quote! { #name: #expr }
                 }
                 HowToControlThis::WithNone => {
@@ -724,7 +722,8 @@ impl GenFinal for FieldTokensLazy {
             quote! { #name: #expr }
         };
 
-        let for_control_lazy = quote! { #name: todo!("to_control_lazy: Vec fields not yet supported") };
+        let for_control_lazy =
+            quote! { #name: todo!("to_control_lazy: Vec fields not yet supported") };
 
         FieldTokensLazy {
             for_struct,
@@ -966,8 +965,7 @@ impl FieldTokensLazy {
         let new_type = LazyFieldType(ctrl).to_token();
 
         // No field metadata on enum variants -> no f32min/f32max clamping.
-        let inner_world_expr =
-            LazyFieldType(ctrl).for_world_target(quote!(s), orig_ty, None, None);
+        let inner_world_expr = LazyFieldType(ctrl).for_world_target(quote!(s), orig_ty, None, None);
 
         let for_struct = quote! { #variant_ident(#new_type) };
         let for_world = if let Some(validate) = idents.validate_hook() {
@@ -1049,7 +1047,9 @@ impl FieldTokensLazy {
         let control_lazy_elems: Vec<TokenStream2> = binds
             .iter()
             .map(|ai| match elem_how_to {
-                HowToControlThis::WithType(c) => LazyFieldType(c).for_control_lazy_target(quote!(#ai)),
+                HowToControlThis::WithType(c) => {
+                    LazyFieldType(c).for_control_lazy_target(quote!(#ai))
+                }
                 HowToControlThis::WithRecurse(RecursiveControlType::StructLazy) => {
                     quote! { #ai.to_control() }
                 }

@@ -1,5 +1,5 @@
-pub mod interface;
 pub mod draw;
+pub mod interface;
 
 #[cfg(feature = "gpu")]
 pub mod gpu_canvas;

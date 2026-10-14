@@ -40,10 +40,7 @@ impl VectorAsset {
 
         let mut hm = HashMap::new();
         for (k, v) in &x {
-            let p = v
-                .iter()
-                .map(|x| x.clone_to_vec())
-                .collect_vec();
+            let p = v.iter().map(|x| x.clone_to_vec()).collect_vec();
             hm.insert(k.clone(), p);
         }
         Self { layers, map: hm }

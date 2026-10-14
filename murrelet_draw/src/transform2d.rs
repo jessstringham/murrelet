@@ -114,14 +114,12 @@ impl Transform2d {
         Transform2d(Vec::new())
     }
 
-
     pub fn from_spot(s: &SpotOnCurve) -> Self {
         Transform2d::new(vec![
             Transform2dStep::rotate_pi(s.angle()),
             Transform2dStep::translate_vec(s.loc()),
         ])
     }
-
 
     pub fn spot(s: &SpotOnCurve) -> Self {
         Self::from_spot(s)

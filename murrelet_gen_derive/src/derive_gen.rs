@@ -386,126 +386,125 @@ impl GenFinal for FieldTokensGen {
         let ty = idents.data.ty;
 
         let (for_rn_count, for_rn_names, for_rn_specs, for_make_gen, for_to_dist, for_to_dist_mask) =
-            match outer
-        {
-            GenMethod::VecLength { min, max } => {
-                let inside_type = nested_ident(&ty);
+            match outer {
+                GenMethod::VecLength { min, max } => {
+                    let inside_type = nested_ident(&ty);
 
-                let i = inside_type[1].clone();
-                let inside_type_val: syn::Type = syn::parse_quote! { #i };
+                    let i = inside_type[1].clone();
+                    let inside_type_val: syn::Type = syn::parse_quote! { #i };
 
-                let for_rn_specs_per_item = inner.rn_specs_tokens(inside_type_val.clone());
+                    let for_rn_specs_per_item = inner.rn_specs_tokens(inside_type_val.clone());
 
-                let (
-                    for_rn_count_per_item,
-                    for_rn_names_per_item,
-                    for_make_gen_per_item,
-                    for_make_to_dist_per_item,
-                ) = inner.to_methods(inside_type_val, quote! {val.clone()}, false);
+                    let (
+                        for_rn_count_per_item,
+                        for_rn_names_per_item,
+                        for_make_gen_per_item,
+                        for_make_to_dist_per_item,
+                    ) = inner.to_methods(inside_type_val, quote! {val.clone()}, false);
 
-                let for_rn_count: TokenStream2 = quote! {
-                    #for_rn_count_per_item * #max + 1
-                };
+                    let for_rn_count: TokenStream2 = quote! {
+                        #for_rn_count_per_item * #max + 1
+                    };
 
-                let for_rn_names_all = (0..*max).map(|x| {
+                    let for_rn_names_all = (0..*max).map(|x| {
                     let i_name = x.to_string();
                     quote! { murrelet_gen::prefix_field_names(#i_name.to_string(), #for_rn_names_per_item) }
                 });
 
-                let field_name_str = field_name.to_string();
+                    let field_name_str = field_name.to_string();
 
-                let for_rn_names = quote! {
-                    murrelet_gen::prefix_field_names(
-                        #field_name_str.to_string(),
-                        vec![
-                            vec!["[len]".to_string()],
-                           #(#for_rn_names_all,)*
-                        ].concat()
-                    )
-                };
+                    let for_rn_names = quote! {
+                        murrelet_gen::prefix_field_names(
+                            #field_name_str.to_string(),
+                            vec![
+                                vec!["[len]".to_string()],
+                               #(#for_rn_names_all,)*
+                            ].concat()
+                        )
+                    };
 
-                let for_rn_specs = quote! {{
-                    let mut specs: Vec<murrelet_gen::RnSpec> = vec![
-                        murrelet_gen::RnSpec::new("vec_length", "[len]", vec![
-                            ("min".to_string(), #min as f32),
-                            ("max".to_string(), #max as f32),
-                        ])
-                    ];
-                    for _ in 0..#max {
-                        specs.extend(#for_rn_specs_per_item);
-                    }
-                    specs
-                }};
-
-                // in this case, we _don't_ want one-hot, because it actually does make
-                // sense to interpolate between say, 3 and 6.
-                // i want to add extra indicators for everything between min and max
-                // but i'm not sure how to do that! because i'm just generating,
-                // not making the input data for something else...
-                let for_make_gen = quote! {{
-                    let range = (#max - #min + 1) as f32;
-                    let how_many = (rn[rn_start_idx] * range) as usize + #min;
-                    rn_start_idx += 1;
-                    let mut v = vec![];
-                    // need to go through the fill list so we increment
-                    // through the rns right
-                    for i in 0..#max {
-                        if i < how_many {
-                            v.push(#for_make_gen_per_item);
-                        } else {
-                            // just run it
-                            #for_make_gen_per_item;
+                    let for_rn_specs = quote! {{
+                        let mut specs: Vec<murrelet_gen::RnSpec> = vec![
+                            murrelet_gen::RnSpec::new("vec_length", "[len]", vec![
+                                ("min".to_string(), #min as f32),
+                                ("max".to_string(), #max as f32),
+                            ])
+                        ];
+                        for _ in 0..#max {
+                            specs.extend(#for_rn_specs_per_item);
                         }
-                    }
-                    v
-                }};
+                        specs
+                    }};
 
-                let for_to_dist = quote! {{
-                    let mut result = vec![];
-                    let x = self.#field_name.len() as f32;
-                    let v = (x - #min as f32) / ((#max - #min) as f32);
-                    result.push(v);
-                    for val in self.#field_name.iter() {
-                        // always extend it
-                        let vv = #for_make_to_dist_per_item;
-                        result.extend(vv.into_iter());
-                    }
+                    // in this case, we _don't_ want one-hot, because it actually does make
+                    // sense to interpolate between say, 3 and 6.
+                    // i want to add extra indicators for everything between min and max
+                    // but i'm not sure how to do that! because i'm just generating,
+                    // not making the input data for something else...
+                    let for_make_gen = quote! {{
+                        let range = (#max - #min + 1) as f32;
+                        let how_many = (rn[rn_start_idx] * range) as usize + #min;
+                        rn_start_idx += 1;
+                        let mut v = vec![];
+                        // need to go through the fill list so we increment
+                        // through the rns right
+                        for i in 0..#max {
+                            if i < how_many {
+                                v.push(#for_make_gen_per_item);
+                            } else {
+                                // just run it
+                                #for_make_gen_per_item;
+                            }
+                        }
+                        v
+                    }};
 
-                    for _ in self.#field_name.len()..#max {
-                        let vv: Vec<f32> = (0..#for_rn_count_per_item).into_iter().map(|_| 0.5f32).collect();
-                        result.extend(vv.into_iter());
-                    }
-                    result
-                }};
+                    let for_to_dist = quote! {{
+                        let mut result = vec![];
+                        let x = self.#field_name.len() as f32;
+                        let v = (x - #min as f32) / ((#max - #min) as f32);
+                        result.push(v);
+                        for val in self.#field_name.iter() {
+                            // always extend it
+                            let vv = #for_make_to_dist_per_item;
+                            result.extend(vv.into_iter());
+                        }
 
-                let for_to_dist_mask = quote! {{
-                    let mut result: Vec<bool> = vec![];
-                    result.push(true);
-                    for val in self.#field_name.iter() {
-                        // always extend it
-                        let vv: Vec<bool> = (0..#for_rn_count_per_item).into_iter().map(|_| true).collect();
-                        result.extend(vv.into_iter());
-                    }
+                        for _ in self.#field_name.len()..#max {
+                            let vv: Vec<f32> = (0..#for_rn_count_per_item).into_iter().map(|_| 0.5f32).collect();
+                            result.extend(vv.into_iter());
+                        }
+                        result
+                    }};
 
-                    for _ in self.#field_name.len()..#max {
-                        // these ones are all false!
-                        let vv: Vec<bool> = (0..#for_rn_count_per_item).into_iter().map(|_| false).collect();
-                        result.extend(vv.into_iter());
-                    }
-                    result
-                }};
+                    let for_to_dist_mask = quote! {{
+                        let mut result: Vec<bool> = vec![];
+                        result.push(true);
+                        for val in self.#field_name.iter() {
+                            // always extend it
+                            let vv: Vec<bool> = (0..#for_rn_count_per_item).into_iter().map(|_| true).collect();
+                            result.extend(vv.into_iter());
+                        }
 
-                (
-                    for_rn_count,
-                    for_rn_names,
-                    for_rn_specs,
-                    for_make_gen,
-                    for_to_dist,
-                    for_to_dist_mask,
-                )
-            }
-            _ => unreachable!("not expecting an inner without a recursive outer"),
-        };
+                        for _ in self.#field_name.len()..#max {
+                            // these ones are all false!
+                            let vv: Vec<bool> = (0..#for_rn_count_per_item).into_iter().map(|_| false).collect();
+                            result.extend(vv.into_iter());
+                        }
+                        result
+                    }};
+
+                    (
+                        for_rn_count,
+                        for_rn_names,
+                        for_rn_specs,
+                        for_make_gen,
+                        for_to_dist,
+                        for_to_dist_mask,
+                    )
+                }
+                _ => unreachable!("not expecting an inner without a recursive outer"),
+            };
 
         Self {
             for_rn_count,

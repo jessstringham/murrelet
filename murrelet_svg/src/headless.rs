@@ -4,7 +4,6 @@ use murrelet_perform::perform::SvgDrawConfig;
 
 use crate::svg::{StyledText, SvgPathCache, SvgPathCacheRef};
 
-
 // claude added this for being able to produce svgs without making a nannou window or web app.
 // Headless svg is the DrawTarget::Svg medium, so a sketch that overrides
 // to_mixed_drawables_for can return pen-friendly geometry here.

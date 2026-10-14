@@ -3,9 +3,7 @@
 //! (see [`GraphicsMng::make_img_defs`]).
 
 use murrelet_common::StrId;
-use murrelet_gpu::device_state::{
-    DeviceStateForRender, GraphicsAssets, OwnedDeviceState,
-};
+use murrelet_gpu::device_state::{DeviceStateForRender, GraphicsAssets, OwnedDeviceState};
 use murrelet_gpu::gpu_macros::GPUPipeline;
 use murrelet_gpu::window::GraphicsWindowConf;
 use wasm_bindgen::JsValue;
@@ -36,11 +34,7 @@ pub struct CanvasShader {
 impl CanvasShader {
     /// Resolve-or-create the canvas by id, bind a wgpu surface to it, then let
     /// `make_pipeline` build the pipeline against the freshly-created device.
-    pub async fn new<F>(
-        canvas_id: StrId,
-        dims: [u32; 2],
-        make_pipeline: F,
-    ) -> Result<Self, JsValue>
+    pub async fn new<F>(canvas_id: StrId, dims: [u32; 2], make_pipeline: F) -> Result<Self, JsValue>
     where
         F: FnOnce(&GraphicsWindowConf) -> Box<dyn RenderToDisplay>,
     {

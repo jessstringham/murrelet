@@ -432,11 +432,7 @@ impl ComputeGraphicsToTexture {
         queue.write_buffer(&self.buffers.uniforms, 0, self.uniforms.as_bytes());
     }
 
-    pub fn update_more_info_other_uniforms(
-        &mut self,
-        c: &GraphicsWindowConf,
-        other: &[f32],
-    ) {
+    pub fn update_more_info_other_uniforms(&mut self, c: &GraphicsWindowConf, other: &[f32]) {
         let queue = &c.device_state.queue();
         self.uniforms.update_up_to_16(other);
 
@@ -520,11 +516,7 @@ impl ComputeGraphicsToTextureRef {
         }
     }
 
-    pub fn update_more_info_other_uniforms(
-        &self,
-        c: &GraphicsWindowConf,
-        uniforms: &[f32],
-    ) {
+    pub fn update_more_info_other_uniforms(&self, c: &GraphicsWindowConf, uniforms: &[f32]) {
         self.graphics
             .borrow_mut()
             .update_more_info_other_uniforms(c, uniforms);

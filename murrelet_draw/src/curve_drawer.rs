@@ -2,8 +2,8 @@ use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
 use lyon::path::Path;
-use murrelet_common::*;
 use murrelet_common::LivecodeResult;
+use murrelet_common::*;
 use murrelet_livecode_derive::*;
 use serde::{Deserialize, Serialize};
 use svg::node::element::path::Data;
@@ -306,7 +306,6 @@ impl CurveDrawer {
     pub fn concat_closed(&self, rhs: &CurveDrawer) -> CurveDrawer {
         self.concat(rhs, true)
     }
-
 }
 
 fn warn_arc_skew_once() {
