@@ -67,6 +67,27 @@ pub struct CubicBezierPath {
     pub closed: bool,
 }
 impl CubicBezierPath {
+    pub fn builder(from: Vec2, ctrl1: Vec2) -> Self {
+        Self {
+            from,
+            ctrl1,
+            curves: vec![],
+            closed: false,
+        }
+    }
+
+    pub fn add(&mut self, ctrl1: Vec2, ctrl2: Vec2, to: Vec2) {
+        self.curves.push(CubicBezierTo::new(Some(ctrl1), ctrl2, to));
+    }
+
+    pub fn add_smooth(&mut self, ctrl2: Vec2, to: Vec2) {
+        self.curves.push(CubicBezierTo::new(None, ctrl2, to));
+    }
+
+    pub fn close(&mut self) {
+        self.closed = true;
+    }
+
     pub fn new(from: Vec2, ctrl1: Vec2, curves: Vec<CubicBezierTo>, closed: bool) -> Self {
         Self {
             from,

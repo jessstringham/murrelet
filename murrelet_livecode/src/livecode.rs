@@ -312,6 +312,10 @@ impl LivecodeFromWorld<MurreletColor> for ControlMurreletColor {
             ControlMurreletColor::Hue { hue } => Ok(MurreletColor::hue(hue.o(w)?)),
             // ControlMurreletColor::Named(name) => named_color_string(name),
             ControlMurreletColor::Expr(expr_node) => {
+                // first check if it's a simple color name!
+                if let Ok(c) = named_color_string(&expr_node.src) {
+                    return Ok(c);
+                }
                 let v = expr_node.eval_with_context(w).to_lc_err()?;
                 let v4 = expr_as_vec4(&v).to_lc_err()?;
                 let c = MurreletColor::hsva(v4[0], v4[1], v4[2], v4[3]);
