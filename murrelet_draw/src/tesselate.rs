@@ -9,10 +9,7 @@ use delaunator::Triangulation;
 use glam::{Vec2, vec2};
 use itertools::Itertools;
 use kurbo::BezPath;
-use lyon::{
-    geom::Angle,
-    path::{Event, traits::Build},
-};
+use lyon::{geom::Angle, path::Event};
 use lyon::{geom::arc::Arc, math::Transform};
 use lyon::{geom::vector, path::traits::PathIterator};
 use lyon::{
@@ -128,7 +125,7 @@ pub trait ToLyonPath {
     fn _add_to_lyon<B: PathBuilder>(&self, start: Vec2, builder: &mut B) -> LivecodeResult<bool> {
         // handles when "start" is too far away
         if start.distance(self.start()) > Self::EPS {
-            builder.line_to(self._start());
+            builder.line_to(self._start(), Default::default());
         }
 
         self.add_to_lyon(builder)
@@ -148,7 +145,7 @@ impl ToLyonPath for CurvePoints {
                 return LivecodeError::rawr("nan in CurvePoints");
             }
 
-            builder.line_to(glam_to_lyon(*p));
+            builder.line_to(glam_to_lyon(*p), Default::default());
         }
 
         Ok(false)
@@ -173,6 +170,7 @@ impl ToLyonPath for CubicBezier {
             glam_to_lyon(self.ctrl1),
             glam_to_lyon(self.ctrl2),
             glam_to_lyon(self.to),
+            Default::default(),
         );
 
         Ok(false)
@@ -227,7 +225,7 @@ fn add_circular_arc<B: PathBuilder>(builder: &mut B, c: &CurveArc) {
     };
 
     arc.for_each_cubic_bezier(&mut |c| {
-        builder.cubic_bezier_to(c.ctrl1, c.ctrl2, c.to);
+        builder.cubic_bezier_to(c.ctrl1, c.ctrl2, c.to, Default::default());
     });
 }
 

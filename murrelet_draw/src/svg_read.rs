@@ -180,7 +180,7 @@ fn parse_data(data: &svg::node::element::path::Data, line_space: f32) -> Vec<Vec
                         to: to.into(),
                     };
 
-                    let length = line.approximate_length(0.1);
+                    let length = line.length();
 
                     segment_state.add_segment(line, length);
 

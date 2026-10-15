@@ -24,7 +24,7 @@ murrelet_draw = { workspace = true, default-features = false }
 murrelet_gpu_derive = { workspace = true }
 murrelet_livecode_derive = { workspace = true }
 murrelet_perform = { workspace = true, default-features = false }
-murrelet_gui = { workspace = true, features = ["glam"] }
+# murrelet_gui = { workspace = true, features = ["glam"] }
 
 lerpable = { workspace = true, features = ["glam"] }
 

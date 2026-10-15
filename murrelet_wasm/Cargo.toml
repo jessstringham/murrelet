@@ -18,11 +18,11 @@ murrelet_svg = { workspace = true }
 murrelet_livecode = { workspace = true }
 murrelet_gui = { workspace = true }
 murrelet_perform = { workspace = true, features = ["for_the_web"] }
-murrelet_livecode_derive = { workspace = true, default-features = false } # no schemars
+# murrelet_livecode_derive = { workspace = true, default-features = false } # no schemars
 murrelet_gen = { workspace = true }
 murrelet_gpu = { workspace = true, optional = true }
 serde = { version = "1.0.104", features = ["derive"] }
-serde_json = "1.0.48"
+serde_json = { workspace = true }
 glam = { version = "0.28.0", features = ["serde"] }
 wgpu = { workspace = true, optional = true, features = ["webgpu", "webgl"] }
 lerpable = { workspace = true, features = ["glam"] }

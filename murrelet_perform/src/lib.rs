@@ -8,6 +8,7 @@ pub mod reload;
 pub use interface::{IsDrawableMurreletModel, IsMurreletModel};
 pub use perform::AppConfig;
 pub use perform::ControlAppConfig;
+pub use perform::ControlLazyAppConfig;
 pub use perform::LiveCoder;
 pub use reload::LiveCoderLoader;
 

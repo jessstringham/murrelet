@@ -200,6 +200,11 @@ impl CurveDrawer {
         Self { segments, closed }
     }
 
+    pub fn new_simple_rect(xy: Vec2, wh: Vec2) -> Self {
+        let rect = Rect::from_xy_wh(xy, wh);
+        CurveDrawer::new_simple_points(rect.to_vec2(), true)
+    }
+
     pub fn new_closed(segments: Vec<CurveSegment>) -> Self {
         Self {
             segments,

@@ -40,7 +40,8 @@ murrelet_gui = { workspace = true, features = ["glam", "murrelet"] }
 
 kurbo = "0.11"
 svg = "0.10.0"
-lyon = "0.17"
+lyon = { workspace = true }
+
 delaunator = "1.0.2"
 geo = { workspace = true }
 
