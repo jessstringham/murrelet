@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use thiserror::Error;
 
 pub mod intersection;
 
@@ -18,6 +19,8 @@ mod idx;
 mod iter;
 mod metric;
 mod polyline;
+mod string;
+pub mod timecurve;
 mod transform;
 pub mod triangulate;
 
@@ -28,6 +31,7 @@ pub use idx::*;
 pub use iter::*;
 pub use metric::*;
 pub use polyline::*;
+pub use string::*;
 pub use transform::*;
 
 #[cfg(target_arch = "wasm32")]
@@ -41,7 +45,7 @@ use wasm_bindgen::prelude::*;
 // since i can't use SystemTime in wasm.
 // this isn't as clever with duration vs systemtime, but it gets the job done..
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MurreletTime(u128); // millis
+pub struct MurreletTime(u128); // micros
 
 impl MurreletTime {
     pub fn now() -> Self {
@@ -57,7 +61,7 @@ impl MurreletTime {
     }
 
     pub fn in_x_ms(x: u128) -> Self {
-        MurreletTime(epoch_time_ms() + x)
+        MurreletTime(epoch_time_us() + x * 1000)
     }
 
     pub fn in_one_sec() -> Self {
@@ -83,6 +87,12 @@ impl MurreletTime {
 
     pub fn as_micro(&self) -> u128 {
         self.0
+    }
+
+    // Wall-clock time of day (UTC) as hh:mm:ss, e.g. to prefix log lines.
+    pub fn as_hms(&self) -> String {
+        let s = self.as_secs() % 86400;
+        format!("{:02}:{:02}:{:02}", s / 3600, (s % 3600) / 60, s % 60)
     }
 }
 
@@ -329,7 +339,7 @@ impl Rect {
     }
 
     pub fn to_polyline(&self) -> Polyline {
-        Polyline::new(self.to_vec2())
+        self.to_vec2()
     }
 
     pub fn bottom_left(&self) -> Vec2 {
@@ -378,8 +388,8 @@ impl Rect {
 
     pub fn pad(&self, amount: f32) -> Self {
         Self {
-            xy: self.xy + 2.0 * Vec2::ONE * amount,
-            wh: self.wh,
+            xy: self.xy,
+            wh: self.wh + 2.0 * Vec2::ONE * amount,
         }
     }
 
@@ -397,10 +407,10 @@ impl Rect {
             && self.bottom() < other.top();
 
         if has_overlap {
-            let new_left = self.left().min(other.left());
+            let new_left = self.left().max(other.left());
             let new_right = self.right().min(other.right());
             let new_top = self.top().min(other.top());
-            let new_bottom = self.bottom().min(other.bottom());
+            let new_bottom = self.bottom().max(other.bottom());
 
             let new_wh = vec2(new_right - new_left, new_top - new_bottom);
 
@@ -481,6 +491,54 @@ impl Circle {
     pub fn move_center_mat4(&self, transform: glam::Mat4) -> Circle {
         self.set_center(transform.transform_vec2(self.center))
     }
+
+    pub fn line_intersection(&self, p2p: &PointToPoint) -> Vec<Vec2> {
+        solve_circle_line_intersection(self, p2p.start(), p2p.to_norm_dir())
+    }
+}
+
+pub fn solve_circle_line_intersection(
+    c: &Circle,
+    line_point: Vec2,
+    line_direction: Vec2,
+) -> Vec<Vec2> {
+    solve_circle_def_line_intersection(c.center, c.radius, line_point, line_direction)
+}
+
+// chatgpt
+pub fn solve_circle_def_line_intersection(
+    center: Vec2,
+    radius: f32,
+    line_point: Vec2,
+    line_direction: Vec2,
+) -> Vec<Vec2> {
+    let a = line_direction.dot(line_direction);
+
+    let delta = line_point - center;
+
+    let b = 2.0 * delta.dot(line_direction);
+
+    let c = delta.dot(delta) - radius * radius;
+
+    let discriminant = b * b - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        vec![]
+    } else {
+        // always take sqrt of a non‐negative number
+        let sqrt_disc = discriminant.max(0.0).sqrt();
+        let t1 = (-b + sqrt_disc) / (2.0 * a);
+        let t2 = (-b - sqrt_disc) / (2.0 * a);
+        let p1 = line_point + t1 * line_direction;
+        let p2 = line_point + t2 * line_direction;
+
+        // if t1≈t2 (tangent), return one, otherwise both
+        if (t1 - t2).abs() < 1e-6 {
+            vec![p1]
+        } else {
+            vec![p1, p2]
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -488,12 +546,22 @@ pub enum LivecodeValue {
     Float(f64),
     Bool(bool),
     Int(i64),
+    Vec2(f64, f64),
+    Vec3(f64, f64, f64),
 }
 
 impl LivecodeValue {
     #[inline]
     pub fn float(f: f32) -> Self {
         Self::Float(f as f64) // just a convenience thing
+    }
+
+    pub fn vec2(f: Vec2) -> Self {
+        Self::Vec2(f.x as f64, f.y as f64)
+    }
+
+    pub fn vec3(f: Vec3) -> Self {
+        Self::Vec3(f.x as f64, f.y as f64, f.z as f64)
     }
 }
 
@@ -518,7 +586,7 @@ impl LivecodeUsage {
 
 pub trait IsLivecodeSrc {
     fn update(&mut self, input: &LivecodeSrcUpdateInput);
-    fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)>;
+    fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)>;
     // this is a way to give usage feedback to the livecode src, e.g. tell a MIDI controller
     // we're using a parameter, or what value to set indicator lights to.
     fn feedback(
@@ -534,38 +602,74 @@ pub struct LivecodeSrc {
     vs: Vec<Box<dyn IsLivecodeSrc>>,
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct CustomVars(Option<HashMap<String, f32>>);
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct CustomVars(Vec<StrId>, Vec<f32>);
 
 impl CustomVars {
-    pub fn new(hash_map: HashMap<String, f32>) -> Self {
-        Self(Some(hash_map))
+    pub fn empty() -> Self {
+        Self(vec![], vec![])
     }
 
-    pub fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
-        if let Some(hm) = &self.0 {
-            let mut v = vec![];
-            for (key, value) in hm.iter() {
-                v.push((key.clone(), LivecodeValue::float(*value)))
-            }
-            v
-        } else {
-            vec![]
+    pub fn new(hash_map: HashMap<String, f32>) -> Self {
+        let mut keys = vec![];
+        let mut values = vec![];
+
+        for (k, v) in hash_map.iter() {
+            keys.push(StrId::new(k));
+            values.push(*v)
         }
+
+        Self(keys, values)
+    }
+
+    pub fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)> {
+        let hm = self.iter();
+        let mut v = vec![];
+        for (key, value) in hm {
+            v.push((*key, LivecodeValue::float(*value)))
+        }
+        v
+    }
+
+    fn iter(&self) -> impl Iterator<Item = (&StrId, &f32)> {
+        self.0.iter().zip(self.1.iter())
+    }
+
+    fn lookup_idx(&self, k: StrId) -> Option<usize> {
+        self.0.iter().position(|n| *n == k)
     }
 
     pub fn update(&mut self, new: &Self) {
         // basically update adds, and you can never delete >:D
-        if let Some(o) = &new.0 {
-            self.0
-                .get_or_insert_with(Default::default)
-                .extend(o.iter().map(|(k, v)| (k.clone(), *v)));
+
+        for (k, v) in new.iter() {
+            self.insert(*k, *v)
         }
+    }
+
+    pub fn insert(&mut self, key: StrId, value: f32) {
+        if let Some(id) = self.lookup_idx(key) {
+            self.1[id] = value
+        } else {
+            self.0.push(key);
+            self.1.push(value)
+        }
+    }
+
+    pub fn dangerous_set_names(&mut self, values: &[StrId]) {
+        self.0.clear();
+        self.0.extend_from_slice(values);
+        self.1.resize(values.len(), 0.0);
+    }
+
+    pub fn dangerous_change_data_in_place(&mut self, values: &[f32]) {
+        assert_eq!(self.1.len(), values.len(), "custom var len mismatch");
+        self.1.copy_from_slice(values);
     }
 }
 
 // what is sent from apps (like nannou)
-#[derive(Default)]
+#[derive(Default, Deserialize, Clone)]
 pub struct MurreletAppInput {
     pub keys: Option<[bool; 26]>,
     pub window_dims: Vec2,
@@ -573,6 +677,18 @@ pub struct MurreletAppInput {
     pub mouse_left_is_down: bool,
     pub elapsed_frames: u64,
     pub custom_vars: CustomVars,
+    // Named edit/modifier keys the a-z `keys` array can't carry. Levels (held),
+    // not edges — callers derive press edges by diffing across frames.
+    #[serde(default)]
+    pub shift_is_down: bool,
+    #[serde(default)]
+    pub backspace_is_down: bool,
+    #[serde(default)]
+    pub space_is_down: bool,
+    #[serde(default)]
+    pub left_is_down: bool,
+    #[serde(default)]
+    pub right_is_down: bool,
 }
 
 impl MurreletAppInput {
@@ -590,6 +706,11 @@ impl MurreletAppInput {
             mouse_left_is_down,
             elapsed_frames,
             custom_vars: CustomVars::default(),
+            shift_is_down: false,
+            backspace_is_down: false,
+            space_is_down: false,
+            left_is_down: false,
+            right_is_down: false,
         }
     }
 
@@ -607,6 +728,11 @@ impl MurreletAppInput {
             mouse_left_is_down,
             elapsed_frames,
             custom_vars: CustomVars::new(custom_vars),
+            shift_is_down: false,
+            backspace_is_down: false,
+            space_is_down: false,
+            left_is_down: false,
+            right_is_down: false,
         }
     }
 
@@ -665,7 +791,7 @@ impl LivecodeSrc {
         }
     }
 
-    pub fn to_world_vals(&self) -> Vec<(String, LivecodeValue)> {
+    pub fn to_world_vals(&self) -> Vec<(StrId, LivecodeValue)> {
         self.vs.iter().flat_map(|v| v.to_exec_funcs()).collect_vec()
     }
 
@@ -680,7 +806,7 @@ impl LivecodeSrc {
     }
 }
 
-const MAX_STRID_LEN: usize = 16;
+pub const MAX_STRID_LEN: usize = 64;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StrId([u8; MAX_STRID_LEN]);
@@ -705,14 +831,38 @@ impl<'de> Deserialize<'de> for StrId {
 // from chatgpt
 impl StrId {
     pub fn new(s: &str) -> Self {
+        assert!(
+            s.len() <= MAX_STRID_LEN,
+            "StrId name too long ({} > {MAX_STRID_LEN} bytes): {s:?} — livecode/OSC var names must fit MAX_STRID_LEN",
+            s.len()
+        );
         let mut bytes = [0u8; MAX_STRID_LEN];
-        let len = s.len().min(MAX_STRID_LEN);
-        bytes[..len].copy_from_slice(&s.as_bytes()[..len]);
+        bytes[..s.len()].copy_from_slice(s.as_bytes());
+        StrId(bytes)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.iter().position(|&x| x == 0).unwrap_or(MAX_STRID_LEN)
+    }
+
+    // just so we don't need to turn back into strings...
+    pub fn append(&self, s: &str) -> Self {
+        let len = self.len();
+        assert!(
+            len + s.len() <= MAX_STRID_LEN,
+            "StrId too long after append ({} > {MAX_STRID_LEN} bytes): {:?} + {s:?}",
+            len + s.len(),
+            self.as_str()
+        );
+
+        let mut bytes = self.0.clone();
+        bytes[len..len + s.len()].copy_from_slice(s.as_bytes());
         StrId(bytes)
     }
 
     pub fn as_str(&self) -> &str {
-        let len = self.0.iter().position(|&x| x == 0).unwrap_or(MAX_STRID_LEN);
+        let len = self.len();
+
         std::str::from_utf8(&self.0[..len]).unwrap()
     }
 
@@ -738,6 +888,45 @@ impl std::fmt::Debug for StrId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Format the Identifier using its string representation
         write!(f, "StrId({})", self.as_str())
+    }
+}
+
+pub trait ToStrId {
+    fn to_strid(&self) -> StrId;
+}
+
+impl ToStrId for StrId {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        *self
+    }
+}
+
+impl ToStrId for str {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self)
+    }
+}
+
+impl ToStrId for &str {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self)
+    }
+}
+
+impl ToStrId for String {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self.as_str())
+    }
+}
+
+impl ToStrId for &String {
+    #[inline]
+    fn to_strid(&self) -> StrId {
+        StrId::new(self.as_str())
     }
 }
 
@@ -1095,9 +1284,11 @@ pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
     let g = clamp(g, 0.0, 1.0);
     let b = clamp(b, 0.0, 1.0);
 
-    let r = (r * 255.0) as u8;
-    let g = (g * 255.0) as u8;
-    let b = (b * 255.0) as u8;
+    // round, not truncate — truncation biases every channel dark by up to
+    // 1/255 (e.g. white round-trips through HSVA to ~0.9999 -> 254 = 0xFE).
+    let r = (r * 255.0).round() as u8;
+    let g = (g * 255.0).round() as u8;
+    let b = (b * 255.0).round() as u8;
 
     format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
@@ -1155,5 +1346,66 @@ impl<T: Clone> MurreletIterHelpers for Vec<T> {
 
     fn as_vec_ref(&self) -> &Vec<Self::T> {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strid_roundtrips_long_names() {
+        // BUG-L572: names up to MAX_STRID_LEN must round-trip, not truncate.
+        let name = "oo_face_mouth_center_x"; // 22 chars, used to truncate at 16
+        assert!(name.len() <= MAX_STRID_LEN);
+        assert_eq!(StrId::new(name).as_str(), name);
+    }
+
+    #[test]
+    #[should_panic(expected = "StrId name too long")]
+    fn strid_panics_on_overlong_name() {
+        StrId::new(&"x".repeat(MAX_STRID_LEN + 1));
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum LivecodeError {
+    #[error("{0}")]
+    Raw(String), // my custom errors
+    #[error("{0}: {1}")]
+    EvalExpr(String, String),
+    #[error("{0}: {1}")]
+    Io(String, std::io::Error),
+    #[error("nest get requested for odd thing...: {0}")]
+    NestGetExtra(String),
+    #[error("nest get requested for odd thing...: {0}")]
+    NestGetInvalid(String),
+    #[error("parse_error :: loc: {0}, err: {1}")]
+    SerdeLoc(String, String),
+    #[error("shader parse error: {0}")]
+    WGPU(String),
+    #[error("parse: {0}")]
+    JsonParse(String),
+}
+impl LivecodeError {
+    pub fn raw(s: &str) -> Self {
+        Self::Raw(s.to_string())
+    }
+
+    pub fn rawr<T>(s: &str) -> LivecodeResult<T> {
+        LivecodeResult::Err(Self::raw(s))
+    }
+}
+
+pub type LivecodeResult<T> = Result<T, LivecodeError>;
+
+pub trait ToLivecodeResult<T> {
+    fn to_lc_err(self) -> LivecodeResult<T>;
+}
+
+impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
+    #[inline]
+    fn to_lc_err(self) -> LivecodeResult<T> {
+        self.map_err(|e| LivecodeError::Raw(e.to_string()))
     }
 }

@@ -87,7 +87,6 @@ impl MurreletColorStyle {
 #[derive(Debug, Clone)]
 pub enum MurreletDrawPlan {
     Shader(StyledPathSvgFill),
-    DebugPoints(PixelShape),
     FilledClosed,
     Outline,
     Line,
@@ -95,7 +94,8 @@ pub enum MurreletDrawPlan {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MurreletStyle {
-    pub points: Option<PixelShape>,
+    pub debug: bool,
+    // pub points: Option<PixelShape>,
     pub closed: bool,
     pub filled: bool,
     pub color: MurreletColorStyle, // if filled, fill, otherwise stroke. only for draw.
@@ -119,9 +119,11 @@ impl MurreletStyle {
     }
 
     pub fn drawing_plan(&self) -> MurreletDrawPlan {
-        if let Some(pt) = &self.points {
-            MurreletDrawPlan::DebugPoints(*pt)
-        } else if let MurreletColorStyle::SvgFill(s) = self.color {
+        // if let Some(pt) = &self.points {
+        //     MurreletDrawPlan::DebugPoints(*pt)
+        // } else
+
+        if let MurreletColorStyle::SvgFill(s) = self.color {
             MurreletDrawPlan::Shader(s)
         } else if self.closed {
             if self.filled {
@@ -211,7 +213,8 @@ impl MurreletStyle {
 
     pub fn new_fill_color(c: MurreletColor) -> MurreletStyle {
         MurreletStyle {
-            points: None,
+            debug: false,
+            // points: None,
             color: MurreletColorStyle::color(c),
             closed: true,
             filled: true,
@@ -270,6 +273,13 @@ impl MurreletStyle {
         MurreletStyle {
             color: MurreletColorStyle::SvgFill(fill),
             ..*self
+        }
+    }
+
+    pub(crate) fn debug() -> MurreletStyle {
+        MurreletStyle {
+            debug: true,
+            ..Default::default()
         }
     }
 }
@@ -450,9 +460,9 @@ impl CoreSDrawCtxUnitCell {
 
     pub fn unit_cell_transform(&self) -> SimpleTransform2d {
         if self.unit_cell_skew {
-            self.unit_cell.transform_with_skew_mat4()
+            self.unit_cell.get_transform_with_skew()
         } else {
-            self.unit_cell.transform_no_skew_mat4()
+            self.unit_cell.get_transform_no_skew()
         }
     }
 

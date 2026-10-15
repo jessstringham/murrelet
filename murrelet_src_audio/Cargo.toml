@@ -12,5 +12,5 @@ murrelet_common = { workspace = true }
 cpal = "0.14"
 rustfft = "6.1.0"
 glam = { version = "0.28.0", features = ["serde"] }
-itertools = "0.10.5"
+itertools = { workspace = true }
 anyhow = "1.0.86"

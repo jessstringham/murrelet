@@ -2,7 +2,7 @@
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use glam::{Vec2, vec2};
-use murrelet_common::{IsLivecodeSrc, LivecodeValue, clamp, map_range};
+use murrelet_common::{IsLivecodeSrc, LivecodeValue, StrId, ToStrId, clamp, map_range};
 use rustfft::{Fft, FftPlanner, num_complex::Complex, num_traits::Zero};
 use std::{
     sync::{
@@ -367,8 +367,8 @@ impl CaptureModel {
         for i in 0..self.sample_window_size * 2 {
             let s = self.buffer_audio[i] / max_amp; // normalize
             audio[i] = s;
-            let alpha = 2.0 * std::f32::consts::PI * self.curr_frames as f32
-                / (self.sample_window_size as f32 - 1.0);
+            let alpha = 2.0 * std::f32::consts::PI * i as f32
+                / (self.sample_window_size as f32 * 2.0 - 1.0);
             let window_value = 0.5 * (1.0 - alpha.cos());
             let new_s = s * window_value;
 
@@ -454,6 +454,18 @@ impl AudioMng {
         }
     }
 
+    // Device-free audio source: no capture connection. In headless renders the
+    // audio expr vars (`a`, `ac`, `fft0..6`) are bound to a small positive
+    // constant (0.1, see `to_exec_funcs`) so audio-scaled config values
+    // (e.g. `brush_size = 20 + a*100`) come out nonzero / non-degenerate
+    // instead of collapsing to their pure-noise-floor offsets. BUG-L348.
+    pub fn silent() -> AudioMng {
+        AudioMng {
+            cxn: None,
+            values: AudioValues::new(),
+        }
+    }
+
     pub fn exists(&self) -> bool {
         self.cxn.is_some()
     }
@@ -480,7 +492,25 @@ impl IsLivecodeSrc for AudioMng {
         }
     }
 
-    fn to_exec_funcs(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
+        // Silent (no capture device): emit zero for every audio signal so
+        // audio-scaled config values resolve to 0 in headless renders. See
+        // BUG-L348 + the `silent` ctor docs.
+        if self.cxn.is_none() {
+            let v = LivecodeValue::Float(0.0);
+            return vec![
+                ("a".to_strid(), v.clone()),
+                ("ac".to_strid(), v.clone()),
+                ("fft0".to_strid(), v.clone()),
+                ("fft1".to_strid(), v.clone()),
+                ("fft2".to_strid(), v.clone()),
+                ("fft3".to_strid(), v.clone()),
+                ("fft4".to_strid(), v.clone()),
+                ("fft5".to_strid(), v.clone()),
+                ("fft6".to_strid(), v),
+            ];
+        }
+
         let [fft0, fft1, fft2, fft3, fft4, fft5, fft6] = self.values.fft();
 
         let audio = self.values.amp_pct();
@@ -488,15 +518,15 @@ impl IsLivecodeSrc for AudioMng {
         let audio_clamp = map_range(audio_clamp_raw, 0.01, 0.3, 0.0, 1.0);
 
         vec![
-            ("a".to_owned(), LivecodeValue::Float(audio as f64)),
-            ("ac".to_owned(), LivecodeValue::Float(audio_clamp as f64)),
-            ("fft0".to_owned(), LivecodeValue::Float(fft0 as f64)),
-            ("fft1".to_owned(), LivecodeValue::Float(fft1 as f64)),
-            ("fft2".to_owned(), LivecodeValue::Float(fft2 as f64)),
-            ("fft3".to_owned(), LivecodeValue::Float(fft3 as f64)),
-            ("fft4".to_owned(), LivecodeValue::Float(fft4 as f64)),
-            ("fft5".to_owned(), LivecodeValue::Float(fft5 as f64)),
-            ("fft6".to_owned(), LivecodeValue::Float(fft6 as f64)),
+            ("a".to_strid(), LivecodeValue::Float(audio as f64)),
+            ("ac".to_strid(), LivecodeValue::Float(audio_clamp as f64)),
+            ("fft0".to_strid(), LivecodeValue::Float(fft0 as f64)),
+            ("fft1".to_strid(), LivecodeValue::Float(fft1 as f64)),
+            ("fft2".to_strid(), LivecodeValue::Float(fft2 as f64)),
+            ("fft3".to_strid(), LivecodeValue::Float(fft3 as f64)),
+            ("fft4".to_strid(), LivecodeValue::Float(fft4 as f64)),
+            ("fft5".to_strid(), LivecodeValue::Float(fft5 as f64)),
+            ("fft6".to_strid(), LivecodeValue::Float(fft6 as f64)),
         ]
     }
 }

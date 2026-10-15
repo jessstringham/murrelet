@@ -54,7 +54,7 @@ with expressions.
 ### UnitCells
 
 Unitcells can be used to dynamically create a list of things.
-The number of things and the arrangement (grid, symmetry) is 
+The number of things and the arrangement (grid, symmetry) is
 controlled by sequencers (see murrelet_draw/sequencers for examples).
 
 
@@ -139,7 +139,7 @@ Right now this is built on top of `evalexpr`. By default, it has support for inp
 
 I also included packages of how I add platform-specific implementations (this is what I use on the native build, i.e. not the web)
 
- - murrelet_src_audio 
+ - murrelet_src_audio
  - murrelet_src_midi
 
 ## Expression variables
@@ -170,3 +170,20 @@ For live performances, this should probably be set to `true` so you can match th
 Aside: For generative art, I sometimes switch between them: the glitchiness based on how fast my machine is rendering can make nice textures of *realtime*: `true`, but other times I want the even spacing of *realtime*: `false`.
 
 If  *realtime*: `true`, it'll use *bpm* and *beats_per_bar* and the system's clock to figure out what `t` should be. If *realtime*: `false`, instead of the system time, it'll use the current frame number to compute `t`.
+
+
+## `schemars`
+
+`murrelet_livecode` re-exports derive macros from `murrelet_livecode_derive`. If you don't want to use it, use:
+
+```toml
+murrelet_livecode = { version = "...", default-features = false }
+
+you may also need to add this to the Cargo.toml to avoid lint complaining about missing features
+
+```
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("schemars"))',
+] }
+```

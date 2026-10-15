@@ -1,7 +1,7 @@
 use glam::Vec2;
-use murrelet_common::{Angle, IsAngle, SpotOnCurve};
+use murrelet_common::{IsAngle, PointToPoint, SpotOnCurve};
 
-use crate::svg::glam_to_lyon;
+use crate::convert::glam_to_lyon;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CubicBezier {
@@ -96,33 +96,14 @@ impl CubicBezier {
     }
 
     pub fn start_to_tangent(&self) -> (SpotOnCurve, f32) {
-        let ctrl_line = self.from - self.ctrl1;
-        let dir = Angle::new(ctrl_line.to_angle())
-            .as_angle_pi()
-            .normalize_angle();
+        let ctrl_line = PointToPoint::new(self.from, self.ctrl1);
 
-        (
-            SpotOnCurve {
-                loc: self.from,
-                angle: dir.into(),
-            },
-            ctrl_line.length(),
-        )
+        (ctrl_line.start_spot(), ctrl_line.length())
     }
 
     pub fn end_to_tangent(&self) -> (SpotOnCurve, f32) {
-        let ctrl_line = self.ctrl2 - self.to;
-        let dir = Angle::new(ctrl_line.to_angle())
-            .as_angle_pi()
-            .normalize_angle();
-
-        (
-            SpotOnCurve {
-                loc: self.to,
-                angle: dir.into(),
-            },
-            ctrl_line.length(),
-        )
+        let ctrl_line = PointToPoint::new(self.ctrl2, self.to);
+        (ctrl_line.end_spot(), ctrl_line.length())
     }
 
     pub fn tangent_at_pct(&self, pct: f32) -> SpotOnCurve {
@@ -159,13 +140,67 @@ impl CubicBezier {
         }
     }
 
-    pub fn approx_length(&self) -> f32 {
-        let lyon_cubic = lyon::geom::CubicBezierSegment {
+    pub fn to_lyon(&self) -> lyon::geom::CubicBezierSegment<f32> {
+        lyon::geom::CubicBezierSegment {
             from: glam_to_lyon(self.from),
             ctrl1: glam_to_lyon(self.ctrl1),
             ctrl2: glam_to_lyon(self.ctrl2),
             to: glam_to_lyon(self.to),
-        };
+        }
+    }
+
+    pub fn approx_length(&self) -> f32 {
+        let lyon_cubic = self.to_lyon();
         lyon_cubic.approximate_length(0.1)
+    }
+
+    pub fn get_next(&self, out_spot: SpotOnCurve, strength: Vec2) -> Self {
+        Self::from_spots_s(self.end_to_tangent().0, out_spot, strength)
+    }
+
+    pub fn start_spot(&self) -> SpotOnCurve {
+        self.start_to_tangent().0
+    }
+
+    pub fn end_spot(&self) -> SpotOnCurve {
+        self.end_to_tangent().0
+    }
+
+    // a little chatgpt
+    pub fn dist_to(&self, t: f32, steps: u32) -> f32 {
+        let steps = steps.max(1);
+        let dt = t / steps as f32;
+
+        let mut s = 0.0;
+        let mut prev = self.loc_at_pct(0.0);
+
+        for i in 1..=steps {
+            let ti = dt * i as f32;
+            let p = self.loc_at_pct(ti);
+            s += prev.distance(p);
+            prev = p;
+        }
+
+        s
+    }
+
+    pub fn t_for_arc_len_bisect(&self, s_local: f32, total_len: f32) -> f32 {
+        let target = s_local.clamp(0.0, total_len);
+
+        let mut lo = 0.0f32;
+        let mut hi = 1.0f32;
+
+        for _ in 0..20 {
+            let mid = 0.5 * (lo + hi);
+            let s_mid = self.dist_to(mid, 16);
+
+            if s_mid < target {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+
+        0.5 * (lo + hi)
     }
 }
