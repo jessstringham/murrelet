@@ -346,9 +346,7 @@ impl CurveDrawer {
         let one_loop = self.to_segments();
 
         if !self.closed {
-            return one_loop
-                ._simple_split_range(start_pct, end_pct)
-                .to_cd_open();
+            return one_loop.simple_split_range(start_pct, end_pct).to_cd_open();
         }
 
         // hax loop it twice, and then sample from that
@@ -357,7 +355,7 @@ impl CurveDrawer {
 
         let doubled = [one_loop.clone(), one_loop].concat();
         doubled
-            ._simple_split_range(start / 2.0, (start + span) / 2.0)
+            .simple_split_range(start / 2.0, (start + span) / 2.0)
             .to_cd_open()
     }
 }
@@ -1413,6 +1411,18 @@ pub trait ToCurveDrawer {
         self.to_cd_open().reverse().segments
     }
 
+    fn last_spot_cd_err(&self) -> LivecodeResult<SpotOnCurve> {
+        self.last_spot_cd()
+            .ok_or_else(|| "last spot on empty")
+            .to_lc_err()
+    }
+
+    fn first_spot_cd_err(&self) -> LivecodeResult<SpotOnCurve> {
+        self.first_spot_cd()
+            .ok_or_else(|| "first spot on empty")
+            .to_lc_err()
+    }
+
     // assume open
     fn last_spot_cd(&self) -> Option<SpotOnCurve> {
         let cdo = self.to_cd_open();
@@ -1539,6 +1549,10 @@ pub trait ToCurveDrawer {
     }
 
     fn pct(&self, pct: f32) -> Option<SpotOnCurve> {
+        if pct <= 0.0 {
+            return self.first_spot_cd();
+        }
+
         let (a, _) = self.split(pct);
         a.last_spot_cd()
     }
@@ -1644,7 +1658,7 @@ pub trait ToCurveDrawer {
     }
 
     // note that this doesn't handle closed and expects start and end to be between 0 and 1, use split_range!
-    fn _simple_split_range(&self, start_pct: f32, end_pct: f32) -> Vec<CurveSegment> {
+    fn simple_split_range(&self, start_pct: f32, end_pct: f32) -> Vec<CurveSegment> {
         let (start_pct, end_pct) = (start_pct.clamp(0.0, 1.0), end_pct.clamp(0.0, 1.0));
         if start_pct >= end_pct || start_pct >= 1.0 {
             return vec![];
