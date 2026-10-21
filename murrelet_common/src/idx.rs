@@ -98,7 +98,7 @@ impl IdxInRange {
 
     pub fn last_i(&self) -> IdxInRange {
         IdxInRange {
-            i: self.i - 1,
+            i: self.total.saturating_sub(1),
             total: self.total,
         }
     }
@@ -146,7 +146,7 @@ impl IdxInRange {
     }
 
     pub fn is_last(&self) -> bool {
-        self.i == self.total - 1
+        self.i + 1 == self.total
     }
 
     pub fn amount_from_end(&self) -> u64 {
@@ -227,6 +227,23 @@ impl IdxInRange2d {
             for j in 0..jj {
                 v.push(IdxInRange2d::new_rect(i, j, ii, jj));
             }
+        }
+        v
+    }
+
+    pub fn enumerate_counts_grid<U: TryInto<u64> + Copy>(ii: U, jj: U) -> Vec<Vec<IdxInRange2d>>
+    where
+        <U as TryInto<u64>>::Error: core::fmt::Debug,
+    {
+        let ii = ii.try_into().expect("can't convert to u64");
+        let jj = jj.try_into().expect("can't convert to u64");
+        let mut v = vec![];
+        for i in 0..ii {
+            let mut row = vec![];
+            for j in 0..jj {
+                row.push(IdxInRange2d::new_rect(i, j, ii, jj));
+            }
+            v.push(row);
         }
         v
     }

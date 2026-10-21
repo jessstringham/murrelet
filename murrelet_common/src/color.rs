@@ -127,6 +127,10 @@ impl MurreletColor {
         self.to_srgba().into_color()
     }
 
+    pub fn to_hsva(&self) -> [f32; 4] {
+        self.0
+    }
+
     pub fn with_alpha(&self, alpha: f32) -> MurreletColor {
         let [h, s, v, _a] = self.into_hsva_components();
         Self([h, s, v, alpha])

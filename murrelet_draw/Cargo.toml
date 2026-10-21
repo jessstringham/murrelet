@@ -21,13 +21,13 @@ murrelet_common = { workspace = true }
 murrelet_livecode = { workspace = true, default-features = false }
 murrelet_livecode_derive = { workspace = true, default-features = false }
 
-lerpable = { version = "0.0.3", features = ["glam"] }
+lerpable = { workspace = true, features = ["glam"] }
 
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.9.17"
 evalexpr = "11.1.0"
 rand = "0.8"
-itertools = "0.10.5"
+itertools = { workspace = true }
 regex = "1.7.3"
 glam = "0.28.0"
 palette = "0.7.6"
@@ -40,9 +40,10 @@ murrelet_gui = { workspace = true, features = ["glam", "murrelet"] }
 
 kurbo = "0.11"
 svg = "0.10.0"
-lyon = "0.17"
+lyon = { workspace = true }
+
 delaunator = "1.0.2"
-geo = "0.29.0"
+geo = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { workspace = true }

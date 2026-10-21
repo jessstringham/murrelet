@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
-use murrelet_common::{IsLivecodeSrc, LivecodeValue, MurreletTime, print_expect};
+use murrelet_common::{IsLivecodeSrc, LivecodeValue, MurreletTime, StrId, ToStrId, print_expect};
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
@@ -32,19 +32,37 @@ impl IsLivecodeSrc for MidiMng {
         }
     }
 
-    fn to_exec_funcs(&self) -> Vec<(String, murrelet_common::LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, murrelet_common::LivecodeValue)> {
         let midi = &self.values.dials;
         let midi_bool = &self.values.pads;
         let midi_fire = &self.values.pads_changed;
+        let fighter = &self.values.fighter;
+        let fighter_changed = &self.values.fighter_changed;
 
-        let mut vals = Vec::with_capacity(MIDI_COUNT * 3);
+        let mut vals = Vec::with_capacity(MIDI_COUNT * 3 + self.values.fighter_count * 2);
         for idx in 0..MIDI_COUNT {
-            vals.push((format!("m{}", idx), LivecodeValue::Float(midi[idx] as f64)));
             vals.push((
-                format!("m{}t", idx),
+                format!("m{}", idx).to_strid(),
+                LivecodeValue::Float(midi[idx] as f64),
+            ));
+            vals.push((
+                format!("m{}t", idx).to_strid(),
                 LivecodeValue::Bool(midi_bool[idx] % 2 == 1),
             ));
-            vals.push((format!("m{}f", idx), LivecodeValue::Bool(midi_fire[0])));
+            vals.push((
+                format!("m{}f", idx).to_strid(),
+                LivecodeValue::Bool(midi_fire[idx]),
+            ));
+        }
+        for idx in 0..self.values.fighter_count {
+            vals.push((
+                format!("f{}t", idx).to_strid(),
+                LivecodeValue::Bool(fighter[idx] % 2 == 1),
+            ));
+            vals.push((
+                format!("f{}f", idx).to_strid(),
+                LivecodeValue::Bool(fighter_changed[idx]),
+            ));
         }
         vals
     }
@@ -114,6 +132,18 @@ impl MidiMng {
             out,
         }
     }
+
+    // Device-free MIDI source: no input connection thread, no output devices.
+    // Values stay at their MidiValues::new defaults (dials 0.5), so MIDI expr
+    // vars (`m0..m15`, `m{n}t`, `m{n}f`, `f{n}*`) are bound for headless renders
+    // instead of erroring as unbound, without touching any MIDI hardware.
+    pub fn silent() -> MidiMng {
+        MidiMng {
+            cxn: MidiCxn::silent(),
+            values: MidiValues::new(16, 16, 16),
+            out: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -124,10 +154,10 @@ pub struct MidiValues {
     pad_count: usize,
     pads: Vec<usize>,
     pads_changed: Vec<bool>,
-    last_update: u64,
+    last_update: Vec<u64>,
     fighter: Vec<usize>,
+    fighter_changed: Vec<bool>,
     fighter_times: Vec<Option<MurreletTime>>,
-    #[allow(dead_code)]
     fighter_count: usize,
 }
 
@@ -139,21 +169,23 @@ impl MidiValues {
     fn new(dial_count: usize, pad_count: usize, fighter_count: usize) -> Self {
         MidiValues {
             dial_count,
-            dials: vec![0.5; pad_count],
-            dials_changed: vec![false; pad_count],
+            dials: vec![0.5; dial_count],
+            dials_changed: vec![false; dial_count],
             pad_count,
             pads: vec![0; pad_count],
             pads_changed: vec![false; pad_count],
-            last_update: 0,
+            last_update: vec![0; pad_count],
             fighter: vec![0; fighter_count],
+            fighter_changed: vec![false; fighter_count],
             fighter_times: vec![None; fighter_count],
             fighter_count,
         }
     }
 
     pub fn reset(&mut self) {
-        self.dials_changed = vec![false; self.dial_count];
-        self.pads_changed = vec![false; self.pad_count];
+        self.dials_changed.fill(false);
+        self.pads_changed.fill(false);
+        self.fighter_changed.fill(false);
     }
 
     pub fn pads_bool(&self, idx: usize) -> bool {
@@ -180,20 +212,22 @@ impl MidiValues {
 
     pub fn fighter_update(&mut self, idx: usize) {
         self.fighter[idx] += 1;
+        self.fighter_changed[idx] = true;
         self.fighter_times[idx] = Some(MurreletTime::now()); // could do the time we receive but ah
     }
 
     pub fn release_fighter_update(&mut self, idx: usize) {
-        self.fighter[idx] += 1;
         self.fighter_times[idx] = Some(MurreletTime::now()); // could do the time we receive but ah
     }
 
     pub fn update(&mut self, msg: &MidiMessage) {
         match msg.key {
             Some(KeyPress::Pad(idx)) => {
-                if msg.stamp - self.last_update > 100 * 1000 {
+                let idx: usize = idx.into();
+                if msg.stamp - self.last_update[idx] > 100 * 1000 {
                     // 100 ms seems to work
-                    self.pads_update(idx.into());
+                    self.pads_update(idx);
+                    self.last_update[idx] = msg.stamp;
                 }
             }
             Some(KeyPress::Dial(idx, amount)) => {
@@ -210,7 +244,6 @@ impl MidiValues {
             }
             None => {}
         }
-        self.last_update = msg.stamp;
     }
 }
 
@@ -268,7 +301,11 @@ impl MidiMessage {
 
         let key = match device {
             MidiDevice::Akai => match message {
-                [_, n] => Some(KeyPress::Pad(*n)),
+                // claude wanted this fixed
+                // Match Program Change (0xC0..=0xCF) only — the original `[_, n]`
+                // also caught channel-pressure (0xD0..=0xDF) and reported them as
+                // pad presses.
+                [opcode, n] if (0xC0..=0xCF).contains(opcode) => Some(KeyPress::Pad(*n)),
                 [176, n @ 70..=77, value] => Some(KeyPress::Dial(n - 70, *value)),
                 _ => {
                     println!("akai missed {:?}", message);
@@ -295,7 +332,7 @@ impl MidiMessage {
             },
             MidiDevice::NanoKontrol2 => {
                 match message {
-                    [176, n @ 0..=8, value] => Some(KeyPress::Dial(*n, *value)),
+                    [176, n @ 0..=7, value] => Some(KeyPress::Dial(*n, *value)),
                     [176, n @ 16..=23, value] => Some(KeyPress::Dial(n - 8, *value)),
                     // S
                     [176, n @ 32..=39, _value @ 127] => Some(KeyPress::Pad(n - 32)),
@@ -422,6 +459,17 @@ impl MidiCxn {
         MidiCxn {
             _midi_cxn: handle,
             rx: event_rx,
+        }
+    }
+
+    // No real MIDI connection: a channel whose sender is dropped immediately, so
+    // check_and_maybe_update always returns Err(Disconnected) and the values are
+    // never updated (they keep their defaults). For headless / device-free runs.
+    pub fn silent() -> MidiCxn {
+        let (_tx, rx) = mpsc::channel::<MidiMessage>();
+        MidiCxn {
+            _midi_cxn: thread::spawn(|| {}),
+            rx,
         }
     }
 
