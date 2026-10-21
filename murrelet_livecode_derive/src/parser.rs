@@ -606,6 +606,7 @@ pub enum ControlType {
     Bool,
     F32_2,
     F32_3,
+    LocIdx, // e.g. usize 2
     Color,
     ColorUnclamped,
     LazyNodeF32,
@@ -660,6 +661,7 @@ impl HowToControlThis {
             "f32" => HowToControlThis::WithType(ControlType::F32),
             "f32;2" => HowToControlThis::WithType(ControlType::F32_2),
             "[f32;2]" => HowToControlThis::WithType(ControlType::F32_2),
+            "locidx" => HowToControlThis::WithType(ControlType::LocIdx),
             "color" => HowToControlThis::WithType(ControlType::Color),
             "color unclamped" => HowToControlThis::WithType(ControlType::ColorUnclamped),
             "string" => HowToControlThis::WithType(ControlType::MurreletString),
@@ -692,6 +694,7 @@ impl HowToControlThis {
             // some special types from this library
             "MurreletColor" => HowToControlThis::WithType(ControlType::Color),
             "MurreletString" => HowToControlThis::WithType(ControlType::MurreletString),
+            "LocIdx" => HowToControlThis::WithType(ControlType::LocIdx),
             "AdditionalContextNode" => HowToControlThis::WithNone,
             "UnitCells" => HowToControlThis::WithRecurse(RecursiveControlType::UnitCell),
             "LazyNodeF32" => HowToControlThis::WithType(ControlType::LazyNodeF32),

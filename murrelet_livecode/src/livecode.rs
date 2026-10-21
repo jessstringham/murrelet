@@ -15,6 +15,7 @@ use itertools::Itertools;
 use murrelet_common::AnglePi;
 use murrelet_common::LivecodeError;
 use murrelet_common::LivecodeResult;
+use murrelet_common::LocIdx;
 use murrelet_common::MurreletColor;
 use murrelet_common::MurreletString;
 use murrelet_common::ToLivecodeResult;
@@ -164,6 +165,14 @@ impl LivecodeFromWorld<Vec3> for [ControlF32; 3] {
     }
 }
 
+impl LivecodeFromWorld<LocIdx> for [ControlF32; 2] {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LocIdx> {
+        let i: f32 = self[0].o(w)?;
+        let j: f32 = self[1].o(w)?;
+        Ok(LocIdx::new(i.max(0.0) as usize, j.max(0.0) as usize))
+    }
+}
+
 impl LivecodeFromWorld<MurreletColor> for [ControlF32; 4] {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<MurreletColor> {
         // by default, clamp saturation and value to save some headaches later
@@ -243,6 +252,15 @@ impl LivecodeToControl<[ControlF32; 3]> for Vec3 {
             self.x.to_control(),
             self.y.to_control(),
             self.z.to_control(),
+        ]
+    }
+}
+
+impl LivecodeToControl<[ControlF32; 2]> for LocIdx {
+    fn to_control(&self) -> [ControlF32; 2] {
+        [
+            (self.i() as f32).to_control(),
+            (self.j() as f32).to_control(),
         ]
     }
 }

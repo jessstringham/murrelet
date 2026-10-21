@@ -34,6 +34,9 @@ impl LazyFieldType {
             ControlType::MurreletString => {
                 quote! { murrelet_livecode::lazy::LazyMurreletString }
             }
+            ControlType::LocIdx => {
+                quote! {murrelet_livecode::lazy::LazyLocIdx}
+            }
             _ => panic!("unitcell doesn't have this one yet"),
         }
     }

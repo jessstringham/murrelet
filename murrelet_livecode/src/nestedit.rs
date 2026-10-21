@@ -1,11 +1,11 @@
 // Used by thte NestedIt, to make it possible to read/edit the values of a struct
-// using a dot delimited string. I use this for the
+// using a dot delimited string.
 
 use std::collections::HashMap;
 
 use evalexpr::Node;
 use glam::{Vec2, Vec3, vec2, vec3};
-use murrelet_common::{AnglePi, LivecodeError, LivecodeResult, MurreletColor, MurreletString};
+use murrelet_common::{AnglePi, LivecodeError, LivecodeResult, LocIdx, MurreletColor, MurreletString};
 
 use crate::lazy::LazyNodeF32;
 use crate::types::AdditionalContextNode;
@@ -327,6 +327,32 @@ impl NestEditable for LazyNodeF32 {
 
     fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
         Err(LivecodeError::NestGetExtra("LazyNodeF32".to_owned())) // maybe in the future!
+    }
+}
+
+impl NestEditable for LocIdx {
+    fn nest_update(&self, mods: NestedMod) -> Self {
+        let i = mods
+            .get_subfield_as_f32("x")
+            .map(|x| x.max(0.0) as usize)
+            .unwrap_or(self.i());
+        let j = mods
+            .get_subfield_as_f32("y")
+            .map(|x| x.max(0.0) as usize)
+            .unwrap_or(self.j());
+        LocIdx::new(i, j)
+    }
+
+    fn nest_get(&self, getter: &[&str]) -> LivecodeResult<String> {
+        match getter {
+            [] => Ok(format!("[{}, {}]", self.i(), self.j())),
+            ["i"] => Ok(format!("{}", self.i())),
+            ["j"] => Ok(format!("{}", self.j())),
+            extra => Err(LivecodeError::NestGetExtra(format!(
+                "at a locidx, but got {}",
+                extra.join(".")
+            ))),
+        }
     }
 }
 

@@ -1206,6 +1206,52 @@ pub fn lerpify_vec_vec3<T: lerpable::IsLerpingMethod>(
     lerped.into_iter().map(|v| v.into()).collect_vec()
 }
 
+// row and col accessor
+#[derive(Copy, Clone, Debug, Default, PartialEq, Hash, Eq)]
+pub struct LocIdx {
+    i: usize,
+    j: usize,
+}
+impl LocIdx {
+    pub fn new(i: usize, j: usize) -> LocIdx {
+        LocIdx { i, j }
+    }
+
+    pub fn j(&self) -> usize {
+        self.j
+    }
+
+    pub fn i(&self) -> usize {
+        self.i
+    }
+
+    pub fn i_plus_1(&self) -> LocIdx {
+        Self {
+            i: self.i + 1,
+            j: self.j,
+        }
+    }
+
+    pub fn j_plus_1(&self) -> LocIdx {
+        Self {
+            i: self.i,
+            j: self.j + 1,
+        }
+    }
+}
+
+impl Lerpable for LocIdx {
+    fn lerpify<T: IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
+        Self::new(self.i.lerpify(&other.i, pct), self.j.lerpify(&other.j, pct))
+    }
+}
+
+pub fn dim2d_from_data<T>(v: &[Vec<T>]) -> Dim2d {
+    let row = v.len();
+    let col = if row >= 1 { v[0].len() } else { 0 };
+    Dim2d::from_row_col(row, col)
+}
+
 // todo, did i end up using this?
 #[derive(Clone, Copy, Debug)]
 pub struct Dim2d {
@@ -1276,6 +1322,14 @@ impl Dim2d {
         T::Error: std::fmt::Debug,
     {
         Self::from_x_y(j, i)
+    }
+
+    pub fn contains(&self, i: usize, j: usize) -> bool {
+        i < self.i() && j < self.j()
+    }
+
+    pub fn as_vec2(&self) -> Vec2 {
+        vec2(self.i() as f32, self.j() as f32)
     }
 }
 

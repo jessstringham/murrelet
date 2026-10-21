@@ -332,16 +332,40 @@ impl CurveDrawer {
     pub fn concat_closed(&self, rhs: &CurveDrawer) -> CurveDrawer {
         self.concat(rhs, true)
     }
+
+    pub fn split_range_v(&self, range: Vec2) -> Self {
+        self.split_range(range.x, range.y)
+    }
+
+    pub fn split_range(&self, start_pct: f32, end_pct: f32) -> Self {
+        // slicing backwards is the forward slice, flipped
+        if end_pct < start_pct {
+            return self.split_range(end_pct, start_pct).reverse();
+        }
+
+        let one_loop = self.to_segments();
+
+        if !self.closed {
+            return one_loop
+                ._simple_split_range(start_pct, end_pct)
+                .to_cd_open();
+        }
+
+        // hax loop it twice, and then sample from that
+        let span = (end_pct - start_pct).min(1.0);
+        let start = start_pct.rem_euclid(1.0);
+
+        let doubled = [one_loop.clone(), one_loop].concat();
+        doubled
+            ._simple_split_range(start / 2.0, (start + span) / 2.0)
+            .to_cd_open()
+    }
 }
 
 fn warn_arc_skew_once() {
     static WARN: std::sync::Once = std::sync::Once::new();
     WARN.call_once(|| {
-        println!(
-            "[curve_drawer] a skew / non-uniform-scale transform left an Arc segment \
-             untransformed — an arc can't represent the resulting ellipse. Use lines or \
-             beziers if you need to skew. (warns once)"
-        );
+        println!("arcs can't be skewed!");
     });
 }
 
@@ -1617,6 +1641,19 @@ pub trait ToCurveDrawer {
             }
         }
         result
+    }
+
+    // note that this doesn't handle closed and expects start and end to be between 0 and 1, use split_range!
+    fn _simple_split_range(&self, start_pct: f32, end_pct: f32) -> Vec<CurveSegment> {
+        let (start_pct, end_pct) = (start_pct.clamp(0.0, 1.0), end_pct.clamp(0.0, 1.0));
+        if start_pct >= end_pct || start_pct >= 1.0 {
+            return vec![];
+        }
+
+        let (_, after_start) = self.split(start_pct);
+        let remaining = (end_pct - start_pct) / (1.0 - start_pct);
+        let (middle, _) = after_start.split(remaining);
+        middle
     }
 }
 

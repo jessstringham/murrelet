@@ -110,7 +110,7 @@ impl ControlVecElementRepeatMethod {
         let v = match self {
             ControlVecElementRepeatMethod::Single(s) => s.o(w)?,
             ControlVecElementRepeatMethod::Rect(r) => {
-                let rr = r.o(w)?;
+                let rr: glam::Vec2 = r.o(w)?;
                 (rr.x * rr.y) as usize
             }
             ControlVecElementRepeatMethod::Blend(b) => b.count.o(w)?,
@@ -127,7 +127,7 @@ impl ControlVecElementRepeatMethod {
                     .collect_vec()
             }
             ControlVecElementRepeatMethod::Rect(s) => {
-                let rr = s.o(w)?;
+                let rr: glam::Vec2 = s.o(w)?;
                 IdxInRange2d::enumerate_counts(rr.x as usize, rr.y as usize)
             }
             ControlVecElementRepeatMethod::Blend(b) => {

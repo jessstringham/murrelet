@@ -186,21 +186,13 @@ impl GenFinal for FieldTokensNestEdit {
 
         let t = unnamed.first().unwrap().clone().ty;
 
-        // An array payload (`Variant([T; N])`) has no nest_update/nest_get and
-        // would panic `ident_from_type` (Type::Array); treat it like a primitive
-        // (clone on update, error on get). Consumers wanting real array editing
-        // use `nestedit = "manual"` and hand-impl NestEditable.
         let is_array = matches!(t, syn::Type::Array(_));
 
-        // Update: only drill into Struct (StructLazy is immutable from
-        // nestedit's perspective; primitives/Vec/Option/array have no nest_update).
         let mutable = !is_array
             && matches!(
                 ident_from_type(&t).main_how_to(),
                 HowToControlThis::WithRecurse(RecursiveControlType::Struct)
             );
-        // Get: both Struct and StructLazy impl NestEditable, so nest_get works
-        // on either; primitives/Vec/Option/array don't.
         let nestable = !is_array
             && matches!(
                 ident_from_type(&t).main_how_to(),
@@ -244,7 +236,6 @@ impl GenFinal for FieldTokensNestEdit {
         let variant_ident = idents.variant_ident();
         let variant_ident_str = variant_ident.to_string();
         let name = idents.enum_ident();
-        // let new_enum_ident = idents.config.new_ident(name.clone());
 
         let for_nestedit =
             quote! { (Some(x), _) if x == #variant_ident_str => #name::#variant_ident };
@@ -414,7 +405,6 @@ impl GenFinal for FieldTokensNestEdit {
     // this is the interesting one!
     fn from_recurse_struct_struct(idents: StructIdents) -> FieldTokensNestEdit {
         let name = idents.name();
-        // let orig_ty = idents.orig_ty();
         let yaml_name = name.to_string();
 
         let for_nestedit = {
@@ -452,7 +442,6 @@ impl GenFinal for FieldTokensNestEdit {
     fn from_recurse_struct_unitcell(idents: StructIdents) -> FieldTokensNestEdit {
         // this is similar to vec, but then we rewrap with the UnitCell info
         let name = idents.name();
-        // let orig_ty = idents.orig_ty();
         let yaml_name = name.to_string();
 
         // no-op
@@ -492,8 +481,6 @@ impl GenFinal for FieldTokensNestEdit {
     }
 
     fn from_recurse_struct_lazy(idents: StructIdents) -> Self {
-        // Self::from_noop_struct(idents)
-
         let name = idents.name();
         let yaml_name = name.to_string();
 

@@ -373,8 +373,8 @@ impl<Target: std::fmt::Debug + Clone> UnitCellLookup<Target> {
             .map(|x| *(x.node).clone())
     }
 
-    pub fn force_get_dim(&self, dim: &Dim2d) -> &UnitCell<Target> {
-        self.force_get_ij(dim.i(), dim.j())
+    pub fn node_at(&self, loc: &LocIdx) -> &UnitCell<Target> {
+        self.force_get_ij(loc.i(), loc.j())
     }
 
     // this probably only works for rectangles...

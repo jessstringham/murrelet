@@ -16,8 +16,8 @@ use itertools::Itertools;
 use lerpable::IsLerpingMethod;
 use lerpable::{Lerpable, step};
 use murrelet_common::{
-    IdxInRange, LivecodeError, LivecodeResult, LivecodeValue, MurreletColor, MurreletString,
-    ToLivecodeResult,
+    IdxInRange, LivecodeError, LivecodeResult, LivecodeValue, LocIdx, MurreletColor,
+    MurreletString, ToLivecodeResult,
 };
 use serde::{Deserialize, Serialize};
 
@@ -1091,6 +1091,80 @@ impl IsLazy for LazyMurreletString {
                     .collect::<Result<Vec<_>, _>>()?,
             }),
         }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct LazyLocIdx {
+    x: LazyNodeF32,
+    y: LazyNodeF32,
+}
+
+impl LazyLocIdx {
+    pub fn new(x: LazyNodeF32, y: LazyNodeF32) -> Self {
+        Self { x, y }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct ControlLazyLocIdx(Vec<ControlLazyNodeF32>);
+impl LivecodeFromWorld<LazyLocIdx> for ControlLazyLocIdx {
+    fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<LazyLocIdx> {
+        if self.0.len() != 2 {
+            return Err("loc idx doesn't have 2 elements!").to_lc_err();
+        }
+
+        Ok(LazyLocIdx::new(self.0[0].o(w)?, self.0[1].o(w)?))
+    }
+}
+
+impl GetLivecodeIdentifiers for ControlLazyLocIdx {
+    fn variable_identifiers(&self) -> Vec<LivecodeVariable> {
+        self.0
+            .iter()
+            .flat_map(|f| f.variable_identifiers())
+            .collect_vec()
+    }
+
+    fn function_identifiers(&self) -> Vec<LivecodeFunction> {
+        self.0
+            .iter()
+            .flat_map(|f| f.function_identifiers())
+            .collect_vec()
+    }
+}
+
+impl LivecodeToControl<ControlLazyLocIdx> for LazyLocIdx {
+    fn to_control(&self) -> ControlLazyLocIdx {
+        ControlLazyLocIdx(vec![self.x.to_control(), self.y.to_control()])
+    }
+}
+
+impl LivecodeToControlLazy<ControlLazyLocIdx> for LocIdx {
+    fn to_control_lazy(&self) -> ControlLazyLocIdx {
+        ControlLazyLocIdx(vec![
+            (self.i() as f32).to_control_lazy(),
+            (self.j() as f32).to_control_lazy(),
+        ])
+    }
+}
+
+impl IsLazy for LazyLocIdx {
+    type Target = LocIdx;
+
+    fn eval_lazy(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self::Target> {
+        Ok(LocIdx::new(
+            self.x.eval_lazy(ctx)? as usize,
+            self.y.eval_lazy(ctx)? as usize,
+        ))
+    }
+
+    fn with_more_defs(&self, ctx: &MixedEvalDefs) -> LivecodeResult<Self> {
+        Ok(LazyLocIdx::new(
+            self.x.with_more_defs(ctx)?,
+            self.y.with_more_defs(ctx)?,
+        ))
     }
 }
 

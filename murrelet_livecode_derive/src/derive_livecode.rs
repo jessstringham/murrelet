@@ -24,6 +24,7 @@ impl LivecodeFieldType {
             ControlType::MurreletString => {
                 quote! {murrelet_livecode::livecode::ControlMurreletString}
             }
+            ControlType::LocIdx => quote! {[murrelet_livecode::livecode::ControlF32; 2]},
         }
     }
 
@@ -42,6 +43,7 @@ impl LivecodeFieldType {
             ControlType::MurreletString => {
                 quote! {murrelet_livecode::lazy::ControlLazyMurreletString}
             }
+            ControlType::LocIdx => quote! { murrelet_livecode::lazy::ControlLazyLocIdx },
         }
     }
 
@@ -66,6 +68,7 @@ impl LivecodeFieldType {
     ) -> TokenStream2 {
         match self.0 {
             ControlType::F32_2 => quote! {#target.o(w)?},
+            ControlType::LocIdx => quote! {#target.o(w)?},
             ControlType::F32_3 => quote! {#target.o(w)?},
             ControlType::Color => quote! {#target.o(w)?},
             ControlType::MurreletString => quote! {#target.o(w)?},
@@ -77,7 +80,7 @@ impl LivecodeFieldType {
                 quote! {murrelet_common::AnglePi::new(#target.o(w)?)}
             }
             ControlType::Bool => quote! {#target.o(w)?},
-            _ => match (f32min, f32max) {
+            ControlType::F32 => match (f32min, f32max) {
                 // `let v: f32` pins the LivecodeFromWorld<f32> impl; ControlF32 now also
                 // implements integer targets, so a bare `.o(w)? as T` would be ambiguous.
                 (None, None) => quote! {{ let v: f32 = #target.o(w)?; v as #orig_ty }},
@@ -209,6 +212,7 @@ impl LivecodeFieldType {
             ControlType::F32_3 => quote! { self.0.o(&w)? },
             ControlType::Color => quote! { self.0.o(&w)? },
             ControlType::MurreletString => quote! { self.0.o(&w)? },
+            ControlType::LocIdx => quote! { self.0.o(&w)? },
             ControlType::LazyNodeF32 => quote! { self.0.o(&w)? },
             ControlType::ColorUnclamped => {
                 quote! {murrelet_livecode::livecode::ControlF32::hsva_unclamped(&self.0, w)?}
@@ -217,7 +221,7 @@ impl LivecodeFieldType {
                 quote! {murrelet_common::AnglePi::new(self.0.o(w)?)}
             }
             ControlType::Bool => quote! { self.0.o(w)? },
-            _ => match (idents.data.f32min, idents.data.f32max) {
+            ControlType::F32 => match (idents.data.f32min, idents.data.f32max) {
                 (None, None) => quote! {{ let v: f32 = self.0.o(w)?; v as #orig_ty }},
                 (None, Some(max)) => quote! {f32::min(self.0.o(w)?, #max) as #orig_ty},
                 (Some(min), None) => quote! {f32::max(#min, self.0.o(w)?) as #orig_ty},
@@ -1556,6 +1560,7 @@ fn catch_special_types(original_internal_type: syn::Ident) -> TokenStream2 {
         "LazyVec3" => quote! { murrelet_livecode::lazy::ControlLazyVec3 },
         "LazyMurreletColor" => quote! { murrelet_livecode::lazy::ControlLazyMurreletColor },
         "LazyMurreletString" => quote! { murrelet_livecode::lazy::ControlLazyMurreletString },
+        "LazyLocIdx" => quote! { murrelet_livecode::lazy::ControlLazyLocIdx },
         _ => quote! { #ctrl_ident },
     }
 }
