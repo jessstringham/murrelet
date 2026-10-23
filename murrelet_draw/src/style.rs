@@ -489,6 +489,42 @@ pub mod styleconf {
         pub fn set_alpha(&self, alpha: f32) -> StyleConf {
             self.with_fill(self.color().with_alpha(alpha))
         }
+
+        pub fn with_stroke_weight(&self, stroke_weight: f32) -> StyleConf {
+            match self {
+                StyleConf::Fill(m) => {
+                    let mut m = *m;
+                    m.stroke_weight = stroke_weight;
+                    StyleConf::Fill(m)
+                }
+                StyleConf::Outline(m) => {
+                    let mut m = *m;
+                    m.stroke_weight = stroke_weight;
+                    StyleConf::Outline(m)
+                }
+                StyleConf::Line(m) => {
+                    let mut m = *m;
+                    m.stroke_weight = stroke_weight;
+                    StyleConf::Line(m)
+                }
+                StyleConf::RGBAFill(m) => {
+                    let mut m = *m;
+                    m.stroke_weight = stroke_weight;
+                    StyleConf::RGBAFill(m)
+                }
+                StyleConf::RGBALine(m) => {
+                    let mut m = *m;
+                    m.stroke_weight = stroke_weight;
+                    StyleConf::RGBALine(m)
+                }
+                StyleConf::RGBAOutline(m) => {
+                    let mut m = *m;
+                    m.stroke_weight = stroke_weight;
+                    StyleConf::RGBAOutline(m)
+                }
+                _ => self.clone(),
+            }
+        }
     }
 
     impl Default for StyleConf {
