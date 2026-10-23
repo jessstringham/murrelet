@@ -654,14 +654,33 @@ impl ExprWorldContextValues {
     }
 
     pub fn new_from_idx2d(idx: IdxInRange2d, prefix: &str) -> ExprWorldContextValues {
-        let ctx = ExprWorldContextValues::new_from_idx(idx.i)
-            .with_prefix(prefix)
-            .combine(
-                ExprWorldContextValues::new_from_idx(idx.j)
-                    .with_prefix("y")
-                    .with_prefix(prefix),
-            );
-        ctx
+        Self::new(vec![
+            ("x_i".to_strid(), LivecodeValue::Int(idx.i() as i64)),
+            ("x_if".to_strid(), LivecodeValue::Float(idx.i() as f64)),
+            ("x_pct".to_strid(), LivecodeValue::Float(idx.i.pct() as f64)),
+            ("x".to_strid(), LivecodeValue::Float(idx.i.pct() as f64)), // just in case i use the wrong one
+            (
+                "x_total".to_strid(),
+                LivecodeValue::Int(idx.i.total() as i64),
+            ),
+            ("y_i".to_strid(), LivecodeValue::Int(idx.j() as i64)),
+            ("y_if".to_strid(), LivecodeValue::Float(idx.j() as f64)),
+            ("y_pct".to_strid(), LivecodeValue::Float(idx.j.pct() as f64)),
+            ("y".to_strid(), LivecodeValue::Float(idx.j.pct() as f64)), // just in case i use the wrong one
+            (
+                "y_total".to_strid(),
+                LivecodeValue::Int(idx.j.total() as i64),
+            ),
+        ]).with_prefix(&format!("{}_", prefix))
+
+        // let ctx = ExprWorldContextValues::new_from_idx(idx.i)
+        //     .with_prefix(prefix)
+        //     .combine(
+        //         ExprWorldContextValues::new_from_idx(idx.j)
+        //             .with_prefix("y")
+        //             .with_prefix(prefix),
+        //     );
+        // ctx
     }
 }
 

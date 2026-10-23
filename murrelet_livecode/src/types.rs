@@ -988,6 +988,10 @@ impl<Source: Clone + Debug> ControlVecElementRepeat<Source> {
             let expr = UnitCellIdx::from_idx2d(idx, 1.0).as_expr_world_context_values();
             let mut new_w = w.clone_with_vals(expr.clone(), &prefix);
 
+            let mut defs = MixedEvalDefs::new();
+            defs.add_node(self.ctx.clone());
+            new_w.update_with_defs(defs.to_mixed_def())?;
+
             let mut is_blending: Option<BlendWith> = None;
 
             let filter = self.filter.o(&new_w)?;

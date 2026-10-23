@@ -1310,6 +1310,10 @@ where
         let frame = self.world().actual_frame_u64();
 
         if let Some(capture_frame_name) = self.capture_frame_name(frame, "") {
+            if let Some(parent) = capture_frame_name.parent() {
+                fs::create_dir_all(parent).expect("Unable to create capture folder");
+            }
+
             let img_name = capture_frame_name.with_extension("png");
             println!("writing to {:?}", img_name);
 

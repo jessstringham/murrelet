@@ -23,6 +23,7 @@ mod string;
 pub mod timecurve;
 mod transform;
 pub mod triangulate;
+pub mod dense_cells;
 
 pub use assets::*;
 pub use color::*;
@@ -1238,6 +1239,10 @@ impl LocIdx {
             j: self.j + 1,
         }
     }
+
+    pub fn to_idx(&self, dim: Dim2d) -> IdxInRange2d {
+        IdxInRange2d::new_rect(self.i(), self.j(), dim.i(), dim.j())
+    }
 }
 
 impl Lerpable for LocIdx {
@@ -1330,6 +1335,23 @@ impl Dim2d {
 
     pub fn as_vec2(&self) -> Vec2 {
         vec2(self.i() as f32, self.j() as f32)
+    }
+
+    pub fn for_each(&self, mut f: impl FnMut(LocIdx)) {
+        for i in 0..self.i() {
+            for j in 0..self.j() {
+                let loc_idx = LocIdx::new(i, j);
+                f(loc_idx);
+            }
+        }
+    }
+
+    pub fn is_side(&self, loc: LocIdx) -> bool {
+        loc.i() == 0 || loc.i() == self.i() - 1
+    }
+
+    pub fn is_top_bottom(&self, loc: LocIdx) -> bool {
+        loc.j() == 0 || loc.j() == self.j() - 1
     }
 }
 

@@ -1168,6 +1168,16 @@ impl IsLazy for LazyLocIdx {
     }
 }
 
+impl NestEditable for LazyLocIdx {
+    fn nest_update(&self, _mods: NestedMod) -> Self {
+        self.clone()
+    }
+
+    fn nest_get(&self, _getter: &[&str]) -> LivecodeResult<String> {
+        Err(LivecodeError::NestGetExtra("LazyLocIdx".to_owned()))
+    }
+}
+
 pub fn eval_lazy_f32(
     v: &LazyNodeF32,
     f32min: Option<f32>,
