@@ -1,6 +1,6 @@
 use crate::graphics_ref::DEFAULT_LOADED_TEXTURE_FORMAT;
 use image::GenericImageView;
-use murrelet_common::print_expect;
+use murrelet_common::{LivecodeResult, ToLivecodeResult, print_expect};
 use std::path::PathBuf;
 use wgpu::util::DeviceExt;
 
@@ -262,12 +262,34 @@ pub fn align_byte_size(value: u32) -> u32 {
     }
 }
 
-pub fn check_img_size(path: &PathBuf) -> Result<(Vec<u8>, u32, u32), Box<dyn std::error::Error>> {
-    let img = image::open(path)?;
+pub struct LoadedImage {
+    img: Vec<u8>,
+    size: [u32; 2],
+}
+
+impl LoadedImage {
+    pub fn img(&self) -> &[u8] {
+        &self.img
+    }
+
+    pub fn size(&self) -> [u32; 2] {
+        self.size
+    }
+
+    pub fn same_size_as(&self, other_img: &LoadedImage) -> bool {
+        self.size == other_img.size
+    }
+}
+
+pub fn check_img_size(path: &PathBuf) -> LivecodeResult<LoadedImage> {
+    let img = image::open(path).to_lc_err()?;
     let img_rgba = img.to_rgba8();
     let (img_width, img_height) = img.dimensions();
 
-    Ok((img_rgba.to_vec(), img_width, img_height))
+    Ok(LoadedImage {
+        img: img_rgba.to_vec(),
+        size: [img_width, img_height],
+    })
 }
 
 // todo, refactor reuse the img..
