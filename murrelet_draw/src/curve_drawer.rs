@@ -358,6 +358,67 @@ impl CurveDrawer {
             .simple_split_range(start / 2.0, (start + span) / 2.0)
             .to_cd_open()
     }
+
+    pub fn split_seq(&self, pcts: Vec<f32>) -> LivecodeResult<Vec<CurveDrawer>> {
+        if pcts.len() == 0 {
+            return Ok(vec![]);
+        }
+
+        let (Some(&first), Some(&last)) = (pcts.first(), pcts.last()) else {
+            return Ok(vec![self.clone()]);
+        };
+
+        for p in &pcts {
+            if *p < 0.0 {
+                return Err("pct less than 0").to_lc_err();
+            }
+
+            if *p > 1.0 {
+                return Err("pct greater than 1").to_lc_err();
+            }
+        }
+
+        let mut result = vec![];
+
+        if self.closed {
+            for (curr, next) in curr_next_no_loop_iter(&pcts) {
+                if *next < *curr {
+                    // it's fine if they're equal
+                    return Err("sort before split seq").to_lc_err();
+                }
+
+                result.push(self.split_range(*curr, *next));
+            }
+
+            result.push(self.split_range(last, first + 1.0));
+        } else {
+            if first > 0.0 {
+                result.push(self.split_range(0.0, first));
+            }
+
+            for (curr, next) in curr_next_no_loop_iter(&pcts) {
+                if *next < *curr {
+                    // it's fine if they're equal
+                    return Err("sort before split seq").to_lc_err();
+                }
+                result.push(self.split_range(*curr, *next));
+            }
+
+            if last < 1.0 {
+                result.push(self.split_range(last, 1.0));
+            }
+        }
+
+        Ok(result)
+    }
+
+    pub fn last_point_err(&self) -> LivecodeResult<Vec2> {
+        self.last_point().ok_or_else(|| "empty").to_lc_err()
+    }
+
+    pub fn first_point_err(&self) -> LivecodeResult<Vec2> {
+        self.first_point().ok_or_else(|| "empty").to_lc_err()
+    }
 }
 
 fn warn_arc_skew_once() {
