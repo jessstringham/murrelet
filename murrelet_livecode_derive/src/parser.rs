@@ -382,7 +382,18 @@ impl LivecodeFieldReceiver {
                     let how = self.how_to_control_this();
 
                     if is_lazy {
-                        if matches!(
+                        // probably need to add this for the rest...
+                        if ident_from_type(&self.ty).main_type() == "LazyVec2" {
+                            let r = match serde {
+                                SerdeDefault::Ones => {
+                                    "murrelet_livecode::livecode::_auto_default_control_lazy_vec2_1"
+                                }
+                                _ => {
+                                    "murrelet_livecode::livecode::_auto_default_control_lazy_vec2_0"
+                                }
+                            };
+                            quote! {#[serde(default=#r)]}
+                        } else if matches!(
                             how,
                             HowToControlThis::WithRecurse(RecursiveControlType::StructLazy)
                         ) {

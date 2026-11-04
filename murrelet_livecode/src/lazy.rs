@@ -458,7 +458,7 @@ impl LivecodeFromWorld<LazyVec2> for ControlLazyVec2 {
         match self {
             ControlLazyVec2::Vec2(v) => {
                 if v.len() != 2 {
-                    return Err("vec2 isn't 2 elements").to_lc_err();
+                    return Err(format!("vec2 isn't 2 elements {:?}", v)).to_lc_err();
                 }
                 Ok(LazyVec2::new(v[0].o(w)?, v[1].o(w)?))
             }

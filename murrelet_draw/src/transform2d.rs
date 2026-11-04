@@ -79,13 +79,13 @@ impl Transform2d {
     }
 
     pub fn scale(scale_x: f32, scale_y: f32) -> Transform2d {
-        Transform2d::new(vec![Transform2dStep::Scale(V2::new(vec2(
+        Transform2d::new(vec![Transform2dStep::Scale(Scale2::new(vec2(
             scale_x, scale_y,
         )))])
     }
 
     pub fn scale_vec2(scale: Vec2) -> Transform2d {
-        Transform2d::new(vec![Transform2dStep::Scale(V2::new(scale))])
+        Transform2d::new(vec![Transform2dStep::Scale(Scale2::new(scale))])
     }
 
     pub fn translate(x: f32, y: f32) -> Transform2d {
@@ -98,7 +98,7 @@ impl Transform2d {
 
     pub fn translate_resize(v: Vec2, scale: f32) -> Transform2d {
         Transform2d::new(vec![
-            Transform2dStep::Scale(V2::new(vec2(scale, scale))),
+            Transform2dStep::Scale(Scale2::uniform(scale)),
             Transform2dStep::Translate(V2::new(v)),
         ])
     }
@@ -165,7 +165,7 @@ impl Transform2d {
             match a {
                 Transform2dStep::Translate(_) => {}
                 Transform2dStep::Rotate(_) => {}
-                Transform2dStep::Scale(s) => scale *= s.v.x.max(s.v.y),
+                Transform2dStep::Scale(s) => scale *= s.max_val(),
                 Transform2dStep::Skew(_) => todo!(),
             }
         }
@@ -179,7 +179,7 @@ impl Transform2d {
                 Transform2dStep::Translate(_) => {}
                 Transform2dStep::Rotate(_) => {}
                 Transform2dStep::Scale(s) => {
-                    if approx_eq_eps(s.v.x, -1.0, 1e-6) && approx_eq_eps(s.v.y, 1.0, 1e-6) {
+                    if s.is_mirrored_x() {
                         is_mirrored = !is_mirrored;
                     }
                 }
@@ -196,7 +196,7 @@ impl Transform2d {
                 Transform2dStep::Translate(_) => {}
                 Transform2dStep::Rotate(_) => {}
                 Transform2dStep::Scale(s) => {
-                    if approx_eq_eps(s.v.x, 1.0, 1e-6) && approx_eq_eps(s.v.y, -1.0, 1e-6) {
+                    if s.is_mirrored_y() {
                         is_mirrored = !is_mirrored;
                     }
                 }
@@ -231,9 +231,7 @@ impl Transform2d {
                     center: rotate.center,
                     angle_pi: -rotate.angle_pi,
                 }),
-                Transform2dStep::Scale(v2) => Transform2dStep::Scale(V2 {
-                    v: Vec2::new(1.0 / v2.v.x, 1.0 / v2.v.y),
-                }),
+                Transform2dStep::Scale(v2) => Transform2dStep::Scale(v2.inverse()),
                 Transform2dStep::Skew(_v22) => {
                     todo!();
                 }
@@ -304,6 +302,62 @@ impl Default for ControlLazyTransform2d {
     }
 }
 
+#[derive(Clone, Debug, Livecode, Lerpable)]
+#[livecode(enum_tag = "untagged")]
+pub enum ScaleV {
+    Uniform(f32),
+    Xy(Vec2),
+}
+impl Default for ScaleV {
+    fn default() -> Self {
+        Self::Uniform(1.0)
+    }
+}
+#[derive(Clone, Debug, Livecode, Default)]
+pub struct Scale2 {
+    v: ScaleV,
+}
+
+impl Scale2 {
+    pub fn new(v: Vec2) -> Self {
+        Self { v: ScaleV::Xy(v) }
+    }
+
+    pub fn uniform(s: f32) -> Self {
+        Self {
+            v: ScaleV::Uniform(s),
+        }
+    }
+
+    pub fn vec2(&self) -> Vec2 {
+        match self.v {
+            ScaleV::Uniform(s) => Vec2::splat(s),
+            ScaleV::Xy(v) => v,
+        }
+    }
+
+    fn max_val(&self) -> f32 {
+        let s = self.vec2();
+        s.x.max(s.y)
+    }
+
+    fn is_mirrored_x(&self) -> bool {
+        let s = self.vec2();
+        approx_eq_eps(s.x, -1.0, 1e-6) && approx_eq_eps(s.y, 1.0, 1e-6)
+    }
+
+    fn inverse(&self) -> Scale2 {
+        let v2 = self.vec2();
+        let v = Vec2::new(1.0 / v2.x, 1.0 / v2.y);
+        Self::new(v)
+    }
+
+    fn is_mirrored_y(&self) -> bool {
+        let s = self.vec2();
+        approx_eq_eps(s.x, 1.0, 1e-6) && approx_eq_eps(s.y, -1.0, 1e-6)
+    }
+}
+
 #[derive(Clone, Debug, Livecode, Lerpable, Default)]
 pub struct V2 {
     #[lerpable(func = "lerpify_vec2")]
@@ -355,7 +409,7 @@ impl Rotate2 {
 pub enum Transform2dStep {
     Translate(V2),
     Rotate(Rotate2),
-    Scale(V2),
+    Scale(Scale2),
     Skew(V22),
 }
 
@@ -364,8 +418,8 @@ impl Transform2dStep {
         Self::Rotate(Rotate2::new(Vec2::ZERO, angle_pi))
     }
 
-    pub fn rotate_pi_around(angle_pi: f32, center: Vec2) -> Self {
-        Self::Rotate(Rotate2::new(center, a_pi(angle_pi)))
+    pub fn rotate_pi_around<A: IsAngle>(angle_pi: A, center: Vec2) -> Self {
+        Self::Rotate(Rotate2::new(center, angle_pi))
     }
 
     pub fn translate(translate_x: f32, translate_y: f32) -> Self {
@@ -377,11 +431,12 @@ impl Transform2dStep {
     }
 
     pub fn scale(scale_x: f32, scale_y: f32) -> Self {
-        Self::Scale(V2::new(vec2(scale_x, scale_y)))
+        Self::Scale(Scale2::new(vec2(scale_x, scale_y)))
     }
 
-    pub fn scale_p(scale_x: f32) -> Self {
-        Self::Scale(V2::new(vec2(scale_x, scale_x)))
+    // not sure about this name...
+    pub fn scale_p(scale: f32) -> Self {
+        Self::Scale(Scale2::uniform(scale))
     }
 
     fn transform(&self) -> Mat3 {
@@ -393,7 +448,7 @@ impl Transform2dStep {
                 let rotate = Mat3::from_angle(t.angle_pi * PI);
                 move_from_origin * rotate * move_to_origin
             }
-            Transform2dStep::Scale(t) => Mat3::from_scale(t.v),
+            Transform2dStep::Scale(t) => Mat3::from_scale(t.vec2()),
             Transform2dStep::Skew(t) => Mat3::from_mat2(Mat2::from_cols(t.v0, t.v1)),
         }
     }
@@ -404,7 +459,7 @@ impl Transform2dStep {
             Transform2dStep::Rotate(rotate2) => {
                 SimpleTransform2dStep::Rotate(rotate2.center, rotate2.angle_pi())
             }
-            Transform2dStep::Scale(v2) => SimpleTransform2dStep::Scale(v2.v),
+            Transform2dStep::Scale(v2) => SimpleTransform2dStep::Scale(v2.vec2()),
             Transform2dStep::Skew(v22) => SimpleTransform2dStep::Skew(v22.v0, v22.v1),
         }
     }
@@ -416,7 +471,7 @@ impl Transform2dStep {
                 center,
                 angle_pi: angle_pi.angle_pi(),
             }),
-            SimpleTransform2dStep::Scale(v) => Transform2dStep::Scale(V2 { v }),
+            SimpleTransform2dStep::Scale(v) => Transform2dStep::Scale(Scale2::new(v)),
             SimpleTransform2dStep::Skew(v0, v1) => Transform2dStep::Skew(V22 { v0, v1 }),
         }
     }

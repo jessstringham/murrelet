@@ -814,6 +814,19 @@ pub fn _auto_default_vec2_1() -> [ControlF32; 2] {
     [ControlF32::Raw(1.0), ControlF32::Raw(1.0)]
 }
 
+pub fn _auto_default_control_lazy_vec2_0() -> crate::lazy::ControlLazyVec2 {
+    crate::lazy::ControlLazyVec2::new(
+        ControlLazyNodeF32::Float(0.0),
+        ControlLazyNodeF32::Float(0.0),
+    )
+}
+pub fn _auto_default_control_lazy_vec2_1() -> crate::lazy::ControlLazyVec2 {
+    crate::lazy::ControlLazyVec2::new(
+        ControlLazyNodeF32::Float(1.0),
+        ControlLazyNodeF32::Float(1.0),
+    )
+}
+
 pub fn _auto_default_vec3_0() -> [ControlF32; 3] {
     [
         ControlF32::Raw(0.0),

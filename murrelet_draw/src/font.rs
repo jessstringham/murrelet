@@ -323,7 +323,13 @@ impl MurreletFont {
     // some claude
     pub fn default_font() -> &'static MurreletFont {
         static FONT: std::sync::OnceLock<MurreletFont> = std::sync::OnceLock::new();
-        FONT.get_or_init(|| MurreletFont::new(FontConf::default().load_str(GLYPH_SVG)))
+        FONT.get_or_init(|| {
+            let conf = FontConf {
+                rotate_quarter_turn: true,
+                ..FontConf::default()
+            };
+            MurreletFont::new(conf.load_str(GLYPH_SVG))
+        })
     }
     pub fn text_to_polylines(
         &self,
