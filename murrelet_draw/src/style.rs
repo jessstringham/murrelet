@@ -525,6 +525,14 @@ pub mod styleconf {
                 _ => self.clone(),
             }
         }
+
+        pub fn to_fill(&self) -> Self {
+            StyleConf::fill(self.fill_color())
+        }
+
+        pub fn to_outline(&self) -> Self {
+            StyleConf::line(self.stroke_color(), self.stroke_weight())
+        }
     }
 
     impl Default for StyleConf {
