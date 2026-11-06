@@ -437,7 +437,11 @@ impl LivecodeFieldReceiver {
         };
 
         let deserialize_with = if let Some(f) = &self.serde_with {
-            quote! { #[serde(deserialize_with = #f)] }
+            quote! {
+                #[serde(deserialize_with = #f)]
+                #[cfg_attr(feature = "schemars", schemars(schema_with =
+            "murrelet_livecode::livecode::map_as_vec_schema"))]
+            }
         } else {
             quote! {}
         };
@@ -456,12 +460,6 @@ impl LivecodeFieldReceiver {
 pub(crate) struct LivecodeVariantReceiver {
     pub(crate) ident: syn::Ident,
     pub(crate) fields: ast::Fields<LivecodeFieldReceiver>,
-    // `#[livecode(validate = "path::to::fn")]` — a post-eval hook spliced after
-    // the variant's eval expression on both the livecode (`o`) and lazy
-    // (`eval_lazy`) sides. `fn(&Target) -> Result<(), String>`; a returned Err
-    // surfaces as `LivecodeError::Raw` at config-eval time. Lets a derived
-    // untagged enum keep a hand type's config-time validation (e.g. the
-    // shapesolver expr check) instead of deferring it to solve time.
     pub(crate) validate: Option<String>,
 }
 

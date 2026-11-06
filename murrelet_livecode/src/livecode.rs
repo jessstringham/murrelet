@@ -103,6 +103,19 @@ pub fn empty_vec<T>() -> Vec<T> {
     Vec::new()
 }
 
+#[cfg(feature = "schemars")]
+pub fn map_as_vec_schema(_: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    use schemars::schema::{InstanceType, SchemaObject, SingleOrVec};
+
+    SchemaObject {
+        instance_type: Some(SingleOrVec::Vec(vec![
+            InstanceType::Object,
+            InstanceType::Array,
+        ])),
+        ..Default::default()
+    }
+    .into()
+}
 
 // claude
 pub fn map_as_vec<'de, D, T>(d: D, key_field: &str, val_field: &str) -> Result<Vec<T>, D::Error>
