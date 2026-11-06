@@ -274,6 +274,7 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) serde_default: Option<String>, // parsed and passed on to serde
     pub(crate) lazy_serde_default: Option<String>, // used internally, for lazy things to get converted to livecode lazy correctly
     pub(crate) serde_opts: Option<String>,
+    pub(crate) serde_with: Option<String>,
     pub(crate) kind: Option<String>, // used of override type
     pub(crate) ctx: Option<String>,
     pub(crate) src: Option<String>,    // sequencer
@@ -304,6 +305,10 @@ impl LivecodeFieldReceiver {
             self.serde_opts.as_ref().map(|x| {
                 let serde_opts = x.to_string();
                 quote! {serde_opts = #serde_opts}
+            }),
+            self.serde_with.as_ref().map(|x| {
+                let serde_with = x.to_string();
+                quote! {serde_with = #serde_with}
             }),
         ]
         .into_iter()
@@ -431,9 +436,16 @@ impl LivecodeFieldReceiver {
             quote! {}
         };
 
+        let deserialize_with = if let Some(f) = &self.serde_with {
+            quote! { #[serde(deserialize_with = #f)] }
+        } else {
+            quote! {}
+        };
+
         quote! {
             #default
             #other_opts
+            #deserialize_with
         }
     }
 }

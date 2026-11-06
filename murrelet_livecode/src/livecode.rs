@@ -103,6 +103,32 @@ pub fn empty_vec<T>() -> Vec<T> {
     Vec::new()
 }
 
+
+// claude
+pub fn map_as_vec<'de, D, T>(d: D, key_field: &str, val_field: &str) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    use serde_yaml::{Mapping, Value};
+
+    let value = match Value::deserialize(d)? {
+        Value::Mapping(map) => Value::Sequence(
+            map.into_iter()
+                .map(|(k, v)| {
+                    let mut item = Mapping::new();
+                    item.insert(Value::from(key_field), k);
+                    item.insert(Value::from(val_field), v);
+                    Value::Mapping(item)
+                })
+                .collect(),
+        ),
+        other => other,
+    };
+
+    Vec::<T>::deserialize(value).map_err(serde::de::Error::custom)
+}
+
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
 
