@@ -419,6 +419,10 @@ impl CurveDrawer {
     pub fn first_point_err(&self) -> LivecodeResult<Vec2> {
         self.first_point().ok_or_else(|| "empty").to_lc_err()
     }
+
+    pub fn is_open(&self) -> bool {
+        !self.is_closed()
+    }
 }
 
 fn warn_arc_skew_once() {

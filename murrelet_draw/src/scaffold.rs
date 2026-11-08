@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 // started as masking things, but basically geo things!
+
 use crate::{
     convert::glam_to_geo,
     curve_drawer::{CurveDrawer, ToCurveDrawer},
@@ -15,7 +16,8 @@ use glam::{Vec2, vec2};
 use itertools::Itertools;
 
 use murrelet_common::{
-    LivecodeResult, MurreletString, PointToPoint, SpotOnCurve, ToLivecodeResult, poly_area_unsigned,
+    LivecodeResult, MurreletIterHelpers, MurreletString, PointToPoint, SpotOnCurve,
+    ToLivecodeResult, poly_area_unsigned,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -287,27 +289,36 @@ impl MaskCache {
     }
 
     pub fn crop_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
-        let mut cropped = vec![];
-        for a in v.iter() {
-            let mut new_cds = vec![];
-            for cd in a.curves() {
-                new_cds.extend(self.crop(&cd.to_rough_points(1.0)));
-            }
-            cropped.push(DrawnShape::new_vecvec(new_cds, a.style()));
-        }
-        cropped
+        v.map_iter_collect(|a| {
+            a.transform_cds_clone(|cd| {
+                let is_line = cd.is_open();
+
+                let vs = if is_line {
+                    self.crop(&flatten_for_mask(&cd))
+                } else {
+                    self.clip_line(&flatten_for_mask(&cd))
+                };
+                vs.map_iter_collect(|x| x.to_cd_closed())
+            })
+        })
     }
 
     pub fn crop_inverse_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
-        let mut cropped = vec![];
-        for a in v.iter() {
-            let mut new_cds = vec![];
-            for cd in a.curves() {
-                new_cds.extend(self.crop_inverse(&cd.to_rough_points(1.0)));
-            }
-            cropped.push(DrawnShape::new_vecvec(new_cds, a.style()));
-        }
-        cropped
+        v.map_iter_collect(|a| {
+            a.transform_cds_clone(|cd| {
+                // self.crop_inverse(&flatten_for_mask(&cd))
+                //     .map_iter_collect(|x| x.to_cd_closed())
+
+                let is_line = cd.is_open();
+
+                let vs = if is_line {
+                    self.crop_inverse(&flatten_for_mask(&cd))
+                } else {
+                    self.clip_line_inverse(&flatten_for_mask(&cd))
+                };
+                vs.map_iter_collect(|x| x.to_cd_closed())
+            })
+        })
     }
 
     pub fn ray_intersect(&self, spot: &SpotOnCurve) -> Vec2 {
@@ -326,6 +337,45 @@ impl MaskCache {
             MaskCache::AlwaysTrue => todo!(),
         }
     }
+
+    pub fn bbox(&self) -> Option<(Vec2, Vec2)> {
+        match self {
+            MaskCache::Impl(mask_cache_impl) => {
+                let b = mask_cache_impl.bounding;
+                Some((b.min().to_vec2(), b.max().to_vec2()))
+            }
+            MaskCache::AlwaysTrue => None,
+        }
+    }
+
+    pub fn _clip_line(&self, line: &[Vec2], invert: bool) -> Vec<Vec<Vec2>> {
+        match self {
+            MaskCache::Impl(x) => {
+                let lines = geo::MultiLineString::new(vec![vec2_to_line_string(line)]);
+
+                x.polygon
+                    .clip(&lines, invert)
+                    .0
+                    .iter()
+                    .map(|l| l.0.iter().map(|c| c.to_vec2()).collect_vec())
+                    .collect_vec()
+            }
+            MaskCache::AlwaysTrue => vec![line.to_vec()],
+        }
+    }
+
+    pub fn clip_line(&self, line: &[Vec2]) -> Vec<Vec<Vec2>> {
+        self._clip_line(line, false)
+    }
+
+    pub fn clip_line_inverse(&self, line: &[Vec2]) -> Vec<Vec<Vec2>> {
+        self._clip_line(line, true)
+    }
+}
+
+fn flatten_for_mask(cd: &CurveDrawer) -> Vec<Vec2> {
+    cd.flatten_with_lyon(1.0e-2)
+        .unwrap_or_else(|_| cd.to_rough_points(1.0))
 }
 
 // should probably move from mask cache to this one...
@@ -467,9 +517,12 @@ impl Masker {
 }
 
 impl ToDrawnShape for Masker {
-    fn to_drawn_shape(&self, style: crate::style::styleconf::StyleConf) -> DrawnShape {
-        DrawnShape::new_vecvec(self.to_vec(), style)
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        self.to_vec().to_cds()
     }
+    // fn to_drawn_shape(&self, style: crate::style::styleconf::StyleConf) -> DrawnShape {
+    //     DrawnShape::new_vecvec(self.to_vec(), style)
+    // }
 }
 
 pub struct OffsetConf {

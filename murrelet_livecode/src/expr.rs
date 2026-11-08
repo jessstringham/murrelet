@@ -204,6 +204,18 @@ pub fn init_evalexpr_func_ctx() -> LivecodeResult<HashMapContext> {
             let f = smoothstep(t, edge0, edge1);
             Ok(Value::Float(f))
         }),
+        "htooms" => Function::new(|argument| {
+              let t = argument.as_number()?.clamp(0.0, 1.0);
+              let f = 0.5 - ((1.0 - 2.0 * t).asin() / 3.0).sin();
+              Ok(Value::Float(f))
+          }),
+        "shroomth" => Function::new(move |argument| {
+            let tuple = argument.as_fixed_len_tuple(2)?;
+            let (x, pow) = (tuple[0].as_number()?, tuple[1].as_number()?);
+            let f =  1.0 - (1.0 - x).powf(pow);
+            Ok(Value::Float(f))
+        }),
+
 
         "step" => Function::new(move |argument| {
             let tuple = argument.as_fixed_len_tuple(2)?;
@@ -671,7 +683,8 @@ impl ExprWorldContextValues {
                 "y_total".to_strid(),
                 LivecodeValue::Int(idx.j.total() as i64),
             ),
-        ]).with_prefix(&format!("{}_", prefix))
+        ])
+        .with_prefix(&format!("{}_", prefix))
 
         // let ctx = ExprWorldContextValues::new_from_idx(idx.i)
         //     .with_prefix(prefix)

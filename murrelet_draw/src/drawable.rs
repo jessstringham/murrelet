@@ -78,6 +78,19 @@ impl DrawnShape {
             annotations: self.annotations.clone(),
         })
     }
+
+    pub fn transform_cds_clone(&self, f: impl Fn(&CurveDrawer) -> Vec<CurveDrawer>) -> Self {
+        let mut ds: DrawnShape = self.clone();
+        ds.transform_cds(f);
+        ds
+    }
+
+    pub fn transform_cds(&mut self, f: impl Fn(&CurveDrawer) -> Vec<CurveDrawer>) {
+        self.cds = std::mem::take(&mut self.cds)
+            .into_iter()
+            .flat_map(|c| f(&c))
+            .collect();
+    }
 }
 
 pub trait ToDrawnShapeSegments {
@@ -107,22 +120,62 @@ where
 }
 
 pub trait ToDrawnShape {
-    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape;
+    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+        DrawnShape::new_cds(&self.to_cds(), style)
+    }
 
     fn to_drawn_shape_r(&self, style: &StyleConf) -> DrawnShape {
         self.to_drawn_shape(style.clone())
     }
+
+    fn to_cds(&self) -> Vec<CurveDrawer>;
+
+    fn to_cd_open(&self) -> Vec<CurveDrawer> {
+        self.to_cds()
+    }
+
+    fn to_cd_closed(&self) -> Vec<CurveDrawer> {
+        self.to_cds()
+    }
 }
 
 impl ToDrawnShape for CurveDrawer {
-    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
-        DrawnShape::new_cds(&[self.clone()], style)
+    // fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+    //     DrawnShape::new_cds(&[self.clone()], style)
+    // }
+
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        vec![self.clone()]
     }
 }
 
 impl ToDrawnShape for Vec<CurveDrawer> {
-    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
-        DrawnShape::new_cds(self, style)
+    // fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+    //     DrawnShape::new_cds(self, style)
+    // }
+
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        self.clone()
+    }
+}
+
+impl ToDrawnShape for Vec<Vec<Vec2>> {
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        let cds = self
+            .iter()
+            .map(|x| CurveDrawer::new_simple_points(x.to_vec(), true))
+            .collect_vec();
+
+        cds
+    }
+
+    fn to_cd_open(&self) -> Vec<CurveDrawer> {
+        let cds = self
+            .iter()
+            .map(|x| CurveDrawer::new_simple_points(x.to_vec(), false))
+            .collect_vec();
+
+        cds
     }
 }
 

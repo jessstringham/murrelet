@@ -14,6 +14,7 @@ pub mod intersection;
 
 mod assets;
 mod color;
+pub mod dense_cells;
 mod geometry;
 mod idx;
 mod iter;
@@ -23,7 +24,6 @@ mod string;
 pub mod timecurve;
 mod transform;
 pub mod triangulate;
-pub mod dense_cells;
 
 pub use assets::*;
 pub use color::*;
@@ -1372,7 +1372,7 @@ pub fn rgb_to_hex(r: f32, g: f32, b: f32) -> String {
 pub trait MurreletIterHelpers {
     type T: Clone;
     fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, Self::T>;
-    fn as_vec_ref(&self) -> &Vec<Self::T>;
+    fn as_vec_ref(&self) -> &[Self::T];
 
     fn map_iter_collect<F, U>(&self, f: F) -> Vec<U>
     where
@@ -1420,7 +1420,18 @@ impl<T: Clone> MurreletIterHelpers for Vec<T> {
         self.iter()
     }
 
-    fn as_vec_ref(&self) -> &Vec<Self::T> {
+    fn as_vec_ref(&self) -> &[Self::T] {
+        self
+    }
+}
+
+impl<T: Clone> MurreletIterHelpers for &[T] {
+    type T = T;
+    fn to_iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
+        self.iter()
+    }
+
+    fn as_vec_ref(&self) -> &[Self::T] {
         self
     }
 }
@@ -1475,13 +1486,55 @@ impl LivecodeError {
 
 pub type LivecodeResult<T> = Result<T, LivecodeError>;
 
-pub trait ToLivecodeResult<T> {
-    fn to_lc_err(self) -> LivecodeResult<T>;
+pub trait ToLivecodeResult<T>
+where
+    Self: Sized,
+{
+    fn to_lc_err(self) -> LivecodeResult<T> {
+        self.to_lc_err_with_msg("")
+    }
+    fn to_lc_err_with_msg(self, s: &str) -> LivecodeResult<T>;
 }
 
 impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
     #[inline]
-    fn to_lc_err(self) -> LivecodeResult<T> {
-        self.map_err(|e| LivecodeError::Raw(e.to_string()))
+    fn to_lc_err_with_msg(self, s: &str) -> LivecodeResult<T> {
+        self.map_err(|e| {
+            if s.is_empty() {
+                LivecodeError::Raw(e.to_string())
+            } else {
+                LivecodeError::Raw(format!("{} {}", s, e.to_string()))
+            }
+        })
+    }
+}
+
+impl<T> ToLivecodeResult<T> for Option<T> {
+    #[inline]
+    fn to_lc_err_with_msg(self, s: &str) -> LivecodeResult<T> {
+        self.ok_or_else(|| {
+            if s.is_empty() {
+                LivecodeError::Raw("unwrap none".to_owned())
+            } else {
+                LivecodeError::Raw(s.to_string())
+            }
+        })
+    }
+}
+
+pub trait LivecodeResultHelpers<T: Default>
+where
+    Self: Sized,
+{
+    fn ok_print(self, msg: &str) -> Option<T>;
+
+    fn ok_print_default(self, msg: &str) -> T {
+        self.ok_print(msg).unwrap_or_default()
+    }
+}
+
+impl<T: Default> LivecodeResultHelpers<T> for LivecodeResult<T> {
+    fn ok_print(self, msg: &str) -> Option<T> {
+        print_expect(self, msg)
     }
 }
