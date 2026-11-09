@@ -890,6 +890,14 @@ impl CurveSegment {
             }
         }
     }
+
+    pub fn end_spot(&self) -> Option<SpotOnCurve> {
+        self.last_spot()
+    }
+
+    pub fn start_spot(&self) -> Option<SpotOnCurve> {
+        self.first_spot()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Livecode, Lerpable)]
