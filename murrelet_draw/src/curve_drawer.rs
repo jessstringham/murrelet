@@ -1554,6 +1554,10 @@ pub trait ToCurveDrawer {
         self.to_cd(false)
     }
 
+    fn split_range(&self, start: f32, end: f32) -> CurveDrawer {
+        self.to_cd_open().split_range(start, end)
+    }
+
     // trying out utility functions
     fn to_approx_center(&self) -> Vec2 {
         // turn it into rough points and then find the center.

@@ -130,11 +130,11 @@ pub trait ToDrawnShape {
 
     fn to_cds(&self) -> Vec<CurveDrawer>;
 
-    fn to_cd_open(&self) -> Vec<CurveDrawer> {
+    fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
         self.to_cds()
     }
 
-    fn to_cd_closed(&self) -> Vec<CurveDrawer> {
+    fn to_cd_closed_ds(&self) -> Vec<CurveDrawer> {
         self.to_cds()
     }
 }
@@ -169,7 +169,7 @@ impl ToDrawnShape for Vec<Vec<Vec2>> {
         cds
     }
 
-    fn to_cd_open(&self) -> Vec<CurveDrawer> {
+    fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
         let cds = self
             .iter()
             .map(|x| CurveDrawer::new_simple_points(x.to_vec(), false))
