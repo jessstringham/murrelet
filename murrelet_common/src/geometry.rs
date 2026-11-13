@@ -25,6 +25,13 @@ impl AnglePi {
     pub const ONE: Self = AnglePi(1.0);
     pub const NEG_HALF: Self = AnglePi(-0.5);
 
+
+    pub const RIGHT: Self = AnglePi(0.0);
+    pub const UP: Self = AnglePi(0.5);
+    pub const LEFT: Self = AnglePi(1.0);
+    pub const DOWN: Self = AnglePi(1.5);
+
+
     pub fn new(v: f32) -> AnglePi {
         AnglePi(v)
     }
@@ -68,6 +75,15 @@ impl AnglePi {
 
     pub fn rotate_vec2(&self, v: Vec2) -> Vec2 {
         self.to_transform().transform_vec2(v)
+    }
+}
+
+pub trait IsRotateable {
+    fn rotate_by_angle<A: IsAngle>(&self, a: &A) -> Self;
+}
+impl IsRotateable for Vec2 {
+    fn rotate_by_angle<A: IsAngle>(&self, a: &A) -> Self {
+        a.as_angle_pi().rotate_vec2(self.clone())
     }
 }
 

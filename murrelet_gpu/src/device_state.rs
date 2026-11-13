@@ -302,7 +302,7 @@ pub fn write_png_to_texture(
     println!("loading file {:?}", path);
     let img = image::open(path)?;
 
-    println!("img.color() {:?}", img.color());
+    // println!("img.color() {:?}", img.color());
 
     let img_rgba = img.to_rgba8();
     let (img_width, img_height) = img.dimensions();

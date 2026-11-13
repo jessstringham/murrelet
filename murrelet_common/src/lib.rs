@@ -1412,6 +1412,17 @@ pub trait MurreletIterHelpers {
     ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
         curr_next_no_loop_iter(self.as_vec_ref())
     }
+
+    fn curr_next_maybe_loop_iter<'a>(
+        &'a self,
+        should_loop: bool,
+    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
+        if should_loop {
+            curr_next_loop_iter(self.as_vec_ref())
+        } else {
+            curr_next_no_loop_iter(self.as_vec_ref())
+        }
+    }
 }
 
 impl<T: Clone> MurreletIterHelpers for Vec<T> {

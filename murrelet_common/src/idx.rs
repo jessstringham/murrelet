@@ -116,7 +116,7 @@ impl IdxInRange {
     }
 
     pub fn half_step_pct(&self) -> f32 {
-        0.5 / self.total as f32
+        0.5 / ((self.total - 1) as f32)
     }
 
     // goes from 0 to 1 inclusive

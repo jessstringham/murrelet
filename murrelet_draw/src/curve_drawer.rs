@@ -1294,7 +1294,6 @@ impl CurveCubicBezier {
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurvePoints {
-    #[lerpable(func = "lerpify_vec_vec2")]
     pub points: Vec<Vec2>,
 }
 impl CurvePoints {
@@ -1396,6 +1395,22 @@ impl CurvePoints {
 
     fn extend_pts(&mut self, points: &[Vec2]) {
         self.points.extend_from_slice(points);
+    }
+
+    pub fn to_lens(&self) -> Vec<f32> {
+        let mut v = vec![];
+        for (prev, next) in self.points.curr_next_no_loop_iter() {
+            v.push(prev.distance(*next));
+        }
+        v
+    }
+
+    pub fn segment(&self, idx: usize) -> Option<PointToPoint> {
+        if let (Some(a), Some(b)) = (self.points.get(idx), self.points.get(idx + 1)) {
+            Some(PointToPoint::new(*a, *b))
+        } else {
+            None
+        }
     }
 }
 
