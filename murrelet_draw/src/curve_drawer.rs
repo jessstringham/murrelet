@@ -364,7 +364,7 @@ impl CurveDrawer {
             return Ok(vec![]);
         }
 
-        let (Some(&first), Some(&last)) = (pcts.first(), pcts.last()) else {
+        let (Some(&first), Some(_last)) = (pcts.first(), pcts.last()) else {
             return Ok(vec![self.clone()]);
         };
 
