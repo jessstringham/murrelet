@@ -380,33 +380,40 @@ impl CurveDrawer {
 
         let mut result = vec![];
 
-        if self.closed {
-            for (curr, next) in curr_next_no_loop_iter(&pcts) {
-                if *next < *curr {
-                    // it's fine if they're equal
-                    return Err("sort before split seq").to_lc_err();
-                }
-
-                result.push(self.split_range(*curr, *next));
-            }
-
-            result.push(self.split_range(last, first + 1.0));
+        // if it's closed, take care of the wrapping
+        let (base, offset) = if self.closed {
+            (self.split_range(first, first + 1.0), first)
         } else {
-            if first > 0.0 {
-                result.push(self.split_range(0.0, first));
-            }
+            (self.split_range(first, 1.0), 0.0) // offset is mostly used to shift closed things, so we need to leave this as 0.0
+        };
 
-            for (curr, next) in curr_next_no_loop_iter(&pcts) {
-                if *next < *curr {
-                    // it's fine if they're equal
+        let mut rest_of_curve = base.clone();
+        let mut curr = 0.0;
+
+        let mut cut_to_pct = |pct: f32| {
+            // we're at the end!
+            if 1.0 - curr < 1.0e-6 {
+                return rest_of_curve.to_cd_open();
+            }
+            // what pct in remaining are we going to!
+            let local_pct = (pct - curr) / (offset + 1.0 - curr);
+            let (split, remaining) = rest_of_curve.split(local_pct);
+            rest_of_curve = remaining.to_cd_open();
+            curr = pct;
+            split.to_cd_open()
+        };
+
+        // this also skips the first, which we took care of already
+        for (i, (curr, next)) in pcts.curr_next_maybe_loop_iter(self.closed).enumerate() {
+            // it's fine if they're equal
+            if *next < *curr {
+                // if statement to handle the case where it's looping back to the start
+                if i != pcts.len() || self.closed {
                     return Err("sort before split seq").to_lc_err();
                 }
-                result.push(self.split_range(*curr, *next));
             }
 
-            if last < 1.0 {
-                result.push(self.split_range(last, 1.0));
-            }
+            result.push(cut_to_pct(*next));
         }
 
         Ok(result)
@@ -1205,6 +1212,14 @@ impl CurveArc {
             _ => unreachable!(),
         }
     }
+
+    pub fn split_end(&self, pct: f32) -> CurveDrawer {
+        self.split_range(0.0, pct)
+    }
+
+    pub fn split_start(&self, pct: f32) -> CurveDrawer {
+        self.split_range(pct, 1.0)
+    }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -1649,6 +1664,7 @@ pub trait ToCurveDrawer {
         a.last_spot_cd()
     }
 
+    // todo, update this to use Measured...
     fn split(&self, pct: f32) -> (Vec<CurveSegment>, Vec<CurveSegment>) {
         if pct <= 0.0 {
             return (vec![], self.to_segments());

@@ -203,4 +203,10 @@ impl CubicBezier {
 
         0.5 * (lo + hi)
     }
+
+    pub fn segment_split_range(&self, start_pct: f32, end_pct: f32) -> CubicBezier {
+        let (_, after) = self.split(start_pct);
+        let (mid, _) = after.split((end_pct - start_pct) / (1.0 - start_pct));
+        mid
+    }
 }
