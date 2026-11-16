@@ -359,7 +359,7 @@ impl CurveDrawer {
             .to_cd_open()
     }
 
-    pub fn split_seq(&self, pcts: Vec<f32>) -> LivecodeResult<Vec<CurveDrawer>> {
+    pub fn split_seq(&self, pcts: &[f32]) -> LivecodeResult<Vec<CurveDrawer>> {
         if pcts.len() == 0 {
             return Ok(vec![]);
         }
@@ -368,7 +368,7 @@ impl CurveDrawer {
             return Ok(vec![self.clone()]);
         };
 
-        for p in &pcts {
+        for p in pcts {
             if *p < 0.0 {
                 return Err("pct less than 0").to_lc_err();
             }
