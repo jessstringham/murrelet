@@ -288,36 +288,43 @@ impl MaskCache {
         }
     }
 
-    pub fn crop_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
-        v.map_iter_collect(|a| {
-            a.transform_cds_clone(|cd| {
-                let is_line = cd.is_open();
+    pub fn crop_ds_invert(&self, v: &DrawnShape) -> DrawnShape {
+        v.transform_cds_clone(|cd| {
+            let is_line = cd.is_open();
 
-                let vs = if is_line {
-                    self.crop(&flatten_for_mask(&cd))
-                } else {
-                    self.clip_line(&flatten_for_mask(&cd))
-                };
-                vs.map_iter_collect(|x| x.to_cd_closed())
-            })
+            let vs = if is_line {
+                self.crop_inverse(&flatten_for_mask(&cd))
+            } else {
+                self.clip_line_inverse(&flatten_for_mask(&cd))
+            };
+            vs.map_iter_collect(|x| x.to_cd_closed())
         })
     }
 
+    pub fn crop_ds(&self, v: &DrawnShape) -> DrawnShape {
+        v.transform_cds_clone(|cd| {
+            let is_line = cd.is_open();
+
+            let vs = if is_line {
+                self.crop(&flatten_for_mask(&cd))
+            } else {
+                self.clip_line(&flatten_for_mask(&cd))
+            };
+            vs.map_iter_collect(|x| x.to_cd_closed())
+        })
+    }
+
+    pub fn crop_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
+        v.map_iter_collect(|ds| self.crop_ds(ds))
+    }
+
     pub fn crop_inverse_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
-        v.map_iter_collect(|a| {
-            a.transform_cds_clone(|cd| {
-                // self.crop_inverse(&flatten_for_mask(&cd))
-                //     .map_iter_collect(|x| x.to_cd_closed())
-
-                let is_line = cd.is_open();
-
-                let vs = if is_line {
-                    self.crop_inverse(&flatten_for_mask(&cd))
-                } else {
-                    self.clip_line_inverse(&flatten_for_mask(&cd))
-                };
-                vs.map_iter_collect(|x| x.to_cd_closed())
-            })
+        v.map_iter_collect(|ds| {
+            self.crop_ds_invert(ds)
+            // a.transform_cds_clone(|cd| {
+            //     // self.crop_inverse(&flatten_for_mask(&cd))
+            //     //     .map_iter_collect(|x| x.to_cd_closed())
+            // })
         })
     }
 

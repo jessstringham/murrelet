@@ -430,6 +430,29 @@ impl CurveDrawer {
     pub fn is_open(&self) -> bool {
         !self.is_closed()
     }
+
+    #[track_caller] // this has it panic in the macro, which shows up in the code location
+    pub fn panic_for_gaps(&self) {
+        for (i, (curr, next)) in self
+            .segments()
+            .curr_next_maybe_loop_iter(self.closed)
+            .enumerate()
+        {
+            // // for now, just skip gaps going into points.. since i'm drawing lines using them
+            // if matches!(curr, CurveSegment::Points(_)) || matches!(next, CurveSegment::Points(_)) {
+            //     continue;
+            // }
+
+            let gap = curr.last_point().distance(next.first_point());
+            if gap >= 0.1 {
+                panic!(
+                    "gap of {gap:.3} after segment {i}: {:?} -> {:?}",
+                    curr.last_point(),
+                    next.first_point()
+                );
+            }
+        }
+    }
 }
 
 fn warn_arc_skew_once() {
@@ -1552,6 +1575,10 @@ pub trait ToCurveDrawer {
         None
     }
 
+    fn start_spot_cd(&self) -> Option<SpotOnCurve> {
+        self.first_spot_cd()
+    }
+
     fn first_spot_cd(&self) -> Option<SpotOnCurve> {
         let cdo = self.to_cd_open();
         let cd = cdo.segments();
@@ -1838,16 +1865,35 @@ impl ToCurveSegment for LineFromVecAndLen {
     }
 }
 
+// list things that can turn into segments, and it'll make a new list of segments
+// use +line to insert a line segment in between, otherwise it'll panic about the gap
 #[macro_export]
 macro_rules! curve_segments {
-    ($($expr:expr),* $(,)?) => {{
-        let mut v: Vec<murrelet_draw::curve_drawer::CurveSegment> = Vec::new();
-        $(
-            v.extend($expr.to_segments());
-        )*
-        v
-    }};
-}
+      (@acc $v:ident;) => {};
+      (@acc $v:ident; + line $e:expr $(, $($rest:tt)*)?) => {
+          let segs = $e.to_segments();
+          let bridge = match ($v.last(), segs.first()) {
+              (Some(p), Some(n)) => Some(vec![p.last_point(), n.first_point()]),
+              _ => None,
+          };
+          if let Some(pts) = bridge {
+              $v.push($crate::curve_drawer::CurveSegment::new_simple_points(pts));
+          }
+          $v.extend(segs);
+          $crate::curve_segments!(@acc $v; $($($rest)*)?);
+      };
+      (@acc $v:ident; $e:expr $(, $($rest:tt)*)?) => {
+          $v.extend($e.to_segments());
+          $crate::curve_segments!(@acc $v; $($($rest)*)?);
+      };
+      ($($t:tt)*) => {{
+          let mut v: Vec<$crate::curve_drawer::CurveSegment> = Vec::new();
+          $crate::curve_segments!(@acc v; $($t)*);
+          // experimental, checking for gaps!
+          v.to_cd_open().panic_for_gaps();
+          v
+      }};
+  }
 
 // useful for drawnshape...
 pub trait ToCurveDrawers {

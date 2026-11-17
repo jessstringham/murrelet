@@ -25,12 +25,10 @@ impl AnglePi {
     pub const ONE: Self = AnglePi(1.0);
     pub const NEG_HALF: Self = AnglePi(-0.5);
 
-
     pub const RIGHT: Self = AnglePi(0.0);
     pub const UP: Self = AnglePi(0.5);
     pub const LEFT: Self = AnglePi(1.0);
     pub const DOWN: Self = AnglePi(1.5);
-
 
     pub fn new(v: f32) -> AnglePi {
         AnglePi(v)
@@ -632,7 +630,17 @@ pub struct PointToPoint {
     end: Vec2,
 }
 impl PointToPoint {
-    pub fn new(start: Vec2, end: Vec2) -> Self {
+    pub fn new<V: ToVec2>(start: V, end: V) -> Self {
+        let start = start.to_vec2();
+        let end = end.to_vec2();
+
+        Self { start, end }
+    }
+
+    pub fn new_r<V: ToVec2>(start: &V, end: &V) -> Self {
+        let start = start.to_vec2();
+        let end = end.to_vec2();
+
         Self { start, end }
     }
 
@@ -855,6 +863,12 @@ impl ToVec2 for Vec2 {
 impl ToVec2 for DefaultVertex {
     fn to_vec2(&self) -> Vec2 {
         self.pos2d()
+    }
+}
+
+impl ToVec2 for SpotOnCurve {
+    fn to_vec2(&self) -> Vec2 {
+        self.loc()
     }
 }
 

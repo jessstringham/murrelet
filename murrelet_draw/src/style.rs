@@ -392,6 +392,11 @@ pub mod styleconf {
             Self::fill(MurreletColor::black())
         }
 
+        // whether the occlusion code should mask things behind this object!
+        pub fn occludes(&self) -> bool {
+            matches!(self, StyleConf::Fill(_) | StyleConf::RGBAFill(_))
+        }
+
         pub fn to_style(&self) -> MurreletStyle {
             match self {
                 StyleConf::Fill(a) => a.to_style(),

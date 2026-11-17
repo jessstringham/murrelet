@@ -382,3 +382,13 @@ impl IdxInRange2d {
         self.j.i()
     }
 }
+
+pub trait EnumerateIdx: ExactSizeIterator + Sized {
+    fn enumerate_idx(self) -> impl Iterator<Item = (IdxInRange, Self::Item)> {
+        let total = self.len();
+        self.enumerate()
+            .map(move |(i, x)| (IdxInRange::new(i, total), x))
+    }
+}
+
+impl<I: ExactSizeIterator> EnumerateIdx for I {}
