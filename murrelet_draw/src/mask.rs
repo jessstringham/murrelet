@@ -16,7 +16,7 @@ use glam::{Vec2, vec2};
 use itertools::Itertools;
 
 use murrelet_common::{
-    LivecodeResult, MurreletIterHelpers, MurreletString, PointToPoint, SpotOnCurve,
+    LivecodeResult, MurreletIterHelpers, MurreletString, PointToPoint, Rect, SpotOnCurve,
     ToLivecodeResult, poly_area_unsigned,
 };
 use std::collections::{HashMap, HashSet};
@@ -74,310 +74,9 @@ impl ToVec2Griddable for ::geo::Coord {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct MaskCacheImpl {
-    bounding: geo::Rect,
-    polygon: geo::Polygon,
-}
-impl MaskCacheImpl {
-    fn center(&self) -> Vec2 {
-        0.5 * (self.bounding.min().to_vec2() + self.bounding.max().to_vec2())
-    }
-
-    fn contains(&self, v: &Vec2) -> bool {
-        self.polygon.contains(&glam_to_geo(*v))
-    }
-
-    // includes edges
-    fn covers(&self, v: &Vec2) -> bool {
-        self.polygon.intersects(&glam_to_geo_pt(*v))
-    }
-
-    // left needs to be inside
-    fn last_point_containing(&self, left: &Vec2, right: &Vec2) -> Vec2 {
-        let mut left = *left;
-        let mut right = *right;
-        while left.distance(right) > 0.2 {
-            let midpoint = 0.5 * (left + right);
-            if self.contains(&midpoint) {
-                left = midpoint;
-            } else {
-                right = midpoint;
-            }
-        }
-        // finished!
-        0.5 * (left + right)
-    }
-
-    fn crosses_boundary(
-        &self,
-        contains: bool,
-        left: &Vec2,
-        right: &Vec2,
-        steps: usize,
-        threshold: f32,
-    ) -> Vec2 {
-        let mut left = *left;
-        let mut right = *right;
-
-        for _ in 0..steps {
-            if left.distance(right) < threshold {
-                break;
-            }
-
-            let midpoint = 0.5 * (left + right);
-            if self.contains(&midpoint) == contains {
-                left = midpoint;
-            } else {
-                right = midpoint;
-            }
-        }
-        // finished!
-        0.5 * (left + right)
-    }
-}
-
-// fn curve_segment_maker_to_line_string(curve: &CurveDrawer, tolerance: f32) -> LivecodeResult<geo::LineString> {
-//     let c = curve.to_lyon()?;
-//     vec2_to_line_string(&curve.to_rough_points(1.0))
-// }
-
 fn vec2_to_line_string(vs: &[Vec2]) -> geo::LineString {
     let coords = vs.iter().map(|x| glam_to_geo(*x)).collect_vec();
     geo::LineString::new(coords)
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum MaskCache {
-    Impl(MaskCacheImpl),
-    #[default] // todo, this should be uninitialized or something... once lock?
-    AlwaysTrue,
-}
-
-impl MaskCache {
-    pub fn center(&self) -> Vec2 {
-        match self {
-            MaskCache::Impl(s) => s.center(),
-            MaskCache::AlwaysTrue => Vec2::ZERO,
-        }
-    }
-
-    pub fn last_point_containing(&self, left: &Vec2, right: &Vec2) -> Vec2 {
-        match self {
-            MaskCache::Impl(s) => s.last_point_containing(left, right),
-            MaskCache::AlwaysTrue => *right,
-        }
-    }
-
-    pub fn crosses_boundary(
-        &self,
-        contains: bool,
-        left: &Vec2,
-        right: &Vec2,
-        steps: usize,
-        threshold: f32,
-    ) -> Vec2 {
-        match self {
-            MaskCache::Impl(s) => s.crosses_boundary(contains, left, right, steps, threshold),
-            MaskCache::AlwaysTrue => *right,
-        }
-    }
-
-    pub fn new_vec2(curves: &[Vec2]) -> Self {
-        let polygon = geo::Polygon::new(vec2_to_line_string(curves), vec![]);
-
-        MaskCache::Impl(MaskCacheImpl {
-            bounding: polygon.bounding_rect().unwrap(),
-            polygon,
-        })
-    }
-
-    pub fn new_cd(cd: CurveDrawer, tolerance: f32) -> LivecodeResult<Self> {
-        Self::new(&[cd], tolerance)
-    }
-
-    pub fn new_vec2_interior(outline: &[Vec2], interiors: &[Vec<Vec2>]) -> Self {
-        let polygon = geo::Polygon::new(
-            vec2_to_line_string(outline),
-            interiors.iter().map(|x| vec2_to_line_string(x)).collect(),
-        );
-
-        MaskCache::Impl(MaskCacheImpl {
-            bounding: polygon.bounding_rect().unwrap(),
-            polygon,
-        })
-    }
-
-    pub fn new_interior(
-        outline: CurveDrawer,
-        interior: &[CurveDrawer],
-        tolerance: f32,
-    ) -> LivecodeResult<Self> {
-        // shh, just a wrapper
-        let s = [vec![outline], interior.to_vec()].concat();
-        Self::new(&s, tolerance)
-    }
-
-    pub fn new(curves: &[CurveDrawer], tolerance: f32) -> LivecodeResult<Self> {
-        // first curve is external
-        let (first_curve, rest) = curves.split_first().unwrap();
-        // let first = curve_segment_maker_to_line_string(first_curve);
-        let first = vec2_to_line_string(&first_curve.flatten_with_lyon(tolerance)?);
-
-        let mut remaining = vec![];
-        // add all our points to a hashmap
-        for curve_maker in rest {
-            remaining.push(vec2_to_line_string(
-                &curve_maker.flatten_with_lyon(tolerance)?,
-            ));
-        }
-
-        let polygon = ::geo::Polygon::new(first, remaining);
-
-        Ok(MaskCache::Impl(MaskCacheImpl {
-            bounding: polygon.bounding_rect().unwrap(),
-            polygon,
-        }))
-    }
-
-    pub fn contains(&self, v: &Vec2) -> bool {
-        match self {
-            MaskCache::Impl(x) => x.contains(v),
-            MaskCache::AlwaysTrue => true,
-        }
-    }
-
-    pub fn covers(&self, v: &Vec2) -> bool {
-        match self {
-            MaskCache::Impl(x) => x.covers(v),
-            MaskCache::AlwaysTrue => true,
-        }
-    }
-
-    pub fn noop() -> MaskCache {
-        MaskCache::AlwaysTrue
-    }
-
-    pub fn crop(&self, shape: &[Vec2]) -> Vec<Vec<Vec2>> {
-        match self {
-            MaskCache::Impl(x) => {
-                let other = line_to_polygon(shape);
-                let cropped = x.polygon.intersection(&other);
-                multipolygon_to_vec2(&cropped)
-            }
-            MaskCache::AlwaysTrue => vec![shape.to_vec()],
-        }
-    }
-
-    // remove this object from all of the shapes
-    fn crop_inverse(&self, shape: &[Vec2]) -> Vec<Vec<Vec2>> {
-        match self {
-            MaskCache::Impl(x) => {
-                let other = line_to_polygon(shape);
-                let cropped = other.difference(&x.polygon);
-                multipolygon_to_vec2(&cropped)
-            }
-            MaskCache::AlwaysTrue => vec![shape.to_vec()],
-        }
-    }
-
-    pub fn to_vec2(&self) -> Vec<Vec2> {
-        match self {
-            MaskCache::Impl(mask_cache_impl) => polygon_to_vec2(&mask_cache_impl.polygon),
-            MaskCache::AlwaysTrue => unreachable!(),
-        }
-    }
-
-    pub fn crop_ds_invert(&self, v: &DrawnShape) -> DrawnShape {
-        v.transform_cds_clone(|cd| {
-            let is_line = cd.is_open();
-
-            let vs = if is_line {
-                self.crop_inverse(&flatten_for_mask(&cd))
-            } else {
-                self.clip_line_inverse(&flatten_for_mask(&cd))
-            };
-            vs.map_iter_collect(|x| x.to_cd_closed())
-        })
-    }
-
-    pub fn crop_ds(&self, v: &DrawnShape) -> DrawnShape {
-        v.transform_cds_clone(|cd| {
-            let is_line = cd.is_open();
-
-            let vs = if is_line {
-                self.crop(&flatten_for_mask(&cd))
-            } else {
-                self.clip_line(&flatten_for_mask(&cd))
-            };
-            vs.map_iter_collect(|x| x.to_cd_closed())
-        })
-    }
-
-    pub fn crop_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
-        v.map_iter_collect(|ds| self.crop_ds(ds))
-    }
-
-    pub fn crop_inverse_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
-        v.map_iter_collect(|ds| {
-            self.crop_ds_invert(ds)
-            // a.transform_cds_clone(|cd| {
-            //     // self.crop_inverse(&flatten_for_mask(&cd))
-            //     //     .map_iter_collect(|x| x.to_cd_closed())
-            // })
-        })
-    }
-
-    pub fn ray_intersect(&self, spot: &SpotOnCurve) -> Vec2 {
-        self.last_point_containing(&spot.loc, &spot.line_to_spot(1000.0))
-    }
-
-    pub fn rect(&self) -> murrelet_common::Rect {
-        match self {
-            MaskCache::Impl(mask_cache_impl) => {
-                let w = mask_cache_impl.bounding.width();
-                let h = mask_cache_impl.bounding.height();
-                let center = mask_cache_impl.bounding.center();
-
-                murrelet_common::Rect::from_xy_wh(center.to_vec2(), vec2(w as f32, h as f32))
-            }
-            MaskCache::AlwaysTrue => todo!(),
-        }
-    }
-
-    pub fn bbox(&self) -> Option<(Vec2, Vec2)> {
-        match self {
-            MaskCache::Impl(mask_cache_impl) => {
-                let b = mask_cache_impl.bounding;
-                Some((b.min().to_vec2(), b.max().to_vec2()))
-            }
-            MaskCache::AlwaysTrue => None,
-        }
-    }
-
-    pub fn _clip_line(&self, line: &[Vec2], invert: bool) -> Vec<Vec<Vec2>> {
-        match self {
-            MaskCache::Impl(x) => {
-                let lines = geo::MultiLineString::new(vec![vec2_to_line_string(line)]);
-
-                x.polygon
-                    .clip(&lines, invert)
-                    .0
-                    .iter()
-                    .map(|l| l.0.iter().map(|c| c.to_vec2()).collect_vec())
-                    .collect_vec()
-            }
-            MaskCache::AlwaysTrue => vec![line.to_vec()],
-        }
-    }
-
-    pub fn clip_line(&self, line: &[Vec2]) -> Vec<Vec<Vec2>> {
-        self._clip_line(line, false)
-    }
-
-    pub fn clip_line_inverse(&self, line: &[Vec2]) -> Vec<Vec<Vec2>> {
-        self._clip_line(line, true)
-    }
 }
 
 fn flatten_for_mask(cd: &CurveDrawer) -> Vec<Vec2> {
@@ -389,7 +88,7 @@ fn flatten_for_mask(cd: &CurveDrawer) -> Vec<Vec2> {
 
 #[derive(Debug, Clone)]
 pub struct Masker {
-    mask: MultiPolygon,
+    mask: geo::MultiPolygon,
 }
 impl Default for Masker {
     fn default() -> Self {
@@ -398,6 +97,311 @@ impl Default for Masker {
 }
 
 impl Masker {
+    pub fn new_vec2_interior(outline: &[Vec2], interiors: &[Vec<Vec2>]) -> Self {
+        let polygon = geo::Polygon::new(
+            vec2_to_line_string(outline),
+            interiors.iter().map(|x| vec2_to_line_string(x)).collect(),
+        );
+
+        Self {
+            mask: geo::MultiPolygon::new(vec![polygon]),
+        }
+    }
+
+    pub fn new_interior(
+        outline: CurveDrawer,
+        interior: &[CurveDrawer],
+        tolerance: f32,
+    ) -> LivecodeResult<Self> {
+        let holes = interior
+            .iter()
+            .map(|cd| cd.flatten_with_lyon(tolerance))
+            .collect::<LivecodeResult<Vec<_>>>()?;
+        Ok(Self::new_vec2_interior(
+            &outline.flatten_with_lyon(tolerance)?,
+            &holes,
+        ))
+    }
+
+    //     fn center(&self) -> Vec2 {
+    //         0.5 * (self.bounding.min().to_vec2() + self.bounding.max().to_vec2())
+    //     }
+
+    // vs contains, includes edges
+    pub fn covers(&self, v: &Vec2) -> bool {
+        self.mask.intersects(&glam_to_geo_pt(*v))
+    }
+
+    pub fn last_point_containing(&self, left: &Vec2, right: &Vec2) -> Vec2 {
+        self.crosses_boundary(true, left, right, usize::MAX, 0.2)
+    }
+
+    // left needs to be inside
+    pub fn crosses_boundary(
+        &self,
+        contains: bool,
+        left: &Vec2,
+        right: &Vec2,
+        steps: usize,
+        threshold: f32,
+    ) -> Vec2 {
+        let mut left = *left;
+        let mut right = *right;
+        for _ in 0..steps {
+            if left.distance(right) < threshold {
+                break;
+            }
+            let midpoint = 0.5 * (left + right);
+            if self.contains(&midpoint) == contains {
+                left = midpoint;
+            } else {
+                right = midpoint;
+            }
+        }
+        0.5 * (left + right)
+    }
+
+    //     fn center(&self) -> Vec2 {
+    //     0.5 * (self.bounding.min().to_vec2() + self.bounding.max().to_vec2())
+    // }
+
+    // fn contains(&self, v: &Vec2) -> bool {
+    //     self.polygon.contains(&glam_to_geo(*v))
+    // }
+
+    // // includes edges
+    // fn covers(&self, v: &Vec2) -> bool {
+    //     self.polygon.intersects(&glam_to_geo_pt(*v))
+    // }
+
+    // // left needs to be inside
+    // fn last_point_containing(&self, left: &Vec2, right: &Vec2) -> Vec2 {
+    //     let mut left = *left;
+    //     let mut right = *right;
+    //     while left.distance(right) > 0.2 {
+    //         let midpoint = 0.5 * (left + right);
+    //         if self.contains(&midpoint) {
+    //             left = midpoint;
+    //         } else {
+    //             right = midpoint;
+    //         }
+    //     }
+    //     // finished!
+    //     0.5 * (left + right)
+    // }
+
+    // fn crosses_boundary(
+    //     &self,
+    //     contains: bool,
+    //     left: &Vec2,
+    //     right: &Vec2,
+    //     steps: usize,
+    //     threshold: f32,
+    // ) -> Vec2 {
+    //     let mut left = *left;
+    //     let mut right = *right;
+
+    //     for _ in 0..steps {
+    //         if left.distance(right) < threshold {
+    //             break;
+    //         }
+
+    //         let midpoint = 0.5 * (left + right);
+    //         if self.contains(&midpoint) == contains {
+    //             left = midpoint;
+    //         } else {
+    //             right = midpoint;
+    //         }
+    //     }
+    //     // finished!
+    //     0.5 * (left + right)
+    // }
+
+    // pub fn center(&self) -> Vec2 {
+    //     match self {
+    //         Masker::Impl(s) => s.center(),
+    //         Masker::AlwaysTrue => Vec2::ZERO,
+    //     }
+    // }
+
+    // pub fn last_point_containing(&self, left: &Vec2, right: &Vec2) -> Vec2 {
+    //     match self {
+    //         Masker::Impl(s) => s.last_point_containing(left, right),
+    //         Masker::AlwaysTrue => *right,
+    //     }
+    // }
+
+    // pub fn crosses_boundary(
+    //     &self,
+    //     contains: bool,
+    //     left: &Vec2,
+    //     right: &Vec2,
+    //     steps: usize,
+    //     threshold: f32,
+    // ) -> Vec2 {
+    //     match self {
+    //         Masker::Impl(s) => s.crosses_boundary(contains, left, right, steps, threshold),
+    //         Masker::AlwaysTrue => *right,
+    //     }
+    // }
+
+    // pub fn new_vec2(curves: &[Vec2]) -> Self {
+    //     let polygon = geo::Polygon::new(vec2_to_line_string(curves), vec![]);
+
+    //     Masker::Impl(MaskerImpl {
+    //         bounding: polygon.bounding_rect().unwrap(),
+    //         polygon,
+    //     })
+    // }
+
+    // pub fn new_cd(cd: CurveDrawer, tolerance: f32) -> LivecodeResult<Self> {
+    //     Self::new(&[cd], tolerance)
+    // }
+
+    // pub fn new_vec2_interior(outline: &[Vec2], interiors: &[Vec<Vec2>]) -> Self {
+    //     let polygon = geo::Polygon::new(
+    //         vec2_to_line_string(outline),
+    //         interiors.iter().map(|x| vec2_to_line_string(x)).collect(),
+    //     );
+
+    //     Masker::Impl(MaskerImpl {
+    //         bounding: polygon.bounding_rect().unwrap(),
+    //         polygon,
+    //     })
+    // }
+
+    // pub fn new_interior(
+    //     outline: CurveDrawer,
+    //     interior: &[CurveDrawer],
+    //     tolerance: f32,
+    // ) -> LivecodeResult<Self> {
+    //     // shh, just a wrapper
+    //     let s = [vec![outline], interior.to_vec()].concat();
+    //     Self::new(&s, tolerance)
+    // }
+
+    // pub fn new(curves: &[CurveDrawer], tolerance: f32) -> LivecodeResult<Self> {
+    //     // first curve is external
+    //     let (first_curve, rest) = curves.split_first().unwrap();
+    //     // let first = curve_segment_maker_to_line_string(first_curve);
+    //     let first = vec2_to_line_string(&first_curve.flatten_with_lyon(tolerance)?);
+
+    //     let mut remaining = vec![];
+    //     // add all our points to a hashmap
+    //     for curve_maker in rest {
+    //         remaining.push(vec2_to_line_string(
+    //             &curve_maker.flatten_with_lyon(tolerance)?,
+    //         ));
+    //     }
+
+    //     let polygon = ::geo::Polygon::new(first, remaining);
+
+    //     Ok(Masker::Impl(MaskerImpl {
+    //         bounding: polygon.bounding_rect().unwrap(),
+    //         polygon,
+    //     }))
+    // }
+
+    // pub fn contains(&self, v: &Vec2) -> bool {
+    //     match self {
+    //         Masker::Impl(x) => x.contains(v),
+    //         Masker::AlwaysTrue => true,
+    //     }
+    // }
+
+    // pub fn covers(&self, v: &Vec2) -> bool {
+    //     match self {
+    //         Masker::Impl(x) => x.covers(v),
+    //         Masker::AlwaysTrue => true,
+    //     }
+    // }
+
+    pub fn clip(&self, shape: &[Vec2]) -> Vec<Vec<Vec2>> {
+        let other = line_to_polygon(shape);
+        let cropped = self.mask.intersection(&other);
+        multipolygon_to_vec2(&cropped)
+    }
+
+    // remove this object from all of the shapes
+    fn clip_inverse(&self, shape: &[Vec2]) -> Vec<Vec<Vec2>> {
+        let other = line_to_polygon(shape);
+        let cropped = other.difference(&self.mask);
+        multipolygon_to_vec2(&cropped)
+    }
+
+    pub fn to_vec2(&self) -> Vec<Vec<Vec2>> {
+        multipolygon_to_vec2(&self.mask)
+    }
+
+    pub fn clip_ds_invert(&self, v: &DrawnShape) -> DrawnShape {
+        v.transform_cds_clone(|cd| {
+            let is_line = cd.is_open();
+
+            let vs = if is_line {
+                self.clip_inverse(&flatten_for_mask(&cd))
+            } else {
+                self.clip_line_inverse(&flatten_for_mask(&cd))
+            };
+            vs.map_iter_collect(|x| x.to_cd_closed())
+        })
+    }
+
+    pub fn clip_ds(&self, v: &DrawnShape) -> DrawnShape {
+        v.transform_cds_clone(|cd| {
+            let is_line = cd.is_open();
+
+            let vs = if is_line {
+                self.clip(&flatten_for_mask(&cd))
+            } else {
+                self.clip_line(&flatten_for_mask(&cd))
+            };
+            vs.map_iter_collect(|x| x.to_cd_closed())
+        })
+    }
+
+    pub fn clip_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
+        v.map_iter_collect(|ds| self.clip_ds(ds))
+    }
+
+    pub fn clip_inverse_many(&self, v: &[DrawnShape]) -> Vec<DrawnShape> {
+        v.map_iter_collect(|ds| self.clip_ds_invert(ds))
+    }
+
+    pub fn ray_intersect(&self, spot: &SpotOnCurve) -> Vec2 {
+        self.last_point_containing(&spot.loc, &spot.line_to_spot(1000.0))
+    }
+    pub fn bbox(&self) -> Option<(Vec2, Vec2)> {
+        let b = self.mask.bounding_rect()?;
+        Some((b.min().to_vec2(), b.max().to_vec2()))
+    }
+
+    pub fn rect(&self) -> Option<Rect> {
+        let b = self.mask.bounding_rect()?;
+        Some(Rect::from_xy_wh(
+            b.center().to_vec2(),
+            vec2(b.width() as f32, b.height() as f32),
+        ))
+    }
+
+    pub fn _clip_line(&self, line: &[Vec2], invert: bool) -> Vec<Vec<Vec2>> {
+        let lines = geo::MultiLineString::new(vec![vec2_to_line_string(line)]);
+
+        self.mask
+            .clip(&lines, invert)
+            .0
+            .iter()
+            .map(|l| l.0.iter().map(|c| c.to_vec2()).collect_vec())
+            .collect_vec()
+    }
+
+    pub fn clip_line(&self, line: &[Vec2]) -> Vec<Vec<Vec2>> {
+        self._clip_line(line, false)
+    }
+
+    pub fn clip_line_inverse(&self, line: &[Vec2]) -> Vec<Vec<Vec2>> {
+        self._clip_line(line, true)
+    }
+
     pub fn new() -> Self {
         Self {
             mask: MultiPolygon::new(vec![]),
@@ -410,16 +414,16 @@ impl Masker {
         s
     }
 
-    pub fn from_cd(v: &CurveDrawer, tolerance: f32) -> Self {
+    pub fn from_cd(v: &CurveDrawer, tolerance: f32) -> LivecodeResult<Self> {
         let mut s = Self::new();
-        s.union_cd(v, tolerance);
-        s
+        s.union_cd(v, tolerance)?;
+        Ok(s)
     }
 
-    pub fn from_many_cd(v: &[CurveDrawer], tolerance: f32) -> Self {
+    pub fn from_many_cd(v: &[CurveDrawer], tolerance: f32) -> LivecodeResult<Self> {
         let mut s = Self::new();
-        s.union_many_cds(v, tolerance);
-        s
+        s.union_many_cds(v, tolerance)?;
+        Ok(s)
     }
 
     pub fn union(&self, other: &Self) -> Self {
@@ -428,8 +432,9 @@ impl Masker {
         }
     }
 
-    pub fn union_cd(&mut self, cd: &CurveDrawer, tolerance: f32) {
-        self.union_vec2(&cd.flatten_with_lyon(tolerance).unwrap_or_default());
+    pub fn union_cd(&mut self, cd: &CurveDrawer, tolerance: f32) -> LivecodeResult<()> {
+        self.union_vec2(&cd.flatten_with_lyon(tolerance)?);
+        Ok(())
     }
 
     pub fn union_vec2(&mut self, s: &[Vec2]) {
@@ -445,10 +450,11 @@ impl Masker {
         }
     }
 
-    pub fn union_many_cds(&mut self, cds: &[CurveDrawer], tolerance: f32) {
+    pub fn union_many_cds(&mut self, cds: &[CurveDrawer], tolerance: f32) -> LivecodeResult<()> {
         for cd in cds {
-            self.union_cd(cd, tolerance);
+            self.union_cd(cd, tolerance)?;
         }
+        Ok(())
     }
 
     pub fn contains(&self, v: &Vec2) -> bool {

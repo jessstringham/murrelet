@@ -372,9 +372,9 @@ impl GenFinal for FieldTokensLazy {
             #[allow(non_camel_case_types)]
             #tags
             #vis enum #new_enum_ident {
+                #(#for_struct,)*
                 #[default]
                 DefaultNoop,
-                #(#for_struct,)*
             }
 
             impl murrelet_livecode::lazy::IsLazy for #new_enum_ident {
