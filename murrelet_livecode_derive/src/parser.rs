@@ -275,7 +275,8 @@ pub(crate) struct LivecodeFieldReceiver {
     pub(crate) lazy_serde_default: Option<String>, // used internally, for lazy things to get converted to livecode lazy correctly
     pub(crate) serde_opts: Option<String>,
     pub(crate) serde_with: Option<String>,
-    pub(crate) kind: Option<String>, // used of override type
+    pub(crate) map_value: Option<String>, // for schemars
+    pub(crate) kind: Option<String>,      // used of override type
     pub(crate) ctx: Option<String>,
     pub(crate) src: Option<String>,    // sequencer
     pub(crate) prefix: Option<String>, // what to prefix the src with
@@ -309,6 +310,10 @@ impl LivecodeFieldReceiver {
             self.serde_with.as_ref().map(|x| {
                 let serde_with = x.to_string();
                 quote! {serde_with = #serde_with}
+            }),
+            self.map_value.as_ref().map(|x| {
+                let map_value = x.to_string();
+                quote! {map_value = #map_value}
             }),
         ]
         .into_iter()
@@ -437,10 +442,13 @@ impl LivecodeFieldReceiver {
         };
 
         let deserialize_with = if let Some(f) = &self.serde_with {
+            let schema_fn = match &self.map_value {
+                Some(v) => format!("murrelet_livecode::livecode::map_of_schema::<{}>", v),
+                None => "murrelet_livecode::livecode::map_as_vec_schema".to_string(),
+            };
             quote! {
                 #[serde(deserialize_with = #f)]
-                #[cfg_attr(feature = "schemars", schemars(schema_with =
-            "murrelet_livecode::livecode::map_as_vec_schema"))]
+                #[cfg_attr(feature = "schemars", schemars(schema_with = #schema_fn))]
             }
         } else {
             quote! {}

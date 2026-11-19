@@ -405,12 +405,11 @@ impl CurveDrawer {
 
         // this also skips the first, which we took care of already
         for (i, (curr, next)) in pcts.curr_next_maybe_loop_iter(self.closed).enumerate() {
+            let is_wrap = self.closed && i == pcts.len() - 1;
             // it's fine if they're equal
-            if *next < *curr {
+            if *next < *curr && !is_wrap {
                 // if statement to handle the case where it's looping back to the start
-                if i != pcts.len() || self.closed {
-                    return Err("sort before split seq").to_lc_err();
-                }
+                return Err("sort before split seq").to_lc_err();
             }
 
             result.push(cut_to_pct(*next));

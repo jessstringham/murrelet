@@ -452,6 +452,19 @@ impl Rect {
     }
 }
 
+pub trait ToCircle {
+    fn to_circle(&self, size: f32) -> Circle;
+}
+
+impl<T> ToCircle for T
+where
+    T: ToVec2,
+{
+    fn to_circle(&self, radius: f32) -> Circle {
+        Circle::new(self.to_vec2(), radius)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Circle {
     pub center: Vec2,
@@ -1522,6 +1535,7 @@ impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
 
 impl<T> ToLivecodeResult<T> for Option<T> {
     #[inline]
+    #[track_caller]
     fn to_lc_err_with_msg(self, s: &str) -> LivecodeResult<T> {
         self.ok_or_else(|| {
             if s.is_empty() {
@@ -1533,18 +1547,18 @@ impl<T> ToLivecodeResult<T> for Option<T> {
     }
 }
 
-pub trait LivecodeResultHelpers<T: Default>
+pub trait LivecodeResultHelpers<T>
 where
     Self: Sized,
 {
     fn ok_print(self, msg: &str) -> Option<T>;
 
-    fn ok_print_default(self, msg: &str) -> T {
-        self.ok_print(msg).unwrap_or_default()
-    }
+    // fn ok_print_default<T: Default>(self, msg: &str) -> T {
+    //     self.ok_print(msg).unwrap_or_default()
+    // }
 }
 
-impl<T: Default> LivecodeResultHelpers<T> for LivecodeResult<T> {
+impl<T> LivecodeResultHelpers<T> for LivecodeResult<T> {
     fn ok_print(self, msg: &str) -> Option<T> {
         print_expect(self, msg)
     }

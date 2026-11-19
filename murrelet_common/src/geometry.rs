@@ -448,10 +448,10 @@ impl SpotOnCurve {
         SpotOnCurve::new(a, self.angle).move_left_perp_dist(offset.y)
     }
 
-    pub fn rotate(&self, rotate: AnglePi) -> Self {
+    pub fn rotate<A: Into<Angle>>(&self, rotate: A) -> Self {
         Self {
             loc: self.loc,
-            angle: self.angle + rotate,
+            angle: self.angle + rotate.into(),
         }
     }
 

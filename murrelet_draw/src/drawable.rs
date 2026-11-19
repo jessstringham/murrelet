@@ -149,33 +149,56 @@ impl ToDrawnShape for CurveDrawer {
     }
 }
 
-impl ToDrawnShape for Vec<CurveDrawer> {
+// impl ToDrawnShape for Vec<CurveDrawer> {
+//     // fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+//     //     DrawnShape::new_cds(self, style)
+//     // }
+
+//     fn to_cds(&self) -> Vec<CurveDrawer> {
+//         self.clone()
+//     }
+// }
+
+// impl ToDrawnShape for Vec<Vec<Vec2>> {
+//     fn to_cds(&self) -> Vec<CurveDrawer> {
+//         let cds = self
+//             .iter()
+//             .map(|x| CurveDrawer::new_simple_points(x.to_vec(), true))
+//             .collect_vec();
+
+//         cds
+//     }
+
+//     fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
+//         let cds = self
+//             .iter()
+//             .map(|x| CurveDrawer::new_simple_points(x.to_vec(), false))
+//             .collect_vec();
+
+//         cds
+//     }
+// }
+
+impl ToDrawnShape for Vec<Vec2> {
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        vec![CurveDrawer::new_simple_points(self.to_vec(), true)]
+    }
+
+    fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
+        vec![CurveDrawer::new_simple_points(self.to_vec(), false)]
+    }
+}
+
+impl<T> ToDrawnShape for Vec<T>
+where
+    T: ToDrawnShape,
+{
     // fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
     //     DrawnShape::new_cds(self, style)
     // }
 
     fn to_cds(&self) -> Vec<CurveDrawer> {
-        self.clone()
-    }
-}
-
-impl ToDrawnShape for Vec<Vec<Vec2>> {
-    fn to_cds(&self) -> Vec<CurveDrawer> {
-        let cds = self
-            .iter()
-            .map(|x| CurveDrawer::new_simple_points(x.to_vec(), true))
-            .collect_vec();
-
-        cds
-    }
-
-    fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
-        let cds = self
-            .iter()
-            .map(|x| CurveDrawer::new_simple_points(x.to_vec(), false))
-            .collect_vec();
-
-        cds
+        self.iter().map(|x| x.to_cds()).flatten().collect_vec()
     }
 }
 

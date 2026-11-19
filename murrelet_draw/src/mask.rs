@@ -97,6 +97,14 @@ impl Default for Masker {
 }
 
 impl Masker {
+    pub fn new_ds(ds: &[DrawnShape]) -> LivecodeResult<Self> {
+        let mut m = Self::new();
+        for d in ds {
+            m.union_many_cds(d.curves(), 0.01)?;
+        }
+        Ok(m)
+    }
+
     pub fn new_vec2_interior(outline: &[Vec2], interiors: &[Vec<Vec2>]) -> Self {
         let polygon = geo::Polygon::new(
             vec2_to_line_string(outline),
@@ -133,7 +141,7 @@ impl Masker {
     }
 
     pub fn last_point_containing(&self, left: &Vec2, right: &Vec2) -> Vec2 {
-        self.crosses_boundary(true, left, right, usize::MAX, 0.2)
+        self.crosses_boundary(true, left, right, 64, 0.2)
     }
 
     // left needs to be inside
@@ -152,6 +160,7 @@ impl Masker {
                 break;
             }
             let midpoint = 0.5 * (left + right);
+
             if self.contains(&midpoint) == contains {
                 left = midpoint;
             } else {
@@ -338,11 +347,11 @@ impl Masker {
             let is_line = cd.is_open();
 
             let vs = if is_line {
-                self.clip_inverse(&flatten_for_mask(&cd))
-            } else {
                 self.clip_line_inverse(&flatten_for_mask(&cd))
+            } else {
+                self.clip_inverse(&flatten_for_mask(&cd))
             };
-            vs.map_iter_collect(|x| x.to_cd_closed())
+            vs.map_iter_collect(|x| x.to_cd(cd.is_closed()))
         })
     }
 
@@ -351,11 +360,11 @@ impl Masker {
             let is_line = cd.is_open();
 
             let vs = if is_line {
-                self.clip(&flatten_for_mask(&cd))
-            } else {
                 self.clip_line(&flatten_for_mask(&cd))
+            } else {
+                self.clip(&flatten_for_mask(&cd))
             };
-            vs.map_iter_collect(|x| x.to_cd_closed())
+            vs.map_iter_collect(|x| x.to_cd(cd.is_closed()))
         })
     }
 

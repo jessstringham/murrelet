@@ -142,6 +142,23 @@ where
     Vec::<T>::deserialize(value).map_err(serde::de::Error::custom)
 }
 
+// more claude
+#[cfg(feature = "schemars")]
+pub fn map_of_schema<V: schemars::JsonSchema>(
+    g: &mut schemars::r#gen::SchemaGenerator,
+) -> schemars::schema::Schema {
+    use schemars::schema::{InstanceType, ObjectValidation, SchemaObject};
+    SchemaObject {
+        instance_type: Some(InstanceType::Object.into()),
+        object: Some(Box::new(ObjectValidation {
+            additional_properties: Some(Box::new(g.subschema_for::<V>())),
+            ..Default::default()
+        })),
+        ..Default::default()
+    }
+    .into()
+}
+
 pub trait LivecodeFromWorld<T> {
     fn o(&self, w: &LivecodeWorldState) -> LivecodeResult<T>;
 

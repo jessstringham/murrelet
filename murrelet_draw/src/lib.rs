@@ -9,7 +9,7 @@ pub mod drawable;
 pub mod font;
 pub mod line_spacing;
 pub mod newtypes;
-pub mod scaffold;
+pub mod mask;
 pub mod sequencers;
 pub mod serialize;
 pub mod style;
