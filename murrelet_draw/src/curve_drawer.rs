@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
@@ -469,6 +471,16 @@ pub enum CurveSegment {
 }
 
 impl CurveSegment {
+    pub fn line_connecting<C0: ToCurveDrawer, C1: ToCurveDrawer>(
+        start: &C0,
+        end: &C1,
+    ) -> LivecodeResult<Self> {
+        let first = start.borrow().last_spot_cd().to_lc_err()?;
+        let last = end.borrow().first_spot_cd().to_lc_err()?;
+
+        Ok(Self::new_simple_line(first, last))
+    }
+
     pub fn arc<A: IsAngle>(loc: Vec2, radius: f32, start_pi: A, end_pi: A) -> Self {
         Self::Arc(CurveArc {
             loc,
@@ -524,8 +536,8 @@ impl CurveSegment {
         CurveSegment::new_simple_points(vec![point])
     }
 
-    pub fn new_simple_line(start: Vec2, end: Vec2) -> Self {
-        CurveSegment::new_simple_points(vec![start, end])
+    pub fn new_simple_line<V: ToVec2>(start: V, end: V) -> Self {
+        CurveSegment::new_simple_points(vec![start.to_vec2(), end.to_vec2()])
     }
 
     pub fn new_simple_points(points: Vec<Vec2>) -> Self {
