@@ -355,6 +355,19 @@ impl Masker {
         })
     }
 
+    pub fn clip_ds_invert_as_paths(&self, v: &DrawnShape) -> DrawnShape {
+        v.transform_cds_clone(|cd| {
+            let mut pts = flatten_for_mask(&cd);
+            if cd.is_closed() {
+                if let Some(f) = pts.first().copied() {
+                    pts.push(f);
+                }
+            }
+            self.clip_line_inverse(&pts)
+                .map_iter_collect(|x| x.to_cd(false))
+        })
+    }
+
     pub fn clip_ds(&self, v: &DrawnShape) -> DrawnShape {
         v.transform_cds_clone(|cd| {
             let is_line = cd.is_open();

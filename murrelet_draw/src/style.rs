@@ -542,6 +542,14 @@ pub mod styleconf {
         pub fn to_outline(&self) -> Self {
             StyleConf::line(self.stroke_color(), self.stroke_weight())
         }
+
+        pub fn maybe_to_outline(&self) -> Option<Self> {
+            if self.stroke_weight() > 0.0 {
+                Some(StyleConf::line(self.stroke_color(), self.stroke_weight()))
+            } else {
+                None
+            }
+        }
     }
 
     impl Default for StyleConf {
