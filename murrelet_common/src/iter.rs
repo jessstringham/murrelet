@@ -14,6 +14,12 @@ impl<'a, T> PrevCurrNextNoLoopIter<'a, T> {
     }
 }
 
+impl<'a, T> ExactSizeIterator for CurrNextNoLoopIter<'a, T> {
+    fn len(&self) -> usize {
+        self.len.saturating_sub(self.index + 1)
+    }
+}
+
 impl<'a, T> Iterator for PrevCurrNextNoLoopIter<'a, T> {
     type Item = (&'a T, &'a T, &'a T);
 
@@ -175,7 +181,9 @@ impl<'a, T> ExactSizeIterator for CurrNextWithLoopIter<'a, T> {
     }
 }
 
-pub fn curr_next_loop_iter<'a, T>(v: &'a [T]) -> Box<dyn Iterator<Item = (&'a T, &'a T)> + 'a> {
+pub fn curr_next_loop_iter<'a, T>(
+    v: &'a [T],
+) -> Box<dyn ExactSizeIterator<Item = (&'a T, &'a T)> + 'a> {
     let iter = CurrNextWithLoopIter::new(v);
     Box::new(iter)
 }

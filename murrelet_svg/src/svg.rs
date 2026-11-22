@@ -816,7 +816,9 @@ impl SvgPathCache {
         // it stays proportional (matches the web/canvas, which don't resize).
         let stroke_width_mm = sdc.stroke_width();
         if sdc.should_resize() && stroke_width_mm > 0.0 {
-            styled_path.style.stroke_weight = stroke_width_mm;
+            if styled_path.style.stroke_weight > 0.0 {
+                styled_path.style.stroke_weight = stroke_width_mm;
+            }
         } else {
             styled_path.style.stroke_weight *= approx_scale;
         }

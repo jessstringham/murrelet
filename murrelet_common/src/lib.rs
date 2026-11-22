@@ -1416,9 +1416,16 @@ pub trait MurreletIterHelpers {
 
     fn curr_next_loop_iter<'a>(
         &'a self,
-    ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
+    ) -> Box<dyn ExactSizeIterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
         curr_next_loop_iter(self.as_vec_ref())
     }
+
+    // todo, i should update the rest of these...
+    // fn curr_next_no_loop_iter<'a>(
+    //     &'a self,
+    // ) -> Box<dyn Iterator<Item = (&'a Self::T, &'a Self::T)> + 'a> {
+    //     curr_next_no_loop_iter(self.as_vec_ref())
+    // }
 
     fn curr_next_no_loop_iter<'a>(
         &'a self,
