@@ -557,6 +557,41 @@ pub mod styleconf {
             StyleConf::Fill(MurreletStyleFilled::default())
         }
     }
+
+    pub fn fill(color: MurreletColor) -> StyleConf {
+        StyleConf::fill(color)
+    }
+
+    pub fn outlined_fill(
+        color: MurreletColor,
+        stroke_weight: f32,
+        stroke_color: MurreletColor,
+    ) -> StyleConf {
+        StyleConf::outlined_fill(color, stroke_weight, stroke_color)
+    }
+
+    pub fn line(color: MurreletColor, thickness: f32) -> StyleConf {
+        StyleConf::line(color, thickness)
+    }
+    pub fn outline(color: MurreletColor, thickness: f32) -> StyleConf {
+        StyleConf::outline(color, thickness)
+    }
+
+    pub fn hue(hue: f32) -> MurreletColor {
+        MurreletColor::hue(hue)
+    }
+
+    pub fn gray(gray: f32) -> MurreletColor {
+        MurreletColor::gray(gray)
+    }
+
+    pub fn black() -> MurreletColor {
+        MurreletColor::black()
+    }
+
+    pub fn white() -> MurreletColor {
+        MurreletColor::white()
+    }
 }
 
 impl CanMakeGUI for StyleConf {

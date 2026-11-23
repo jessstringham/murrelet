@@ -414,7 +414,9 @@ impl CurveDrawer {
                 return Err("sort before split seq").to_lc_err();
             }
 
-            result.push(cut_to_pct(*next));
+            // result.push(cut_to_pct(*next));
+            let target = if is_wrap { *next + 1.0 } else { *next };
+            result.push(cut_to_pct(target));
         }
 
         Ok(result)
@@ -820,7 +822,13 @@ impl CurveSegment {
 
     pub fn end_angle(&self) -> Option<Angle> {
         match self {
-            CurveSegment::CubicBezier(_) => todo!(),
+            CurveSegment::CubicBezier(c) => {
+                //claude
+                let start = [c.ctrl2, c.ctrl1, c.from]
+                    .into_iter()
+                    .find(|p| p.distance(c.to) > 1.0e-6)?;
+                Some(PointToPoint::new(start, c.to).angle())
+            }
             CurveSegment::Arc(c) => Some((c.end_pi.as_angle_pi() + AnglePi::new(0.5)).into()),
             CurveSegment::Points(p) => {
                 let mut ps = p.points.iter().rev();
@@ -833,7 +841,12 @@ impl CurveSegment {
 
     pub fn start_angle(&self) -> Option<Angle> {
         match self {
-            CurveSegment::CubicBezier(_) => todo!(),
+            CurveSegment::CubicBezier(c) => {
+                let end = [c.ctrl1, c.ctrl2, c.to]
+                    .into_iter()
+                    .find(|p| p.distance(c.from) > 1.0e-6)?;
+                Some(PointToPoint::new(c.from, end).angle())
+            }
             CurveSegment::Arc(c) => Some((c.start_pi.as_angle_pi() + AnglePi::new(0.5)).into()),
             CurveSegment::Points(p) => {
                 let mut ps = p.points.iter();

@@ -1521,36 +1521,51 @@ pub trait ToLivecodeResult<T>
 where
     Self: Sized,
 {
+    #[track_caller]
     fn to_lc_err(self) -> LivecodeResult<T> {
         self.to_lc_err_with_msg("")
     }
+
+    #[track_caller]
     fn to_lc_err_with_msg(self, s: &str) -> LivecodeResult<T>;
+
+    #[track_caller]
+    fn to_lc_err_with<F: FnOnce() -> String>(self, f: F) -> LivecodeResult<T>;
 }
 
 impl<T, E: std::fmt::Display> ToLivecodeResult<T> for Result<T, E> {
-    #[inline]
     fn to_lc_err_with_msg(self, s: &str) -> LivecodeResult<T> {
+        let loc = std::panic::Location::caller();
         self.map_err(|e| {
             if s.is_empty() {
-                LivecodeError::Raw(e.to_string())
+                LivecodeError::Raw(format!("unwrap err at {loc}: {e}"))
             } else {
-                LivecodeError::Raw(format!("{} {}", s, e.to_string()))
+                LivecodeError::Raw(format!("unwrap err at {loc} with {e}: {s}"))
             }
         })
+    }
+
+    fn to_lc_err_with<F: FnOnce() -> String>(self, f: F) -> LivecodeResult<T> {
+        let loc = std::panic::Location::caller();
+        self.map_err(|e| LivecodeError::Raw(format!("{}: {e} at {loc}", f())))
     }
 }
 
 impl<T> ToLivecodeResult<T> for Option<T> {
-    #[inline]
-    #[track_caller]
     fn to_lc_err_with_msg(self, s: &str) -> LivecodeResult<T> {
+        let loc = std::panic::Location::caller();
         self.ok_or_else(|| {
             if s.is_empty() {
-                LivecodeError::Raw("unwrap none".to_owned())
+                LivecodeError::Raw(format!("unwrap none at {loc}"))
             } else {
-                LivecodeError::Raw(s.to_string())
+                LivecodeError::Raw(format!("unwrap none at {loc}: {s}"))
             }
         })
+    }
+
+    fn to_lc_err_with<F: FnOnce() -> String>(self, f: F) -> LivecodeResult<T> {
+        let loc = std::panic::Location::caller();
+        self.ok_or_else(|| LivecodeError::Raw(format!("{} at {loc}", f())))
     }
 }
 
