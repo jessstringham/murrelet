@@ -543,7 +543,7 @@ pub mod styleconf {
             StyleConf::line(self.stroke_color(), self.stroke_weight())
         }
 
-        pub fn maybe_to_outline(&self) -> Option<Self> {
+        pub fn maybe_to_line(&self) -> Option<Self> {
             if self.stroke_weight() > 0.0 {
                 Some(StyleConf::line(self.stroke_color(), self.stroke_weight()))
             } else {
