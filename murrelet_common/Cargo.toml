@@ -8,14 +8,15 @@ description = "common functions for murrelet, a livecode framework"
 license = "AGPL-3.0-or-later"
 
 [dependencies]
-itertools = "0.10.5"
+itertools = { workspace = true }
 glam = { version = "0.28.0", features = ["serde"] }
 palette = "0.7.6"
 rand = "0.8"
 num-traits = "0.2.19"
-lerpable = "0.0.3"
+lerpable = { workspace = true, features = ["glam"] }
 serde = { version = "1.0.104", features = ["derive"] }
 bytemuck = { version = "1.15", features = ["derive"] }
+thiserror = "2.0.11"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

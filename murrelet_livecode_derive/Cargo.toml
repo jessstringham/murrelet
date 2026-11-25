@@ -11,8 +11,8 @@ description = "macros for murrelet, a live coding framework"
 proc-macro = true
 
 [features]
-schemars = ["murrelet_livecode/schemars"]
-# murrelet_gui = ["murrelet_livecode/murrelet_gui"]
+default = []
+schemars = []
 
 [dependencies]
 syn = "2.0.15"
@@ -20,17 +20,3 @@ quote = "1.0.18"
 proc-macro2 = "1.0.37"
 darling = "0.20.3"
 serde = { version = "1.0.104", features = ["derive"] }
-murrelet_livecode = { workspace = true, default-features = false }
-
-# just for examples...
-[dev-dependencies]
-murrelet_common = { workspace = true }
-glam = { version = "0.28.0", features = ["serde"] }
-palette = "0.7.6"
-lerpable = { version = "0.0.3", features = ["glam"] }
-schemars = "0.8.21"
-murrelet_gui = { workspace = true, features = ["glam"] }
-
-[[example]]
-name = "tests"
-path = "examples/tests.rs"

@@ -1,0 +1,288 @@
+// claude help here
+// Render a graphic to an off-screen texture and read it back to a PNG — the GPU
+// twin of murrelet_svg's render_to_svg. No window: pair with a device made via
+// OwnedDeviceState::new_from_native(). Extracted from portable_birdblend.
+use std::error::Error;
+use std::path::Path;
+
+use image::ColorType;
+use murrelet_livecode::state::LivecodeWorldState;
+
+use crate::build_shader;
+use crate::device_state::{DeviceState, DeviceStateForRender, GraphicsAssets, OwnedDeviceState};
+use crate::gpu_macros::ShaderStr;
+use crate::graphics_ref::{
+    DEFAULT_TEXTURE_FORMAT, GraphicsCreator, GraphicsRefCustom, GraphicsVertex, MurreletTexture,
+    quick_texture,
+};
+use crate::window::GraphicsWindowConf;
+
+// A GPU pipeline that can render one frame off-screen
+pub trait IsHeadlessGraphic {
+    fn render_passes(&self, render_device: &DeviceStateForRender);
+
+    fn prepare(&mut self, _c: &GraphicsWindowConf) {}
+
+    fn tick(&mut self, _c: &GraphicsWindowConf, _world: &LivecodeWorldState) {}
+}
+
+// A window-free wgpu device, ready for headless rendering. The GPU analog of
+// LiveCode::new being App-free.
+pub fn new_native_device() -> OwnedDeviceState {
+    pollster::block_on(OwnedDeviceState::new_from_native())
+}
+
+pub fn render_headless_graphic_to_png<G: IsHeadlessGraphic>(
+    owned: &OwnedDeviceState,
+    c: &GraphicsWindowConf,
+    graphic: &G,
+    out_path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let display = render_headless_graphic_passes(owned, c, graphic);
+    capture_display_to_png(c, &display, out_path)
+}
+
+pub fn render_headless_graphic_passes<G: IsHeadlessGraphic>(
+    owned: &OwnedDeviceState,
+    c: &GraphicsWindowConf,
+    graphic: &G,
+) -> MurreletTexture {
+    let display = quick_texture(c.dims(), c.device());
+    let display_view = display.default_view();
+    let device_state = owned.to_borrowed();
+    let render_device = DeviceStateForRender::new(&device_state, &display_view);
+    graphic.render_passes(&render_device);
+    display
+}
+
+pub fn capture_display_to_png(
+    c: &GraphicsWindowConf,
+    display: &MurreletTexture,
+    out_path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let (dims, pixels) = render_display_rgba8(c, display)?;
+    image::save_buffer(out_path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
+}
+
+fn align_copy_bytes_per_row(value: u32) -> u32 {
+    if !value.is_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) {
+        value + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT - (value % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
+    } else {
+        value
+    }
+}
+
+pub fn render_graphic_rgba8<VertexKind: GraphicsVertex>(
+    c: &GraphicsWindowConf,
+    graphic: &GraphicsRefCustom<VertexKind>,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let dims = graphic.render_dims();
+    let export_c = c.with_dims(dims);
+
+    // Render into a linear working texture (DEFAULT_TEXTURE_FORMAT = Rgba16Float).
+    let linear = quick_texture(dims, export_c.device_state.device());
+    let linear_view = linear.default_view();
+    graphic.render_to_texture(export_c.device_state, &linear_view);
+
+    render_display_rgba8(&export_c, &linear)
+}
+
+pub fn render_display_rgba8(
+    c: &GraphicsWindowConf,
+    linear: &MurreletTexture,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let dims = [linear.desc.size.width, linear.desc.size.height];
+    render_view_rgba8(&c.with_dims(dims), &linear.default_view())
+}
+
+pub fn render_view_rgba8(
+    c: &GraphicsWindowConf,
+    linear_view: &wgpu::TextureView,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let dims = c.dims;
+    let export_c = c.with_dims(dims);
+
+    // The working texture is linear Rgba16Float; a PNG wants gamma-encoded
+    // 8-bit, so blitting through an Rgba8UnormSrgb target IS the encode.
+    let rendered = export_c
+        .device_state
+        .device()
+        .create_texture(&wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: dims[0],
+                height: dims[1],
+                depth_or_array_layers: 1,
+            },
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            label: Some("srgb readback target"),
+            view_formats: &[],
+        });
+    let rendered_view = rendered.create_view(&wgpu::TextureViewDescriptor::default());
+
+    let blit_shader: String = build_shader! {
+        (
+            raw r###"
+                let result: vec4<f32> = textureSample(tex, tex_sampler, tex_coords);
+            "###;
+        )
+    };
+    let srgb_blit = GraphicsCreator::default()
+        .with_dst_format(wgpu::TextureFormat::Rgba8UnormSrgb)
+        .to_graphics_ref(&export_c, "srgb_readback_blit", &blit_shader);
+    srgb_blit.render_with_input_textures(export_c.device_state, &rendered_view, &linear_view, None);
+
+    copy_texture_rows(export_c.device_state(), &rendered)
+}
+
+pub fn capture_linear_texture_to_png(
+    device: &DeviceState,
+    texture: &wgpu::Texture,
+    path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let c = GraphicsWindowConf::new(
+        device,
+        [texture.width(), texture.height()],
+        GraphicsAssets::Nothing,
+        DEFAULT_TEXTURE_FORMAT,
+    );
+    let (dims, pixels) = render_view_rgba8(&c, &texture.create_view(&Default::default()))?;
+    image::save_buffer(path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
+}
+
+pub fn save_graphic_png<VertexKind: GraphicsVertex>(
+    c: &GraphicsWindowConf,
+    graphic: &GraphicsRefCustom<VertexKind>,
+    out_path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let (dims, pixels) = render_graphic_rgba8(c, graphic)?;
+    image::save_buffer(out_path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
+}
+
+pub fn capture_surface_to_png(
+    device: &DeviceState,
+    texture: &wgpu::Texture,
+    path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let (dims, pixels) = read_encoded_texture_rgba8(device, texture)?;
+    image::save_buffer(path, &pixels, dims[0], dims[1], ColorType::Rgba8)?;
+    Ok(())
+}
+
+pub fn read_encoded_texture_rgba8(
+    device: &DeviceState,
+    texture: &wgpu::Texture,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let swizzle_bgra = match texture.format() {
+        wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => false,
+        wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => true,
+        format => return Err(format!("unsupported surface format for capture: {format:?}").into()),
+    };
+    let (dims, mut pixels) = copy_texture_rows(device, texture)?;
+    if swizzle_bgra {
+        for px in pixels.chunks_exact_mut(4) {
+            px.swap(0, 2);
+        }
+    }
+    Ok((dims, pixels))
+}
+
+fn copy_texture_rows(
+    device_state: &DeviceState,
+    rendered: &wgpu::Texture,
+) -> Result<([u32; 2], Vec<u8>), Box<dyn Error>> {
+    let dims = [rendered.width(), rendered.height()];
+
+    let device = device_state.device();
+    let queue = device_state.queue();
+
+    let bytes_per_pixel = match rendered.format() {
+        wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => 4,
+        wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => 4,
+        wgpu::TextureFormat::Rgba16Float => 8,
+        format => {
+            return Err(format!("unsupported texture format for png export: {format:?}").into());
+        }
+    };
+    let unpadded_bytes_per_row = bytes_per_pixel * dims[0];
+    let padded_bytes_per_row = align_copy_bytes_per_row(unpadded_bytes_per_row);
+    const MAX_READBACK_BYTES: u64 = 128 * 1024 * 1024;
+    let rows_per_chunk =
+        ((MAX_READBACK_BYTES / padded_bytes_per_row as u64).max(1) as u32).min(dims[1]);
+
+    let mut pixels = Vec::with_capacity((bytes_per_pixel * dims[0] * dims[1]) as usize);
+
+    for start_y in (0..dims[1]).step_by(rows_per_chunk as usize) {
+        let chunk_rows = (dims[1] - start_y).min(rows_per_chunk);
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("texture getter chunk"),
+            size: (padded_bytes_per_row * chunk_rows) as u64,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Texture Copy Encoder"),
+        });
+
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: rendered,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: 0,
+                    y: start_y,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBufferBase {
+                buffer: &buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bytes_per_row),
+                    rows_per_image: Some(chunk_rows),
+                },
+            },
+            wgpu::Extent3d {
+                width: dims[0],
+                height: chunk_rows,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        queue.submit(Some(encoder.finish()));
+
+        let buffer_slice = buffer.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            tx.send(result).expect("couldn't send map_async result")
+        });
+        device.poll(wgpu::Maintain::Wait);
+        rx.recv()
+            .expect("haven't received texture chunk")
+            .map_err(|e| format!("failed to map texture chunk for readback: {e:?}"))?;
+
+        let data = buffer_slice.get_mapped_range();
+        for row in data
+            .chunks(padded_bytes_per_row as usize)
+            .take(chunk_rows as usize)
+        {
+            // The sRGB blit target is 8-bit; bytes are already gamma-encoded.
+            let row = &row[..unpadded_bytes_per_row as usize];
+            pixels.extend_from_slice(row);
+        }
+        drop(data);
+        buffer.unmap();
+    }
+
+    Ok((dims, pixels))
+}

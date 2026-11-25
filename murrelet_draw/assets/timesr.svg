@@ -1,0 +1,591 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -16 29 32"
+     data-hershey="stroke-glyphs" data-cap-height="12" data-baseline="0" data-line-height="32"
+     data-source="../../timesr.jhf">
+  <g id=" " data-codepoint="U+0020" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
+  </g>
+  <g id="!" data-codepoint="U+0021" data-left="-5" data-right="5" data-advance="10" fill="none" stroke="#000">
+    <path d="M 0,-12 L -1,-10 L 0,2 L 1,-10 L 0,-12"/>
+    <path d="M 0,-10 L 0,-4"/>
+    <path d="M 0,7 L -1,8 L 0,9 L 1,8 L 0,7"/>
+  </g>
+  <g id="&quot;" data-codepoint="U+0022" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -4,-12 L -5,-11 L -5,-5"/>
+    <path d="M -4,-11 L -5,-5"/>
+    <path d="M -4,-12 L -3,-11 L -5,-5"/>
+    <path d="M 5,-12 L 4,-11 L 4,-5"/>
+    <path d="M 5,-11 L 4,-5"/>
+    <path d="M 5,-12 L 6,-11 L 4,-5"/>
+  </g>
+  <g id="#" data-codepoint="U+0023" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
+    <path d="M 1,-16 L -6,16"/>
+    <path d="M 7,-16 L 0,16"/>
+    <path d="M -6,-3 L 8,-3"/>
+    <path d="M -7,3 L 7,3"/>
+  </g>
+  <g id="$" data-codepoint="U+0024" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -2,-16 L -2,13"/>
+    <path d="M 2,-16 L 2,13"/>
+    <path d="M 6,-9 L 5,-8 L 6,-7 L 7,-8 L 7,-9 L 5,-11 L 2,-12 L -2,-12 L -5,-11 L -7,-9 L -7,-7 L -6,-5 L -5,-4 L -3,-3 L 3,-1 L 5,0 L 7,2"/>
+    <path d="M -7,-7 L -5,-5 L -3,-4 L 3,-2 L 5,-1 L 6,0 L 7,2 L 7,6 L 5,8 L 2,9 L -2,9 L -5,8 L -7,6 L -7,5 L -6,4 L -5,5 L -6,6"/>
+  </g>
+  <g id="%" data-codepoint="U+0025" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M 9,-12 L -9,9"/>
+    <path d="M -4,-12 L -2,-10 L -2,-8 L -3,-6 L -5,-5 L -7,-5 L -9,-7 L -9,-9 L -8,-11 L -6,-12 L -4,-12 L -2,-11 L 1,-10 L 4,-10 L 7,-11 L 9,-12"/>
+    <path d="M 5,2 L 3,3 L 2,5 L 2,7 L 4,9 L 6,9 L 8,8 L 9,6 L 9,4 L 7,2 L 5,2"/>
+  </g>
+  <g id="&amp;" data-codepoint="U+0026" data-left="-12" data-right="13" data-advance="25" fill="none" stroke="#000">
+    <path d="M 9,-4 L 8,-3 L 9,-2 L 10,-3 L 10,-4 L 9,-5 L 8,-5 L 7,-4 L 6,-2 L 4,3 L 2,6 L 0,8 L -2,9 L -5,9 L -8,8 L -9,6 L -9,3 L -8,1 L -2,-3 L 0,-5 L 1,-7 L 1,-9 L 0,-11 L -2,-12 L -4,-11 L -5,-9 L -5,-7 L -4,-4 L -2,-1 L 3,6 L 5,8 L 8,9 L 9,9 L 10,8 L 10,7"/>
+    <path d="M -5,9 L -7,8 L -8,6 L -8,3 L -7,1 L -5,-1"/>
+    <path d="M -5,-7 L -4,-5 L 4,6 L 6,8 L 8,9"/>
+  </g>
+  <g id="'" data-codepoint="U+0027" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-12 L -1,-5"/>
+    <path d="M 1,-12 L -1,-5"/>
+  </g>
+  <g id="(" data-codepoint="U+0028" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M 4,-16 L 2,-14 L 0,-11 L -2,-7 L -3,-2 L -3,2 L -2,7 L 0,11 L 2,14 L 4,16"/>
+    <path d="M 2,-14 L 0,-10 L -1,-7 L -2,-2 L -2,2 L -1,7 L 0,10 L 2,14"/>
+  </g>
+  <g id=")" data-codepoint="U+0029" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -4,-16 L -2,-14 L 0,-11 L 2,-7 L 3,-2 L 3,2 L 2,7 L 0,11 L -2,14 L -4,16"/>
+    <path d="M -2,-14 L 0,-10 L 1,-7 L 2,-2 L 2,2 L 1,7 L 0,10 L -2,14"/>
+  </g>
+  <g id="*" data-codepoint="U+002A" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
+    <path d="M 0,-6 L 0,6"/>
+    <path d="M -5,-3 L 5,3"/>
+    <path d="M 5,-3 L -5,3"/>
+  </g>
+  <g id="+" data-codepoint="U+002B" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
+    <path d="M 0,-9 L 0,9"/>
+    <path d="M -9,0 L 9,0"/>
+  </g>
+  <g id="," data-codepoint="U+002C" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 1,5 L 0,6 L -1,5 L 0,4 L 1,5 L 1,7 L -1,9"/>
+  </g>
+  <g id="-" data-codepoint="U+002D" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
+    <path d="M -9,0 L 9,0"/>
+  </g>
+  <g id="." data-codepoint="U+002E" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,4 L -1,5 L 0,6 L 1,5 L 0,4"/>
+  </g>
+  <g id="/" data-codepoint="U+002F" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M 9,-16 L -9,16"/>
+  </g>
+  <g id="0" data-codepoint="U+0030" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -1,-12 L -4,-11 L -6,-8 L -7,-3 L -7,0 L -6,5 L -4,8 L -1,9 L 1,9 L 4,8 L 6,5 L 7,0 L 7,-3 L 6,-8 L 4,-11 L 1,-12 L -1,-12"/>
+    <path d="M -1,-12 L -3,-11 L -4,-10 L -5,-8 L -6,-3 L -6,0 L -5,5 L -4,7 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 4,7 L 5,5 L 6,0 L 6,-3 L 5,-8 L 4,-10 L 3,-11 L 1,-12"/>
+  </g>
+  <g id="1" data-codepoint="U+0031" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -4,-8 L -2,-9 L 1,-12 L 1,9"/>
+    <path d="M 0,-11 L 0,9"/>
+    <path d="M -4,9 L 5,9"/>
+  </g>
+  <g id="2" data-codepoint="U+0032" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-8 L -5,-7 L -6,-6 L -7,-7 L -7,-8 L -6,-10 L -5,-11 L -2,-12 L 2,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-6 L 6,-4 L 3,-2 L -2,0 L -4,1 L -6,3 L -7,6 L -7,9"/>
+    <path d="M 2,-12 L 4,-11 L 5,-10 L 6,-8 L 6,-6 L 5,-4 L 2,-2 L -2,0"/>
+    <path d="M -7,7 L -6,6 L -4,6 L 1,8 L 4,8 L 6,7 L 7,6"/>
+    <path d="M -4,6 L 1,9 L 5,9 L 6,8 L 7,6 L 7,4"/>
+  </g>
+  <g id="3" data-codepoint="U+0033" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-8 L -5,-7 L -6,-6 L -7,-7 L -7,-8 L -6,-10 L -5,-11 L -2,-12 L 2,-12 L 5,-11 L 6,-9 L 6,-6 L 5,-4 L 2,-3 L -1,-3"/>
+    <path d="M 2,-12 L 4,-11 L 5,-9 L 5,-6 L 4,-4 L 2,-3"/>
+    <path d="M 2,-3 L 4,-2 L 6,0 L 7,2 L 7,5 L 6,7 L 5,8 L 2,9 L -2,9 L -5,8 L -6,7 L -7,5 L -7,4 L -6,3 L -5,4 L -6,5"/>
+    <path d="M 5,-1 L 6,2 L 6,5 L 5,7 L 4,8 L 2,9"/>
+  </g>
+  <g id="4" data-codepoint="U+0034" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 2,-10 L 2,9"/>
+    <path d="M 3,-12 L 3,9"/>
+    <path d="M 3,-12 L -8,3 L 8,3"/>
+    <path d="M -1,9 L 6,9"/>
+  </g>
+  <g id="5" data-codepoint="U+0035" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -5,-12 L -7,-2"/>
+    <path d="M -7,-2 L -5,-4 L -2,-5 L 1,-5 L 4,-4 L 6,-2 L 7,1 L 7,3 L 6,6 L 4,8 L 1,9 L -2,9 L -5,8 L -6,7 L -7,5 L -7,4 L -6,3 L -5,4 L -6,5"/>
+    <path d="M 1,-5 L 3,-4 L 5,-2 L 6,1 L 6,3 L 5,6 L 3,8 L 1,9"/>
+    <path d="M -5,-12 L 5,-12"/>
+    <path d="M -5,-11 L 0,-11 L 5,-12"/>
+  </g>
+  <g id="6" data-codepoint="U+0036" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 5,-9 L 4,-8 L 5,-7 L 6,-8 L 6,-9 L 5,-11 L 3,-12 L 0,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-3 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,3 L 7,2 L 6,-1 L 4,-3 L 1,-4 L 0,-4 L -3,-3 L -5,-1 L -6,2"/>
+    <path d="M 0,-12 L -2,-11 L -4,-9 L -5,-7 L -6,-3 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,3 L 6,2 L 5,-1 L 3,-3 L 1,-4"/>
+  </g>
+  <g id="7" data-codepoint="U+0037" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,-6"/>
+    <path d="M -7,-8 L -6,-10 L -4,-12 L -2,-12 L 3,-9 L 5,-9 L 6,-10 L 7,-12"/>
+    <path d="M -6,-10 L -4,-11 L -2,-11 L 3,-9"/>
+    <path d="M 7,-12 L 7,-9 L 6,-6 L 2,-1 L 1,1 L 0,4 L 0,9"/>
+    <path d="M 6,-6 L 1,-1 L 0,1 L -1,4 L -1,9"/>
+  </g>
+  <g id="8" data-codepoint="U+0038" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -2,-12 L -5,-11 L -6,-9 L -6,-6 L -5,-4 L -2,-3 L 2,-3 L 5,-4 L 6,-6 L 6,-9 L 5,-11 L 2,-12 L -2,-12"/>
+    <path d="M -2,-12 L -4,-11 L -5,-9 L -5,-6 L -4,-4 L -2,-3"/>
+    <path d="M 2,-3 L 4,-4 L 5,-6 L 5,-9 L 4,-11 L 2,-12"/>
+    <path d="M -2,-3 L -5,-2 L -6,-1 L -7,1 L -7,5 L -6,7 L -5,8 L -2,9 L 2,9 L 5,8 L 6,7 L 7,5 L 7,1 L 6,-1 L 5,-2 L 2,-3"/>
+    <path d="M -2,-3 L -4,-2 L -5,-1 L -6,1 L -6,5 L -5,7 L -4,8 L -2,9"/>
+    <path d="M 2,9 L 4,8 L 5,7 L 6,5 L 6,1 L 5,-1 L 4,-2 L 2,-3"/>
+  </g>
+  <g id="9" data-codepoint="U+0039" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 6,-5 L 5,-2 L 3,0 L 0,1 L -1,1 L -4,0 L -6,-2 L -7,-5 L -7,-6 L -6,-9 L -4,-11 L -1,-12 L 1,-12 L 4,-11 L 6,-9 L 7,-6 L 7,0 L 6,4 L 5,6 L 3,8 L 0,9 L -3,9 L -5,8 L -6,6 L -6,5 L -5,4 L -4,5 L -5,6"/>
+    <path d="M -1,1 L -3,0 L -5,-2 L -6,-5 L -6,-6 L -5,-9 L -3,-11 L -1,-12"/>
+    <path d="M 1,-12 L 3,-11 L 5,-9 L 6,-6 L 6,0 L 5,4 L 4,6 L 2,8 L 0,9"/>
+  </g>
+  <g id=":" data-codepoint="U+003A" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-3 L -1,-2 L 0,-1 L 1,-2 L 0,-3"/>
+    <path d="M 0,4 L -1,5 L 0,6 L 1,5 L 0,4"/>
+  </g>
+  <g id=";" data-codepoint="U+003B" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-3 L -1,-2 L 0,-1 L 1,-2 L 0,-3"/>
+    <path d="M 1,5 L 0,6 L -1,5 L 0,4 L 1,5 L 1,7 L -1,9"/>
+  </g>
+  <g id="&lt;" data-codepoint="U+003C" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M 8,-9 L -8,0 L 8,9"/>
+  </g>
+  <g id="=" data-codepoint="U+003D" data-left="-13" data-right="13" data-advance="26" fill="none" stroke="#000">
+    <path d="M -9,-3 L 9,-3"/>
+    <path d="M -9,3 L 9,3"/>
+  </g>
+  <g id="&gt;" data-codepoint="U+003E" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -8,-9 L 8,0 L -8,9"/>
+  </g>
+  <g id="?" data-codepoint="U+003F" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -5,-8 L -4,-7 L -5,-6 L -6,-7 L -6,-8 L -5,-10 L -4,-11 L -2,-12 L 1,-12 L 4,-11 L 5,-10 L 6,-8 L 6,-6 L 5,-4 L 4,-3 L 0,-1 L 0,2"/>
+    <path d="M 1,-12 L 3,-11 L 4,-10 L 5,-8 L 5,-6 L 4,-4 L 2,-2"/>
+    <path d="M 0,7 L -1,8 L 0,9 L 1,8 L 0,7"/>
+  </g>
+  <g id="@" data-codepoint="U+0040" data-left="-13" data-right="14" data-advance="27" fill="none" stroke="#000">
+    <path d="M 5,-4 L 4,-6 L 2,-7 L -1,-7 L -3,-6 L -4,-5 L -5,-2 L -5,1 L -4,3 L -2,4 L 1,4 L 3,3 L 4,1"/>
+    <path d="M -1,-7 L -3,-5 L -4,-2 L -4,1 L -3,3 L -2,4"/>
+    <path d="M 5,-7 L 4,1 L 4,3 L 6,4 L 8,4 L 10,2 L 11,-1 L 11,-3 L 10,-6 L 9,-8 L 7,-10 L 5,-11 L 2,-12 L -1,-12 L -4,-11 L -6,-10 L -8,-8 L -9,-6 L -10,-3 L -10,0 L -9,3 L -8,5 L -6,7 L -4,8 L -1,9 L 2,9 L 5,8 L 7,7 L 8,6"/>
+    <path d="M 6,-7 L 5,1 L 5,3 L 6,4"/>
+  </g>
+  <g id="A" data-codepoint="U+0041" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 0,-12 L -7,9"/>
+    <path d="M 0,-12 L 7,9"/>
+    <path d="M 0,-9 L 6,9"/>
+    <path d="M -5,3 L 4,3"/>
+    <path d="M -9,9 L -3,9"/>
+    <path d="M 3,9 L 9,9"/>
+  </g>
+  <g id="B" data-codepoint="U+0042" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 3,-12 L 6,-11 L 7,-10 L 8,-8 L 8,-6 L 7,-4 L 6,-3 L 3,-2"/>
+    <path d="M 3,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-6 L 6,-4 L 5,-3 L 3,-2"/>
+    <path d="M -5,-2 L 3,-2 L 6,-1 L 7,0 L 8,2 L 8,5 L 7,7 L 6,8 L 3,9 L -9,9"/>
+    <path d="M 3,-2 L 5,-1 L 6,0 L 7,2 L 7,5 L 6,7 L 5,8 L 3,9"/>
+  </g>
+  <g id="C" data-codepoint="U+0043" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M 6,-9 L 7,-6 L 7,-12 L 6,-9 L 4,-11 L 1,-12 L -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-4 L -8,1 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,4"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-4 L -7,1 L -6,4 L -5,6 L -3,8 L -1,9"/>
+  </g>
+  <g id="D" data-codepoint="U+0044" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 1,-12 L 4,-11 L 6,-9 L 7,-7 L 8,-4 L 8,1 L 7,4 L 6,6 L 4,8 L 1,9 L -9,9"/>
+    <path d="M 1,-12 L 3,-11 L 5,-9 L 6,-7 L 7,-4 L 7,1 L 6,4 L 5,6 L 3,8 L 1,9"/>
+  </g>
+  <g id="E" data-codepoint="U+0045" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M 1,-6 L 1,2"/>
+    <path d="M -9,-12 L 7,-12 L 7,-6 L 6,-12"/>
+    <path d="M -5,-2 L 1,-2"/>
+    <path d="M -9,9 L 7,9 L 7,3 L 6,9"/>
+  </g>
+  <g id="F" data-codepoint="U+0046" data-left="-11" data-right="9" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M 1,-6 L 1,2"/>
+    <path d="M -9,-12 L 7,-12 L 7,-6 L 6,-12"/>
+    <path d="M -5,-2 L 1,-2"/>
+    <path d="M -9,9 L -2,9"/>
+  </g>
+  <g id="G" data-codepoint="U+0047" data-left="-11" data-right="12" data-advance="23" fill="none" stroke="#000">
+    <path d="M 6,-9 L 7,-6 L 7,-12 L 6,-9 L 4,-11 L 1,-12 L -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-4 L -8,1 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-4 L -7,1 L -6,4 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 6,1 L 6,9"/>
+    <path d="M 7,1 L 7,9"/>
+    <path d="M 3,1 L 10,1"/>
+  </g>
+  <g id="H" data-codepoint="U+0048" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,9"/>
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M 6,-12 L 6,9"/>
+    <path d="M 7,-12 L 7,9"/>
+    <path d="M -10,-12 L -3,-12"/>
+    <path d="M 3,-12 L 10,-12"/>
+    <path d="M -6,-2 L 6,-2"/>
+    <path d="M -10,9 L -3,9"/>
+    <path d="M 3,9 L 10,9"/>
+  </g>
+  <g id="I" data-codepoint="U+0049" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 0,-12 L 0,9"/>
+    <path d="M 1,-12 L 1,9"/>
+    <path d="M -3,-12 L 4,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="J" data-codepoint="U+004A" data-left="-7" data-right="8" data-advance="15" fill="none" stroke="#000">
+    <path d="M 3,-12 L 3,5 L 2,8 L 0,9 L -2,9 L -4,8 L -5,6 L -5,4 L -4,3 L -3,4 L -4,5"/>
+    <path d="M 2,-12 L 2,5 L 1,8 L 0,9"/>
+    <path d="M -1,-12 L 6,-12"/>
+  </g>
+  <g id="K" data-codepoint="U+004B" data-left="-12" data-right="10" data-advance="22" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,9"/>
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M 7,-12 L -6,1"/>
+    <path d="M -1,-3 L 7,9"/>
+    <path d="M -2,-3 L 6,9"/>
+    <path d="M -10,-12 L -3,-12"/>
+    <path d="M 3,-12 L 9,-12"/>
+    <path d="M -10,9 L -3,9"/>
+    <path d="M 3,9 L 9,9"/>
+  </g>
+  <g id="L" data-codepoint="U+004C" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -4,-12 L -4,9"/>
+    <path d="M -3,-12 L -3,9"/>
+    <path d="M -7,-12 L 0,-12"/>
+    <path d="M -7,9 L 8,9 L 8,3 L 7,9"/>
+  </g>
+  <g id="M" data-codepoint="U+004D" data-left="-12" data-right="13" data-advance="25" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,9"/>
+    <path d="M -6,-12 L 0,6"/>
+    <path d="M -7,-12 L 0,9"/>
+    <path d="M 7,-12 L 0,9"/>
+    <path d="M 7,-12 L 7,9"/>
+    <path d="M 8,-12 L 8,9"/>
+    <path d="M -10,-12 L -6,-12"/>
+    <path d="M 7,-12 L 11,-12"/>
+    <path d="M -10,9 L -4,9"/>
+    <path d="M 4,9 L 11,9"/>
+  </g>
+  <g id="N" data-codepoint="U+004E" data-left="-11" data-right="12" data-advance="23" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L 7,7"/>
+    <path d="M -5,-10 L 7,9"/>
+    <path d="M 7,-12 L 7,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+    <path d="M 4,-12 L 10,-12"/>
+    <path d="M -9,9 L -3,9"/>
+  </g>
+  <g id="O" data-codepoint="U+004F" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-3 L -8,0 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,4 L 8,0 L 8,-3 L 7,-7 L 6,-9 L 4,-11 L 1,-12 L -1,-12"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-3 L -7,0 L -6,4 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,4 L 7,0 L 7,-3 L 6,-7 L 5,-9 L 3,-11 L 1,-12"/>
+  </g>
+  <g id="P" data-codepoint="U+0050" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 3,-12 L 6,-11 L 7,-10 L 8,-8 L 8,-5 L 7,-3 L 6,-2 L 3,-1 L -5,-1"/>
+    <path d="M 3,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-5 L 6,-3 L 5,-2 L 3,-1"/>
+    <path d="M -9,9 L -2,9"/>
+  </g>
+  <g id="Q" data-codepoint="U+0051" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -1,-12 L -4,-11 L -6,-9 L -7,-7 L -8,-3 L -8,0 L -7,4 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,4 L 8,0 L 8,-3 L 7,-7 L 6,-9 L 4,-11 L 1,-12 L -1,-12"/>
+    <path d="M -1,-12 L -3,-11 L -5,-9 L -6,-7 L -7,-3 L -7,0 L -6,4 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,4 L 7,0 L 7,-3 L 6,-7 L 5,-9 L 3,-11 L 1,-12"/>
+    <path d="M -4,7 L -4,6 L -3,4 L -1,3 L 0,3 L 2,4 L 3,6 L 4,13 L 5,14 L 7,14 L 8,12 L 8,11"/>
+    <path d="M 3,6 L 4,10 L 5,12 L 6,13 L 7,13 L 8,12"/>
+  </g>
+  <g id="R" data-codepoint="U+0052" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -9,-12 L 3,-12 L 6,-11 L 7,-10 L 8,-8 L 8,-6 L 7,-4 L 6,-3 L 3,-2 L -5,-2"/>
+    <path d="M 3,-12 L 5,-11 L 6,-10 L 7,-8 L 7,-6 L 6,-4 L 5,-3 L 3,-2"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 0,-2 L 2,-1 L 3,0 L 6,7 L 7,8 L 8,8 L 9,7"/>
+    <path d="M 2,-1 L 3,1 L 5,8 L 6,9 L 8,9 L 9,7 L 9,6"/>
+  </g>
+  <g id="S" data-codepoint="U+0053" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 6,-9 L 7,-12 L 7,-6 L 6,-9 L 4,-11 L 1,-12 L -2,-12 L -5,-11 L -7,-9 L -7,-7 L -6,-5 L -5,-4 L -3,-3 L 3,-1 L 5,0 L 7,2"/>
+    <path d="M -7,-7 L -5,-5 L -3,-4 L 3,-2 L 5,-1 L 6,0 L 7,2 L 7,6 L 5,8 L 2,9 L -1,9 L -4,8 L -6,6 L -7,3 L -7,9 L -6,6"/>
+  </g>
+  <g id="T" data-codepoint="U+0054" data-left="-9" data-right="10" data-advance="19" fill="none" stroke="#000">
+    <path d="M 0,-12 L 0,9"/>
+    <path d="M 1,-12 L 1,9"/>
+    <path d="M -6,-12 L -7,-6 L -7,-12 L 8,-12 L 8,-6 L 7,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="U" data-codepoint="U+0055" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -7,-12 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,3 L 7,-12"/>
+    <path d="M -6,-12 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M -10,-12 L -3,-12"/>
+    <path d="M 4,-12 L 10,-12"/>
+  </g>
+  <g id="V" data-codepoint="U+0056" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -7,-12 L 0,9"/>
+    <path d="M -6,-12 L 0,6"/>
+    <path d="M 7,-12 L 0,9"/>
+    <path d="M -9,-12 L -3,-12"/>
+    <path d="M 3,-12 L 9,-12"/>
+  </g>
+  <g id="W" data-codepoint="U+0057" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -8,-12 L -4,9"/>
+    <path d="M -7,-12 L -4,4"/>
+    <path d="M 0,-12 L -4,9"/>
+    <path d="M 0,-12 L 4,9"/>
+    <path d="M 1,-12 L 4,4"/>
+    <path d="M 8,-12 L 4,9"/>
+    <path d="M -11,-12 L -4,-12"/>
+    <path d="M 5,-12 L 11,-12"/>
+  </g>
+  <g id="X" data-codepoint="U+0058" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -7,-12 L 6,9"/>
+    <path d="M -6,-12 L 7,9"/>
+    <path d="M 7,-12 L -7,9"/>
+    <path d="M -9,-12 L -3,-12"/>
+    <path d="M 3,-12 L 9,-12"/>
+    <path d="M -9,9 L -3,9"/>
+    <path d="M 3,9 L 9,9"/>
+  </g>
+  <g id="Y" data-codepoint="U+0059" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
+    <path d="M -7,-12 L 0,-1 L 0,9"/>
+    <path d="M -6,-12 L 1,-1 L 1,9"/>
+    <path d="M 8,-12 L 1,-1"/>
+    <path d="M -9,-12 L -3,-12"/>
+    <path d="M 4,-12 L 10,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="Z" data-codepoint="U+005A" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 6,-12 L -7,9"/>
+    <path d="M 7,-12 L -6,9"/>
+    <path d="M -6,-12 L -7,-6 L -7,-12 L 7,-12"/>
+    <path d="M -7,9 L 7,9 L 7,3 L 6,9"/>
+  </g>
+  <g id="[" data-codepoint="U+005B" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -3,-16 L -3,16"/>
+    <path d="M -2,-16 L -2,16"/>
+    <path d="M -3,-16 L 4,-16"/>
+    <path d="M -3,16 L 4,16"/>
+  </g>
+  <g id="\" data-codepoint="U+005C" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -7,-12 L 7,12"/>
+  </g>
+  <g id="]" data-codepoint="U+005D" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M 2,-16 L 2,16"/>
+    <path d="M 3,-16 L 3,16"/>
+    <path d="M -4,-16 L 3,-16"/>
+    <path d="M -4,16 L 3,16"/>
+  </g>
+  <g id="^" data-codepoint="U+005E" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -8,2 L 0,-3 L 8,2"/>
+    <path d="M -8,2 L 0,-2 L 8,2"/>
+  </g>
+  <g id="_" data-codepoint="U+005F" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -10,16 L 10,16"/>
+  </g>
+  <g id="`" data-codepoint="U+0060" data-left="-6" data-right="6" data-advance="12" fill="none" stroke="#000">
+    <path d="M -2,-12 L 3,-6"/>
+    <path d="M -2,-12 L -3,-11 L 3,-6"/>
+  </g>
+  <g id="a" data-codepoint="U+0061" data-left="-9" data-right="11" data-advance="20" fill="none" stroke="#000">
+    <path d="M -4,-3 L -4,-2 L -5,-2 L -5,-3 L -4,-4 L -2,-5 L 2,-5 L 4,-4 L 5,-3 L 6,-1 L 6,6 L 7,8 L 8,9"/>
+    <path d="M 5,-3 L 5,6 L 6,8 L 8,9 L 9,9"/>
+    <path d="M 5,-1 L 4,0 L -2,1 L -5,2 L -6,4 L -6,6 L -5,8 L -2,9 L 1,9 L 3,8 L 5,6"/>
+    <path d="M -2,1 L -4,2 L -5,4 L -5,6 L -4,8 L -2,9"/>
+  </g>
+  <g id="b" data-codepoint="U+0062" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -5,-2 L -3,-4 L -1,-5 L 1,-5 L 4,-4 L 6,-2 L 7,1 L 7,3 L 6,6 L 4,8 L 1,9 L -1,9 L -3,8 L -5,6"/>
+    <path d="M 1,-5 L 3,-4 L 5,-2 L 6,1 L 6,3 L 5,6 L 3,8 L 1,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+  </g>
+  <g id="c" data-codepoint="U+0063" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
+    <path d="M 5,-2 L 4,-1 L 5,0 L 6,-1 L 6,-2 L 4,-4 L 2,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+  </g>
+  <g id="d" data-codepoint="U+0064" data-left="-10" data-right="11" data-advance="21" fill="none" stroke="#000">
+    <path d="M 5,-12 L 5,9"/>
+    <path d="M 6,-12 L 6,9"/>
+    <path d="M 5,-2 L 3,-4 L 1,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 3,8 L 5,6"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 2,-12 L 6,-12"/>
+    <path d="M 5,9 L 9,9"/>
+  </g>
+  <g id="e" data-codepoint="U+0065" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
+    <path d="M -6,1 L 6,1 L 6,-1 L 5,-3 L 4,-4 L 2,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6"/>
+    <path d="M 5,1 L 5,-2 L 4,-4"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+  </g>
+  <g id="f" data-codepoint="U+0066" data-left="-7" data-right="6" data-advance="13" fill="none" stroke="#000">
+    <path d="M 3,-11 L 2,-10 L 3,-9 L 4,-10 L 4,-11 L 3,-12 L 1,-12 L -1,-11 L -2,-9 L -2,9"/>
+    <path d="M 1,-12 L 0,-11 L -1,-9 L -1,9"/>
+    <path d="M -5,-5 L 3,-5"/>
+    <path d="M -5,9 L 2,9"/>
+  </g>
+  <g id="g" data-codepoint="U+0067" data-left="-9" data-right="10" data-advance="19" fill="none" stroke="#000">
+    <path d="M -1,-5 L -3,-4 L -4,-3 L -5,-1 L -5,1 L -4,3 L -3,4 L -1,5 L 1,5 L 3,4 L 4,3 L 5,1 L 5,-1 L 4,-3 L 3,-4 L 1,-5 L -1,-5"/>
+    <path d="M -3,-4 L -4,-2 L -4,2 L -3,4"/>
+    <path d="M 3,4 L 4,2 L 4,-2 L 3,-4"/>
+    <path d="M 4,-3 L 5,-4 L 7,-5 L 7,-4 L 5,-4"/>
+    <path d="M -4,3 L -5,4 L -6,6 L -6,7 L -5,9 L -2,10 L 3,10 L 6,11 L 7,12"/>
+    <path d="M -6,7 L -5,8 L -2,9 L 3,9 L 6,10 L 7,12 L 7,13 L 6,15 L 3,16 L -3,16 L -6,15 L -7,13 L -7,12 L -6,10 L -3,9"/>
+  </g>
+  <g id="h" data-codepoint="U+0068" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M -5,-2 L -3,-4 L 0,-5 L 2,-5 L 5,-4 L 6,-2 L 6,9"/>
+    <path d="M 2,-5 L 4,-4 L 5,-2 L 5,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 2,9 L 9,9"/>
+  </g>
+  <g id="i" data-codepoint="U+0069" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 0,-12 L -1,-11 L 0,-10 L 1,-11 L 0,-12"/>
+    <path d="M 0,-5 L 0,9"/>
+    <path d="M 1,-5 L 1,9"/>
+    <path d="M -3,-5 L 1,-5"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="j" data-codepoint="U+006A" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 1,-12 L 0,-11 L 1,-10 L 2,-11 L 1,-12"/>
+    <path d="M 2,-5 L 2,13 L 1,15 L -1,16 L -3,16 L -4,15 L -4,14 L -3,13 L -2,14 L -3,15"/>
+    <path d="M 1,-5 L 1,13 L 0,15 L -1,16"/>
+    <path d="M -2,-5 L 2,-5"/>
+  </g>
+  <g id="k" data-codepoint="U+006B" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-12 L -6,9"/>
+    <path d="M -5,-12 L -5,9"/>
+    <path d="M 5,-5 L -5,5"/>
+    <path d="M 0,1 L 6,9"/>
+    <path d="M -1,1 L 5,9"/>
+    <path d="M -9,-12 L -5,-12"/>
+    <path d="M 2,-5 L 8,-5"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 2,9 L 8,9"/>
+  </g>
+  <g id="l" data-codepoint="U+006C" data-left="-5" data-right="6" data-advance="11" fill="none" stroke="#000">
+    <path d="M 0,-12 L 0,9"/>
+    <path d="M 1,-12 L 1,9"/>
+    <path d="M -3,-12 L 1,-12"/>
+    <path d="M -3,9 L 4,9"/>
+  </g>
+  <g id="m" data-codepoint="U+006D" data-left="-16" data-right="17" data-advance="33" fill="none" stroke="#000">
+    <path d="M -11,-5 L -11,9"/>
+    <path d="M -10,-5 L -10,9"/>
+    <path d="M -10,-2 L -8,-4 L -5,-5 L -3,-5 L 0,-4 L 1,-2 L 1,9"/>
+    <path d="M -3,-5 L -1,-4 L 0,-2 L 0,9"/>
+    <path d="M 1,-2 L 3,-4 L 6,-5 L 8,-5 L 11,-4 L 12,-2 L 12,9"/>
+    <path d="M 8,-5 L 10,-4 L 11,-2 L 11,9"/>
+    <path d="M -14,-5 L -10,-5"/>
+    <path d="M -14,9 L -7,9"/>
+    <path d="M -3,9 L 4,9"/>
+    <path d="M 8,9 L 15,9"/>
+  </g>
+  <g id="n" data-codepoint="U+006E" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-5 L -6,9"/>
+    <path d="M -5,-5 L -5,9"/>
+    <path d="M -5,-2 L -3,-4 L 0,-5 L 2,-5 L 5,-4 L 6,-2 L 6,9"/>
+    <path d="M 2,-5 L 4,-4 L 5,-2 L 5,9"/>
+    <path d="M -9,-5 L -5,-5"/>
+    <path d="M -9,9 L -2,9"/>
+    <path d="M 2,9 L 9,9"/>
+  </g>
+  <g id="o" data-codepoint="U+006F" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 4,8 L 6,6 L 7,3 L 7,1 L 6,-2 L 4,-4 L 1,-5 L -1,-5"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 1,9 L 3,8 L 5,6 L 6,3 L 6,1 L 5,-2 L 3,-4 L 1,-5"/>
+  </g>
+  <g id="p" data-codepoint="U+0070" data-left="-11" data-right="10" data-advance="21" fill="none" stroke="#000">
+    <path d="M -6,-5 L -6,16"/>
+    <path d="M -5,-5 L -5,16"/>
+    <path d="M -5,-2 L -3,-4 L -1,-5 L 1,-5 L 4,-4 L 6,-2 L 7,1 L 7,3 L 6,6 L 4,8 L 1,9 L -1,9 L -3,8 L -5,6"/>
+    <path d="M 1,-5 L 3,-4 L 5,-2 L 6,1 L 6,3 L 5,6 L 3,8 L 1,9"/>
+    <path d="M -9,-5 L -5,-5"/>
+    <path d="M -9,16 L -2,16"/>
+  </g>
+  <g id="q" data-codepoint="U+0071" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M 5,-5 L 5,16"/>
+    <path d="M 6,-5 L 6,16"/>
+    <path d="M 5,-2 L 3,-4 L 1,-5 L -1,-5 L -4,-4 L -6,-2 L -7,1 L -7,3 L -6,6 L -4,8 L -1,9 L 1,9 L 3,8 L 5,6"/>
+    <path d="M -1,-5 L -3,-4 L -5,-2 L -6,1 L -6,3 L -5,6 L -3,8 L -1,9"/>
+    <path d="M 2,16 L 9,16"/>
+  </g>
+  <g id="r" data-codepoint="U+0072" data-left="-9" data-right="8" data-advance="17" fill="none" stroke="#000">
+    <path d="M -4,-5 L -4,9"/>
+    <path d="M -3,-5 L -3,9"/>
+    <path d="M -3,1 L -2,-2 L 0,-4 L 2,-5 L 5,-5 L 6,-4 L 6,-3 L 5,-2 L 4,-3 L 5,-4"/>
+    <path d="M -7,-5 L -3,-5"/>
+    <path d="M -7,9 L 0,9"/>
+  </g>
+  <g id="s" data-codepoint="U+0073" data-left="-8" data-right="9" data-advance="17" fill="none" stroke="#000">
+    <path d="M 5,-3 L 6,-5 L 6,-1 L 5,-3 L 4,-4 L 2,-5 L -2,-5 L -4,-4 L -5,-3 L -5,-1 L -4,0 L -2,1 L 3,3 L 5,4 L 6,5"/>
+    <path d="M -5,-2 L -4,-1 L -2,0 L 3,2 L 5,3 L 6,4 L 6,7 L 5,8 L 3,9 L -1,9 L -3,8 L -4,7 L -5,5 L -5,9 L -4,7"/>
+  </g>
+  <g id="t" data-codepoint="U+0074" data-left="-7" data-right="8" data-advance="15" fill="none" stroke="#000">
+    <path d="M -2,-12 L -2,5 L -1,8 L 1,9 L 3,9 L 5,8 L 6,6"/>
+    <path d="M -1,-12 L -1,5 L 0,8 L 1,9"/>
+    <path d="M -5,-5 L 3,-5"/>
+  </g>
+  <g id="u" data-codepoint="U+0075" data-left="-11" data-right="11" data-advance="22" fill="none" stroke="#000">
+    <path d="M -6,-5 L -6,6 L -5,8 L -2,9 L 0,9 L 3,8 L 5,6"/>
+    <path d="M -5,-5 L -5,6 L -4,8 L -2,9"/>
+    <path d="M 5,-5 L 5,9"/>
+    <path d="M 6,-5 L 6,9"/>
+    <path d="M -9,-5 L -5,-5"/>
+    <path d="M 2,-5 L 6,-5"/>
+    <path d="M 5,9 L 9,9"/>
+  </g>
+  <g id="v" data-codepoint="U+0076" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M -6,-5 L 0,9"/>
+    <path d="M -5,-5 L 0,7"/>
+    <path d="M 6,-5 L 0,9"/>
+    <path d="M -8,-5 L -2,-5"/>
+    <path d="M 2,-5 L 8,-5"/>
+  </g>
+  <g id="w" data-codepoint="U+0077" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -8,-5 L -4,9"/>
+    <path d="M -7,-5 L -4,6"/>
+    <path d="M 0,-5 L -4,9"/>
+    <path d="M 0,-5 L 4,9"/>
+    <path d="M 1,-5 L 4,6"/>
+    <path d="M 8,-5 L 4,9"/>
+    <path d="M -11,-5 L -4,-5"/>
+    <path d="M 5,-5 L 11,-5"/>
+  </g>
+  <g id="x" data-codepoint="U+0078" data-left="-10" data-right="10" data-advance="20" fill="none" stroke="#000">
+    <path d="M -6,-5 L 5,9"/>
+    <path d="M -5,-5 L 6,9"/>
+    <path d="M 6,-5 L -6,9"/>
+    <path d="M -8,-5 L -2,-5"/>
+    <path d="M 2,-5 L 8,-5"/>
+    <path d="M -8,9 L -2,9"/>
+    <path d="M 2,9 L 8,9"/>
+  </g>
+  <g id="y" data-codepoint="U+0079" data-left="-10" data-right="9" data-advance="19" fill="none" stroke="#000">
+    <path d="M -6,-5 L 0,9"/>
+    <path d="M -5,-5 L 0,7"/>
+    <path d="M 6,-5 L 0,9 L -2,13 L -4,15 L -6,16 L -7,16 L -8,15 L -7,14 L -6,15"/>
+    <path d="M -8,-5 L -2,-5"/>
+    <path d="M 2,-5 L 8,-5"/>
+  </g>
+  <g id="z" data-codepoint="U+007A" data-left="-9" data-right="9" data-advance="18" fill="none" stroke="#000">
+    <path d="M 5,-5 L -6,9"/>
+    <path d="M 6,-5 L -5,9"/>
+    <path d="M -5,-5 L -6,-1 L -6,-5 L 6,-5"/>
+    <path d="M -6,9 L 6,9 L 6,5 L 5,9"/>
+  </g>
+  <g id="{" data-codepoint="U+007B" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M 2,-16 L 0,-15 L -1,-14 L -2,-12 L -2,-10 L -1,-8 L 0,-7 L 1,-5 L 1,-3 L -1,-1"/>
+    <path d="M 0,-15 L -1,-13 L -1,-11 L 0,-9 L 1,-8 L 2,-6 L 2,-4 L 1,-2 L -3,0 L 1,2 L 2,4 L 2,6 L 1,8 L 0,9 L -1,11 L -1,13 L 0,15"/>
+    <path d="M -1,1 L 1,3 L 1,5 L 0,7 L -1,8 L -2,10 L -2,12 L -1,14 L 0,15 L 2,16"/>
+  </g>
+  <g id="|" data-codepoint="U+007C" data-left="-4" data-right="4" data-advance="8" fill="none" stroke="#000">
+    <path d="M 0,-16 L 0,16"/>
+  </g>
+  <g id="}" data-codepoint="U+007D" data-left="-7" data-right="7" data-advance="14" fill="none" stroke="#000">
+    <path d="M -2,-16 L 0,-15 L 1,-14 L 2,-12 L 2,-10 L 1,-8 L 0,-7 L -1,-5 L -1,-3 L 1,-1"/>
+    <path d="M 0,-15 L 1,-13 L 1,-11 L 0,-9 L -1,-8 L -2,-6 L -2,-4 L -1,-2 L 3,0 L -1,2 L -2,4 L -2,6 L -1,8 L 0,9 L 1,11 L 1,13 L 0,15"/>
+    <path d="M 1,1 L -1,3 L -1,5 L 0,7 L 1,8 L 2,10 L 2,12 L 1,14 L 0,15 L -2,16"/>
+  </g>
+  <g id="~" data-codepoint="U+007E" data-left="-12" data-right="12" data-advance="24" fill="none" stroke="#000">
+    <path d="M -9,3 L -9,1 L -8,-2 L -6,-3 L -4,-3 L -2,-2 L 2,1 L 4,2 L 6,2 L 8,1 L 9,-1"/>
+    <path d="M -9,1 L -8,-1 L -6,-2 L -4,-2 L -2,-1 L 2,2 L 4,3 L 6,3 L 8,2 L 9,-1 L 9,-3"/>
+  </g>
+  <g id="" data-codepoint="U+007F" data-left="-8" data-right="8" data-advance="16" fill="none" stroke="#000">
+    <path d="M -8,-12 L -8,9 L -7,9 L -7,-12 L -6,-12 L -6,9 L -5,9 L -5,-12 L -4,-12 L -4,9 L -3,9 L -3,-12 L -2,-12 L -2,9 L -1,9 L -1,-12 L 0,-12 L 0,9 L 1,9 L 1,-12 L 2,-12 L 2,9 L 3,9 L 3,-12 L 4,-12 L 4,9 L 5,9 L 5,-12 L 6,-12 L 6,9 L 7,9 L 7,-12 L 8,-12 L 8,9"/>
+  </g>
+</svg>

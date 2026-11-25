@@ -15,6 +15,6 @@ murrelet_common = { workspace = true }
 murrelet_perform = { workspace = true, default-features = false }
 murrelet_draw = { workspace = true, default-features = false }
 glam = { version = "0.28.0", features = ["serde"] }
-itertools = "0.10.5"
+itertools = { workspace = true }
 svg = "0.10.0"
 regex = "1.7.3"

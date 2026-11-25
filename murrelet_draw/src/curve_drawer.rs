@@ -1,20 +1,24 @@
+use std::borrow::Borrow;
+
 use glam::*;
 use itertools::Itertools;
 use lerpable::Lerpable;
 use lyon::path::Path;
+use murrelet_common::LivecodeResult;
 use murrelet_common::*;
-use murrelet_livecode::types::{LivecodeError, LivecodeResult};
 use murrelet_livecode_derive::*;
 use serde::{Deserialize, Serialize};
 use svg::node::element::path::Data;
 
 use crate::{
     cubic::CubicBezier,
-    newtypes::*,
-    tesselate::{
-        ToVecVec2, cubic_bezier_path_to_lyon, flatten_cubic_bezier_path,
-        flatten_cubic_bezier_path_with_tolerance, parse_svg_data_as_vec2, segment_arc, segment_vec,
+    line_spacing::{
+        ToVecVec2, flatten_cubic_bezier_path, flatten_cubic_bezier_path_with_tolerance,
+        segment_arc, segment_vec,
     },
+    newtypes::*,
+    svg_read::parse_svg_data_as_vec2,
+    tesselate::cubic_bezier_path_to_lyon,
 };
 
 #[derive(Debug, Clone, Default, Livecode, Lerpable, Serialize, Deserialize)]
@@ -65,6 +69,27 @@ pub struct CubicBezierPath {
     pub closed: bool,
 }
 impl CubicBezierPath {
+    pub fn builder(from: Vec2, ctrl1: Vec2) -> Self {
+        Self {
+            from,
+            ctrl1,
+            curves: vec![],
+            closed: false,
+        }
+    }
+
+    pub fn add(&mut self, ctrl1: Vec2, ctrl2: Vec2, to: Vec2) {
+        self.curves.push(CubicBezierTo::new(Some(ctrl1), ctrl2, to));
+    }
+
+    pub fn add_smooth(&mut self, ctrl2: Vec2, to: Vec2) {
+        self.curves.push(CubicBezierTo::new(None, ctrl2, to));
+    }
+
+    pub fn close(&mut self) {
+        self.closed = true;
+    }
+
     pub fn new(from: Vec2, ctrl1: Vec2, curves: Vec<CubicBezierTo>, closed: bool) -> Self {
         Self {
             from,
@@ -177,6 +202,11 @@ impl CurveDrawer {
         Self { segments, closed }
     }
 
+    pub fn new_simple_rect(xy: Vec2, wh: Vec2) -> Self {
+        let rect = Rect::from_xy_wh(xy, wh);
+        CurveDrawer::new_simple_points(rect.to_vec2(), true)
+    }
+
     pub fn new_closed(segments: Vec<CurveSegment>) -> Self {
         Self {
             segments,
@@ -258,19 +288,12 @@ impl CurveDrawer {
     }
 
     pub fn maybe_transform<T: ToSimpleTransform>(&self, transform: &T) -> LivecodeResult<Self> {
-        let mut segments = vec![];
-
         let transform = transform.to_simple_transform();
-
-        if !transform.is_similarity_transform() {
-            return Err(LivecodeError::raw("not a similarity transform"));
-        }
-
-        for cd in &self.segments {
-            // we've ran our check, so we can just do it now..
-            segments.push(cd.force_transform(&transform));
-        }
-
+        let segments = self
+            .segments
+            .iter()
+            .map(|cd| cd.force_transform(&transform))
+            .collect();
         Ok(Self::new(segments, self.closed))
     }
 
@@ -287,6 +310,159 @@ impl CurveDrawer {
             segments
         }
     }
+
+    pub fn reverse(&self) -> CurveDrawer {
+        let s = self
+            .segments
+            .iter()
+            .map(|x| x.reverse())
+            .rev()
+            .collect_vec();
+        s.to_cd(self.closed)
+    }
+
+    pub fn concat(&self, rhs: &CurveDrawer, is_closed: bool) -> CurveDrawer {
+        [self.segments.clone(), rhs.segments.clone()]
+            .concat()
+            .to_cd(is_closed)
+    }
+
+    pub fn concat_open(&self, rhs: &CurveDrawer) -> CurveDrawer {
+        self.concat(rhs, false)
+    }
+
+    pub fn concat_closed(&self, rhs: &CurveDrawer) -> CurveDrawer {
+        self.concat(rhs, true)
+    }
+
+    pub fn split_range_v(&self, range: Vec2) -> Self {
+        self.split_range(range.x, range.y)
+    }
+
+    pub fn split_range(&self, start_pct: f32, end_pct: f32) -> Self {
+        // slicing backwards is the forward slice, flipped
+        if end_pct < start_pct {
+            return self.split_range(end_pct, start_pct).reverse();
+        }
+
+        let one_loop = self.to_segments();
+
+        if !self.closed {
+            return one_loop.simple_split_range(start_pct, end_pct).to_cd_open();
+        }
+
+        // hax loop it twice, and then sample from that
+        let span = (end_pct - start_pct).min(1.0);
+        let start = start_pct.rem_euclid(1.0);
+
+        let doubled = [one_loop.clone(), one_loop].concat();
+        doubled
+            .simple_split_range(start / 2.0, (start + span) / 2.0)
+            .to_cd_open()
+    }
+
+    pub fn split_seq(&self, pcts: &[f32]) -> LivecodeResult<Vec<CurveDrawer>> {
+        if pcts.len() == 0 {
+            return Ok(vec![]);
+        }
+
+        let (Some(&first), Some(_last)) = (pcts.first(), pcts.last()) else {
+            return Ok(vec![self.clone()]);
+        };
+
+        for p in pcts {
+            if *p < 0.0 {
+                return Err("pct less than 0").to_lc_err();
+            }
+
+            if *p > 1.0 {
+                return Err("pct greater than 1").to_lc_err();
+            }
+        }
+
+        let mut result = vec![];
+
+        // if it's closed, take care of the wrapping
+        let (base, offset) = if self.closed {
+            (self.split_range(first, first + 1.0), first)
+        } else {
+            (self.split_range(first, 1.0), 0.0) // offset is mostly used to shift closed things, so we need to leave this as 0.0
+        };
+
+        let mut rest_of_curve = base.clone();
+        let mut curr = 0.0;
+
+        let mut cut_to_pct = |pct: f32| {
+            // we're at the end!
+            if 1.0 - curr < 1.0e-6 {
+                return rest_of_curve.to_cd_open();
+            }
+            // what pct in remaining are we going to!
+            let local_pct = (pct - curr) / (offset + 1.0 - curr);
+            let (split, remaining) = rest_of_curve.split(local_pct);
+            rest_of_curve = remaining.to_cd_open();
+            curr = pct;
+            split.to_cd_open()
+        };
+
+        // this also skips the first, which we took care of already
+        for (i, (curr, next)) in pcts.curr_next_maybe_loop_iter(self.closed).enumerate() {
+            let is_wrap = self.closed && i == pcts.len() - 1;
+            // it's fine if they're equal
+            if *next < *curr && !is_wrap {
+                // if statement to handle the case where it's looping back to the start
+                return Err("sort before split seq").to_lc_err();
+            }
+
+            // result.push(cut_to_pct(*next));
+            let target = if is_wrap { *next + 1.0 } else { *next };
+            result.push(cut_to_pct(target));
+        }
+
+        Ok(result)
+    }
+
+    pub fn last_point_err(&self) -> LivecodeResult<Vec2> {
+        self.last_point().ok_or_else(|| "empty").to_lc_err()
+    }
+
+    pub fn first_point_err(&self) -> LivecodeResult<Vec2> {
+        self.first_point().ok_or_else(|| "empty").to_lc_err()
+    }
+
+    pub fn is_open(&self) -> bool {
+        !self.is_closed()
+    }
+
+    #[track_caller] // this has it panic in the macro, which shows up in the code location
+    pub fn panic_for_gaps(&self) {
+        for (i, (curr, next)) in self
+            .segments()
+            .curr_next_maybe_loop_iter(self.closed)
+            .enumerate()
+        {
+            // // for now, just skip gaps going into points.. since i'm drawing lines using them
+            // if matches!(curr, CurveSegment::Points(_)) || matches!(next, CurveSegment::Points(_)) {
+            //     continue;
+            // }
+
+            let gap = curr.last_point().distance(next.first_point());
+            if gap >= 0.1 {
+                panic!(
+                    "gap of {gap:.3} after segment {i}: {:?} -> {:?}",
+                    curr.last_point(),
+                    next.first_point()
+                );
+            }
+        }
+    }
+}
+
+fn warn_arc_skew_once() {
+    static WARN: std::sync::Once = std::sync::Once::new();
+    WARN.call_once(|| {
+        println!("arcs can't be skewed!");
+    });
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
@@ -297,6 +473,16 @@ pub enum CurveSegment {
 }
 
 impl CurveSegment {
+    pub fn line_connecting<C0: ToCurveDrawer, C1: ToCurveDrawer>(
+        start: &C0,
+        end: &C1,
+    ) -> LivecodeResult<Self> {
+        let first = start.borrow().last_spot_cd().to_lc_err()?;
+        let last = end.borrow().first_spot_cd().to_lc_err()?;
+
+        Ok(Self::new_simple_line(first, last))
+    }
+
     pub fn arc<A: IsAngle>(loc: Vec2, radius: f32, start_pi: A, end_pi: A) -> Self {
         Self::Arc(CurveArc {
             loc,
@@ -330,13 +516,13 @@ impl CurveSegment {
         }
     }
 
-    pub fn new_simple_arc<Rad: IsLength, A1: IsAngle, A2: IsAngle>(
+    pub fn new_simple_arc<A1: IsAngle, A2: IsAngle>(
         loc: Vec2,
-        radius: Rad,
+        radius: f32,
         start: A1,
         end: A2,
     ) -> Self {
-        CurveSegment::Arc(CurveArc::new(loc, radius.len(), start, end))
+        CurveSegment::Arc(CurveArc::new(loc, radius, start, end))
     }
 
     pub fn new_simple_circle(loc: Vec2, radius: f32) -> Self {
@@ -352,8 +538,8 @@ impl CurveSegment {
         CurveSegment::new_simple_points(vec![point])
     }
 
-    pub fn new_simple_line(start: Vec2, end: Vec2) -> Self {
-        CurveSegment::new_simple_points(vec![start, end])
+    pub fn new_simple_line<V: ToVec2>(start: V, end: V) -> Self {
+        CurveSegment::new_simple_points(vec![start.to_vec2(), end.to_vec2()])
     }
 
     pub fn new_simple_points(points: Vec<Vec2>) -> Self {
@@ -385,7 +571,7 @@ impl CurveSegment {
                     let first = vec2s[0];
                     let second = vec2s[1];
 
-                    let angle = PointToPoint::new(first, second).angle().perp_to_left();
+                    let angle = PointToPoint::new(first, second).angle();
                     Some(SpotOnCurve::new(first, angle))
                 } else {
                     None
@@ -424,15 +610,20 @@ impl CurveSegment {
         })
     }
 
-    fn cubic(c: CubicBezier) -> CurveSegment {
+    pub fn cubic(c: CubicBezier) -> CurveSegment {
         Self::CubicBezier(CurveCubicBezier::from_cubic(c))
     }
 
-    fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
+    pub fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
         let transform = transform.to_simple_transform();
         match self {
             CurveSegment::Arc(curve_arc) => {
-                CurveSegment::Arc(curve_arc.force_transform(&transform))
+                if transform.is_similarity_transform() {
+                    CurveSegment::Arc(curve_arc.force_transform(&transform))
+                } else {
+                    warn_arc_skew_once();
+                    CurveSegment::Arc(curve_arc.clone())
+                }
             }
             CurveSegment::Points(curve_points) => {
                 CurveSegment::Points(curve_points.force_transform(&transform))
@@ -475,7 +666,7 @@ impl CurveSegment {
         self.extend_before(before_amount).extend_after(after_amount)
     }
 
-    fn length(&self) -> f32 {
+    pub fn length(&self) -> f32 {
         match self {
             CurveSegment::CubicBezier(c) => c.length(),
             CurveSegment::Points(p) => p.length(),
@@ -489,6 +680,277 @@ impl CurveSegment {
             CurveSegment::Points(p) => p.split_segment(dist),
             CurveSegment::Arc(a) => a.split_segment(dist),
         }
+    }
+
+    pub fn tangent_at_pct(&self, pct: f32) -> SpotOnCurve {
+        match self {
+            CurveSegment::Arc(arc) => {
+                let angle_pi =
+                    AnglePi::new(lerp(arc.start_pi.angle_pi(), arc.end_pi.angle_pi(), pct));
+                let loc = arc.loc + angle_pi.to_norm_dir() * arc.radius;
+                SpotOnCurve::new(loc, angle_pi.perp_to_left())
+            }
+            CurveSegment::Points(vec2s) => {
+                if vec2s.points.len() <= 1 {
+                    todo!()
+                } else if vec2s.points.len() > 2 {
+                    let mut total_length = 0.0;
+                    let (first, rest) = vec2s.points.split_first().unwrap();
+                    let mut last = *first;
+                    let mut segment_length = vec![];
+
+                    for v in rest {
+                        let d = last.distance(*v);
+                        total_length += d;
+                        segment_length.push(d);
+                        last = *v;
+                    }
+
+                    let target_dist = total_length * pct;
+
+                    let mut cumulative_dist_traveled = 0.0;
+                    for (idx, c) in segment_length.into_iter().enumerate() {
+                        if (cumulative_dist_traveled + c) > target_dist {
+                            let prev_vec = vec2s.points[idx];
+                            let next_vec = vec2s.points[idx + 1];
+
+                            let dist_to_go_in_segment = target_dist - cumulative_dist_traveled;
+                            let pct_to_go_in_segment = dist_to_go_in_segment / c;
+
+                            return CurveSegment::new_simple_line(prev_vec, next_vec)
+                                .tangent_at_pct(pct_to_go_in_segment);
+                        }
+                        cumulative_dist_traveled += c;
+                    }
+
+                    CurveSegment::new_simple_line(
+                        vec2s.points[vec2s.points.len() - 2],
+                        vec2s.points[vec2s.points.len() - 1],
+                    )
+                    .tangent_at_pct(1.0)
+                } else {
+                    let p2p = PointToPoint::new(vec2s.points[0], vec2s.points[1]);
+                    SpotOnCurve::new(p2p.pct(pct), p2p.angle())
+                }
+            }
+            CurveSegment::CubicBezier(cubic_bezier) => {
+                let cubic = cubic_bezier.to_cubic();
+                let total = cubic.approx_length();
+                let t = cubic.t_for_arc_len_bisect(total * pct, total);
+                cubic.tangent_at_pct(t)
+            }
+        }
+    }
+
+    pub fn loc(&self, pct: f32, len: f32) -> SpotOnCurve {
+        match self {
+            CurveSegment::CubicBezier(cubic) => {
+                let c = cubic.to_cubic();
+                let pct = c.t_for_arc_len_bisect(pct, len);
+                c.tangent_at_pct(pct)
+            }
+            _ => self.tangent_at_pct(pct),
+        }
+    }
+
+    pub fn slice_to_pct(&self, start_pct: f32, end_pct: f32) -> Self {
+        match self {
+            CurveSegment::Arc(arc) => {
+                let start = arc.start_pi() + (arc.end_pi() - arc.start_pi()) * start_pct;
+                let end = arc.start_pi() + (arc.end_pi() - arc.start_pi()) * end_pct;
+                Self::Arc(CurveArc {
+                    start_pi: start,
+                    end_pi: end,
+                    ..*arc
+                })
+            }
+            CurveSegment::Points(_) => {
+                let total = self.length();
+                let (_, after_start) = self.split_segment(total * start_pct);
+                let (middle, _) = after_start.split_segment(total * (end_pct - start_pct));
+                middle
+            }
+            CurveSegment::CubicBezier(c) => {
+                let cubic = c.to_cubic();
+                let total = cubic.approx_length();
+                let t_start = cubic.t_for_arc_len_bisect(total * start_pct, total);
+                let t_end = cubic.t_for_arc_len_bisect(total * end_pct, total);
+
+                let (_, after) = cubic.split(t_start);
+                // after spans original [t_start, 1], so remap t_end into its 0..1
+                let remapped = if 1.0 - t_start > 1e-6 {
+                    ((t_end - t_start) / (1.0 - t_start)).clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                let (middle, _) = after.split(remapped);
+                Self::CubicBezier(CurveCubicBezier::from_cubic(middle))
+            }
+        }
+    }
+
+    pub fn start_to_pct(&self, pct: f32) -> Self {
+        self.slice_to_pct(0.0, pct)
+    }
+
+    pub fn end_to_pct(&self, pct: f32) -> Self {
+        self.slice_to_pct(pct, 1.0)
+    }
+
+    pub fn first_half(&self) -> Self {
+        self.start_to_pct(0.5)
+    }
+
+    pub fn slice(&self, v: Vec2, dir: AnglePi, keep_start: bool) -> Option<Self> {
+        match self {
+            CurveSegment::Arc(arc) => arc.slice(v, dir, keep_start).map(CurveSegment::Arc),
+            CurveSegment::Points(_) => {
+                println!("fallback!");
+                Some(self.clone())
+            }
+            CurveSegment::CubicBezier(_) => todo!(),
+        }
+    }
+
+    pub fn as_arc(&self) -> Option<&CurveArc> {
+        if let Self::Arc(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn end_angle(&self) -> Option<Angle> {
+        match self {
+            CurveSegment::CubicBezier(c) => {
+                //claude
+                let start = [c.ctrl2, c.ctrl1, c.from]
+                    .into_iter()
+                    .find(|p| p.distance(c.to) > 1.0e-6)?;
+                Some(PointToPoint::new(start, c.to).angle())
+            }
+            CurveSegment::Arc(c) => Some((c.end_pi.as_angle_pi() + AnglePi::new(0.5)).into()),
+            CurveSegment::Points(p) => {
+                let mut ps = p.points.iter().rev();
+                let end = ps.next().unwrap();
+                let maybe_start = ps.next();
+                maybe_start.map(|start| PointToPoint::new(*start, *end).angle())
+            }
+        }
+    }
+
+    pub fn start_angle(&self) -> Option<Angle> {
+        match self {
+            CurveSegment::CubicBezier(c) => {
+                let end = [c.ctrl1, c.ctrl2, c.to]
+                    .into_iter()
+                    .find(|p| p.distance(c.from) > 1.0e-6)?;
+                Some(PointToPoint::new(c.from, end).angle())
+            }
+            CurveSegment::Arc(c) => Some((c.start_pi.as_angle_pi() + AnglePi::new(0.5)).into()),
+            CurveSegment::Points(p) => {
+                let mut ps = p.points.iter();
+                let start = ps.next().unwrap();
+                let maybe_end = ps.next();
+                maybe_end.map(|end| PointToPoint::new(*start, *end).angle())
+            }
+        }
+    }
+
+    pub fn is_ccw(&self) -> Option<bool> {
+        match self {
+            CurveSegment::CubicBezier(_) => None,
+            CurveSegment::Arc(c) => Some(c.is_ccw()),
+            CurveSegment::Points(_) => None,
+        }
+    }
+
+    pub fn arc_to(spot: SpotOnCurve, rad: f32, arc: AnglePi) -> Self {
+        let mut icb = crate::compass::InteractiveCompassBuilder::new();
+        icb.add_curve_start_simple(spot.loc, spot.angle.flip());
+        icb.add_qarc(rad, arc);
+        icb.results().first().unwrap().clone()
+    }
+
+    pub fn extrude_curve(
+        &self,
+        prev_angle_pi: Option<AnglePi>,
+        next_angle_pi: Option<AnglePi>,
+        thickness: f32,
+    ) -> (Vec<CurveSegment>, Option<AnglePi>) {
+        let mut last_angle_pi = prev_angle_pi;
+        match self {
+            CurveSegment::CubicBezier(c) => CurveSegment::Points(c.as_points()).extrude_curve(
+                prev_angle_pi,
+                next_angle_pi,
+                thickness,
+            ),
+            CurveSegment::Arc(c) => {
+                let radius = if c.is_ccw() {
+                    c.radius - thickness
+                } else {
+                    c.radius + thickness
+                };
+                let a = c.set_radius(radius);
+                (
+                    vec![CurveSegment::Arc(a)],
+                    Some(c.end_tangent_angle().into()),
+                )
+            }
+            CurveSegment::Points(c) => {
+                let mut points = vec![];
+
+                for (&curr, &next) in curr_next_no_loop_iter(&c.points) {
+                    let raw_next_angle = PointToPoint::new(curr, next).angle();
+
+                    let prev_angle: Angle = if let Some(prev_angle_pi_val) = last_angle_pi {
+                        prev_angle_pi_val.into()
+                    } else {
+                        raw_next_angle
+                    };
+
+                    let next_angle = match (thickness > 0.0, raw_next_angle > prev_angle) {
+                        (true, true) => raw_next_angle,
+                        (true, false) => raw_next_angle + AnglePi::new(2.0),
+                        (false, true) => raw_next_angle - AnglePi::new(2.0),
+                        (false, false) => raw_next_angle,
+                    };
+
+                    let corner = CornerAngleToAngle::new(curr, prev_angle, next_angle);
+                    let point = corner.corner_at_point(thickness);
+                    points.push(point);
+
+                    last_angle_pi = Some(next_angle.into());
+                }
+
+                let last_angle = if let Some(last_angle_pi_val) = last_angle_pi {
+                    last_angle_pi_val
+                } else {
+                    AnglePi::new(0.0)
+                };
+
+                let last = c.points.last().unwrap();
+
+                let last_point = if let Some(next_angle) = next_angle_pi {
+                    let corner = CornerAngleToAngle::new(*last, last_angle, next_angle);
+                    corner.corner_at_point(thickness)
+                } else {
+                    LineFromVecAndLen::new(*last, Angle::from(last_angle).perp_to_left(), thickness)
+                        .to_last_point()
+                };
+                points.push(last_point);
+
+                (vec![CurveSegment::new_simple_points(points)], last_angle_pi)
+            }
+        }
+    }
+
+    pub fn end_spot(&self) -> Option<SpotOnCurve> {
+        self.last_spot()
+    }
+
+    pub fn start_spot(&self) -> Option<SpotOnCurve> {
+        self.first_spot()
     }
 }
 
@@ -613,6 +1075,10 @@ impl CurveArc {
         self.end_pi.as_angle()
     }
 
+    pub fn first_spot(&self) -> SpotOnCurve {
+        SpotOnCurve::new(self.first_point(), self.start_tangent_angle())
+    }
+
     pub fn last_spot(&self) -> SpotOnCurve {
         SpotOnCurve::new(self.last_point(), self.end_tangent_angle())
     }
@@ -650,8 +1116,9 @@ impl CurveArc {
     }
 
     pub fn is_full_circle(&self) -> bool {
-        (self.end_pi - self.start_pi).angle_pi().abs() >= 0.0
-            && (self.end_pi - self.start_pi).angle_pi().rem_euclid(2.0) < 1e-3f32
+        let turns = (self.end_pi - self.start_pi).angle_pi().abs();
+        let rem = turns.rem_euclid(2.0);
+        turns >= 1e-3f32 && (rem < 1e-3f32 || rem > 2.0 - 1e-3f32)
     }
 
     pub fn is_full_circle_then_split(&self) -> Option<(CurveArc, CurveArc)> {
@@ -669,13 +1136,30 @@ impl CurveArc {
     }
 
     // you should make sure that it's a similarity trnasform before you do this!
-    fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
+    pub fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> Self {
         let transform = transform.to_simple_transform();
+        let loc = transform.transform_vec2(self.loc);
+        let first_point = transform.transform_vec2(self.first_point());
+        // let first_dir = first_point - loc;
+        let first_p2p = PointToPoint::new(loc, first_point);
+        // let start_pi: AnglePi = Angle::new(first_dir.to_angle()).into();
+        // let radius = first_dir.length();
+        let start_pi = first_p2p.angle().into();
+        let radius = first_p2p.length();
+
+        // getting some chatgpt help to handle reflection...
+        // Reflection flips winding, so flip arc sweep when orientation is reversed.
+        let delta = if transform.to_mat3().determinant() < 0.0 {
+            -(self.end_pi - self.start_pi)
+        } else {
+            self.end_pi - self.start_pi
+        };
+
         Self {
-            loc: transform.transform_vec2(self.loc),
-            radius: transform.approx_scale() * self.radius,
-            start_pi: transform.approx_rotate() + self.start_pi,
-            end_pi: transform.approx_rotate() + self.end_pi,
+            loc,
+            radius,
+            start_pi,
+            end_pi: start_pi + delta,
         }
     }
 
@@ -706,6 +1190,82 @@ impl CurveArc {
         };
 
         (first_arc.to_segment(), second_arc.to_segment())
+    }
+
+    pub fn get_circle(&self) -> Circle {
+        Circle::new(self.loc, self.radius)
+    }
+
+    pub fn angle_is_past_end(&self, angle: AnglePi) -> bool {
+        if self.is_ccw() {
+            angle > self.end_pi()
+        } else {
+            angle < self.end_pi()
+        }
+    }
+
+    pub fn intersecting_angle(&self, pt: Vec2) -> AnglePi {
+        let angle = Angle::new((pt.y - self.loc.y).atan2(pt.x - self.loc.x)).as_angle_pi();
+        if angle.is_neg() {
+            angle + AnglePi::new(2.0)
+        } else {
+            angle
+        }
+    }
+
+    pub fn slice(&self, v: Vec2, dir: AnglePi, keep_start: bool) -> Option<Self> {
+        let intersections =
+            solve_circle_def_line_intersection(self.loc, self.radius, v, dir.to_norm_dir());
+
+        let raw_angles = intersections
+            .into_iter()
+            .map(|i| self.intersecting_angle(i))
+            .collect_vec();
+
+        // add the same angle but offset by 2.0 just in case
+        let mut candidate_angles = raw_angles.clone();
+        for i in &raw_angles {
+            candidate_angles.push(*i - AnglePi::new(2.0));
+        }
+
+        let matching_intersections = candidate_angles
+            .into_iter()
+            .filter(|angle_pi| self.is_in_arc(*angle_pi))
+            .collect_vec();
+
+        match &matching_intersections[..] {
+            [] => {
+                println!("no intersection found");
+                None
+            }
+            [angle_pi] => {
+                if keep_start {
+                    Some(CurveArc {
+                        end_pi: *angle_pi,
+                        ..*self
+                    })
+                } else {
+                    Some(CurveArc {
+                        start_pi: *angle_pi,
+                        ..*self
+                    })
+                }
+            }
+            [angle1, angle2] => Some(CurveArc {
+                start_pi: *angle1,
+                end_pi: *angle2,
+                ..*self
+            }),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn split_end(&self, pct: f32) -> CurveDrawer {
+        self.split_range(0.0, pct)
+    }
+
+    pub fn split_start(&self, pct: f32) -> CurveDrawer {
+        self.split_range(pct, 1.0)
     }
 }
 
@@ -783,14 +1343,19 @@ impl CurveCubicBezier {
     }
 
     fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
-        let v = self.to_cubic().to_vec2_line_space(1.0); // todo, figure out how to manage that
-        CurvePoints::new(v).split_segment(target_dist)
+        let cubic = self.to_cubic();
+        let total = cubic.approx_length();
+        let t = cubic.t_for_arc_len_bisect(target_dist, total);
+        let (left, right) = cubic.split(t);
+        (
+            CurveSegment::CubicBezier(CurveCubicBezier::from_cubic(left)),
+            CurveSegment::CubicBezier(CurveCubicBezier::from_cubic(right)),
+        )
     }
 }
 
 #[derive(Debug, Clone, Livecode, Lerpable)]
 pub struct CurvePoints {
-    #[lerpable(func = "lerpify_vec_vec2")]
     pub points: Vec<Vec2>,
 }
 impl CurvePoints {
@@ -822,10 +1387,40 @@ impl CurvePoints {
         CurvePoints::new(self.points.iter().cloned().rev().collect_vec())
     }
 
-    fn force_transform(&self, transform: &SimpleTransform2d) -> CurvePoints {
+    pub fn force_transform<T: ToSimpleTransform>(&self, transform: &T) -> CurvePoints {
+        let transform = transform.to_simple_transform();
         CurvePoints {
             points: transform.transform_many_vec2(self.points()).clone_to_vec(),
         }
+    }
+
+    pub fn remove_colinear(&self) -> Self {
+        let mut result = vec![];
+        for (prev, curr, next) in prev_curr_next_loop_iter(self.points()) {
+            let in_angle_raw = PointToPoint::new(*prev, *curr).angle();
+            let out_angle_raw = PointToPoint::new(*curr, *next).angle();
+            let diff = out_angle_raw - in_angle_raw;
+            if approx_eq_eps(diff.angle_pi() % 1.0, 1.0, 1e-5) {
+                continue;
+            }
+            result.push(*curr)
+        }
+        Self::new(result)
+    }
+
+    pub fn remove_segments_shorter_than(&self, amount: f32) -> Self {
+        let mut result = vec![];
+        if let Some((&first, rest)) = self.points().split_first() {
+            let mut prev = first;
+            result.push(prev);
+            for &curr in rest {
+                if curr.distance(prev) >= amount {
+                    result.push(curr);
+                    prev = curr;
+                }
+            }
+        }
+        Self::new(result)
     }
 
     fn split_segment(&self, target_dist: f32) -> (CurveSegment, CurveSegment) {
@@ -863,6 +1458,22 @@ impl CurvePoints {
     fn extend_pts(&mut self, points: &[Vec2]) {
         self.points.extend_from_slice(points);
     }
+
+    pub fn to_lens(&self) -> Vec<f32> {
+        let mut v = vec![];
+        for (prev, next) in self.points.curr_next_no_loop_iter() {
+            v.push(prev.distance(*next));
+        }
+        v
+    }
+
+    pub fn segment(&self, idx: usize) -> Option<PointToPoint> {
+        if let (Some(a), Some(b)) = (self.points.get(idx), self.points.get(idx + 1)) {
+            Some(PointToPoint::new(*a, *b))
+        } else {
+            None
+        }
+    }
 }
 
 pub trait ToCurveSegment {
@@ -884,12 +1495,6 @@ impl ToCurveSegment for Vec2 {
 impl ToCurveSegment for Vec<Vec2> {
     fn to_segment(&self) -> CurveSegment {
         CurveSegment::new_simple_points(self.clone())
-    }
-}
-
-impl ToCurveSegment for Polyline {
-    fn to_segment(&self) -> CurveSegment {
-        CurveSegment::new_simple_points(self.clone_to_vec())
     }
 }
 
@@ -952,6 +1557,22 @@ pub trait ToCurveDrawer {
         CurveDrawer::new(simplify_curve_segments(&self.to_segments()), is_closed)
     }
 
+    fn reverse_curve(&self) -> Vec<CurveSegment> {
+        self.to_cd_open().reverse().segments
+    }
+
+    fn last_spot_cd_err(&self) -> LivecodeResult<SpotOnCurve> {
+        self.last_spot_cd()
+            .ok_or_else(|| "last spot on empty")
+            .to_lc_err()
+    }
+
+    fn first_spot_cd_err(&self) -> LivecodeResult<SpotOnCurve> {
+        self.first_spot_cd()
+            .ok_or_else(|| "first spot on empty")
+            .to_lc_err()
+    }
+
     // assume open
     fn last_spot_cd(&self) -> Option<SpotOnCurve> {
         let cdo = self.to_cd_open();
@@ -976,6 +1597,10 @@ pub trait ToCurveDrawer {
             }
         }
         None
+    }
+
+    fn start_spot_cd(&self) -> Option<SpotOnCurve> {
+        self.first_spot_cd()
     }
 
     fn first_spot_cd(&self) -> Option<SpotOnCurve> {
@@ -1008,6 +1633,10 @@ pub trait ToCurveDrawer {
     fn to_cd_open(&self) -> CurveDrawer {
         // CurveDrawer::new(self.to_segments(), false)
         self.to_cd(false)
+    }
+
+    fn split_range(&self, start: f32, end: f32) -> CurveDrawer {
+        self.to_cd_open().split_range(start, end)
     }
 
     // trying out utility functions
@@ -1077,6 +1706,16 @@ pub trait ToCurveDrawer {
         self.split(new_size)
     }
 
+    fn pct(&self, pct: f32) -> Option<SpotOnCurve> {
+        if pct <= 0.0 {
+            return self.first_spot_cd();
+        }
+
+        let (a, _) = self.split(pct);
+        a.last_spot_cd()
+    }
+
+    // todo, update this to use Measured...
     fn split(&self, pct: f32) -> (Vec<CurveSegment>, Vec<CurveSegment>) {
         if pct <= 0.0 {
             return (vec![], self.to_segments());
@@ -1176,6 +1815,19 @@ pub trait ToCurveDrawer {
         }
         result
     }
+
+    // note that this doesn't handle closed and expects start and end to be between 0 and 1, use split_range!
+    fn simple_split_range(&self, start_pct: f32, end_pct: f32) -> Vec<CurveSegment> {
+        let (start_pct, end_pct) = (start_pct.clamp(0.0, 1.0), end_pct.clamp(0.0, 1.0));
+        if start_pct >= end_pct || start_pct >= 1.0 {
+            return vec![];
+        }
+
+        let (_, after_start) = self.split(start_pct);
+        let remaining = (end_pct - start_pct) / (1.0 - start_pct);
+        let (middle, _) = after_start.split(remaining);
+        middle
+    }
 }
 
 impl ToCurveDrawer for CurveSegment {
@@ -1231,16 +1883,41 @@ impl ToCurveDrawer for Vec<CubicBezier> {
     }
 }
 
+impl ToCurveSegment for LineFromVecAndLen {
+    fn to_segment(&self) -> CurveSegment {
+        self.to_vec().to_segment()
+    }
+}
+
+// list things that can turn into segments, and it'll make a new list of segments
+// use +line to insert a line segment in between, otherwise it'll panic about the gap
 #[macro_export]
 macro_rules! curve_segments {
-    ($($expr:expr),* $(,)?) => {{
-        let mut v: Vec<murrelet_draw::curve_drawer::CurveSegment> = Vec::new();
-        $(
-            v.extend($expr.to_segments());
-        )*
-        v
-    }};
-}
+      (@acc $v:ident;) => {};
+      (@acc $v:ident; + line $e:expr $(, $($rest:tt)*)?) => {
+          let segs = $e.to_segments();
+          let bridge = match ($v.last(), segs.first()) {
+              (Some(p), Some(n)) => Some(vec![p.last_point(), n.first_point()]),
+              _ => None,
+          };
+          if let Some(pts) = bridge {
+              $v.push($crate::curve_drawer::CurveSegment::new_simple_points(pts));
+          }
+          $v.extend(segs);
+          $crate::curve_segments!(@acc $v; $($($rest)*)?);
+      };
+      (@acc $v:ident; $e:expr $(, $($rest:tt)*)?) => {
+          $v.extend($e.to_segments());
+          $crate::curve_segments!(@acc $v; $($($rest)*)?);
+      };
+      ($($t:tt)*) => {{
+          let mut v: Vec<$crate::curve_drawer::CurveSegment> = Vec::new();
+          $crate::curve_segments!(@acc v; $($t)*);
+          // experimental, checking for gaps!
+          v.to_cd_open().panic_for_gaps();
+          v
+      }};
+  }
 
 // useful for drawnshape...
 pub trait ToCurveDrawers {

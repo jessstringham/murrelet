@@ -1,5 +1,4 @@
 pub mod app_src;
-pub mod boop;
 pub mod cachedcompute;
 pub mod expr;
 pub mod lazy;
@@ -8,3 +7,6 @@ pub mod nestedit;
 pub mod state;
 pub mod types;
 pub mod unitcells;
+pub use paste;
+
+pub use murrelet_livecode_derive::*;

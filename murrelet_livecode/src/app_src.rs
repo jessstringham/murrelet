@@ -2,7 +2,9 @@
 use std::collections::HashMap;
 
 use glam::{Vec2, vec2};
-use murrelet_common::{CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue};
+use murrelet_common::{
+    CustomVars, IsLivecodeSrc, LivecodeSrcUpdateInput, LivecodeValue, StrId, ToStrId,
+};
 
 // hacky, and maybe should include more keys or maybe it has too many, but this is quick to type (kDt)
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -73,6 +75,8 @@ pub struct AppInputValues {
     keys_fire: [bool; 26],    // which key is currently pressed
     keys_changed: [bool; 26], // which keys have just changed
     keys_cycle: [u32; 26], // how many times a key has been pressed, so you can compute if it's triggered
+    key_trigger_names: [StrId; 26],
+    key_fire_names: [StrId; 26],
     lookup: HashMap<MurreletKey, usize>,
     click_fire: bool,
     click_changed: bool,
@@ -96,18 +100,15 @@ impl AppInputValues {
         key_fire: [bool; 26],
         w: f32,
         h: f32,
-    ) -> Vec<(String, LivecodeValue)> {
+    ) -> Vec<(StrId, LivecodeValue)> {
         let mut r = if self.include_keyboard {
             let mut v = Vec::with_capacity(26 + 26 + 5);
             for i in 0..26 {
                 v.push((
-                    format!("k{}t", Self::VALID_KEYS[i].to_str()),
+                    self.key_trigger_names[i],
                     LivecodeValue::Bool(keys_cycle[i] % 2 == 1),
                 ));
-                v.push((
-                    format!("k{}f", Self::VALID_KEYS[i].to_str()),
-                    LivecodeValue::Bool(key_fire[i]),
-                ));
+                v.push((self.key_fire_names[i], LivecodeValue::Bool(key_fire[i])));
             }
             v
         } else {
@@ -115,13 +116,13 @@ impl AppInputValues {
         };
 
         r.extend(vec![
-            ("has_click".to_owned(), LivecodeValue::Bool(has_click)),
-            ("cx".to_owned(), LivecodeValue::Float(cx as f64)),
-            ("cy".to_owned(), LivecodeValue::Float(cy as f64)),
-            ("mx".to_owned(), LivecodeValue::Float(mx as f64)),
-            ("my".to_owned(), LivecodeValue::Float(my as f64)),
-            ("w".to_owned(), LivecodeValue::Float(w as f64)),
-            ("h".to_owned(), LivecodeValue::Float(h as f64)),
+            ("has_click".to_strid(), LivecodeValue::Bool(has_click)),
+            ("cx".to_strid(), LivecodeValue::Float(cx as f64)),
+            ("cy".to_strid(), LivecodeValue::Float(cy as f64)),
+            ("mx".to_strid(), LivecodeValue::Float(mx as f64)),
+            ("my".to_strid(), LivecodeValue::Float(my as f64)),
+            ("w".to_strid(), LivecodeValue::Float(w as f64)),
+            ("h".to_strid(), LivecodeValue::Float(h as f64)),
         ]);
         r.extend(self.custom_vars.to_exec_funcs());
         r
@@ -129,7 +130,7 @@ impl AppInputValues {
 }
 
 impl IsLivecodeSrc for AppInputValues {
-    fn to_exec_funcs(&self) -> Vec<(String, LivecodeValue)> {
+    fn to_exec_funcs(&self) -> Vec<(StrId, LivecodeValue)> {
         let dims = self.window_dims;
 
         let has_click = self.click_fire;
@@ -152,7 +153,7 @@ impl IsLivecodeSrc for AppInputValues {
     fn update(&mut self, src_input: &LivecodeSrcUpdateInput) {
         let app = src_input.app();
 
-        // hacky, but this should work
+        self.keys_changed = [false; 26];
         if let Some(keys) = app.keys {
             for (idx, &k) in keys.iter().enumerate() {
                 if k != self.keys_fire[idx] {
@@ -223,7 +224,7 @@ impl AppInputValues {
     pub fn key_cycle_bool(&self, key: MurreletKey) -> bool {
         // just need to check if this one's pressed right now
         if let Some(k) = self.lookup.get(&key) {
-            self.keys_cycle[*k].is_multiple_of(2)
+            self.keys_cycle[*k] % 2 == 1
         } else {
             false
         }
@@ -257,6 +258,12 @@ impl AppInputValues {
             .map(|(a, b)| (*b, a))
             .collect();
 
+        // build these once
+        let key_trigger_names =
+            std::array::from_fn(|i| StrId::new(&format!("k{}t", Self::VALID_KEYS[i].to_str())));
+        let key_fire_names =
+            std::array::from_fn(|i| StrId::new(&format!("k{}f", Self::VALID_KEYS[i].to_str())));
+
         AppInputValues {
             window_dims: vec2(100.0, 100.0), // todo, is this supposed to be updated?
             keys_fire: [false; 26],
@@ -270,6 +277,8 @@ impl AppInputValues {
             click_loc: Vec2::ZERO,
             include_keyboard,
             custom_vars: CustomVars::default(),
+            key_trigger_names,
+            key_fire_names,
         }
     }
 

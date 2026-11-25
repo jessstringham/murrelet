@@ -1,11 +1,11 @@
 use glam::Vec2;
 use itertools::Itertools;
-use murrelet_common::{ToSimpleTransform, Transformable};
-use murrelet_livecode::types::LivecodeResult;
+use murrelet_common::LivecodeResult;
+use murrelet_common::{MurreletIterHelpers, ToSimpleTransform, Transformable};
 
 use crate::{
     curve_drawer::{CurveDrawer, ToCurveDrawer},
-    style::styleconf::StyleConf,
+    style::{MurreletPathAnnotation, styleconf::StyleConf},
     transform2d::Transform2d,
 };
 
@@ -14,6 +14,7 @@ use crate::{
 pub struct DrawnShape {
     cds: Vec<CurveDrawer>,
     style: StyleConf,
+    annotations: MurreletPathAnnotation,
 }
 
 impl DrawnShape {
@@ -29,6 +30,19 @@ impl DrawnShape {
         Self {
             cds: cds.to_vec(),
             style: style.clone(),
+            annotations: MurreletPathAnnotation::noop(),
+        }
+    }
+
+    pub fn new_cds_with_annotations(
+        cds: &[CurveDrawer],
+        style: StyleConf,
+        annotations: Vec<(String, String)>,
+    ) -> DrawnShape {
+        Self {
+            cds: cds.to_vec(),
+            style,
+            annotations: MurreletPathAnnotation::new_many(annotations),
         }
     }
 
@@ -44,12 +58,38 @@ impl DrawnShape {
         &self.cds
     }
 
+    pub fn annotations(&self) -> &MurreletPathAnnotation {
+        &self.annotations
+    }
+
+    pub fn add_annotation(mut self, key: String, val: String) -> Self {
+        self.annotations.add(key, val);
+        self
+    }
+
     pub fn maybe_transform(&self, transform: &Transform2d) -> LivecodeResult<DrawnShape> {
         let mut new = vec![];
         for c in &self.cds {
             new.push(c.maybe_transform(transform)?);
         }
-        Ok(DrawnShape::new_cds(&new, self.style.clone()))
+        Ok(DrawnShape {
+            cds: new,
+            style: self.style.clone(),
+            annotations: self.annotations.clone(),
+        })
+    }
+
+    pub fn transform_cds_clone(&self, f: impl Fn(&CurveDrawer) -> Vec<CurveDrawer>) -> Self {
+        let mut ds: DrawnShape = self.clone();
+        ds.transform_cds(f);
+        ds
+    }
+
+    pub fn transform_cds(&mut self, f: impl Fn(&CurveDrawer) -> Vec<CurveDrawer>) {
+        self.cds = std::mem::take(&mut self.cds)
+            .into_iter()
+            .flat_map(|c| f(&c))
+            .collect();
     }
 }
 
@@ -80,22 +120,85 @@ where
 }
 
 pub trait ToDrawnShape {
-    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape;
+    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+        DrawnShape::new_cds(&self.to_cds(), style)
+    }
 
     fn to_drawn_shape_r(&self, style: &StyleConf) -> DrawnShape {
         self.to_drawn_shape(style.clone())
     }
-}
 
-impl ToDrawnShape for CurveDrawer {
-    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
-        DrawnShape::new_cds(&[self.clone()], style)
+    fn to_cds(&self) -> Vec<CurveDrawer>;
+
+    fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
+        self.to_cds()
+    }
+
+    fn to_cd_closed_ds(&self) -> Vec<CurveDrawer> {
+        self.to_cds()
     }
 }
 
-impl ToDrawnShape for Vec<CurveDrawer> {
-    fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
-        DrawnShape::new_cds(self, style)
+impl ToDrawnShape for CurveDrawer {
+    // fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+    //     DrawnShape::new_cds(&[self.clone()], style)
+    // }
+
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        vec![self.clone()]
+    }
+}
+
+// impl ToDrawnShape for Vec<CurveDrawer> {
+//     // fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+//     //     DrawnShape::new_cds(self, style)
+//     // }
+
+//     fn to_cds(&self) -> Vec<CurveDrawer> {
+//         self.clone()
+//     }
+// }
+
+// impl ToDrawnShape for Vec<Vec<Vec2>> {
+//     fn to_cds(&self) -> Vec<CurveDrawer> {
+//         let cds = self
+//             .iter()
+//             .map(|x| CurveDrawer::new_simple_points(x.to_vec(), true))
+//             .collect_vec();
+
+//         cds
+//     }
+
+//     fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
+//         let cds = self
+//             .iter()
+//             .map(|x| CurveDrawer::new_simple_points(x.to_vec(), false))
+//             .collect_vec();
+
+//         cds
+//     }
+// }
+
+impl ToDrawnShape for Vec<Vec2> {
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        vec![CurveDrawer::new_simple_points(self.to_vec(), true)]
+    }
+
+    fn to_cd_open_ds(&self) -> Vec<CurveDrawer> {
+        vec![CurveDrawer::new_simple_points(self.to_vec(), false)]
+    }
+}
+
+impl<T> ToDrawnShape for Vec<T>
+where
+    T: ToDrawnShape,
+{
+    // fn to_drawn_shape(&self, style: StyleConf) -> DrawnShape {
+    //     DrawnShape::new_cds(self, style)
+    // }
+
+    fn to_cds(&self) -> Vec<CurveDrawer> {
+        self.iter().map(|x| x.to_cds()).flatten().collect_vec()
     }
 }
 
@@ -107,7 +210,11 @@ impl Transformable for CurveDrawer {
 
 impl Transformable for DrawnShape {
     fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
-        DrawnShape::new_cds(&self.cds.transform_with(t), self.style.clone())
+        DrawnShape {
+            cds: self.cds.transform_with(t),
+            style: self.style.clone(),
+            annotations: self.annotations.clone(),
+        }
     }
 }
 
@@ -140,6 +247,24 @@ impl PositionedText {
     }
 }
 
+impl Transformable for PositionedText {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        Self {
+            loc: self.loc.transform_with(t),
+            ..self.clone()
+        }
+    }
+}
+
+impl Transformable for MixedDrawableShape {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        match self {
+            MixedDrawableShape::Shape(d) => MixedDrawableShape::Shape(d.transform_with(t)),
+            MixedDrawableShape::Text(d) => MixedDrawableShape::Text(d.transform_with(t)),
+        }
+    }
+}
+
 impl ToMixedDrawableWithStyle for Vec<PositionedText> {
     fn with_style(&self, style: &StyleConf) -> MixedDrawableShape {
         MixedDrawableShape::Text(DrawnTextShape {
@@ -169,6 +294,14 @@ impl DrawnTextShape {
         &self.text
     }
 }
+impl Transformable for DrawnTextShape {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        Self {
+            text: self.text.map_iter_collect(|x| x.transform_with(t)),
+            ..self.clone()
+        }
+    }
+}
 
 // ergh, need another type to hold type...
 #[derive(Clone, Debug)]
@@ -183,6 +316,18 @@ impl MixedDrawableShape {
             MixedDrawableShape::Text(drawn_text_shape) => drawn_text_shape.style.clone(),
         }
     }
+
+    pub fn new_from_path_with_multiple_annotations(
+        cds: Vec<CurveDrawer>,
+        style: StyleConf,
+        annotations: Vec<(String, String)>,
+    ) -> Self {
+        MixedDrawableShape::Shape(DrawnShape::new_cds_with_annotations(
+            &cds,
+            style,
+            annotations,
+        ))
+    }
 }
 
 pub trait ToMixedDrawable {
@@ -195,8 +340,19 @@ impl ToMixedDrawable for DrawnShape {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DrawTarget {
+    Screen,
+    Svg,
+}
+
 pub trait ToMixedDrawables {
     fn to_mixed_drawables(&self) -> Vec<MixedDrawableShape>;
+
+    // you can override this!
+    fn to_mixed_drawables_for(&self, _target: DrawTarget) -> Vec<MixedDrawableShape> {
+        self.to_mixed_drawables()
+    }
 }
 
 impl ToMixedDrawables for MixedDrawableShape {

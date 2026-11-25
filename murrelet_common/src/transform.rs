@@ -3,7 +3,7 @@ use itertools::Itertools;
 use lerpable::Lerpable;
 
 use crate::{
-    AnglePi, IsAngle, approx_eq_eps, lerp,
+    AnglePi, IsAngle, SpotOnCurve, approx_eq_eps, lerp,
     polyline::{IsPolyline, Polyline},
     vec_lerp,
 };
@@ -93,7 +93,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SimpleTransform2dStep {
     Translate(Vec2),
     Rotate(Vec2, AnglePi),
@@ -176,6 +176,21 @@ impl Transformable for Vec2 {
     }
 }
 
+impl<A> Transformable for A
+where
+    A: IsAngle,
+{
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        self.rotate(t.to_simple_transform().approx_rotate())
+    }
+}
+
+impl Transformable for SpotOnCurve {
+    fn transform_with<T: ToSimpleTransform>(&self, t: &T) -> Self {
+        SpotOnCurve::new(self.loc.transform_with(t), self.angle.transform_with(t))
+    }
+}
+
 impl<A> Transformable for Vec<A>
 where
     A: Transformable,
@@ -185,7 +200,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SimpleTransform2d(Vec<SimpleTransform2dStep>);
 impl SimpleTransform2d {
     pub fn new(v: Vec<SimpleTransform2dStep>) -> Self {
@@ -194,6 +209,14 @@ impl SimpleTransform2d {
 
     pub fn rotate(angle_pi: AnglePi) -> Self {
         Self(vec![SimpleTransform2dStep::rotate_pi(angle_pi)])
+    }
+
+    pub fn reflect_x() -> Self {
+        Self(vec![SimpleTransform2dStep::reflect_x()])
+    }
+
+    pub fn reflect_y() -> Self {
+        Self(vec![SimpleTransform2dStep::reflect_y()])
     }
 
     pub fn rotate_pi(angle_pi: f32) -> Self {
@@ -285,6 +308,29 @@ impl SimpleTransform2d {
         }
         rotate
     }
+
+    pub fn inverse(&self) -> Self {
+        let mut vs = vec![];
+
+        for t in self.0.iter().rev() {
+            let v = match t {
+                SimpleTransform2dStep::Translate(v2) => {
+                    SimpleTransform2dStep::Translate(vec2(-v2.x, -v2.y))
+                }
+                SimpleTransform2dStep::Rotate(center, angle_pi) => {
+                    SimpleTransform2dStep::Rotate(*center, -*angle_pi)
+                }
+                SimpleTransform2dStep::Scale(v2) => {
+                    SimpleTransform2dStep::Scale(Vec2::new(1.0 / v2.x, 1.0 / v2.y))
+                }
+                SimpleTransform2dStep::Skew(..) => {
+                    todo!();
+                }
+            };
+            vs.push(v);
+        }
+        Self::new(vs)
+    }
 }
 
 pub trait ToSimpleTransform {
@@ -294,6 +340,24 @@ pub trait ToSimpleTransform {
 impl ToSimpleTransform for SimpleTransform2d {
     fn to_simple_transform(&self) -> SimpleTransform2d {
         self.clone()
+    }
+}
+
+impl ToSimpleTransform for SimpleTransform2dStep {
+    fn to_simple_transform(&self) -> SimpleTransform2d {
+        SimpleTransform2d::new(vec![self.clone()])
+    }
+}
+
+impl<T> ToSimpleTransform for Option<T>
+where
+    T: ToSimpleTransform,
+{
+    fn to_simple_transform(&self) -> SimpleTransform2d {
+        match self {
+            Some(x) => x.to_simple_transform(),
+            None => SimpleTransform2d::noop(),
+        }
     }
 }
 
@@ -316,4 +380,59 @@ impl Lerpable for SimpleTransform2d {
     fn lerpify<T: lerpable::IsLerpingMethod>(&self, other: &Self, pct: &T) -> Self {
         Self::new(self.0.lerpify(&other.0, pct))
     }
+}
+
+#[macro_export]
+macro_rules! translate {
+    ($v:expr) => {
+        Some(murrelet_common::SimpleTransform2dStep::translate($v))
+    };
+}
+
+#[macro_export]
+macro_rules! rotate {
+    ($a:expr) => {
+        Some(murrelet_common::SimpleTransform2dStep::rotate($a))
+    };
+}
+
+#[macro_export]
+macro_rules! scale {
+    ($s:expr) => {
+        Some(murrelet_common::SimpleTransform2dStep::scale_both($s))
+    };
+}
+
+#[macro_export]
+macro_rules! maybe_reflect_x {
+    ($cond:expr) => {
+        if $cond {
+            Some(murrelet_common::SimpleTransform2dStep::reflect_x())
+        } else {
+            None
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! maybe_reflect_y {
+    ($cond:expr) => {
+        if $cond {
+            Some(murrelet_common::SimpleTransform2dStep::reflect_y())
+        } else {
+            None
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! transform {
+    ( $( $step:expr ),* $(,)? ) => {{
+        murrelet_common::SimpleTransform2d::new(
+            vec![$($step),*]
+                .into_iter()
+                .flat_map(|s| s.into_iter())
+                .collect()
+        )
+    }};
 }
